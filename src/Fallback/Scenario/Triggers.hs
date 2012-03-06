@@ -1,0 +1,809 @@
+{- ============================================================================
+| Copyright 2011 Matthew D. Steele <mdsteele@alum.mit.edu>                    |
+|                                                                             |
+| This file is part of Fallback.                                              |
+|                                                                             |
+| Fallback is free software: you can redistribute it and/or modify it under   |
+| the terms of the GNU General Public License as published by the Free        |
+| Software Foundation, either version 3 of the License, or (at your option)   |
+| any later version.                                                          |
+|                                                                             |
+| Fallback is distributed in the hope that it will be useful, but WITHOUT     |
+| ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or       |
+| FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for   |
+| more details.                                                               |
+|                                                                             |
+| You should have received a copy of the GNU General Public License along     |
+| with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
+============================================================================ -}
+
+{-# LANGUAGE DoRec #-}
+
+module Fallback.Scenario.Triggers
+  (startingArea, startingPosition, scenarioTriggers, initialProgress,
+   getAreaDevice, getAreaEntrance, getAreaLinks, getAreaTerrain,
+   getAreaTriggers, getRegionBackground)
+where
+
+import Control.Applicative ((<$>))
+import Control.Monad (forM, join, zipWithM_)
+import qualified Control.Monad.State as State
+import qualified Data.Map as Map
+import qualified Data.Set as Set
+
+import Fallback.Data.Point
+import Fallback.Scenario.Compile
+import Fallback.Scenario.Script
+import Fallback.State.Area (arsGetCharacter)
+import Fallback.State.Creature (MonsterTownAI(..))
+import Fallback.State.Party (chrClass)
+import Fallback.State.Progress (Progress, splitVarSeed)
+import Fallback.State.Resources (MusicTag(..), SoundTag(..), rsrcTerrainSprite)
+import Fallback.State.Simple (CharacterClass(..), TerrainOpenness(..))
+import Fallback.State.Tags
+import Fallback.Utility (firstJust, flip3, maybeM, whenM)
+
+-------------------------------------------------------------------------------
+
+startingArea :: AreaTag
+startingArea = {-FrozenPass -- -} MountainPath
+
+startingPosition :: Position
+startingPosition = {-Point 5 9 -- -} Point 14 6
+
+initialProgress :: Progress
+initialProgress = scenarioInitialProgress scenarioTriggers
+
+-------------------------------------------------------------------------------
+
+scenarioTriggers :: ScenarioTriggers
+scenarioTriggers = compileScenario $ do
+
+  ---------------------------------- Devices ----------------------------------
+
+  let spriteAt coords rsrc _ = rsrcTerrainSprite rsrc coords
+  --let grassSignDt = (TerrainWindow, ofRadius 3, spriteAt (22, 9))
+  let snowSignDt = (TerrainWindow, ofRadius 3, spriteAt (18, 5))
+  let newUnlockedDoor vseed oCoords cCoords = do
+        let (cSeed, oSeed) = splitVarSeed vseed
+        rec open <- newDevice oSeed (TerrainOpen, ofRadius 1,
+                                     spriteAt oCoords) $ \ge _ -> do
+              playSound SndDoorShut
+              replaceDevice ge closed
+            closed <- newDevice cSeed (TerrainSolid, ofRadius 1,
+                                       spriteAt cCoords) $ \ge _ -> do
+              playSound SndDoorOpen
+              replaceDevice ge open
+        return closed
+  stoneDoor <- newUnlockedDoor 398282 (9, 3) (9, 2)
+  basaltDoor <- newUnlockedDoor 349783 (10, 5) (10, 4)
+  adobeDoor <- newUnlockedDoor 109823 (11, 5) (11, 4)
+
+  ----------------------------- Global Variables ------------------------------
+
+  -- Longvale:
+  timewarpToBeginningFirstTime <- newGlobalVar 970844 False
+  timewarpToBeginningLastTime <- newGlobalVar 561796 False
+  let isFirstTimeThroughLongvale =
+        varFalse timewarpToBeginningFirstTime `andP`
+        varFalse timewarpToBeginningLastTime
+  let isSecondTimeThroughLongvale =
+        varTrue timewarpToBeginningFirstTime `andP`
+        varFalse timewarpToBeginningLastTime
+  let isLastTimeThroughLongvale = varTrue timewarpToBeginningLastTime
+
+  -- Svengaard:
+  let svengaardEntryPosition = Point 5 9
+  --rescuedSophia <- newGlobalVar 953743 False
+
+  -- Tahariam:
+  demonPitOpen <- newGlobalVar 928347 False
+
+  ---------------------------------- Regions ----------------------------------
+
+  compileRegion Longvale (const "regions/Longvale.png")
+  compileRegion Svengaard (const "regions/Svengaard.png")
+  compileRegion Tahariam $ \party -> if getVar demonPitOpen party
+                                     then "regions/Tahariam2.png"
+                                     else "regions/Tahariam1.png"
+  compileRegion Bailagua (const "regions/Bailagua.png")
+  compileRegion Emitsuibom (const "regions/Emitsuibom.png")
+  -- OtherFloors is a dummy region containing e.g. 2nd floors of areas from
+  -- other regions.  The background image doesn't really matter.
+  compileRegion OtherFloors (const $ "regions/Longvale.png")
+
+  ----------------------------------- Areas -----------------------------------
+
+  compileArea Valhalla Nothing $ do
+
+    simpleMonster 660632 DemonWolf (Point 29 2) ChaseAI
+    simpleMonster 660633 DemonWolf (Point 6 20) ChaseAI
+
+  compileArea MountainPath Nothing $ do
+
+    makeExit 293832 Corenglen (Rect 35 41 5 5) (Point 32 40)
+
+    trigger 908784 (walkIn (Rect 0 0 9 2) `orP` walkIn (Rect 0 0 3 9)) $ do
+      whenM (getP isFirstTimeThroughLongvale) $ do
+        narrate "You look back up the mountain, towards the way you came\
+          \ from.  Then, you turn around and head back down.  There's nothing\
+          \ of interest on the path that led you here, but you feel sure,\
+          \ somehow, that adventure awaits you down in Coringlen."
+      whenM (getP isSecondTimeThroughLongvale) $ do
+        narrate "You're still not sure what's going on, but you doubt you're\
+          \ going to find any answers by heading back the way you came.  You'd\
+          \ better continue on into Corenglen.  Again."
+      whenM (getP isLastTimeThroughLongvale) $ do
+        narrate "Just when you thought everything made sense, nothing makes\
+          \ sense anymore.  You have to end this, and that means returning to\
+          \ Corenglen one more time.  Squaring your shoulders, you turn to\
+          \ descend through the valley."
+      pos <- getPartyPosition
+      partyWalkTo (pos `plusDir` DirSE)
+
+    once 085585 (isFirstTimeThroughLongvale `andP`
+                 walkOff startingPosition) $ do
+      startMusic MusicMovementProposition
+      narrate "You're finally here!  A brand new band of adventures, on a\
+        \ journey to seek out your very first quest.  Without a doubt, the\
+        \ days ahead will be filled with countless monsters, and hopefully,\
+        \ even more countless treasures.\n\n\
+        \After buying supplies and several days of hiking over the mountains,\
+        \ you find yourselves descending through a narrow valley towards the\
+        \ village of Corenglen.  The air smells fresh and the sun is just\
+        \ beginning to set over the western peaks.\n\n\
+        \You know very little about this village, but it's a remote town in\
+        \ dangerous territory; surely {i}they'll{_} have some quests for you!"
+      fadeOutMusic 3
+      setMessage "Trigger done!"
+
+    once 741589 (isSecondTimeThroughLongvale `andP`
+                 walkOff startingPosition) $ do
+      narrate "You blink.  Your head feels fuzzy.  Looking around, you find\
+        \ yourselves back on the mountain path leading down into Corenglen. \
+        \ The sun is just beginning to set over the peaks to the west, just as\
+        \ it was when you were hiking into Corenglen before.\n\n\
+        \This is bizarre.  Could you really have gone back in time by half a\
+        \ day?  Surely that's impossible--you've never heard of such magic. \
+        \ But the only way you can think of to find out for sure is to head\
+        \ down towards Corenglen again and see if that revenant shows up.  And\
+        \ if the town throws another party for you, you're going to be asking\
+        \ a lot more questions this time."
+
+    loneRevenantDead <- newPersistentVar 960522 False
+    once 582362 (isFirstTimeThroughLongvale `andP`
+                 (walkIn (Rect 19 25 15 1) `orP`
+                  walkIn (Rect 19 14 1 11))) $ do
+      narrate "As you are walking down the valley, you suddenly hear a noise\
+        \ and turn to see a small rock bouncing down the path from above. \
+        \ Skip, skip, skip.  Someone or something else is up there, behind\
+        \ you.  Then you hear an unearthly shriek.\n\n\
+        \You freeze.  You know what that shriek is; you've heard it before. \
+        \ That's the sound of a revenant: a dangerous undead creature of pure\
+        \ magic, usually made by a wizard.  Usually an evil wizard.  They are\
+        \ quite nasty.\n\n\
+        \Presently you see it hurtle around the bend above you, making a\
+        \ beeline down to the town below and screaming all the way.  It\
+        \ doesn't look like a terribly powerful specimen, but still big enough\
+        \ that it would probably kill a few townspeople if you didn't stop it,\
+        \ even given that they can probably already hear it coming.  You ready\
+        \ your weapons and move to attack it.  You just hope it won't kill a\
+        \ few of {i}you{_}..."
+      addBasicEnemyMonster (Point 33 13) Revenant (Just loneRevenantDead)
+                           ChaseAI
+    once 520543 (isFirstTimeThroughLongvale `andP`
+                 varTrue loneRevenantDead) $ do
+      wait 40
+      narrate "Whew...one less horror in the world.  Looks like the village\
+        \ below is safe for now.  Not that they wouldn't have been mostly fine\
+        \ without you--their militia, unlike you, have probably actually\
+        \ fought off monsters before--but still, you may have saved a life or\
+        \ two.  Maybe they'll give you free drinks at the pub or\
+        \ something.\n\n\
+        \Now, time to get back to that adventure you've been meaning to get\
+        \ started on."
+
+    once 309037 (isSecondTimeThroughLongvale `andP`
+                 (walkIn (Rect 19 25 15 1) `orP`
+                  walkIn (Rect 19 14 1 11))) $ do
+      narrate "As you are walking down the valley, you suddenly hear a noise\
+        \ and turn to see a small rock bouncing down the path from above. \
+        \ Skip, skip, skip.  You frown.  You could have sworn that that exact\
+        \ same rock bounced in the {i}exact{_} same way when the revenant\
+        \ attacked you yesterday.  In fact, everything here been the same as\
+        \ it was yesterday, from the look of the sunset to the smell of the\
+        \ air.  This can't all be a coincidence.  It seems that this really\
+        \ {i}is{_} yesterday?\n\n\
+        \You wince preemptively for the shrill cry of the revenant that you\
+        \ know is about to appear.  But suddenly, you are nearly deafened by\
+        \ what sounds like hundreds of unearthly screams, as though the gates\
+        \ of hell themselves had been thrown open on the path above you."
+      narrate "The blood drains from your faces as a huge group of revenants\
+        \ stampede around the bend above.  There must be dozens of them, the\
+        \ weakest of which puts the one you fought before to shame.  The\
+        \ leader of the pack is twenty feet tall and blazing with sickly-blue\
+        \ light; it looks like it could kill a dozen soldiers just by\
+        \ coughing.\n\n\
+        \You've heard tales of this before--packs of revenants attacking\
+        \ villages, wreaking horrible deaths upon them and leaving no\
+        \ survivors--though you've never heard of any so large as this one,\
+        \ and anyway you didn't think the tales were true.  You feel sick as\
+        \ you realize that the town below can almost certainly already see and\
+        \ hear these revenants coming from afar, but will be unable to escape\
+        \ in time, walled in as they are by the valley.  They will know that\
+        \ they are doomed, but will be able to do little more than cower in\
+        \ absolute terror for the next ten minutes or so, waiting for their\
+        \ inevitable deaths.\n\n\
+        \Then you feel even sicker as you realize, also, that you are right in\
+        \ between the pack and the village, and the valley walls offer you no\
+        \ escape."
+      -- TODO create revenant pack, give astral weapons to party
+      numsAndClasses <- forM [minBound .. maxBound] $ \charNum -> do
+        (,) charNum . chrClass <$> areaGet (arsGetCharacter charNum)
+      flip State.evalStateT (Map.fromList numsAndClasses,
+                             Set.fromList [Sunrod, Starspear, Moonbow,
+                                           Lifeblade]) $ do
+        let tryAssign (item, cls) = do
+              (chars, items) <- State.get
+              if Set.notMember item items then return () else do
+              let match (n, c) = if c == cls then Just n else Nothing
+              maybeM (firstJust match $ Map.assocs chars) $ \charNum -> do
+                State.lift $ grantAndEquipWeapon item charNum
+                State.put (Map.delete charNum chars, Set.delete item items)
+        mapM_ tryAssign [(Sunrod, MagusClass),
+                         (Moonbow, HunterClass),
+                         (Lifeblade, WarriorClass),
+                         (Starspear, AlchemistClass),
+                         (Sunrod, ClericClass),
+                         (Sunrod, AlchemistClass),
+                         (Moonbow, RogueClass),
+                         (Moonbow, MagusClass),
+                         (Moonbow, ClericClass),
+                         (Sunrod, HunterClass),
+                         (Lifeblade, RogueClass),
+                         (Sunrod, RogueClass),
+                         (Starspear, WarriorClass),
+                         (Starspear, RogueClass),
+                         (Lifeblade, ClericClass),
+                         (Moonbow, AlchemistClass),
+                         (Starspear, MagusClass)]
+        (chars, items) <- State.get
+        flip3 zipWithM_ (Map.keys chars) (Set.elems items) $ \charNum tag -> do
+          State.lift $ grantAndEquipWeapon tag charNum
+      narrate "You reach for your weapons, knowing that you don't stand a\
+        \ snowball's chance in hell against these monsters.  Maybe you can at\
+        \ least slow them down enough for some of the villagers to escape? \
+        \ No, that's a joke.  You're all going to be dead in about thirty\
+        \ seconds, tops.  Still, you have no choice but to try."
+      -- TODO start combat (makes "schwing!" noise) before showing this next
+      -- message.
+      narrate "But when you pull out your weapons, you are shocked to find not\
+        \ the meager armaments that you were barely able to afford when\
+        \ packing for your journey out here, but four powerful magical\
+        \ artifacts--a sword, a bow, a spear, and a wand--the likes of which\
+        \ you have never seen, or even {i}heard{_} of.  These are no ordinary\
+        \ enchanted weapons, like the sort that veteran adventurers are always\
+        \ bragging about winning from daring quests.  You can actually\
+        \ {i}feel{_} the power flowing through you the moment you lay your\
+        \ hands on them.\n\n\
+        \Each of the four bears a different inscription:\n\n\
+        \    {c}Lifeblade, the fount of strength and light.{_}\n\n\
+        \    {c}Moonbow, the master of the night.{_}\n\n\
+        \    {c}Starspear, the guard that hell hath dread.{_}\n\n\
+        \    {c}Sunrod, the bane of all undead.{_}\n\n\
+        \Whoa.  With weapons like these...you might actually survive this.\n\n\
+        \But where could they have come from?"
+      startMusic MusicMovementProposition
+
+  compileArea Corenglen Nothing $ do
+
+    makeExit 102938 MountainPath (Rect 0 10 2 12) (Point 2 16)
+
+    alwaysLockedDoor <- newDevice 963970 (TerrainSolid, ofRadius 1,
+                                          spriteAt (11, 4)) $ \_ _ -> do
+      setMessage "The door is locked."
+
+    onStartDaily 820304 $ do
+      -- Doors in inn:
+      addDevice_ adobeDoor (Point 19 10)
+      addDevice_ adobeDoor (Point 19 12)
+      addDevice_ adobeDoor (Point 23 10)
+      addDevice_ alwaysLockedDoor (Point 23 12)
+      addDevice_ adobeDoor (Point 26 11)
+      addDevice_ adobeDoor (Point 30 13)
+      -- Doors on houses:
+      addDevice_ alwaysLockedDoor (Point 12 13)
+      addDevice_ alwaysLockedDoor (Point 38 9)
+      addDevice_ alwaysLockedDoor (Point 38 15)
+      addDevice_ alwaysLockedDoor (Point 42 12)
+      addDevice_ alwaysLockedDoor (Point 44 18)
+      -- Doors on other buildings:
+      addDevice_ alwaysLockedDoor (Point 14 26)
+      addDevice_ alwaysLockedDoor (Point 38 29)
+
+    once 340838 isFirstTimeThroughLongvale $ do
+      wait 40
+      narrate "You step down through the valley into Corenglen.  The villagers\
+        \ could probably see and hear your fight with the revenant up on the\
+        \ valley path that descends into this village, so you were prepared to\
+        \ expect some thanks or even applause; but what you now find catches\
+        \ you completely off guard.\n\n\
+        \The entire town is out lining the streets.  All of them are cheering\
+        \ for you.  Children are running towards you with bunches of flowers\
+        \ in their arms.  Fathers are still shaking from fear only recently\
+        \ abated.  Mothers are holding their babies, tears of joy and thanks\
+        \ and relief streaming down their faces.  Everyone is shouting, and\
+        \ cheering, and looking at you as though you are their heroes and\
+        \ saviors.\n\n\
+        \...because you killed what, one revenant?  What on earth is going on?"
+      ok <- forcedChoice "A man wearing some kind of sash steps forward to\
+        \ speak to you, water in his eyes.  You can barely hear him over the\
+        \ din.  \"I welcome you, heroes, to Corenglen; I am Mayor Faz.  We are\
+        \ forever in your debt!  We...we don't even know who you are yet, but\
+        \ if you had arrived even a few minutes later, why...\"  He gets\
+        \ choked up at this point, and takes a moment to recover before\
+        \ continuing.  No, really, what is going on here, and why is everyone\
+        \ acting like you just saved them from total destruction or\
+        \ something?  You can plainly see that a number of the villagers are\
+        \ wearing swords or even armor.  There's {i}no{_} way they could have\
+        \ thought that that one monster posed them enough threat to explain\
+        \ how they're acting.\n\
+        \\n\"Please,\" the mayor continues, \"come join us at the meeting\
+        \ hall.  We are putting together a feast in your honor even as we\
+        \ speak.  It's the least we can do.  I beg you to do us the honor of\
+        \ staying for a bit.  I'll lead you there now?\""
+        [("\"Of course.  We'd be happy to stay for dinner.\"", True),
+         ("\"There's, uh, no need to thank us.  It was nothing.\"", False)]
+      narrate ((if ok then "\"Thank you, thank you!  Please.  This way.\"  He\
+                  \ bows and gestures to follow him down the road."
+                else "Your show of humility is almost too much for the poor\
+                  \ man.  \"Nothing!\" he chokes.  \"Perhaps to you, but to\
+                  \ us, why, we would all be...\"  You hurredly assure him\
+                  \ that that you will stay after all, if only to keep him\
+                  \ from crying again, and after wiping his eyes, he smiles\
+                  \ and moves to lead you down the road. ") ++
+        "\n\n\
+        \You fall in line behind the mayor and follow him toward the village\
+        \ meeting hall.  As you proceed through the town, the villagers form a\
+        \ sort of parade behind you.  They continue to cry and cheer.  Some of\
+        \ the children who managed to find some confetti are now throwing\
+        \ it.\n\n\
+        \This is going to be a very awkward dinner.")
+      setPartyPosition (Point 23 34) -- TODO cutscene of parade
+      narrate "You sit down to dinner, surrounded by grateful townspeople. \
+        \ The settings aren't fancy, even for a backwater village like this\
+        \ one, and preparations were obviously rushed--they didn't know until\
+        \ about fifteen minutes ago that they would be preparing a heroes'\
+        \ feast--but the food is delicious.  You would be enjoying it\
+        \ immensely if you weren't intensely embarrassed for being celebrated\
+        \ by these people for no reason that you can understand.\n\n\
+        \Nobody does much to explain anything to you--the only thing anyone\
+        \ seems to say the whole time is profuse thanks for your help, and\
+        \ everybody says it constantly.  You can't get a word in edgewise the\
+        \ entire dinner, for which you are grateful--you would have no idea\
+        \ what to say to these people who keep insisting that you have saved\
+        \ them."
+      -- TODO set lighting for evening
+      narrate "The feast drags on into the evening, and it grows dark\
+        \ outside.  As the older children clean up from dinner, apparently\
+        \ cheerfully, a man by the name of David who seems to be the local\
+        \ innkeeper insists that you stay the night for free in his best\
+        \ room.  It's late, you're tired, and most importantly, it'll give\
+        \ you a chance to get away from all these people for a while; so\
+        \ you gratefully accept his offer."
+      setPartyPosition (Point 22 7) -- TODO cutscene of walking to inn
+      narrate "You lock your door for the night, drop your bags on the floor,\
+        \ and collapse into bed.  Maybe in the morning this will all turn out\
+        \ to be a really weird dream."
+      -- TODO set lighting for night; maybe some cricket noises?
+      wait 40
+      -- TODO add Jessica-ghost townsperson
+      let choices = [("\"Why are these people treating us like heroes?\"",
+                      return True),
+                     ("\"Um, no, we're not confused about anything.  But\
+                      \ thanks anyways.\"  (Lie.)", return False)]
+      let page1 = join $ forcedChoice "\"My name is Jessica,\" she cheerfully\
+            \ repeats.  You wait for her to say more, but she seems to be\
+            \ happy to simply stand and smile and wait for you to realize\
+            \ that she isn't {i}going{_} to say any more about who--or\
+            \ what--she is." choices
+      ask <- join $ forcedChoice "You are awoken a few hours past midnight by\
+        \ a soft light.  You jump out of bed to see who has come into the\
+        \ room, but see that the door is still closed and locked.  Only then\
+        \ do you notice the translucent, ghostly figure who has appeared in\
+        \ the room with you.  The figure is of a long-haired woman, probably\
+        \ in her late thirties.\n\n\
+        \She looks at you and smiles.  \"Don't be alarmed,\" she says.  \"My\
+        \ name is Jessica.  You did very well yesterday!  Ah, but you seem a\
+        \ bit confused by all that has happened; perhaps I can help you?\""
+        (("\"Who are you?  {i}What{_} are you?\"", page1) : choices)
+      deny <- forcedChoice
+        ((if ask then "\"That is an easy question,\" Jessica responds.  "
+          else "Jessica gives a delighted, friendly laugh. \
+               \ \"Oh, I rather doubt that,\" she says.\n\n") ++
+         "\"They're treating you like heroes because you saved their lives. \
+         \ If you hadn't been there yesterday, on the path down to this\
+         \ village, every man, woman, and child here would now be dead.\"\n\
+         \\n\"You do know that much, right?\"")
+        [("\"No, we did nothing of the sort.  What are you talking about?\"",
+          True),
+         ("\"Well, we did kill a revenant that was on its way to attack the\
+          \ village, but surely these people could have fought off one\
+          \ revenant on their own?\"", False)]
+      forcedChoice
+        ((if deny then ""
+          else "\"Well, of course the town could have fought off {i}one{_}\
+               \ revenant,\" Jessica allows, \"a couple of them, even, if\
+               \ they were small.\"  She shakes her head and chuckles.  \"But\
+               \ that's not what you did!\"  You're, um, pretty sure that\
+               \ {i}is{_} what you did, actually.\n\n") ++
+         "\"You're just not remembering, are you?\" she sighs.  \"You saved a\
+         \ whole village and you don't even remember it.  Tell you what.  I'll\
+         \ send you back in time.\"\n\
+         \\n\"I'll take you back to yesterday, to when you were walking down\
+         \ the path into the village.  Then you can see, again, exactly what\
+         \ happened.\"")
+        [("\"Wait, what?\"", ()),
+         ("\"Is that even possible?  I'm pretty sure it's not.\"", ()),
+         ("\"Sounds great.  We'd love to have our memories refreshed.\"", ()),
+         ("\"What if we don't {i}want{_} to travel back in time?\"", ())]
+      narrate "Jessica completely ignores you, but seems instead to be\
+        \ concentrating on something.  She makes a slight hand gesture, and\
+        \ then her ghostly figure begins to become more substantial.\n\n\
+        \No, wait.  She's not becoming more substantial--the whole rest of the\
+        \ room is becoming {i}less{_} substantial.  The walls and furniture\
+        \ become translucent like her, and then fade into mist.  The light\
+        \ dims until there is nothing but total blackness.  The floor seems to\
+        \ drop out from under you; you are in freefall.  You feel cold, and\
+        \ hot, at the same time.  Somehow.  And then..."
+      writeVar timewarpToBeginningFirstTime True
+      teleport MountainPath startingPosition
+
+    once 832345 isSecondTimeThroughLongvale $ do
+      wait 40
+      narrate "Exhausted, you step down through the valley into Corenglen for\
+        \ the second time--or maybe it really is the first time.\n\n\
+        \The entire town is out lining the streets.  All of them are cheering\
+        \ for you.  Children are running towards you with bunches of flowers\
+        \ in their arms.  Fathers are still shaking from fear only recently\
+        \ abated.  Mothers are holding their babies, tears of joy and thanks\
+        \ and relief streaming down their faces.  Everyone is shouting, and\
+        \ cheering, and looking at you as though you are their heroes and\
+        \ saviors.\n\n\
+        \And this time, their treatment of you makes perfect sense--without\
+        \ your timely intervention, every one of these people would be\
+        \ suffering and dying right now instead of cheering.  What you\
+        \ {i}don't{_} understand is, well, {i}anything{_} else about what has\
+        \ happened in the past day."
+      ok <- forcedChoice "Mayor Faz steps forward to speak to you, water in\
+        \ his eyes.  You can barely hear him over the din.  \"I welcome you,\
+        \ heroes, to Corenglen; I am Mayor Faz.  We are forever in your debt! \
+        \ We...we don't even know who you are yet, but if you had arrived even\
+        \ a few minutes later, why...\"  He gets choked up at this point, and\
+        \ takes a moment to recover before continuing.\n\n\
+        \You feel almost as awkward as you did the last time you met Mayor Faz\
+        \ for the first time.  You may have saved this village, but you can't\
+        \ help feeling like you don't really deserve his praise.  It's not as\
+        \ though you set out to save the town--as far as you can tell, all you\
+        \ did was be in the right place, at the right time, at the moment when\
+        \ some kind of crazy ghost-woman decided she would send a few idiots\
+        \ back in time armed only with epicly magical weapons of unspeakable\
+        \ power.\n\
+        \\n\"Please,\" the mayor continues, \"come join us at the meeting\
+        \ hall.  We are putting together a feast in your honor even as we\
+        \ speak.  It's the least we can do.  I beg you to do us the honor of\
+        \ staying for a bit.  I'll lead you there now?\""
+        [("\"Of course.  We'd be happy to stay for dinner.\"", True),
+         ("\"There's, uh, no need to thank us.  It was nothing.\"", False)]
+      narrate ((if ok then "\"Thank you, thank you!  Please.  This way.\"  He\
+                  \ bows and gestures to follow him down the road."
+                else "Your show of humility is almost too much for the poor\
+                  \ man.  \"Nothing!\" he chokes.  \"Perhaps to you, but to\
+                  \ us, why, we would all be...\"  You hurredly assure him\
+                  \ that that you will stay after all; you know as well as he\
+                  \ does what would have happened to this village without your\
+                  \ help.  After wiping his eyes, he smiles\
+                  \ and moves to lead you down the road. ") ++
+        "\n\n\
+        \You fall in line behind the mayor and follow him toward the village\
+        \ meeting hall.  As you proceed through the town, the villagers form a\
+        \ sort of parade behind you.  They continue to cry and cheer.  Some of\
+        \ the children who managed to find some confetti are now throwing\
+        \ it.\n\n\
+        \You're not really sure what to do now.  Maybe if you sit through\
+        \ dinner and stay at the inn again, this Jessica person will appear\
+        \ again and explain what is going on.")
+      -- TODO parade and dinner scene
+      setPartyPosition (Point 22 7) -- TODO cutscene of walking to inn
+      narrate "You lock your door for the night, place your bags on the floor,\
+        \ and get carefully into bed.  Despite your fatigue, you try to keep\
+        \ yousevles awake, watching for the Jessica-ghost to appear again. \
+        \ You lie there, and you wait.\n\n\
+        \And you wait."
+      -- TODO set lighting for night; maybe some cricket noises?
+      wait 40
+      -- TODO add Jessica-ghost townsperson
+      snark <- forcedChoice "...and the next thing you know, you are awoken\
+        \ from your inevitable slumber by a soft light.  You sit up and look\
+        \ to see the translucent figure of Jessica standing in the middle of\
+        \ the room.\n\
+        \\n\"Greetings!\" she says. \"I am Jessica.  You remember me, I\
+        \ hope?\""
+        [("\"How could we forget?\"", False),
+         ("\"Well...I don't think we've met you on any day before this,\
+          \ right?  So no, I suppose we don't remember you.\"", True)]
+      forcedConversationLoop
+        ((if snark then "Jessica rolls her eyes, but manages (with effort) to\
+                        \ maintain her smile.  \"Yes yes, how very clever of\
+                        \ you.\""
+          else "Jessica closes her eyes briefly and grins.  \"Splendid!  Glad\
+               \ to hear there was no, er, permenant damage to you.\"") ++
+         "\n\n\"You did very well yesterday!  The townspeople and I are both\
+         \ impressed and grateful.  And I hope you are feeling less confused\
+         \ this time around?\"  Your looks of total exasperation quickly\
+         \ disabuse her of this notion.  \"Oh dear.  Well, what's still\
+         \ confusing you?\"")
+        [("\"How could we possibly have gone back in time?\"",
+          ContinueConv "\"Oh, because I sent you back!  Last time we met here\
+            \ today.  It's a trick I learned, once.\"  Wonderful.  A complete\
+            \ non-answer." []),
+         ("\"Are you some kind of ghost?\"",
+          ContinueConv "Jessica just shrugs." []),
+         ("\"Why were there more revenants this time?\"",
+          ContinueConv "\"I'm sure I have no idea what you're talking about. \
+            \ You went back in time and saw the exact same events unfold\
+            \ twice.\"  She leans in, and says in a slightly condescending\
+            \ voice,  \"That is what happens when you go back in time,\
+            \ dears.\"\n\n\
+            \You're pretty sure that she knows perfectly well that the battle\
+            \ was different the second time around, but evidentally she's not\
+            \ going to answer your question." []),
+         ("\"Where did all those revenants come from?\"",
+          ContinueConv "\"An excellent question.  I do hope you'll find out\
+            \ for me.\"  Interesting." []),
+         ("\"Where did these magical weapons come from?\"",
+          ContinueConv "\"Why, don't you remember?\"  Jessica looks mildly\
+            \ shocked.  \"Those are the Astral Weapons, which you gathered,\
+            \ painstakingly, on your previous quests!  The four great quests\
+            \ you embarked on before coming here.\"\n\n\
+            \Huh?  You've never even been on any quests--you've only just\
+            \ started adventuring.  Even if you had, no quest leading to an\
+            \ artifact like one of these would be achievable by novices like\
+            \ you.  It's unthinkable."
+            [("\"That's crazy talk.  We've never been on any quests, and\
+              \ we've certainly never seen these weapons before.\"",
+              StopConv ())]),
+         ("\"Where did {i}you{_} come from?\"",
+          ContinueConv "\"I'm from here, actually.  I grew up in this village,\
+            \ although I've travelled quite a bit since then.\"  Jessica\
+            \ folds her hands primly in front of her and continues to smile. \
+            \ Apparently that's all the answer you're getting." []),
+         ("\"Pretty much everything, actually.\"",
+          ContinueConv "\"Ah.  Could you be a little more specific?  I'm not\
+            \ sure I have time to explain 'everything.'  Like how to walk, or\
+            \ bathe.\"" [])]
+      forcedChoice "\"You're still not remembering, are you?  Not weeks ago,\
+        \ you defeated the most powerful lich in the world, and you're telling\
+        \ me you don't remember it?\"  Say {i}what{_} now?  Lich?  You've\
+        \ {i}definitely{_} never fought a lich.  You know this, because you're\
+        \ still alive.\n\n\
+        \She thinks for a bit.  \"Tell you what.\" she says.  \"Why don't I\
+        \ send you back in time again, to the beginning of that most recent\
+        \ quest?  I'm sure that will jog your memories.\""
+        [("\"Er, I don't think that will be necessary.\"", ()),
+         ("\"Sure, why not?  A quest sounds like fun.  Or, wait, does that\
+          \ mean we have to get killed by a lich?\"", ()),
+         ("\"Stay away from us, you crazy ghost lady!\"", ())]
+      narrate "You're pretty sure that Jessica didn't hear you--or even wait\
+        \ for you to answer--because the room around you is already fading\
+        \ away to blackness.  There is a deafening silence, so loud you almost\
+        \ can't stand it, but you find yourselves unable to speak.  You\
+        \ realize you have been flipped upside down--or maybe the rest of the\
+        \ world has been--because you are falling headlong, somewhere.  And\
+        \ then..."
+      teleport FrozenPass svengaardEntryPosition
+
+  compileArea FrozenPass Nothing $ do
+    -- Devices:
+    signpost <- newDevice 981323 snowSignDt $ \_ _ -> do
+      narrate "This signpost looks like it has seen better days, but you can\
+              \ still read it clearly.  It says:\n\n      {c}Holmgare: 2 mi. E"
+    onStartDaily 028371 $ do
+      addDevice_ stoneDoor (Point 44 12)
+      addDevice_ adobeDoor (Point 5 36)
+      addDevice_ basaltDoor (Point 26 40)
+      addDevice_ signpost (Point 48 36)
+
+    -- Monsters:
+    simpleMonster 398273 Wolf (Point 31 5) ChaseAI
+    simpleMonster 142118 Wolf (Point 29 7) ChaseAI
+    simpleMonster 293554 Wolf (Point 34 6) ChaseAI
+
+    --simpleMonster ?????? Zombie (Point 20 20) (roamWithin 15 15 10 10)
+
+    onStartOnce 113461 $ do
+      wait 40
+      narrate "Ough, ow, you're going to feel that one in the morning. \
+        \ Except, it looks like it already is morning.  Wherever you are.\n\n\
+        \You look around, trying to ignore your newly acquired splitting\
+        \ headache.  The ground is covered in snow.  You appear to be in some\
+        \ kind of mountain pass, but looking behind you, you see that the way\
+        \ through the pass has been blocked by a solid wall of ice.  It\
+        \ doesn't look natural--it must have been magically created.  There is\
+        \ no way to go but forward.\n\n\
+        \Where is this?  You've never been here before.  This can't be your\
+        \ past, can it?"
+      -- TODO add Jessica ghost
+      wait 20
+      forcedConversationLoop "Jessica's ghostly form appears in front of you. \
+        \ \"Hello there,\" she chimes, \"and welcome back to your past!  This\
+        \ is the pass through the Kovola mountain range that leads into\
+        \ Svengaard.  That is where your last and greatest quest took place:\
+        \ to find the Sunrod, and to destroy the Great Ur-Lich Vhaegyst.\"\n\n\
+        \You check your persons.  Three of the four Astral Weapons are still\
+        \ with you: the Lifeblade, the Moonbow, and the Starspear.  Sure\
+        \ enough, the Sunrod is nowhere to be found.  You've never been\
+        \ anywhere called \"Svengaard\" before, but it sounds vaguely like\
+        \ something you might've seen marked on a map once, and you've\
+        \ certainly heard of the Kovola mountains--they're in the northern\
+        \ reaches of the continent.  So at least you're in a real place."
+        [("\"How are we supposed to find the Sunrod?\"",
+          ContinueConv "\"Figuring that out is part of the quest, silly!\" she\
+            \ answers.  \"What do you think 'find' means?  You're supposed to\
+            \ {i}look{_} for it.\"\n\
+            \\n\"I'll give you a big hint, though.  Vhaegyst has it.\"\n\n\
+            \Great." []),
+         ("\"Vhaegyst?  We've never even heard of him.\"",
+          ContinueConv "Jessica looks mildly uncomfortable, as though you had\
+            \ just made a minor faux pas.  \"I...wouldn't call it a 'him,'\
+            \ exactly.  Anyway, don't worry about having forgotten all about\
+            \ Vhaegyst.  I'm sure you'll learn more, very soon.\"\n\n\
+            \Somehow, that doesn't feel very reassuring." []),
+         ("\"And just how do you expect us to defeat some kind of super-lich? \
+          \ We are going to get stomped, hard.\"",
+          ContinueConv "\"With the other three Astral weapons that you've\
+            \ already gathered, of course.\" she replies, like it was\
+            \ obvious.  \"There's a reason you did this quest last, you know. \
+            \ It was the hardest one, and certainly the most dangerous. \
+            \ Vhaegyst is a serious force to be reckoned with.  I mean,\
+            \ yikes.\"\n\
+            \\n\"I'll think you'll be fine, though.  You're all pros by now,\
+            \ right?\"" []),
+         ("\"But we never went on this quest!  We've never even been here\
+          \ before!\"", StopConv ())]
+      -- TODO fade away Jessica
+      narrate "\"Nonsense!\" she cheerfully declares.  \"You came straight to\
+        \ Corenglen from here after defeating Vhaegyst.  Now run along, and go\
+        \ do it again.  I'll meet up with you after you are victorious.\"  And\
+        \ with that, she fades away.\n\n\
+        \Well, this does {i}not{_} look good for the good guys.  But you seem\
+        \ to be sealed in this region by that giant ice wall behind you, so\
+        \ you have little choice but to press on forward.  Maybe, just maybe,\
+        \ you really can defeat this Vhaegyst lich, and maybe then you'll get\
+        \ some answers."
+
+  compileArea Holmgare Nothing $ do
+    onStartDaily 472927 $ do
+      addDevice_ adobeDoor (Point 16 13)
+      addDevice_ adobeDoor (Point 17 23)
+      addDevice_ adobeDoor (Point 19 14)
+      addDevice_ adobeDoor (Point 22 21)
+      addDevice_ adobeDoor (Point 36 23)
+      addDevice_ adobeDoor (Point 38 20)
+      addDevice_ stoneDoor (Point 24 26)
+      addDevice_ stoneDoor (Point 26 11)
+      addDevice_ stoneDoor (Point 28  9)
+      addDevice_ stoneDoor (Point 28 24)
+      addDevice_ stoneDoor (Point 31 14)
+      addDevice_ stoneDoor (Point 34 13)
+      addDevice_ stoneDoor (Point 36  8)
+    simpleTownsperson 217809 TownManApron (Point 28 27) ImmobileAI $ \_ -> do
+      let page1 = multiChoice
+            "The blacksmith wipes his brow and sets down his tongs.  \"The\
+            \ name's Gregor.  What can I do for you?\""
+            [("\"Tell us about your smithy.\"", join page2),
+             ("\"What have you got for sale?\"", join page3),
+             ("\"What's been going on in this village?\"", join page4),
+             ("\"I think we're all set.\"  (Leave.)", return ())]
+            (return ())
+          page2 = multiChoice
+            "Otay.\""
+            [("\"Whatever wrod!\"", return ())]
+            (return ())
+          page3 = multiChoice
+            "He frowns.  \"Not a lot right now, to be honest,\" he says, with\
+            \ apparent regret.  \"I can do repair work, and I can show you\
+            \ what little I've got in stock.  But I'm short on raw materials,\
+            \ and until I can get more I'm not going to be able to do any\
+            \ commission work."
+            [("\"Well, let's see what you have on hand.\"",
+              return ()),
+             ("\"You're short on raw materials?  Is that something we could\
+              \ help with?\"", return ()),
+             ("\"I wanted to ask you about something else.\"", join page1)]
+            (return ())
+          page4 = multiChoice
+            "\"Otay.\""
+            [("\"Whatever wrod!\"", return ())]
+            (return ())
+      join page1
+    simpleTownsperson 092833 TownWomanBlue (Point 15 15)
+                      ImmobileAI $ \_ge -> do
+      narrate "Oh hai."
+    simpleTownsperson 711833 TownManRed (Point 19 11) ImmobileAI $ \_ge -> do
+      narrate "Hi, folks!"
+      number <- forcedChoice "Please pick a number."
+                  [("\"One!\"", 1), ("\"Two?\"", 2), ("\"Wait, I'm confused.  Is this a trick question?  Can I get a hint?  I don't know what to do!  I want my mommy!  Um, sorry...I meant 'three.'\"", 3),
+                  ("(Just walk away.)", 4), ("\"Oh, yeah, we totally picked five.\"  (Lie.)", 5)]
+      narrate $ "You chose " ++ show (number :: Int) ++ ", I guess."
+    return ()
+
+  compileArea SewerCaves Nothing $ return ()
+  compileArea IcyFord Nothing $ return ()
+  compileArea StoneBridge Nothing $ return ()
+  compileArea Tragorda Nothing $ return ()
+  compileArea WhistlingWoods Nothing $ return ()
+  compileArea NorthernTundra Nothing $ return ()
+  compileArea Duskwood Nothing $ return ()
+  compileArea PerilousTrail Nothing $ return ()
+
+  compileArea Icehold Nothing $ do
+    onStartDaily 789321 $ do
+      addDevice_ stoneDoor (Point 30 27)
+    trigger 182832 (walkOn (Point 25 27)) $ do
+      teleport Icehold2 (Point 21 27)
+
+  compileArea Icehold2 Nothing $ do
+    trigger 982111 (walkOn (Point 20 27)) $ do
+      teleport Icehold (Point 24 27)
+
+  compileArea Icehold3 Nothing $ return ()
+
+  compileArea BurningMaze Nothing $ return ()
+
+  compileArea Gazerpit Nothing $ return ()
+
+  compileArea ArcaneLab Nothing $ return ()
+  compileArea InnerLab Nothing $ return ()
+{-
+    fooCount <- newPersistentVar 238238 0
+    trigger 119323 (walkIn (Rect 0 0 5 5)) $ do
+      foo <- readVar fooCount
+      when (foo < 5) $ do
+        modifyVar fooCount (+ 1)
+        narrate "You can't go there."
+      backUp
+
+    boss <- monster' 729382 MasterRevenant (Point 4 6)
+
+    daily 203942 (walkIn (Rect)) $ do
+      monsterWalk boss (Point)
+
+    bossFight <- scriptedCombat 827349 $ do
+      once 193822 ((<= 500) . monstHealth <$> getMonster boss) $ do
+        pos <- monsterPosition boss
+        monologue pos "You know, there's really no reason for us to fight\
+                      \ like this.  We should be able to work this out\
+                      \ reasonably, like adults, don't you think?"
+        wait 30
+        monologue pos "...after you're dead, of course."
+        orderMonsterUseAttack 4
+
+    once 203942 (walkIn (Rect)) $ do
+      narrate "Boss time!"
+      startCombat bossFight
+-}
+
+-------------------------------------------------------------------------------
+
+-- 400278, 372710, 262175, 115489, 648882, 642527, 643253, 035698, 904223,
+-- 915362, 041045, 514224, 762406, 999849, 390882, 028595, 542093, 092923,
+-- 898699, 365950, 903733, 947379, 171095, 171407, 653092, 783351, 806315,
+-- 005531, 009036, 487271, 495591, 598625, 434231, 366747, 473842, 420006,
+-- 651111, 754308, 289083, 244612, 352173, 799563, 450713, 293845, 807555,
+-- 699149, 626625, 542400, 646620, 231202, 895064, 244106, 335736, 962886,
+-- 555634, 762040, 965783, 181915, 593047, 830701, 475373, 448374, 453147,
+-- 547952, 623179, 477627, 328351, 126701, 477117, 373102, 434118, 080509,
+-- 296464, 697145, 035978, 571346, 233177, 044279, 232166, 385861, 409487
+
+-------------------------------------------------------------------------------
