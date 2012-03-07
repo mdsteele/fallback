@@ -356,7 +356,6 @@ data AreaEffect :: * -> * where
   EffAddDoodad :: Doodad -> AreaEffect ()
   EffAlterFields :: (Maybe Field -> Maybe Field) -> [Position] -> AreaEffect ()
   EffAreaGet :: (forall s. (AreaState s) => s -> a) -> AreaEffect a
-  EffGetTerrain :: Position -> AreaEffect TerrainTile
   EffMessage :: String -> AreaEffect ()
   EffTryAddDevice :: Position -> Device
                   -> AreaEffect (Maybe (GridEntry Device))
@@ -366,7 +365,7 @@ data AreaEffect :: * -> * where
   EffReplaceDevice :: GridKey Device -> Maybe Device -> AreaEffect ()
   EffReplaceMonster :: GridKey Monster -> Maybe Monster -> AreaEffect ()
   EffShakeCamera :: Double -> Int -> AreaEffect ()
-  EffSetTerrain :: Position -> TerrainTile -> AreaEffect ()
+  EffSetTerrain :: [(Position, TerrainTile)] -> AreaEffect ()
 --   EffConversation :: Script TalkEffect a -> AreaEffect a
   EffGameOver :: AreaEffect ()
   EffIfCombat :: Script CombatEffect a -> Script TownEffect a -> AreaEffect a
