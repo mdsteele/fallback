@@ -82,7 +82,6 @@ instance AreaState CombatState where
     filter (chrIsConscious . (partyGetCharacter $ arsParty cs) . fst) $
     tmAssocs $ csCharStates cs
   arsVisibleForCharacter charNum = ccsVisible . tmGet charNum . csCharStates
-  arsVisibleForParty = acsVisible . csCommon
 
 instance HasProgress CombatState where
   getProgress = getProgress . acsParty . csCommon

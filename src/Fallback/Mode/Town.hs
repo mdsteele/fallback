@@ -103,7 +103,7 @@ newTownMode resources modes initState = do
           let party' = party { partyCharacters =
                                  restore <$> partyCharacters party }
           ChangeMode <$> newRegionMode' modes RegionState
-            { rsClock = acsClock $ tsCommon ts,
+            { rsClock = arsClock ts,
               rsParty = party',
               rsPreviousArea = partyCurrentArea party',
               rsRegion = partyCurrentRegion party',

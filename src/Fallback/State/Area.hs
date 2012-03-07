@@ -94,8 +94,10 @@ class (HasProgress a) => AreaState a where
   -- four positions, one for each conscious party member.
   arsPartyPositions :: a -> [Position]
 
+  -- | Return the set of positions visible to just one character.  In town
+  -- mode, this is the same as 'arsVisibleForParty' (because all characters are
+  -- in the same position), but for combat mode it is not.
   arsVisibleForCharacter :: CharacterNumber -> a -> Set.Set Position
-  arsVisibleForParty :: a -> Set.Set Position
 
 -------------------------------------------------------------------------------
 
@@ -148,6 +150,9 @@ arsTerrainOpenness :: (AreaState a) => Position -> a -> TerrainOpenness
 arsTerrainOpenness pos ars =
   maybe (ttOpenness $ tmapGet (arsTerrain ars) pos) (devOpenness . geValue) $
   gridSearch (arsDevices ars) pos
+
+arsVisibleForParty :: (AreaState a) => a -> Set.Set Position
+arsVisibleForParty = acsVisible . arsCommon
 
 arsIsOpaque :: (AreaState a) => a -> Position -> Bool
 arsIsOpaque ars pos = not $ canSeeThrough $ arsTerrainOpenness pos ars

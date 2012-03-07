@@ -60,7 +60,6 @@ instance AreaState TownState where
   arsSetCommon ts acs = ts { tsCommon = acs }
   arsPartyPositions = (:[]) . tsPartyPosition
   arsVisibleForCharacter _ = acsVisible . tsCommon
-  arsVisibleForParty = acsVisible . tsCommon
 
 instance HasProgress TownState where
   getProgress = getProgress . acsParty . tsCommon
