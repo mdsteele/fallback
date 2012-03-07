@@ -73,19 +73,19 @@ newCombatView resources = newCursorView resources $ \cursorSink -> do
             { abilsActiveCharacter = ccCharacterNumber cc,
               abilsInCombat = True,
               abilsMetaAbilityTag = Nothing,
-              abilsParty = csParty cs }
+              abilsParty = arsParty cs }
           MetaAbilityPhase cm -> Just AbilitiesState
             { abilsActiveCharacter = ccCharacterNumber (cmCommander cm),
               abilsInCombat = True,
               abilsMetaAbilityTag = Just (cmFeatTag cm),
-              abilsParty = csParty cs }
+              abilsParty = arsParty cs }
           _ -> Nothing
   let inventoryFn cs =
         case csPhase cs of
           InventoryPhase cc _ ->
             Just InventoryState { ivsActiveCharacter = ccCharacterNumber cc,
-                                  ivsClock = csClock cs,
-                                  ivsParty = csParty cs }
+                                  ivsClock = arsClock cs,
+                                  ivsParty = arsParty cs }
           _ -> Nothing
   compoundViewM [
     (subView sidebarRect . viewMap SidebarCombat CombatSidebar <$>
@@ -102,21 +102,22 @@ newCombatMapView resources = do
   quiver <- newQuiver
   let
     paint (cs, mbMousePt) = do
-      let cameraTopleft = camTopleft (csCamera cs)
-      paintTerrain cameraTopleft (csTerrain cs) (arsExploredMap cs)
-                   (csClock cs)
-      paintDevices resources cameraTopleft (arsExploredMap cs) (csClock cs)
-                   (gridEntries $ csDevices cs)
-      paintDoodads cameraTopleft LowDood (csDoodads cs)
-      paintFields resources cameraTopleft (csVisible cs) (csClock cs)
-                  (csFields cs)
-      paintMonsters resources cameraTopleft (csClock cs) (csVisible cs)
+      let acs = csCommon cs
+      let cameraTopleft = camTopleft (acsCamera acs)
+      paintTerrain cameraTopleft (acsTerrain acs) (arsExploredMap cs)
+                   (acsClock acs)
+      paintDevices resources cameraTopleft (arsExploredMap cs) (acsClock acs)
+                   (gridEntries $ acsDevices acs)
+      paintDoodads cameraTopleft LowDood (acsDoodads acs)
+      paintFields resources cameraTopleft (acsVisible acs)
+                  (acsClock acs) (acsFields acs)
+      paintMonsters resources cameraTopleft (acsClock acs) (acsVisible acs)
                     (map ccsPosition $ toList $ csCharStates cs)
-                    (gridEntries $ csMonsters cs)
+                    (gridEntries $ acsMonsters acs)
       paintCharacters resources cameraTopleft cs
-      paintDoodads cameraTopleft MidDood (csDoodads cs)
-      tintNonVisibleTiles cameraTopleft (arsExploredMap cs) (csVisible cs)
-      paintDoodads cameraTopleft HighDood (csDoodads cs)
+      paintDoodads cameraTopleft MidDood (acsDoodads acs)
+      tintNonVisibleTiles cameraTopleft (arsExploredMap cs) (acsVisible acs)
+      paintDoodads cameraTopleft HighDood (acsDoodads acs)
       let paintRange cc = do
             let charNum = ccCharacterNumber cc
             paintWeaponRange cameraTopleft cs charNum
@@ -130,13 +131,13 @@ newCombatMapView resources = do
                          (ccCharacterNumber cc) targeting
         ExecutionPhase ce -> maybeM (ceCommander ce) paintRange
         _ -> return ()
-      maybeM (csMessage cs) (paintMessage resources)
+      maybeM (acsMessage acs) (paintMessage resources)
 
     handler _ _ EvTick =
       maybe Ignore (Action . CombatMove) <$> quiverDirection quiver
     handler (cs, _) rect (EvMouseDown pt) = do
       if not (rectContains rect pt) then return Ignore else do
-      let pt' = pt `pSub` rectTopleft rect `pAdd` (camTopleft $ csCamera cs)
+      let pt' = pt `pSub` rectTopleft rect `pAdd` (camTopleft $ arsCamera cs)
       let pos = pointPosition pt'
       case csPhase cs of
         WaitingPhase ->
@@ -193,7 +194,7 @@ paintCharacters :: Resources -> IPoint -> CombatState -> Paint ()
 paintCharacters resources cameraTopleft cs =
   mapM_ paintChar [minBound .. maxBound] where
     paintChar charNum = do
-      let char = partyGetCharacter (csParty cs) charNum
+      let char = arsGetCharacter charNum cs
       if not (chrIsConscious char) then return () else do
       let ccs = tmGet charNum $ csCharStates cs
       let pos = ccsPosition ccs
@@ -208,7 +209,7 @@ paintCharacters resources cameraTopleft cs =
       (if isJust $ seInvisibility $ chrStatus char
        then blitStretchTinted (Tint 255 255 255 128)
        else blitStretch) sprite rect
-      paintStatusDecorations resources cameraTopleft (csClock cs)
+      paintStatusDecorations resources cameraTopleft (arsClock cs)
                              (makeRect pos (1, 1)) (chrStatus char)
 
 -------------------------------------------------------------------------------

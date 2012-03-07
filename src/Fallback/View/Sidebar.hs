@@ -38,6 +38,7 @@ import Fallback.Data.Point
 import Fallback.Data.TotalMap (tmGet)
 import Fallback.Draw
 import Fallback.Event
+import Fallback.State.Area (AreaCommonState(..), arsParty)
 import Fallback.State.Camera (camTopleft)
 import Fallback.State.Combat
 import Fallback.State.Creature (ciLeftStand)
@@ -61,10 +62,9 @@ ssActiveCharacter (SidebarCombat cs) = ccCharacterNumber <$> csCommander cs
 ssActiveCharacter (SidebarTown ts) = Just (tsActiveCharacter ts)
 
 ssCameraRect :: SidebarState -> IRect
-ssCameraRect (SidebarCombat cs) =
-  makeRect (camTopleft $ csCamera cs) cameraSize
-ssCameraRect (SidebarTown ts) =
-  makeRect (camTopleft $ tsCamera ts) cameraSize
+ssCameraRect ss = makeRect (camTopleft $ acsCamera acs) cameraSize where
+  acs = case ss of SidebarCombat cs -> csCommon cs
+                   SidebarTown ts -> tsCommon ts
 
 ssCombatState :: SidebarState -> Maybe CombatState
 ssCombatState (SidebarCombat cs) = Just cs
@@ -75,12 +75,12 @@ ssInCombat (SidebarCombat _) = True
 ssInCombat (SidebarTown _) = False
 
 ssMinimap ::  SidebarState -> Minimap
-ssMinimap (SidebarCombat cs) = csMinimap cs
-ssMinimap (SidebarTown ts) = tsMinimap ts
+ssMinimap (SidebarCombat cs) = acsMinimap $ csCommon cs
+ssMinimap (SidebarTown ts) = acsMinimap $ tsCommon ts
 
 ssParty :: SidebarState -> Party
-ssParty (SidebarCombat cs) = csParty cs
-ssParty (SidebarTown ts) = tsParty ts
+ssParty (SidebarCombat cs) = arsParty cs
+ssParty (SidebarTown ts) = arsParty ts
 
 ssSidebarEnabled :: SidebarState -> Bool
 ssSidebarEnabled _ = True

@@ -23,26 +23,22 @@ module Fallback.State.Combat where
 
 import Data.Foldable (toList)
 import Data.List (find)
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Fallback.Constants
   (baseMomentsPerFrame, maxActionPoints, momentsPerActionPoint,
    sightRangeSquared)
 import Fallback.Control.Script (Script)
-import Fallback.Data.Clock
 import Fallback.Data.Grid (Grid)
 import Fallback.Data.Point
 import Fallback.Data.TotalMap (TotalMap, tmAlter, tmAssocs, tmGet)
-import Fallback.Draw (Minimap)
 import Fallback.State.Area
-import Fallback.State.Camera (Camera)
 import Fallback.State.Creature (CreatureAnim)
 import Fallback.State.FOV (fieldOfView)
 import Fallback.State.Party
 import Fallback.State.Progress (HasProgress, TriggerId, getProgress)
 import Fallback.State.Simple
-  (CastingCost, CharacterNumber, CostModifier, FaceDir, Field, PowerModifier)
+  (CastingCost, CharacterNumber, CostModifier, FaceDir, PowerModifier)
 import Fallback.State.Status
 import Fallback.State.Tags (FeatTag, ItemTag)
 import Fallback.State.Terrain
@@ -64,23 +60,13 @@ Combat ends if:
 
 data CombatState = CombatState
   { csArenaTopleft :: Position,
-    csCamera :: Camera,
     csCharStates :: TotalMap CharacterNumber CombatCharState,
-    csClock :: Clock,
-    csDevices :: Grid Device,
-    csDoodads :: Doodads,
-    csFields :: Map.Map Position Field,
-    csMessage :: Maybe Message,
-    csMinimap :: Minimap,
-    csMonsters :: Grid Monster,
+    csCommon :: AreaCommonState,
     csMonstersNotInArena :: Grid Monster,
-    csParty :: Party,
     csPeriodicTimer :: Int,
     csPhase :: CombatPhase,
-    csTerrain :: TerrainMap,
     csTownFiredTriggerIds :: Set.Set TriggerId,
-    csTriggers :: [Trigger CombatState CombatEffect],
-    csVisible :: Set.Set Position }
+    csTriggers :: [Trigger CombatState CombatEffect] }
 
 instance AreaState CombatState where
   arsArenaTopleft = csArenaTopleft
@@ -89,21 +75,17 @@ instance AreaState CombatState where
     let present charNum = arsCharacterPosition charNum cs == pos &&
                           chrIsConscious (arsGetCharacter charNum cs)
     in find present [minBound .. maxBound]
-  arsDevices = csDevices
-  arsFields = csFields
-  arsMonsters = csMonsters
-  arsParty = csParty
+  arsCommon = csCommon
+  arsSetCommon cs acs = cs { csCommon = acs }
   arsPartyPositions cs =
     map (ccsPosition . snd) $
-    filter (chrIsConscious . (partyGetCharacter $ csParty cs) . fst) $
+    filter (chrIsConscious . (partyGetCharacter $ arsParty cs) . fst) $
     tmAssocs $ csCharStates cs
-  arsResources = partyResources . csParty
-  arsTerrain = csTerrain
   arsVisibleForCharacter charNum = ccsVisible . tmGet charNum . csCharStates
-  arsVisibleForParty = csVisible
+  arsVisibleForParty = acsVisible . csCommon
 
 instance HasProgress CombatState where
-  getProgress = getProgress . csParty
+  getProgress = getProgress . acsParty . csCommon
 
 -------------------------------------------------------------------------------
 -- CombatState setters:
@@ -113,11 +95,9 @@ csAlterCharState :: CharacterNumber -> (CombatCharState -> CombatCharState)
 csAlterCharState charNum fn cs =
   cs { csCharStates = tmAlter charNum fn (csCharStates cs) }
 
-csAlterParty :: (Party -> Party) -> CombatState -> CombatState
-csAlterParty fn cs = cs { csParty = fn (csParty cs) }
-
 csSetMessage :: String -> CombatState -> CombatState
-csSetMessage text cs = cs { csMessage = Just (makeMessage text) }
+csSetMessage text cs =
+  cs { csCommon = (csCommon cs) { acsMessage = Just (makeMessage text) } }
 
 -------------------------------------------------------------------------------
 
@@ -214,14 +194,16 @@ tickCharStateWaiting char ccs =
 
 updateCombatVisibility :: CombatState -> IO CombatState
 updateCombatVisibility cs = do
-  let terrain = csTerrain cs
+  let terrain = arsTerrain cs
   let updateCcs ccs = ccs { ccsVisible =
         fieldOfView (tmapSize terrain) (arsIsOpaque cs) sightRangeSquared
                     (ccsPosition ccs) Set.empty }
   let ccss' = fmap updateCcs (csCharStates cs)
   let visible' = Set.unions $ map ccsVisible $ toList ccss'
-  let party' = partyUpdateExploredMap terrain visible' (csParty cs)
-  updateMinimap (csMinimap cs) terrain (Set.toList visible')
-  return cs { csCharStates = ccss', csParty = party', csVisible = visible' }
+  let party' = partyUpdateExploredMap terrain visible' (arsParty cs)
+  updateMinimap (acsMinimap $ csCommon cs) terrain (Set.toList visible')
+  return cs { csCharStates = ccss',
+              csCommon = (csCommon cs) { acsParty = party',
+                                         acsVisible = visible' } }
 
 -------------------------------------------------------------------------------

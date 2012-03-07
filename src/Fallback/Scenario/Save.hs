@@ -37,18 +37,20 @@ import Text.Read
 
 import Fallback.Control.Error (IOEO, onlyIO)
 import Fallback.Data.Clock (initClock)
+import Fallback.Data.Point (Position)
 import Fallback.Draw (Sprite, loadSprite, runDraw)
 import Fallback.Scenario.Areas (createMinimap)
 import Fallback.Scenario.Triggers
   (getAreaDevice, getAreaTriggers, scenarioTriggers)
-import Fallback.State.Area (devId, emptyDoodads, triggerId)
+import Fallback.State.Area
+  (AreaCommonState(..), arsParty, devId, emptyDoodads, triggerId)
 import Fallback.State.Camera (makeCameraWithCenter)
 import Fallback.State.Party (Party(..))
 import Fallback.State.Region (RegionState(..))
 import Fallback.State.Resources (Resources)
 import Fallback.State.Tags (areaName, regionName)
 import Fallback.State.Terrain (loadTerrainMap, positionCenter, tmapName)
-import Fallback.State.Town (TownPhase(WalkingPhase), TownState(..), tsParty)
+import Fallback.State.Town (TownPhase(WalkingPhase), TownState(..))
 import Fallback.Utility (sortKey)
 
 -------------------------------------------------------------------------------
@@ -68,7 +70,7 @@ data SavedGame = SavedRegionState RegionState
 savedGameLocation :: SavedGame -> String
 savedGameLocation (SavedRegionState rs) = regionName $ rsRegion rs
 savedGameLocation (SavedTownState ts) =
-  areaName $ partyCurrentArea $ tsParty ts
+  areaName $ partyCurrentArea $ arsParty ts
 
 -------------------------------------------------------------------------------
 
@@ -178,9 +180,41 @@ newtype ReadTownState = ReadTownState
 
 instance Read ReadTownState where
   readPrec = do
-    (activeCharacter, deviceIds, fields, wrappedParty, partyAnim,
-     partyFaceDir, partyPosition, terrainName, triggersFiredIds) <- readPrec
+    (activeCharacter, wrappedCommon, partyAnim, partyFaceDir, partyPosition,
+     triggersFiredIds) <- readPrec
     return $ ReadTownState $ \resources -> do
+      acs <- unwrapAreaCommonState wrappedCommon resources partyPosition
+      let triggers = getAreaTriggers scenarioTriggers $ partyCurrentArea $
+                     acsParty acs
+      return TownState
+        { tsActiveCharacter = activeCharacter,
+          tsCommon = acs,
+          tsPartyAnim = partyAnim,
+          tsPartyPosition = partyPosition,
+          tsPartyFaceDir = partyFaceDir,
+          tsPhase = WalkingPhase,
+          tsTriggersFired =
+            filter (flip Set.member triggersFiredIds . triggerId) triggers,
+          tsTriggersReady =
+            filter (flip Set.notMember triggersFiredIds . triggerId) triggers }
+
+newtype ShowTownState = ShowTownState TownState
+
+instance Show ShowTownState where
+  showsPrec p (ShowTownState ts) = showsPrec p $
+    (tsActiveCharacter ts, ShowAreaCommonState (tsCommon ts),
+     tsPartyAnim ts, tsPartyFaceDir ts, tsPartyPosition ts,
+     Set.fromList $ map triggerId $ tsTriggersFired ts)
+
+-------------------------------------------------------------------------------
+
+newtype ReadAreaCommonState = ReadAreaCommonState
+  { unwrapAreaCommonState :: Resources -> Position -> IOEO AreaCommonState }
+
+instance Read ReadAreaCommonState where
+  readPrec = do
+    (deviceIds, fields, wrappedParty, terrainName) <- readPrec
+    return $ ReadAreaCommonState $ \resources partyPosition -> do
       let party = unwrapParty wrappedParty resources
       let getDevice di =
             maybe (fail $ "Unknown device ID: " ++ show di) return $
@@ -188,37 +222,25 @@ instance Read ReadTownState where
       devices <- traverse getDevice deviceIds
       terrain <- loadTerrainMap resources terrainName
       minimap <- onlyIO $ createMinimap terrain party
-      let triggers = getAreaTriggers scenarioTriggers (partyCurrentArea party)
-      return TownState
-        { tsActiveCharacter = activeCharacter,
-          tsCamera = makeCameraWithCenter (positionCenter partyPosition),
-          tsClock = initClock,
-          tsDevices = devices,
-          tsDoodads = emptyDoodads,
-          tsFields = fields,
-          tsMessage = Nothing,
-          tsMinimap = minimap,
-          tsMonsters = error "FIXME",
-          tsParty = party,
-          tsPartyAnim = partyAnim,
-          tsPartyPosition = partyPosition,
-          tsPartyFaceDir = partyFaceDir,
-          tsPhase = WalkingPhase,
-          tsTerrain = terrain,
-          tsTriggersFired =
-            filter (flip Set.member triggersFiredIds . triggerId) triggers,
-          tsTriggersReady =
-            filter (flip Set.notMember triggersFiredIds . triggerId) triggers,
-          tsVisible = Set.empty }
+      return AreaCommonState
+        { acsCamera = makeCameraWithCenter (positionCenter partyPosition),
+          acsClock = initClock,
+          acsDevices = devices,
+          acsDoodads = emptyDoodads,
+          acsFields = fields,
+          acsMessage = Nothing,
+          acsMinimap = minimap,
+          acsMonsters = error "FIXME ReadAreaCommonState",
+          acsParty = party,
+          acsTerrain = terrain,
+          acsVisible = Set.empty }
 
-newtype ShowTownState = ShowTownState TownState
+newtype ShowAreaCommonState = ShowAreaCommonState AreaCommonState
 
-instance Show ShowTownState where
-  showsPrec p (ShowTownState ts) = showsPrec p $
-    (tsActiveCharacter ts, fmap devId (tsDevices ts), tsFields ts,
-     ShowParty (tsParty ts), tsPartyAnim ts, tsPartyFaceDir ts,
-     tsPartyPosition ts, tmapName (tsTerrain ts),
-     Set.fromList $ map triggerId $ tsTriggersFired ts)
+instance Show ShowAreaCommonState where
+  showsPrec p (ShowAreaCommonState acs) = showsPrec p $
+    (fmap devId (acsDevices acs), acsFields acs,
+     ShowParty (acsParty acs), tmapName (acsTerrain acs))
 
 -------------------------------------------------------------------------------
 

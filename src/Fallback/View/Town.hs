@@ -77,21 +77,21 @@ newTownView resources = newCursorView resources $ \cursorSink -> do
             Just AbilitiesState { abilsActiveCharacter = tsActiveCharacter ts,
                                   abilsInCombat = False,
                                   abilsMetaAbilityTag = Nothing,
-                                  abilsParty = tsParty ts }
+                                  abilsParty = arsParty ts }
           _ -> Nothing
   let inventoryFn ts =
         case tsPhase ts of
           InventoryPhase _ ->
             Just InventoryState { ivsActiveCharacter = tsActiveCharacter ts,
-                                  ivsClock = tsClock ts,
-                                  ivsParty = tsParty ts }
+                                  ivsClock = arsClock ts,
+                                  ivsParty = arsParty ts }
           _ -> Nothing
   let upgradeFn ts =
         case tsPhase ts of
           UpgradePhase st sk ->
             Just UpgradeState { upsActiveCharacter = tsActiveCharacter ts,
                                 upsSpentSkills = sk,
-                                upsSpentStats = st, upsParty = tsParty ts }
+                                upsSpentStats = st, upsParty = arsParty ts }
           _ -> Nothing
   hoverView cursorSink DefaultCursor <$> compoundViewM [
     (subView sidebarRect . viewMap SidebarTown TownSidebar <$>
@@ -112,27 +112,28 @@ newTownMapView resources cursorSink = do
   let
 
     paint (ts, mbMousePt) = do
-      let cameraTopleft = camTopleft (tsCamera ts)
+      let acs = tsCommon ts
+      let cameraTopleft = camTopleft $ acsCamera acs
       let explored = arsExploredMap ts
-      paintTerrain cameraTopleft (tsTerrain ts) explored (tsClock ts)
-      paintDevices resources cameraTopleft explored (tsClock ts)
-                   (gridEntries $ tsDevices ts)
-      paintDoodads cameraTopleft LowDood (tsDoodads ts)
-      paintFields resources cameraTopleft (tsVisible ts) (tsClock ts)
-                  (tsFields ts)
-      paintMonsters resources cameraTopleft (tsClock ts) (tsVisible ts)
-                    [tsPartyPosition ts] (gridEntries $ tsMonsters ts)
+      paintTerrain cameraTopleft (acsTerrain acs) explored (acsClock acs)
+      paintDevices resources cameraTopleft explored (acsClock acs)
+                   (gridEntries $ acsDevices acs)
+      paintDoodads cameraTopleft LowDood (acsDoodads acs)
+      paintFields resources cameraTopleft (acsVisible acs) (acsClock acs)
+                  (acsFields acs)
+      paintMonsters resources cameraTopleft (acsClock acs) (acsVisible acs)
+                    [tsPartyPosition ts] (gridEntries $ acsMonsters acs)
       paintParty resources cameraTopleft ts
-      paintDoodads cameraTopleft MidDood (tsDoodads ts)
-      tintNonVisibleTiles cameraTopleft explored (tsVisible ts)
-      paintDoodads cameraTopleft HighDood (tsDoodads ts)
+      paintDoodads cameraTopleft MidDood (acsDoodads acs)
+      tintNonVisibleTiles cameraTopleft explored (acsVisible acs)
+      paintDoodads cameraTopleft HighDood (acsDoodads acs)
       -- Paint the targeting display, if any:
       case tsPhase ts of
         TargetingPhase (TownTargeting { ttTargeting = targeting }) ->
           paintTargeting cameraTopleft mbMousePt ts
                          (tsActiveCharacter ts) targeting
         _ -> return ()
-      maybeM (tsMessage ts) (paintMessage resources)
+      maybeM (acsMessage acs) (paintMessage resources)
 
     handler _ _ EvTick =
       maybe Ignore (Action . TownMove) <$> quiverDirection quiver
@@ -150,7 +151,7 @@ newTownMapView resources cursorSink = do
           UpgradePhase _ _ -> return Suppress
           TargetingPhase _ -> return $ Action $ TownTargetPosition pos
           ScriptPhase _ -> return Suppress
-      where pos = pointPosition (pt `pAdd` camTopleft (tsCamera ts))
+      where pos = pointPosition (pt `pAdd` (camTopleft $ arsCamera ts))
     handler (ts, _) _ (EvKeyDown KeyEscape _ _) = do
       case tsPhase ts of
         TargetingPhase _ -> return (Action TownCancelTargeting)
@@ -176,9 +177,10 @@ newTownMapView resources cursorSink = do
               -> (Maybe (Script TownEffect ()) -> a)
               -> (Direction -> a) -> TownState -> IRect -> IPoint -> a
     mouseCase monFn devFn dirFn ts rect pt =
-      let pos = pointPosition (pt `pAdd` camTopleft (tsCamera ts))
+      let acs = tsCommon ts
+          pos = pointPosition (pt `pAdd` camTopleft (acsCamera acs))
           checkRange r s = guard (pos `pSqDist` tsPartyPosition ts <= r) >> s
-          search grid = do guard $ Set.member pos $ tsVisible ts
+          search grid = do guard $ Set.member pos $ acsVisible acs
                            gridSearch grid pos
           monFn' script = monFn $ checkRange talkRangeSquared $ Just script
           devFn' ge = devFn $ checkRange (devRange $ geValue ge) $ Just $
@@ -186,8 +188,8 @@ newTownMapView resources cursorSink = do
                       tsActiveCharacter ts
           getScript ge = do mscript <- monstScript (geValue ge)
                             Just (mscriptScriptFn mscript ge)
-      in flip3 maybe monFn' (search (tsMonsters ts) >>= getScript) $
-         flip3 maybe devFn' (search (tsDevices ts)) $
+      in flip3 maybe monFn' (search (acsMonsters acs) >>= getScript) $
+         flip3 maybe devFn' (search (acsDevices acs)) $
          dirFn $ ipointDir $ pt `pSub` rectCenter rect
 
     setCursor :: TownState -> IRect -> IPoint -> Draw z ()
@@ -216,7 +218,7 @@ paintParty resources cameraTopleft ts = do
   let rect = positionRect (tsPartyPosition ts) `rectPlus`
              (animOffset (tsPartyAnim ts) (tsPartyPosition ts) `pSub`
               cameraTopleft)
-  let char = tsParty ts `partyGetCharacter` tsActiveCharacter ts
+  let char = arsParty ts `partyGetCharacter` tsActiveCharacter ts
   let sprite = ciStand (tsPartyFaceDir ts) $
                rsrcCharacterImages resources (chrClass char)
                                    (chrAppearance char)

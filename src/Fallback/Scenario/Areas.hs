@@ -31,7 +31,8 @@ import Fallback.Data.Grid (emptyGrid)
 import Fallback.Data.Point (IPoint, Point(Point), Position)
 import Fallback.Draw (Minimap, newMinimap)
 import Fallback.Scenario.Triggers
-import Fallback.State.Area (TownEffect, Trigger, emptyDoodads)
+import Fallback.State.Area
+  (AreaCommonState(..), TownEffect, Trigger, emptyDoodads)
 import Fallback.State.Camera (makeCameraWithCenter)
 import Fallback.State.Creature (CreatureAnim(NoAnim))
 import Fallback.State.Party
@@ -69,23 +70,24 @@ enterPartyIntoArea origParty tag position = do
   minimap <- onlyIO $ createMinimap terrain party
   onlyIO $ updateTownVisibility $ TownState
     { tsActiveCharacter = minBound,
-      tsCamera = makeCameraWithCenter (positionCenter position),
-      tsClock = initClock,
-      tsDevices = emptyGrid,
-      tsDoodads = emptyDoodads,
-      tsFields = Map.empty,
-      tsMessage = Nothing,
-      tsMinimap = minimap,
-      tsMonsters = emptyGrid,
-      tsParty = party,
+      tsCommon = AreaCommonState
+        { acsCamera = makeCameraWithCenter (positionCenter position),
+          acsClock = initClock,
+          acsDevices = emptyGrid,
+          acsDoodads = emptyDoodads,
+          acsFields = Map.empty,
+          acsMessage = Nothing,
+          acsMinimap = minimap,
+          acsMonsters = emptyGrid,
+          acsParty = party,
+          acsTerrain = terrain,
+          acsVisible = Set.empty },
       tsPartyAnim = NoAnim,
       tsPartyFaceDir = FaceRight, -- TODO face towards center of map
       tsPartyPosition = position,
       tsPhase = WalkingPhase,
-      tsTerrain = terrain,
       tsTriggersFired = [],
-      tsTriggersReady = areaTriggers tag,
-      tsVisible = Set.empty }
+      tsTriggersReady = areaTriggers tag }
 
 createMinimap :: TerrainMap -> Party -> IO Minimap
 createMinimap terrain party = do

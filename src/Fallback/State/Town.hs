@@ -21,19 +21,14 @@
 
 module Fallback.State.Town where
 
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Fallback.Constants
   (cameraCenterOffset, combatArenaCols, combatArenaRows, sightRangeSquared)
 import Fallback.Control.Script (Script)
-import Fallback.Data.Clock (Clock, clockInc)
-import Fallback.Data.Grid (Grid, gridUpdate)
 import Fallback.Data.Point
 import qualified Fallback.Data.SparseMap as SM
-import Fallback.Draw (Minimap)
 import Fallback.State.Area
-import Fallback.State.Camera (Camera, tickCamera)
 import Fallback.State.Creature (CreatureAnim(..), tickCreatureAnim)
 import Fallback.State.FOV (fieldOfView)
 import Fallback.State.Party
@@ -47,23 +42,13 @@ import Fallback.State.Terrain
 
 data TownState = TownState
   { tsActiveCharacter :: CharacterNumber,
-    tsCamera :: Camera,
-    tsClock :: Clock,
-    tsDevices :: Grid Device,
-    tsDoodads :: Doodads,
-    tsFields :: Map.Map Position Field,
-    tsMessage :: Maybe Message,
-    tsMinimap :: Minimap,
-    tsMonsters :: Grid Monster,
-    tsParty :: Party,
+    tsCommon :: AreaCommonState,
     tsPartyAnim :: CreatureAnim,
     tsPartyFaceDir :: FaceDir,
     tsPartyPosition :: Position,
     tsPhase :: TownPhase,
-    tsTerrain :: TerrainMap,
     tsTriggersFired :: [Trigger TownState TownEffect],
-    tsTriggersReady :: [Trigger TownState TownEffect],
-    tsVisible :: Set.Set Position }
+    tsTriggersReady :: [Trigger TownState TownEffect] }
 
 instance AreaState TownState where
   arsArenaTopleft ts = tsPartyPosition ts `pSub`
@@ -71,18 +56,14 @@ instance AreaState TownState where
   arsCharacterPosition _ = tsPartyPosition
   arsCharacterAtPosition pos ts = if pos /= tsPartyPosition ts then Nothing
                                   else Just (tsActiveCharacter ts)
-  arsDevices = tsDevices
-  arsFields = tsFields
-  arsMonsters = tsMonsters
-  arsParty = tsParty
+  arsCommon = tsCommon
+  arsSetCommon ts acs = ts { tsCommon = acs }
   arsPartyPositions = (:[]) . tsPartyPosition
-  arsResources = partyResources . tsParty
-  arsTerrain = tsTerrain
-  arsVisibleForCharacter _ = tsVisible
-  arsVisibleForParty = tsVisible
+  arsVisibleForCharacter _ = acsVisible . tsCommon
+  arsVisibleForParty = acsVisible . tsCommon
 
 instance HasProgress TownState where
-  getProgress = getProgress . tsParty
+  getProgress = getProgress . acsParty . tsCommon
 
 data TownTargeting = forall a. TownTargeting
   { ttCastingCost :: CastingCost,
@@ -100,31 +81,22 @@ data TownPhase = WalkingPhase
 --                | ConversationPhase (Conversation TownEffect)
 
 -------------------------------------------------------------------------------
--- TownState setters:
-
-tsSetMessage :: String -> TownState -> TownState
-tsSetMessage text ts = ts { tsMessage = Just (makeMessage text) }
-
--------------------------------------------------------------------------------
 
 updateTownVisibility :: TownState -> IO TownState
 updateTownVisibility ts = do
-  let terrain = tsTerrain ts
+  let terrain = arsTerrain ts
   let visible' = fieldOfView (tmapSize terrain) (arsIsOpaque ts)
                              sightRangeSquared (tsPartyPosition ts) Set.empty
-  let party' = partyUpdateExploredMap terrain visible' (tsParty ts)
-  updateMinimap (tsMinimap ts) terrain (Set.toList visible')
-  return ts { tsParty = party', tsVisible = visible' }
+  let party' = partyUpdateExploredMap terrain visible' (arsParty ts)
+  updateMinimap (arsMinimap ts) terrain (Set.toList visible')
+  return ts { tsCommon = (tsCommon ts) { acsParty = party',
+                                         acsVisible = visible' } }
 
 tickTownAnimations :: TownState -> TownState
 tickTownAnimations ts =
-  ts { tsClock = clockInc (tsClock ts),
-       tsCamera = tickCamera (positionCenter (tsPartyPosition ts) `pSub`
-                              cameraCenterOffset) (tsCamera ts),
-       tsDoodads = tickDoodads (tsDoodads ts),
-       tsMessage = tsMessage ts >>= decayMessage,
-       tsMonsters = gridUpdate tickMonsterAnim (tsMonsters ts),
-       tsPartyAnim = tickCreatureAnim (tsPartyAnim ts) }
+  let acs' = tickAnimations (positionCenter (tsPartyPosition ts) `pSub`
+                             cameraCenterOffset) (tsCommon ts)
+  in ts { tsCommon = acs', tsPartyAnim = tickCreatureAnim (tsPartyAnim ts) }
 
 -------------------------------------------------------------------------------
 

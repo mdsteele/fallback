@@ -28,14 +28,12 @@ import Control.Monad (guard, unless, when)
 import Data.Foldable (toList)
 import Data.IORef
 import Data.List (find, foldl', delete)
-import qualified Data.Map as Map (alter)
 import Data.Maybe (fromMaybe, isJust)
 import qualified Data.Set as Set
 
 import Fallback.Constants
   (baseFramesPerActionPoint, baseMomentsPerFrame, combatCameraOffset,
    maxActionPoints, momentsPerActionPoint, screenRect)
-import Fallback.Data.Clock (clockInc)
 import Fallback.Data.Grid
 import Fallback.Data.Point
 import Fallback.Data.TotalMap (TotalMap, makeTotalMap, tmAlter, tmGet)
@@ -53,10 +51,8 @@ import Fallback.Scenario.Triggers (getAreaTriggers, scenarioTriggers)
 import qualified Fallback.Sound as Sound (playSound)
 import Fallback.State.Action
 import Fallback.State.Area
-import Fallback.State.Camera (setCameraShake, tickCamera)
 import Fallback.State.Combat
-import Fallback.State.Creature
-  (CreatureAnim(..), mtSize, mtSpeed, tickCreatureAnim)
+import Fallback.State.Creature (CreatureAnim(..), mtSpeed, tickCreatureAnim)
 import Fallback.State.Item (WeaponData(..), getPotionAction)
 import Fallback.State.Party
 import Fallback.State.Resources (Resources, SoundTag(..), rsrcSound)
@@ -175,8 +171,8 @@ newCombatMode resources modes initState = do
               let feat = getFeat tag
               let cost = cfCastingCost feat
               let charNum = ccCharacterNumber cc
-              if not (partyCanAffordCastingCost charNum cost (csParty cs)) then
-                ignore else do
+              if not (partyCanAffordCastingCost charNum cost (arsParty cs))
+                then ignore else do
               case cfEffect feat of
                 MetaAbility costMod powerMod -> do
                   changeState cs { csPhase = MetaAbilityPhase CombatMetability
@@ -190,22 +186,23 @@ newCombatMode resources modes initState = do
             InventoryPhase cc mbItemTag -> do
               case invAct of
                 ExchangeItem slot -> do
-                  case partyTryExchangeItem slot mbItemTag (csParty cs) of
+                  case partyTryExchangeItem slot mbItemTag (arsParty cs) of
                     Nothing -> ignore
                     Just (mbItemTag', party') -> do
-                      changeState cs { csParty = party',
-                                       csPhase = InventoryPhase cc mbItemTag' }
+                      changePhaseAndParty cs (InventoryPhase cc mbItemTag')
+                                          party'
                 UpgradeStats -> do
                   fail "FIXME CombatMode UpgradeStats"
                 UseItem slot -> do
                   if isJust mbItemTag then ignore else do
-                  let party = csParty cs
+                  let party = arsParty cs
                   case partyItemInSlot slot party of
                     Just (PotionItemTag potionTag) -> do
                       let apNeeded = 2
                       if not (hasEnoughActionPoints cs cc apNeeded) then
                         ignore else do
-                      let cs' = cs { csParty = partyRemoveItem slot party }
+                      let cs' = cs { csCommon = (csCommon cs) { acsParty =
+                                  partyRemoveItem slot party } }
                       executeCommand cs' cc NoCost apNeeded $
                         mapEffect EffCombatArea $
                         runPotionAction (getPotionAction potionTag) $
@@ -216,7 +213,7 @@ newCombatMode resources modes initState = do
           case csPhase cs of
             CommandPhase cc -> do
               let charNum = ccCharacterNumber cc
-              let character = tmGet charNum $ partyCharacters $ csParty cs
+              let character = arsGetCharacter charNum cs
               let ccs = tmGet charNum $ csCharStates cs
               -- Check that we have enough AP to move:
               let apNeeded = if seIsEntangled (chrStatus character)
@@ -260,7 +257,7 @@ newCombatMode resources modes initState = do
             CommandPhase cc ->
               -- If another character wants a turn, they're up next, otherwise
               -- return to waiting phase.
-              case ccssCharThatWantsATurn (csCharStates cs) (csParty cs) of
+              case ccssCharThatWantsATurn (csCharStates cs) (arsParty cs) of
                 Nothing -> changeState $
                   (subtractUsedActionPoints cc cs) { csPhase = WaitingPhase }
                 Just charNum -> switchToCommandPhase charNum cs
@@ -358,7 +355,7 @@ newCombatMode resources modes initState = do
         case getAbility (chrClass char) abilNum level of
           ActiveAbility originalCost effect -> do
             let cost = modifyCost costMod originalCost
-            guard $ partyCanAffordCastingCost charNum cost $ csParty cs
+            guard $ partyCanAffordCastingCost charNum cost $ arsParty cs
             case effect of
               MetaAttack matype tkindFn sfn -> do
                 let wrange = wdRange $ chrEquippedWeaponData char
@@ -377,14 +374,14 @@ newCombatMode resources modes initState = do
     executeCommand :: CombatState -> CombatCommander -> CastingCost -> Int
                    -> Script CombatEffect () -> IO NextMode
     executeCommand cs cc cost apSpent script = do
-      changeState cs { csParty = partyDeductCastingCost (ccCharacterNumber cc)
-                                                        cost (csParty cs),
-                       csPhase = ExecutionPhase CombatExecution
-                         { ceCommander = Just cc { ccActionPointsUsed =
-                             ccActionPointsUsed cc + apSpent },
-                           cePendingCharacter = Nothing,
-                           cePendingEndCombat = False,
-                           ceScript = script } }
+      let phase = ExecutionPhase CombatExecution
+            { ceCommander = Just cc { ccActionPointsUsed =
+                                        ccActionPointsUsed cc + apSpent },
+              cePendingCharacter = Nothing,
+              cePendingEndCombat = False,
+              ceScript = script }
+      changePhaseAndParty cs phase $
+        partyDeductCastingCost (ccCharacterNumber cc) cost (arsParty cs)
 
     doPeriodicAction :: CombatState -> IO NextMode
     doPeriodicAction cs = do
@@ -422,36 +419,34 @@ newCombatMode resources modes initState = do
                 center :: DPoint
                 center = foldl' pAdd pZero $ map (fmap fromIntegral) positions
             in minimumKey (pSqDist center . fmap fromIntegral) positions
+      let acs = csCommon cs
       let townTriggers =
-            getAreaTriggers scenarioTriggers $ partyCurrentArea $ csParty cs
+            getAreaTriggers scenarioTriggers $ partyCurrentArea $ acsParty acs
       let wasFired = flip Set.member (csTownFiredTriggerIds cs) . triggerId
       let (monsters, extraMonsters) = gridMerge (csMonstersNotInArena cs)
-                                                (gridEntries $ csMonsters cs)
+                                                (gridEntries $ acsMonsters acs)
+      let party' = (acsParty acs) { partyCharacters =
+            fmap townifyCharacter $ partyCharacters $ acsParty acs }
+      let acs' = acs { acsMonsters = monsters, acsParty = party' }
       unless (null extraMonsters) $ do
         putStrLn ("Warning: there are " ++ show (length extraMonsters) ++
                   " extra monsters.")
       Sound.playSound (rsrcSound resources SndCombatEnd)
       ChangeMode <$> newTownMode' modes TownState
         { tsActiveCharacter = activeChar,
-          tsCamera = csCamera cs,
-          tsClock = csClock cs,
-          tsDevices = csDevices cs,
-          tsDoodads = csDoodads cs,
-          tsFields = csFields cs,
-          tsMessage = csMessage cs,
-          tsMinimap = csMinimap cs,
-          tsMonsters = monsters,
-          tsParty = (csParty cs) { partyCharacters =
-            fmap townifyCharacter $ partyCharacters $ csParty cs },
+          tsCommon = acs',
           tsPartyAnim =
             WalkAnim 4 4 (ccsPosition $ tmGet activeChar $ csCharStates cs),
           tsPartyFaceDir = FaceLeft, -- FIXME
           tsPartyPosition = partyPos,
           tsPhase = WalkingPhase,
-          tsTerrain = csTerrain cs,
           tsTriggersFired = filter wasFired townTriggers,
-          tsTriggersReady = filter (not . wasFired) townTriggers,
-          tsVisible = csVisible cs }
+          tsTriggersReady = filter (not . wasFired) townTriggers }
+
+    changePhaseAndParty :: CombatState -> CombatPhase -> Party -> IO NextMode
+    changePhaseAndParty cs phase' party' = do
+      let acs' = (csCommon cs) { acsParty = party' }
+      changeState cs { csCommon = acs', csPhase = phase' }
 
     changeState :: CombatState -> IO NextMode
     changeState cs' = SameMode <$ writeIORef stateRef cs'
@@ -482,13 +477,10 @@ doTick cs =
     TargetingPhase _ -> animationsOnly
     ExecutionPhase ce -> doTickExecution cs' ce
   where
+    acs = csCommon cs
     animationsOnly = return (cs', Nothing)
-    cs' = cs { csCamera = tickCamera camTarget (csCamera cs),
-               csClock = clockInc (csClock cs),
-               csCharStates = fmap tickCharStateBasic (csCharStates cs),
-               csDoodads = tickDoodads (csDoodads cs),
-               csMessage = csMessage cs >>= decayMessage,
-               csMonsters = gridUpdate tickMonsterAnim (csMonsters cs) }
+    cs' = cs { csCharStates = fmap tickCharStateBasic (csCharStates cs),
+               csCommon = tickAnimations camTarget acs }
     tickCharStateBasic ccs = ccs { ccsAnim = tickCreatureAnim (ccsAnim ccs) }
     camTarget = fromIntegral <$> (positionTopleft (csArenaTopleft cs) `pSub`
                                   combatCameraOffset)
@@ -514,13 +506,14 @@ Execution:
 
 tickWaiting :: CombatState -> IO (CombatState, Maybe Interrupt)
 tickWaiting cs = do
-  if gridNull (csMonsters cs) then return (cs, Just DoEndCombat) else do
+  let acs = csCommon cs
+  if gridNull (acsMonsters acs) then return (cs, Just DoEndCombat) else do
   -- Update monster status effects and time bars, and see if any monsters are
   -- ready for a turn.
   let (monsters', mbScript) =
-        gridUpdateSelect tickMonsterWaiting (csMonsters cs)
+        gridUpdateSelect tickMonsterWaiting (acsMonsters acs)
   -- Update party status effects.
-  let party' = tickPartyWaiting (csParty cs)
+  let party' = tickPartyWaiting (acsParty acs)
   -- Update party time bars.
   let ccss' = tickCharStatesWaiting (csCharStates cs)
   -- See if any party characters are ready for a turn.
@@ -528,13 +521,14 @@ tickWaiting cs = do
   -- Update the periodic timer.
   let timer' = (csPeriodicTimer cs + 1) `mod` baseFramesPerActionPoint
   -- Decay fields.
-  fields' <- decayFields 1 (csFields cs)
+  fields' <- decayFields 1 (acsFields acs)
   -- Ready characters take precedence over ready monsters.
   let mbInterrupt = if timer' == 0 then Just DoPeriodicAction
                     else (DoActivateCharacter <$> mbCharNum) <|>
                          (DoMonsterTurn <$> mbScript)
-  return (cs { csCharStates = ccss', csFields = fields',
-               csMonsters = monsters', csParty = party',
+  return (cs { csCharStates = ccss',
+               csCommon = acs { acsFields = fields', acsMonsters = monsters',
+                                acsParty = party' },
                csPeriodicTimer = timer' }, mbInterrupt)
   where
     tickPartyWaiting party =
@@ -543,8 +537,7 @@ tickWaiting cs = do
       char { chrStatus = decayStatusEffects (chrStatus char) }
     tickCharStatesWaiting ccss =
       makeTotalMap $ \charNum ->
-        tickCharStateWaiting (tmGet charNum $ partyCharacters $ csParty cs)
-                             (tmGet charNum ccss)
+        tickCharStateWaiting (arsGetCharacter charNum cs) (tmGet charNum ccss)
 
 doTickExecution :: CombatState -> CombatExecution
                 -> IO (CombatState, Maybe Interrupt)
@@ -552,7 +545,7 @@ doTickExecution cs ce = do
   (cs', mbScriptInterrupt) <- executeScript cs (ceScript ce)
   case mbScriptInterrupt of
     Nothing ->
-      if (gridNull (csMonsters cs') ||
+      if (gridNull (arsMonsters cs') ||
           cePendingEndCombat ce && not (arsAreMonstersNearby cs'))
       then return (cs', Just DoEndCombat) else
         let endTurn cs'' = do
@@ -598,49 +591,14 @@ executeEffect cs eff sfn =
   case eff of
     EffCombatArea eff' ->
       case eff' of
-        EffAreaParty eff'' -> do
-          (result, party') <- executePartyEffect eff'' (csParty cs)
-          return (cs { csParty = party'}, sfn result, Nothing)
-        EffAddDoodad dood ->
-          return (cs { csDoodads = addDoodad dood (csDoodads cs) },
-                  sfn (), Nothing)
-        EffAlterFields fn ps ->
-          -- TODO update visibility, for the sake of smokescreen
-          return (cs { csFields = foldr (Map.alter fn) (csFields cs) ps },
-                  sfn (), Nothing)
-        EffAreaGet fn -> return (cs, sfn (fn cs), Nothing)
+        EffAreaCommon eff'' -> do
+          (result, cs') <- executeAreaCommonEffect eff'' cs
+          return (cs', sfn result, Nothing)
         EffGameOver -> return (cs, sfn (), Just DoGameOver)
         EffIfCombat script _ -> return (cs, script >>= sfn, Nothing)
-        EffMessage text ->
-          return (cs { csMessage = Just (makeMessage text) }, sfn (), Nothing)
         EffMultiChoice _ _ _ ->
           fail "FIXME Combat executeEffect EffMultiChoice"
         EffNarrate text -> return (cs, sfn (), Just (DoNarrate text))
-        EffTryAddDevice _ _ ->
-          fail "FIXME Combat executeEffect EffTryAddDevice"
-        EffTryAddMonster topleft monster ->
-          case gridTryInsert (makeRect topleft $ sizeSize $ mtSize $
-                              monstType monster) monster (csMonsters cs) of
-            Nothing -> return (cs, sfn Nothing, Nothing)
-            Just (entry, monsters') ->
-              return (cs { csMonsters = monsters' }, sfn (Just entry), Nothing)
-        EffTryMoveMonster monstKey rect -> do
-          case gridTryMove monstKey rect (csMonsters cs) of
-            Nothing -> return (cs, sfn False, Nothing)
-            Just grid' -> return (cs { csMonsters = grid' }, sfn True, Nothing)
-        EffReplaceDevice key mbDevice' -> do
-          cs' <- updateCombatVisibility cs {
-                   csDevices = maybe (gridDelete key)
-                                     (gridReplace key) mbDevice'
-                                     (csDevices cs) }
-          return (cs', sfn (), Nothing)
-        EffReplaceMonster monstKey mbMonst' -> do
-          return (cs { csMonsters = maybe (gridDelete monstKey)
-                                          (gridReplace monstKey) mbMonst'
-                                          (csMonsters cs) }, sfn (), Nothing)
-        EffShakeCamera ampl duration -> do
-          return (cs { csCamera = setCameraShake ampl duration (csCamera cs) },
-                  sfn (), Nothing)
         EffWait -> return (cs, sfn (), Just DoWait)
     EffEndCombat -> return (cs, sfn (), Just DoEndCombat)
     EffGetCharFaceDir charNum -> do
@@ -680,9 +638,9 @@ tickMonsterWaiting entry = (monst', mbScript) where
              then Just (defaultMonsterCombatAI entry >> resetMoments)
              else Nothing
   resetMoments = do
-    monsters <- emitEffect $ EffCombatArea $ EffAreaGet arsMonsters
+    monsters <- areaGet arsMonsters
     maybeM (gridLookup (geKey entry) monsters) $ \entry' -> do
-      emitEffect $ EffCombatArea $ EffReplaceMonster (geKey entry') $
+      emitAreaEffect $ EffReplaceMonster (geKey entry') $
         Just (geValue entry') { monstMoments = 0 }
   moments' = max moments $ min (maxActionPoints * momentsPerActionPoint) $
              round (mtSpeed mtype * seSpeedMultiplier status *

@@ -26,7 +26,6 @@ where
 import Control.Applicative ((<$), (<$>))
 import Control.Monad (forM_, guard, when)
 import Data.List (delete, intercalate, partition)
-import qualified Data.Map as Map (alter)
 import Data.Maybe (fromMaybe, isNothing, isJust)
 import Data.IORef
 import qualified Data.Set as Set
@@ -58,16 +57,15 @@ import Fallback.Scenario.Script
 import Fallback.Sound (playSound)
 import Fallback.State.Action
 import Fallback.State.Area
-import Fallback.State.Camera (setCameraShake)
 import Fallback.State.Combat
   (CombatCharState(..), CombatState(..), CombatPhase(WaitingPhase))
-import Fallback.State.Creature (CreatureAnim(..), mtSize)
+import Fallback.State.Creature (CreatureAnim(..))
 import Fallback.State.Item (getPotionAction)
 import Fallback.State.Party
 import Fallback.State.Region (RegionState(..))
 import Fallback.State.Resources
   (Resources, SoundTag(SndCombatStart), rsrcSound)
-import Fallback.State.Simple (deltaFaceDir, sizeSize)
+import Fallback.State.Simple (CastingCost, deltaFaceDir)
 import Fallback.State.Tags (AreaTag, ItemTag(PotionItemTag))
 import Fallback.State.Town
 import Fallback.View (fromAction, viewHandler, viewPaint)
@@ -98,14 +96,14 @@ newTownMode resources modes initState = do
       when (event == EvTick) $ paintScreen (viewPaint view ts)
       case mbInterrupt of
         Just (DoExit area) -> do
-          let party = tsParty ts
+          let party = arsParty ts
           let restore char = char { chrAdrenaline = 0,
                                     chrHealth = chrMaxHealth party char,
                                     chrMana = chrMaxMana party char }
           let party' = party { partyCharacters =
                                  restore <$> partyCharacters party }
           ChangeMode <$> newRegionMode' modes RegionState
-            { rsClock = tsClock ts,
+            { rsClock = acsClock $ tsCommon ts,
               rsParty = party',
               rsPreviousArea = partyCurrentArea party',
               rsRegion = partyCurrentRegion party',
@@ -123,7 +121,7 @@ newTownMode resources modes initState = do
             return mode
         Just DoStartCombat -> doStartCombat ts
         Just (DoTeleport tag pos) -> do
-          eo <- runIOEO $ enterPartyIntoArea (tsParty ts) tag pos
+          eo <- runIOEO $ enterPartyIntoArea (arsParty ts) tag pos
           case runEO eo of
             Left errors -> do
               ChangeMode <$> newNarrateMode resources view ts
@@ -226,7 +224,7 @@ newTownMode resources modes initState = do
               case abilAct of
                 UpgradeSkills -> startUpgradePhase ts
                 UseAbility abilNum -> do
-                  let party = tsParty ts
+                  let party = arsParty ts
                   let charNum = tsActiveCharacter ts
                   let char = partyGetCharacter party charNum
                   fromMaybe ignore $ do
@@ -260,24 +258,24 @@ newTownMode resources modes initState = do
             InventoryPhase mbItemTag -> do
               case invAct of
                 ExchangeItem slot -> do
-                  case partyTryExchangeItem slot mbItemTag (tsParty ts) of
+                  case partyTryExchangeItem slot mbItemTag (arsParty ts) of
                     Nothing -> ignore
                     Just (mbItemTag', party') -> do
-                      changeState ts { tsParty = party',
-                                       tsPhase = InventoryPhase mbItemTag' }
+                      changeState ts
+                        { tsCommon = (tsCommon ts) { acsParty = party' },
+                          tsPhase = InventoryPhase mbItemTag' }
                 UpgradeStats -> do
                   if isJust mbItemTag then ignore else do
                   startUpgradePhase ts
                 UseItem slot -> do
-                  let party = tsParty ts
+                  let party = arsParty ts
                   if isJust mbItemTag then ignore else do
                   case partyItemInSlot slot party of
                     Just (PotionItemTag potTag) -> do
-                      changeState ts
-                        { tsParty = partyRemoveItem slot party,
-                          tsPhase = ScriptPhase $ mapEffect EffTownArea $
-                                    runPotionAction (getPotionAction potTag) $
-                                    tsActiveCharacter ts }
+                      let phase = ScriptPhase $ mapEffect EffTownArea $
+                                  runPotionAction (getPotionAction potTag) $
+                                  tsActiveCharacter ts
+                      changePhaseAndParty ts phase (partyRemoveItem slot party)
                     _ -> ignore
             _ -> ignore
         Just (TownUpgrade upgAct) -> do
@@ -297,11 +295,10 @@ newTownMode resources modes initState = do
                 DecreaseStat stat -> do
                   let st' = SM.adjust (subtract 1) (charNum, stat) st
                   changeState ts { tsPhase = UpgradePhase st' sk }
-                CancelUpgrades -> do
-                  changeState ts { tsPhase = WalkingPhase }
-                CommitUpgrades -> do
-                  changeState ts { tsPhase = WalkingPhase,
-                    tsParty = partySpendUpgrades st sk (tsParty ts) }
+                CancelUpgrades -> changeState ts { tsPhase = WalkingPhase }
+                CommitUpgrades ->
+                  changePhaseAndParty ts WalkingPhase $
+                  partySpendUpgrades st sk (arsParty ts)
             _ -> ignore
         Just (TownScript script) -> do
           case tsPhase ts of
@@ -313,17 +310,18 @@ newTownMode resources modes initState = do
               let pos = tsPartyPosition ts
               let pos' = pos `plusDir` dir
               if arsIsBlockedForParty ts pos' then ignore else do
-              fields' <- decayFields baseFramesPerActionPoint (tsFields ts)
+              let acs = tsCommon ts
+              fields' <- decayFields baseFramesPerActionPoint (acsFields acs)
               let script = do
                     forM_ [minBound .. maxBound] $ \charNum -> do
                       addToCharacterAdrenaline (negate 1) charNum
                     startCombat <-
                       alsoWith (flip const) (partyWalkTo pos') $
-                      concurrentAny (gridEntries $ tsMonsters ts) $
+                      concurrentAny (gridEntries $ acsMonsters acs) $
                       monsterTownStep
                     inflictAllPeriodicDamage
                     when startCombat $ emitEffect EffStartCombat
-              changeState ts { tsFields = fields',
+              changeState ts { tsCommon = acs { acsFields = fields' },
                                tsPhase = ScriptPhase script }
             _ -> ignore
         Just (TownTargetCharacter charNum) -> do
@@ -334,10 +332,7 @@ newTownMode resources modes initState = do
                                  ttCastingCost = cost, ttScriptFn = sfn } -> do
                    -- No need to check against the casting range, because we're
                    -- in town mode, so all characters are together.
-                   changeState ts
-                     { tsParty = partyDeductCastingCost charNum cost $
-                                 tsParty ts,
-                       tsPhase = ScriptPhase $ sfn $ Right charNum }
+                   executeAbility ts cost $ sfn $ Right charNum
                  _ -> ignore) :: IO NextMode
             _ -> ignore
         Just (TownTargetPosition pos) -> do
@@ -369,10 +364,7 @@ newTownMode resources modes initState = do
                  cannotHit rng =
                    pSqDist pos originPos > rng ||
                    not (arsIsVisibleToCharacter (tsActiveCharacter ts) ts pos)
-                 execute script = changeState ts
-                   { tsParty = partyDeductCastingCost (tsActiveCharacter ts)
-                                                      cost (tsParty ts),
-                     tsPhase = ScriptPhase script }
+                 execute = executeAbility ts cost
                  originPos = tsPartyPosition ts
              _ -> ignore) :: IO NextMode
         Just TownCancelTargeting -> do
@@ -383,6 +375,12 @@ newTownMode resources modes initState = do
         Just _ -> return SameMode -- FIXME handle other actions
         Nothing -> return SameMode
 
+    executeAbility :: TownState -> CastingCost -> Script TownEffect ()
+                   -> IO NextMode
+    executeAbility ts cost script =
+      changePhaseAndParty ts (ScriptPhase script) $
+      partyDeductCastingCost (tsActiveCharacter ts) cost (arsParty ts)
+
     startUpgradePhase :: TownState -> IO NextMode
     startUpgradePhase ts = do
       changeState ts { tsPhase = UpgradePhase (SM.make 0) (SM.make 0) }
@@ -391,7 +389,7 @@ newTownMode resources modes initState = do
     tryToManuallyStartCombat ts = do
       if arsAreMonstersNearby ts then doStartCombat ts else do
         let msg = "Can't start combat -- there are no enemies nearby."
-        writeIORef stateRef $ tsSetMessage msg ts
+        writeIORef stateRef $ arsSetMessage msg ts
         return SameMode
 
     doStartCombat :: TownState -> IO NextMode
@@ -410,28 +408,19 @@ newTownMode resources modes initState = do
                           ccsVisible = Set.empty,
                           ccsWantsTurn = False }
             in (ccs, Set.insert pos claimed)
-      let (combatMonsts, otherMonsts) = gridExcise arenaRect (tsMonsters ts)
+      let (combatMonsts, otherMonsts) = gridExcise arenaRect (arsMonsters ts)
+      let acs' = (tsCommon ts) { acsMonsters = combatMonsts }
       playSound (rsrcSound resources SndCombatStart)
       ChangeMode <$> newCombatMode' modes CombatState
         { csArenaTopleft = arenaTopleft,
-          csCamera = tsCamera ts,
+          csCommon = acs',
           csCharStates = unfoldTotalMap mkCharState Set.empty,
-          csClock = tsClock ts,
-          csDevices = tsDevices ts,
-          csDoodads = tsDoodads ts,
-          csFields = tsFields ts,
-          csMessage = tsMessage ts,
-          csMinimap = tsMinimap ts,
-          csMonsters = combatMonsts,
           csMonstersNotInArena = otherMonsts,
-          csParty = tsParty ts,
           csPeriodicTimer = 0,
           csPhase = WaitingPhase,
-          csTerrain = tsTerrain ts,
           csTownFiredTriggerIds =
             Set.fromList $ map triggerId $ tsTriggersFired ts,
-          csTriggers = [], -- FIXME
-          csVisible = tsVisible ts }
+          csTriggers = [] } -- FIXME
 
     tryCheating :: TownState -> String -> IO Mode
     tryCheating ts string = do
@@ -446,8 +435,13 @@ newTownMode resources modes initState = do
             Xyzzy area x y -> runScript $ teleport area (Point x y)
         _ -> do
           let msg = "A hollow voice says, \"Fool!\""
-          writeIORef stateRef $ tsSetMessage msg ts
+          writeIORef stateRef $ arsSetMessage msg ts
       return mode
+
+    changePhaseAndParty :: TownState -> TownPhase -> Party -> IO NextMode
+    changePhaseAndParty ts phase' party' = do
+      let acs' = (tsCommon ts) { acsParty = party' }
+      changeState ts { tsCommon = acs', tsPhase = phase' }
 
     changeState :: TownState -> IO NextMode
     changeState ts' = SameMode <$ writeIORef stateRef ts'
@@ -542,53 +536,14 @@ executeEffect ts eff sfn =
     EffTeleportToArea tag pos -> return (ts, Left $ DoTeleport tag pos)
     EffTownArea eff' ->
       case eff' of
-        EffAreaParty eff'' -> do
-          (result, party') <- executePartyEffect eff'' (tsParty ts)
-          return (ts { tsParty = party'}, Right $ sfn result)
-        EffAddDoodad dood ->
-          return (ts { tsDoodads = addDoodad dood (tsDoodads ts) },
-                  Right $ sfn ())
-        EffAlterFields fn ps ->
-          -- TODO update visibility, for the sake of smokescreen
-          return (ts { tsFields = foldr (Map.alter fn) (tsFields ts) ps },
-                  Right $ sfn ())
-        EffAreaGet fn -> return (ts, Right $ sfn $ fn $ ts)
+        EffAreaCommon eff'' -> do
+          (result, ts') <- executeAreaCommonEffect eff'' ts
+          return (ts', Right $ sfn result)
         EffGameOver -> return (ts, Left DoGameOver)
         EffIfCombat _ script -> return (ts, Right (script >>= sfn))
-        EffMessage text ->
-          return (ts { tsMessage = Just (makeMessage text) }, Right $ sfn ())
         EffMultiChoice text choices cancel ->
           return (ts, Left $ DoMultiChoice text choices cancel sfn)
         EffNarrate text -> return (ts, Left $ DoNarrate text $ sfn ())
-        EffTryAddDevice pos device ->
-          -- TODO update visibility
-          case gridTryInsert (makeRect pos (1, 1)) device (tsDevices ts) of
-            Nothing -> return (ts, Right $ sfn Nothing)
-            Just (entry, devices') ->
-              return (ts { tsDevices = devices' }, Right $ sfn $ Just entry)
-        EffTryAddMonster topleft monster ->
-          case gridTryInsert (makeRect topleft $ sizeSize $ mtSize $
-                              monstType monster) monster (tsMonsters ts) of
-            Nothing -> return (ts, Right $ sfn Nothing)
-            Just (entry, monsters') ->
-              return (ts { tsMonsters = monsters' }, Right $ sfn $ Just entry)
-        EffTryMoveMonster monstKey rect -> do
-          case gridTryMove monstKey rect (tsMonsters ts) of
-            Nothing -> return (ts, Right (sfn False))
-            Just grid' -> return (ts { tsMonsters = grid' }, Right (sfn True))
-        EffReplaceDevice key mbDevice' -> do
-          ts' <- updateTownVisibility ts {
-                   tsDevices = maybe (gridDelete key)
-                                     (gridReplace key) mbDevice'
-                                     (tsDevices ts) }
-          return (ts', Right (sfn ()))
-        EffReplaceMonster monstKey mbMonst' -> do
-          return (ts { tsMonsters = maybe (gridDelete monstKey)
-                                          (gridReplace monstKey) mbMonst'
-                                          (tsMonsters ts) }, Right (sfn ()))
-        EffShakeCamera ampl duration -> do
-          return (ts { tsCamera = setCameraShake ampl duration (tsCamera ts) },
-                  Right (sfn ()))
         EffWait -> return (ts, Left $ DoWait $ sfn ())
 
 -------------------------------------------------------------------------------

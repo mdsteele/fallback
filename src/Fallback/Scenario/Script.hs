@@ -20,8 +20,8 @@
 {-# LANGUAGE GADTs, Rank2Types #-}
 
 module Fallback.Scenario.Script
-  (module Fallback.Control.Script, FromAreaEffect(..),
-   emitAreaEffect, emitPartyEffect,
+  (module Fallback.Control.Script, FromAreaEffect(..), ToAreaEffect(..),
+   emitAreaEffect,
    -- * Script actions
 
    -- ** Control
@@ -150,12 +150,15 @@ instance FromAreaEffect TownEffect where
   isWaitEffect (EffTownArea EffWait) fn = Just (fn ())
   isWaitEffect _ _ = Nothing
 
-emitAreaEffect :: (FromAreaEffect f) => AreaEffect a -> Script f a
-emitAreaEffect = emitEffect . fromAreaEffect
+class ToAreaEffect f where toAreaEffect :: f a -> AreaEffect a
+instance ToAreaEffect PartyEffect where
+  toAreaEffect = EffAreaCommon . EffAreaParty
+instance ToAreaEffect AreaCommonEffect where toAreaEffect = EffAreaCommon
+instance ToAreaEffect AreaEffect where toAreaEffect = id
 
-emitPartyEffect :: (FromAreaEffect f) => PartyEffect a -> Script f a
-emitPartyEffect = emitEffect . fromAreaEffect . EffAreaParty
-
+emitAreaEffect :: (ToAreaEffect e, FromAreaEffect f) => e a -> Script f a
+emitAreaEffect = emitEffect . fromAreaEffect . toAreaEffect
+ 
 -------------------------------------------------------------------------------
 -- Control:
 
@@ -292,7 +295,7 @@ getRandomElem list = if null list then fail "getRandomElem: empty list"
 -- | Choose a random value within the given range.  @'getRandomR' a b@ is
 -- the 'Script' monad equivalent of @'randomRIO' (a, b)@.
 getRandomR :: (FromAreaEffect f, Random a) => a -> a -> Script f a
-getRandomR lo hi = emitPartyEffect $ EffRandom lo hi
+getRandomR lo hi = emitAreaEffect $ EffRandom lo hi
 
 -- getRandomLucky :: (FromAreaEffect f) => CharacterNumber -> Double -> Double
 --                -> Script f Double
@@ -623,7 +626,7 @@ dealRawDamageToCharacter gentle charNum damage stun = do
   -- Do damage:
   minHealth <- emitAreaEffect $ EffIfCombat (return 0) (return 1)
   let health' = max minHealth (chrHealth char - damage)
-  emitPartyEffect $ EffAlterCharacter charNum $ \c -> c { chrHealth = health' }
+  emitAreaEffect $ EffAlterCharacter charNum $ \c -> c { chrHealth = health' }
   emitAreaEffect $ EffIfCombat (setCharacterAnim charNum $ HurtAnim 12)
                                (setPartyAnim $ HurtAnim 12)
   addNumberDoodadAtPosition damage pos
@@ -674,7 +677,7 @@ dealRawDamageToMonster gentle key damage stun = do
     addDeathDoodad (rsrcMonsterImages resources (mtSize mtype)
                                       (mtImageRow mtype))
                    (monstFaceDir monst) (geRect entry)
-    maybeM (monstDeadVar monst) (emitPartyEffect . flip EffSetVar True)
+    maybeM (monstDeadVar monst) (emitAreaEffect . flip EffSetVar True)
     unless (monstIsAlly monst) $ do
       grantExperience $ mtExperienceValue $ monstType monst
 
@@ -694,7 +697,7 @@ healCharacter charNum baseAmount = do
   pos <- areaGet (arsCharacterPosition charNum)
   addNumberDoodadAtPosition amount pos
   party <- areaGet arsParty
-  emitPartyEffect $ EffAlterCharacter charNum $ \char ->
+  emitAreaEffect $ EffAlterCharacter charNum $ \char ->
     char { chrHealth = min (chrMaxHealth party char)
                            (chrHealth char + amount) }
 
@@ -711,19 +714,19 @@ alterCharacterMana :: (FromAreaEffect f) => CharacterNumber -> (Int -> Int)
                    -> Script f ()
 alterCharacterMana charNum fn = do
   party <- areaGet arsParty
-  emitPartyEffect $ EffAlterCharacter charNum $ \char ->
+  emitAreaEffect $ EffAlterCharacter charNum $ \char ->
     char { chrMana = max 0 $ min (chrMaxMana party char) $ fn (chrMana char) }
 
 restoreManaToFull :: (FromAreaEffect f) => CharacterNumber -> Script f ()
 restoreManaToFull charNum = do
   party <- areaGet arsParty
-  emitPartyEffect $ EffAlterCharacter charNum $ \char ->
+  emitAreaEffect $ EffAlterCharacter charNum $ \char ->
     char { chrMana = chrMaxMana party char }
 
 addToCharacterAdrenaline :: (FromAreaEffect f) => Int -> CharacterNumber
                          -> Script f ()
 addToCharacterAdrenaline delta charNum =
-  emitPartyEffect $ EffAlterCharacter charNum $ \char ->
+  emitAreaEffect $ EffAlterCharacter charNum $ \char ->
     char { chrAdrenaline = max 0 $ min maxAdrenaline $
                            chrAdrenaline char + delta }
 
@@ -744,7 +747,7 @@ alterCharacterStatus :: (FromAreaEffect f) => CharacterNumber
                      -> (StatusEffects -> StatusEffects) -> Script f ()
 alterCharacterStatus charNum fn = do
   fn' <- emitAreaEffect $ EffIfCombat (return fn) (return (townifyStatus . fn))
-  emitPartyEffect $ EffAlterCharacter charNum $ \char ->
+  emitAreaEffect $ EffAlterCharacter charNum $ \char ->
     char { chrStatus = fn' (chrStatus char) }
 
 alterMonsterStatus :: (FromAreaEffect f) => GridKey Monster
@@ -1015,7 +1018,7 @@ addShockwaveDoodad limit center fn = do
 
 -- | Print a string to the terminal console, for debugging.
 debug :: (FromAreaEffect f) => String -> Script f ()
-debug = emitPartyEffect . EffDebug
+debug = emitAreaEffect . EffDebug
 
 setMessage :: (FromAreaEffect f) => String -> Script f ()
 setMessage = emitAreaEffect . EffMessage
@@ -1070,20 +1073,20 @@ gameOver = emitAreaEffect EffGameOver
 playSound :: (FromAreaEffect f) => SoundTag -> Script f ()
 playSound tag = do
   resources <- areaGet arsResources
-  emitPartyEffect $ EffPlaySound $ rsrcSound resources tag
+  emitAreaEffect $ EffPlaySound $ rsrcSound resources tag
 
 -- | Start new music looping.  If any music is already playing, stop it.
 startMusic :: (FromAreaEffect f) => MusicTag -> Script f ()
-startMusic = emitPartyEffect . EffMusicStart
+startMusic = emitAreaEffect . EffMusicStart
 
 -- | If any music is currently playing, stop it immediately.
 stopMusic :: (FromAreaEffect f) => Script f ()
-stopMusic = emitPartyEffect $ EffMusicStop
+stopMusic = emitAreaEffect $ EffMusicStop
 
 -- | If any music is currently playing, fade it out over the given number of
 -- seconds.
 fadeOutMusic :: (FromAreaEffect f) => Double -> Script f ()
-fadeOutMusic = emitPartyEffect . EffMusicFadeOut
+fadeOutMusic = emitAreaEffect . EffMusicFadeOut
 
 -------------------------------------------------------------------------------
 -- Other script actions:
@@ -1124,14 +1127,14 @@ grantAndEquipWeapon tag charNum = do
   party <- areaGet arsParty
   let char = partyGetCharacter party charNum
   let mbOldItem = fmap WeaponItemTag $ eqpWeapon $ chrEquipment char
-  emitPartyEffect $ EffAlterCharacter charNum (\c -> c { chrEquipment =
+  emitAreaEffect $ EffAlterCharacter charNum (\c -> c { chrEquipment =
     (chrEquipment c) { eqpWeapon = Just tag } })
-  maybeM mbOldItem (emitPartyEffect . EffGrantItem)
+  maybeM mbOldItem (emitAreaEffect . EffGrantItem)
 
 grantExperience :: (FromAreaEffect f) => Int -> Script f ()
 grantExperience xp = do
   oldLevel <- areaGet (partyLevel . arsParty)
-  emitPartyEffect $ EffGrantExperience xp
+  emitAreaEffect $ EffGrantExperience xp
   newLevel <- areaGet (partyLevel . arsParty)
   when (newLevel > oldLevel) $ do
     setMessage $ "Party is now level " ++ show newLevel ++ "!"

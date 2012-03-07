@@ -32,13 +32,13 @@ import System.Random (Random, randomRIO)
 
 import Fallback.Constants (combatArenaCols, combatArenaRows, secondsPerFrame)
 import Fallback.Control.Script (Script)
-import Fallback.Data.Clock (Clock)
+import Fallback.Data.Clock (Clock, clockInc)
 import Fallback.Data.Grid
 import Fallback.Data.Point
 import Fallback.Data.TotalMap (TotalMap, makeTotalMap, tmAlter, tmGet)
 import Fallback.Draw (Minimap, Paint, Sprite)
 import Fallback.Sound (Sound, fadeOutMusic, loopMusic, playSound, stopMusic)
-import Fallback.State.Camera (Camera)
+import Fallback.State.Camera (Camera, setCameraShake, tickCamera)
 import Fallback.State.Creature
 import Fallback.State.Party
 import Fallback.State.Progress
@@ -65,6 +65,14 @@ data AreaCommonState = AreaCommonState
     acsTerrain :: TerrainMap,
     acsVisible :: Set.Set Position }
 
+tickAnimations :: DPoint -> AreaCommonState -> AreaCommonState
+tickAnimations cameraGoalTopleft acs =
+  acs { acsClock = clockInc (acsClock acs),
+        acsCamera = tickCamera cameraGoalTopleft (acsCamera acs),
+        acsDoodads = tickDoodads (acsDoodads acs),
+        acsMessage = acsMessage acs >>= decayMessage,
+        acsMonsters = gridUpdate tickMonsterAnim (acsMonsters acs) }
+
 -------------------------------------------------------------------------------
 
 class (HasProgress a) => AreaState a where
@@ -78,27 +86,37 @@ class (HasProgress a) => AreaState a where
 
   arsCharacterAtPosition :: Position -> a -> Maybe CharacterNumber
 
-  arsDevices :: a -> Grid Device
-  arsFields :: a -> Map.Map Position Field
-  arsMonsters :: a -> Grid Monster
-  arsParty :: a -> Party
+  arsCommon :: a -> AreaCommonState
+  arsSetCommon :: a -> AreaCommonState -> a
 
   -- | Return all positions occupied by party members.  In town mode, this will
   -- be the single position of the party.  In combat mode, this will have up to
   -- four positions, one for each conscious party member.
   arsPartyPositions :: a -> [Position]
 
-  arsResources :: a -> Resources
-  arsTerrain :: a -> TerrainMap
   arsVisibleForCharacter :: CharacterNumber -> a -> Set.Set Position
   arsVisibleForParty :: a -> Set.Set Position
+
+-------------------------------------------------------------------------------
 
 arsArenaRect :: (AreaState a) => a -> IRect
 arsArenaRect ars = let Point x y = arsArenaTopleft ars
                    in Rect x y combatArenaCols combatArenaRows
 
+arsCamera :: (AreaState a) => a -> Camera
+arsCamera = acsCamera . arsCommon
+
+arsClock :: (AreaState a) => a -> Clock
+arsClock = acsClock . arsCommon
+
+arsDevices :: (AreaState a) => a -> Grid Device
+arsDevices = acsDevices . arsCommon
+
 arsExploredMap :: (AreaState a) => a -> ExploredMap
 arsExploredMap ars = partyExploredMap (arsTerrain ars) (arsParty ars)
+
+arsFields :: (AreaState a) => a -> Map.Map Position Field
+arsFields = acsFields . arsCommon
 
 arsGetCharacter :: (AreaState a) => CharacterNumber -> a -> Character
 arsGetCharacter charNum ars = partyGetCharacter (arsParty ars) charNum
@@ -110,6 +128,21 @@ arsIsVisibleToCharacter :: (AreaState a) => CharacterNumber -> a -> Position
                         -> Bool
 arsIsVisibleToCharacter charNum ars pos =
   Set.member pos (arsVisibleForCharacter charNum ars)
+
+arsMonsters :: (AreaState a) => a -> Grid Monster
+arsMonsters = acsMonsters . arsCommon
+
+arsMinimap :: (AreaState a) => a -> Minimap
+arsMinimap = acsMinimap . arsCommon
+
+arsParty :: (AreaState a) => a -> Party
+arsParty = acsParty . arsCommon
+
+arsResources :: (AreaState a) => a -> Resources
+arsResources = partyResources . arsParty
+
+arsTerrain :: (AreaState a) => a -> TerrainMap
+arsTerrain = acsTerrain . arsCommon
 
 arsTerrainOpenness :: (AreaState a) => Position -> a -> TerrainOpenness
 arsTerrainOpenness pos ars =
@@ -210,6 +243,13 @@ arsOccupant pos ars =
   case arsCharacterAtPosition pos ars of
     Just charNum -> Just (Left charNum)
     Nothing -> Right <$> gridSearch (arsMonsters ars) pos
+
+-------------------------------------------------------------------------------
+-- AreaState setters:
+
+arsSetMessage :: (AreaState a) => String -> a -> a
+arsSetMessage text ars =
+  arsSetCommon ars (arsCommon ars) { acsMessage = Just (makeMessage text) }
 
 -------------------------------------------------------------------------------
 
@@ -365,23 +405,28 @@ data PartyEffect :: * -> * where
   -- Change the value of a scenario variable.
   EffSetVar :: (VarType a) => Var a -> a -> PartyEffect ()
 
+-- | Effects that can occur in any AreaState.
+data AreaCommonEffect :: * -> * where
+  EffAreaParty :: PartyEffect a -> AreaCommonEffect a
+  EffAddDoodad :: Doodad -> AreaCommonEffect ()
+  EffAlterFields :: (Maybe Field -> Maybe Field) -> [Position]
+                 -> AreaCommonEffect ()
+  EffAreaGet :: (forall s. (AreaState s) => s -> a) -> AreaCommonEffect a
+  EffMessage :: String -> AreaCommonEffect ()
+  EffTryAddDevice :: Position -> Device
+                  -> AreaCommonEffect (Maybe (GridEntry Device))
+  EffTryAddMonster :: Position -> Monster
+                   -> AreaCommonEffect (Maybe (GridEntry Monster))
+  EffTryMoveMonster :: GridKey Monster -> PRect -> AreaCommonEffect Bool
+  EffReplaceDevice :: GridKey Device -> Maybe Device -> AreaCommonEffect ()
+  EffReplaceMonster :: GridKey Monster -> Maybe Monster -> AreaCommonEffect ()
+  EffShakeCamera :: Double -> Int -> AreaCommonEffect ()
+  EffSetTerrain :: [(Position, TerrainTile)] -> AreaCommonEffect ()
+
 -- | Effects that can occur in town mode or combat mode, but that must be
 -- handled differently depending on the mode.
 data AreaEffect :: * -> * where
-  EffAreaParty :: PartyEffect a -> AreaEffect a
-  EffAddDoodad :: Doodad -> AreaEffect ()
-  EffAlterFields :: (Maybe Field -> Maybe Field) -> [Position] -> AreaEffect ()
-  EffAreaGet :: (forall s. (AreaState s) => s -> a) -> AreaEffect a
-  EffMessage :: String -> AreaEffect ()
-  EffTryAddDevice :: Position -> Device
-                  -> AreaEffect (Maybe (GridEntry Device))
-  EffTryAddMonster :: Position -> Monster
-                   -> AreaEffect (Maybe (GridEntry Monster))
-  EffTryMoveMonster :: GridKey Monster -> PRect -> AreaEffect Bool
-  EffReplaceDevice :: GridKey Device -> Maybe Device -> AreaEffect ()
-  EffReplaceMonster :: GridKey Monster -> Maybe Monster -> AreaEffect ()
-  EffShakeCamera :: Double -> Int -> AreaEffect ()
-  EffSetTerrain :: [(Position, TerrainTile)] -> AreaEffect ()
+  EffAreaCommon :: AreaCommonEffect a -> AreaEffect a
 --   EffConversation :: Script TalkEffect a -> AreaEffect a
   EffGameOver :: AreaEffect ()
   EffIfCombat :: Script CombatEffect a -> Script TownEffect a -> AreaEffect a
@@ -444,5 +489,50 @@ executePartyEffect eff party =
     EffSetVar var value -> do
       let progress' = progressSetVar var value $ partyProgress party
       return ((), party { partyProgress = progress' })
+
+executeAreaCommonEffect :: (AreaState s) => AreaCommonEffect a -> s
+                        -> IO (a, s)
+executeAreaCommonEffect eff ars = do
+  let acs = arsCommon ars
+  case eff of
+    EffAreaParty partyEff -> do
+      (result, party') <- executePartyEffect partyEff (arsParty ars)
+      return (result, set acs { acsParty = party' })
+    EffAddDoodad dood -> do
+      change acs { acsDoodads = addDoodad dood (acsDoodads acs) }
+    EffAlterFields fn ps -> do
+      -- TODO update visibility, for the sake of smokescreen
+      change acs { acsFields = foldr (Map.alter fn) (acsFields acs) ps }
+    EffAreaGet fn -> return (fn ars, ars)
+    EffMessage text -> change acs { acsMessage = Just (makeMessage text) }
+    EffTryAddDevice pos device -> do
+      -- TODO update visibility
+      case gridTryInsert (makeRect pos (1, 1)) device (acsDevices acs) of
+        Nothing -> return (Nothing, ars)
+        Just (entry, devices') ->
+          return (Just entry, set acs { acsDevices = devices' })
+    EffTryAddMonster topleft monster -> do
+      case gridTryInsert (makeRect topleft $ sizeSize $ mtSize $
+                          monstType monster) monster (acsMonsters acs) of
+        Nothing -> return (Nothing, ars)
+        Just (entry, monsters') ->
+          return (Just entry, set acs { acsMonsters = monsters' })
+    EffTryMoveMonster monstKey rect -> do
+      case gridTryMove monstKey rect (acsMonsters acs) of
+        Nothing -> return (False, ars)
+        Just grid' -> return (True, set acs { acsMonsters = grid' })
+    EffReplaceDevice key mbDevice' -> do
+      -- TODO update visibility
+      change acs { acsDevices = maybe (gridDelete key) (gridReplace key)
+                                      mbDevice' (acsDevices acs) }
+    EffReplaceMonster key mbMonst' -> do
+      change acs { acsMonsters = maybe (gridDelete key) (gridReplace key)
+                                       mbMonst' (acsMonsters acs) }
+    EffSetTerrain _ -> fail "FIXME executeAreaCommonEffect EffSetTerrain"
+    EffShakeCamera ampl duration -> do
+      change acs { acsCamera = setCameraShake ampl duration (acsCamera acs) }
+  where
+    set acs' = arsSetCommon ars acs'
+    change acs' = return ((), set acs')
 
 -------------------------------------------------------------------------------
