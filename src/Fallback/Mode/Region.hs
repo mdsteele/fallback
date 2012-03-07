@@ -86,9 +86,9 @@ newRegionMode resources modes initState = do
           return SameMode
         Just TravelToSelectedArea -> do
           let tag = rsSelectedArea state
-          eoTownState <- runIOEO $ enterPartyIntoArea (rsParty state) tag $
-                         areaEntrance tag (rsPreviousArea state)
-          case runEO eoTownState of
+          eo <- runIOEO $ enterPartyIntoArea resources (rsParty state) tag $
+                areaEntrance tag (rsPreviousArea state)
+          case runEO eo of
             Left errors ->
               ChangeMode <$> newNarrateMode resources view state
                                (intercalate "\n\n" errors) (return mode)

@@ -116,10 +116,10 @@ loadSavedGame resources sgs = do
   result <- onlyIO $ loadFromFile reads (combine (sgsDirPath sgs) "state")
   case result of
     Nothing -> fail "Failed to parse save data."
-    Just (Left w) ->
-      return $ SavedRegionState $ unwrapRegionState w resources
-    Just (Right w) -> do
-      ts <- unwrapTownState w resources
+    Just (Left wrappedRegionState) ->
+      return $ SavedRegionState $ unwrapRegionState wrappedRegionState
+    Just (Right wrappedTownState) -> do
+      ts <- unwrapTownState wrappedTownState resources
       return $ SavedTownState ts
 
 saveGame :: String -> Sprite -> SavedGame -> IOEO SavedGameSummary
@@ -154,15 +154,14 @@ allocSaveDir = do
 
 -------------------------------------------------------------------------------
 
-newtype ReadRegionState = ReadRegionState
-  { unwrapRegionState :: Resources -> RegionState }
+newtype ReadRegionState = ReadRegionState { unwrapRegionState :: RegionState }
 
 instance Read ReadRegionState where
   readPrec = do
     (party, region, selectedArea, prevArea) <- readPrec
-    return $ ReadRegionState $ \resources -> RegionState
+    return $ ReadRegionState $ RegionState
       { rsClock = initClock,
-        rsParty = unwrapParty party resources,
+        rsParty = party,
         rsPreviousArea = prevArea,
         rsRegion = region,
         rsSelectedArea = selectedArea }
@@ -171,7 +170,7 @@ newtype ShowRegionState = ShowRegionState RegionState
 
 instance Show ShowRegionState where
   showsPrec p (ShowRegionState rs) = showsPrec p $
-    (ShowParty (rsParty rs), rsRegion rs, rsSelectedArea rs, rsPreviousArea rs)
+    (rsParty rs, rsRegion rs, rsSelectedArea rs, rsPreviousArea rs)
 
 -------------------------------------------------------------------------------
 
@@ -213,9 +212,8 @@ newtype ReadAreaCommonState = ReadAreaCommonState
 
 instance Read ReadAreaCommonState where
   readPrec = do
-    (deviceIds, fields, wrappedParty, terrainName) <- readPrec
+    (deviceIds, fields, party, terrainName) <- readPrec
     return $ ReadAreaCommonState $ \resources partyPosition -> do
-      let party = unwrapParty wrappedParty resources
       let getDevice di =
             maybe (fail $ "Unknown device ID: " ++ show di) return $
             getAreaDevice scenarioTriggers (partyCurrentArea party) di
@@ -232,6 +230,7 @@ instance Read ReadAreaCommonState where
           acsMinimap = minimap,
           acsMonsters = error "FIXME ReadAreaCommonState",
           acsParty = party,
+          acsResources = resources,
           acsTerrain = terrain,
           acsVisible = Set.empty }
 
@@ -239,71 +238,7 @@ newtype ShowAreaCommonState = ShowAreaCommonState AreaCommonState
 
 instance Show ShowAreaCommonState where
   showsPrec p (ShowAreaCommonState acs) = showsPrec p $
-    (fmap devId (acsDevices acs), acsFields acs,
-     ShowParty (acsParty acs), tmapName (acsTerrain acs))
+    (fmap devId (acsDevices acs), acsFields acs, acsParty acs,
+     tmapName (acsTerrain acs))
 
--------------------------------------------------------------------------------
-
-newtype ReadParty = ReadParty { unwrapParty :: Resources -> Party }
-
-instance Read ReadParty where
-  readPrec = do
-    (characters, clearedAreas, coins, currentArea, difficulty, experience,
-     exploredMaps, foundAreas, ingredients, items, level, progress) <- readPrec
-    return $ ReadParty $ \resources -> Party
-      { partyCharacters = characters,
-        partyClearedAreas = clearedAreas,
-        partyCoins = coins,
-        partyCurrentArea = currentArea,
-        partyDifficulty = difficulty,
-        partyExperience = experience,
-        partyExploredMaps = exploredMaps,
-        partyFoundAreas = foundAreas,
-        partyIngredients = ingredients,
-        partyItems = items,
-        partyLevel = level,
-        partyProgress = progress,
-        partyResources = resources }
-
-newtype ShowParty = ShowParty Party
-
-instance Show ShowParty where
-  showsPrec p (ShowParty party) = showsPrec p $
-    (partyCharacters party, partyCoins party,
-     partyClearedAreas party, partyCurrentArea party, partyDifficulty party,
-     partyExperience party, partyExploredMaps party, partyFoundAreas party,
-     partyIngredients party, partyItems party, partyLevel party,
-     partyProgress party)
-
--------------------------------------------------------------------------------
-{-
-newtype ReadCharacter = ReadCharacter { unwrapCharacter :: Character }
-
-instance Read ReadCharacter where
-  readPrec = do
-    (abilities, adrenaline, appearance, baseStats, cclass, equipment, health,
-     mana, name, skillPoints, statPoints, status) <- readPrec
-    return $ ReadCharacter $ Character
-      { chrAbilities = abilities,
-        chrAdrenaline = adrenaline,
-        chrAppearance = appearance,
-        chrBaseStats = baseStats,
-        chrClass = cclass,
-        chrEquipment = equipment,
-        chrHealth = health,
-        chrMana = mana,
-        chrName = name,
-        chrSkillPoints = skillPoints,
-        chrStatPoints = statPoints,
-        chrStatus = status }
-
-newtype ShowCharacter = ShowCharacter Character
-
-instance Show ShowCharacter where
-  showsPrec p (ShowCharacter char) = showsPrec p $
-    (chrAbilities char, chrAdrenaline char, chrAppearance char,
-     chrBaseStats char, chrClass char, chrEquipment char, chrHealth char,
-     chrMana char, chrName char, chrSkillPoints char, chrStatPoints char,
-     chrStatus char)
--}
 -------------------------------------------------------------------------------

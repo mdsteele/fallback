@@ -35,7 +35,6 @@ import Fallback.Data.TotalMap
 import Fallback.State.Item
 import Fallback.State.Simple
 import Fallback.State.Status (StatusEffects, seMentalEffect)
-import Fallback.State.Resources (Resources)
 import Fallback.State.Tags
 import Fallback.State.Terrain
   (ExploredMap, TerrainMap, setExplored, unexploredMap)
@@ -55,8 +54,8 @@ data Party = Party
     partyIngredients :: Ingredients,
     partyItems :: IntMap.IntMap ItemTag,
     partyLevel :: Int,
-    partyProgress :: Progress,
-    partyResources :: Resources }
+    partyProgress :: Progress }
+  deriving (Read, Show)
 
 instance HasProgress Party where
   getProgress = partyProgress

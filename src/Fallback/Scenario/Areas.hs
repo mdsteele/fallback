@@ -35,8 +35,8 @@ import Fallback.State.Area
   (AreaCommonState(..), TownEffect, Trigger, emptyDoodads)
 import Fallback.State.Camera (makeCameraWithCenter)
 import Fallback.State.Creature (CreatureAnim(NoAnim))
-import Fallback.State.Party
-  (Party(partyCurrentArea), partyExploredMap, partyResources)
+import Fallback.State.Party (Party(partyCurrentArea), partyExploredMap)
+import Fallback.State.Resources (Resources)
 import Fallback.State.Simple (FaceDir(..))
 import Fallback.State.Tags (AreaTag(..))
 import Fallback.State.Terrain
@@ -63,10 +63,11 @@ areaTriggers = getAreaTriggers scenarioTriggers
 
 -------------------------------------------------------------------------------
 
-enterPartyIntoArea :: Party -> AreaTag -> Position -> IOEO TownState
-enterPartyIntoArea origParty tag position = do
+enterPartyIntoArea :: Resources -> Party -> AreaTag -> Position
+                   -> IOEO TownState
+enterPartyIntoArea resources origParty tag position = do
   let party = origParty { partyCurrentArea = tag }
-  terrain <- loadTerrainMap (partyResources party) (areaTerrain party tag)
+  terrain <- loadTerrainMap resources (areaTerrain party tag)
   minimap <- onlyIO $ createMinimap terrain party
   onlyIO $ updateTownVisibility $ TownState
     { tsActiveCharacter = minBound,
@@ -80,6 +81,7 @@ enterPartyIntoArea origParty tag position = do
           acsMinimap = minimap,
           acsMonsters = emptyGrid,
           acsParty = party,
+          acsResources = resources,
           acsTerrain = terrain,
           acsVisible = Set.empty },
       tsPartyAnim = NoAnim,

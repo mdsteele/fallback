@@ -79,7 +79,7 @@ import Fallback.View.Upgrade (UpgradeAction(..))
 
 newTownMode :: Resources -> Modes -> TownState -> IO Mode
 newTownMode resources modes initState = do
-  view <- runDraw $ newTownView $ arsResources initState
+  view <- runDraw $ newTownView resources
   stateRef <- newIORef initState
   let
 
@@ -121,7 +121,7 @@ newTownMode resources modes initState = do
             return mode
         Just DoStartCombat -> doStartCombat ts
         Just (DoTeleport tag pos) -> do
-          eo <- runIOEO $ enterPartyIntoArea (arsParty ts) tag pos
+          eo <- runIOEO $ enterPartyIntoArea resources (arsParty ts) tag pos
           case runEO eo of
             Left errors -> do
               ChangeMode <$> newNarrateMode resources view ts

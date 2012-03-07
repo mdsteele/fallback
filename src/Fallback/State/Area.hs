@@ -62,6 +62,7 @@ data AreaCommonState = AreaCommonState
     acsMinimap :: Minimap,
     acsMonsters :: Grid Monster,
     acsParty :: Party,
+    acsResources :: Resources,
     acsTerrain :: TerrainMap,
     acsVisible :: Set.Set Position }
 
@@ -141,7 +142,7 @@ arsParty :: (AreaState a) => a -> Party
 arsParty = acsParty . arsCommon
 
 arsResources :: (AreaState a) => a -> Resources
-arsResources = partyResources . arsParty
+arsResources = acsResources . arsCommon
 
 arsTerrain :: (AreaState a) => a -> TerrainMap
 arsTerrain = acsTerrain . arsCommon

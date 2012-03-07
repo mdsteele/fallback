@@ -83,8 +83,8 @@ newDiscardPartyMode resources menuMode prevMode bgView bgInput =
 
 newGameTownState :: Resources -> NewGameSpec -> IOEO TownState
 newGameTownState resources spec = do
-  party <- onlyIO $ newParty resources spec
-  enterPartyIntoArea party (partyCurrentArea party) startingPosition
+  party <- onlyIO $ newParty spec
+  enterPartyIntoArea resources party (partyCurrentArea party) startingPosition
 
 initCharacter :: NewCharacterSpec -> Character
 initCharacter spec = Character
@@ -134,8 +134,8 @@ initCharacter spec = Character
         (MagusClass, Agility) -> 16
         (MagusClass, Intellect) -> 31
 
-newParty :: Resources -> NewGameSpec -> IO Party
-newParty resources spec = do
+newParty :: NewGameSpec -> IO Party
+newParty spec = do
   let characters = initCharacter <$> ngsCharacters spec
   let numHAs = let fn c = if c == HunterClass || c == AlchemistClass
                           then 1 else 0
@@ -153,8 +153,7 @@ newParty resources spec = do
             makeTotalMap ((numHAs *) . ingredientStartQuantity),
           partyItems = IntMap.fromList $ zip [0..] [PotionItemTag HealingTincture, InertItemTag IronKey, ArmorItemTag AdamantPlate, AccessoryItemTag TitanFists], -- FIXME
           partyLevel = 1,
-          partyProgress = initialProgress,
-          partyResources = resources }
+          partyProgress = initialProgress }
   let healChar char = char { chrHealth = chrMaxHealth party char,
                              chrMana = chrMaxMana party char }
   return party { partyCharacters = fmap healChar (partyCharacters party) }
