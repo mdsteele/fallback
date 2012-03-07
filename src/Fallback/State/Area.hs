@@ -36,8 +36,9 @@ import Fallback.Data.Clock (Clock)
 import Fallback.Data.Grid
 import Fallback.Data.Point
 import Fallback.Data.TotalMap (TotalMap, makeTotalMap, tmAlter, tmGet)
-import Fallback.Draw (Paint, Sprite)
+import Fallback.Draw (Minimap, Paint, Sprite)
 import Fallback.Sound (Sound, fadeOutMusic, loopMusic, playSound, stopMusic)
+import Fallback.State.Camera (Camera)
 import Fallback.State.Creature
 import Fallback.State.Party
 import Fallback.State.Progress
@@ -48,6 +49,21 @@ import Fallback.State.Simple
 import Fallback.State.Status (StatusEffects)
 import Fallback.State.Tags (AreaTag, ItemTag, MonsterTag)
 import Fallback.State.Terrain
+
+-------------------------------------------------------------------------------
+
+data AreaCommonState = AreaCommonState
+  { acsCamera :: Camera,
+    acsClock :: Clock,
+    acsDevices :: Grid Device,
+    acsDoodads :: Doodads,
+    acsFields :: Map.Map Position Field,
+    acsMessage :: Maybe Message,
+    acsMinimap :: Minimap,
+    acsMonsters :: Grid Monster,
+    acsParty :: Party,
+    acsTerrain :: TerrainMap,
+    acsVisible :: Set.Set Position }
 
 -------------------------------------------------------------------------------
 
