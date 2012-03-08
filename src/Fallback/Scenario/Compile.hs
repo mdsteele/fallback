@@ -49,18 +49,15 @@ import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
 
-import Fallback.Data.Clock (Clock)
 import Fallback.Data.Grid (GridEntry)
-import Fallback.Data.Point (Position, PRect, SqDist, pZero, rectContains)
+import Fallback.Data.Point (Position, PRect, pZero, rectContains)
 import Fallback.Data.TotalMap
-import Fallback.Draw (Sprite)
 import Fallback.Scenario.Monsters (getMonsterType)
 import Fallback.Scenario.Script
 import Fallback.State.Area
 import Fallback.State.Creature
 import Fallback.State.Party (Party)
 import Fallback.State.Progress
-import Fallback.State.Resources (Resources)
 import Fallback.State.Simple
 import Fallback.State.Status (initStatusEffects)
 import Fallback.State.Tags (AreaTag, MonsterTag, RegionTag)
@@ -306,31 +303,28 @@ once vseed predicate script = do
 -- Defining devices:
 
 class DefineDevice m where
-  newDevice :: VarSeed -> (TerrainOpenness, SqDist,
-                           Resources -> Clock -> Sprite)
+  newDevice :: VarSeed -> Int
             -> (GridEntry Device -> CharacterNumber -> Script AreaEffect ())
             -> m Device
 
 instance DefineDevice CompileScenario where
-  newDevice vseed (open, rng, sprite) sfn = CompileScenario $ do
+  newDevice vseed radius sfn = CompileScenario $ do
     css <- State.get
     let di = makeDeviceId vseed
     when (Set.member di (cssDeviceIds css)) $ do
       fail ("Repeated device ID: " ++ show di)
-    let device = Device { devId = di, devInteract = sfn, devOpenness = open,
-                          devRange = rng, devSprite = sprite }
+    let device = Device { devId = di, devInteract = sfn, devRadius = radius }
     State.put css { cssDeviceIds = Set.insert di (cssDeviceIds css),
                     cssDevices = Map.insert di device (cssDevices css) }
     return device
 
 instance DefineDevice CompileArea where
-  newDevice vseed (open, rng, sprite) sfn = CompileArea $ do
+  newDevice vseed radius sfn = CompileArea $ do
     cas <- State.get
     let di = makeDeviceId vseed
     when (Set.member di $ casDeviceIds cas) $ do
       fail ("Repeated device ID: " ++ show di)
-    let device = Device { devId = di, devInteract = sfn, devOpenness = open,
-                          devRange = rng, devSprite = sprite }
+    let device = Device { devId = di, devInteract = sfn, devRadius = radius }
     State.put cas { casDeviceIds = Set.insert di (casDeviceIds cas),
                     casDevices = Map.insert di device (casDevices cas) }
     return device

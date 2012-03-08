@@ -36,7 +36,7 @@ import Fallback.Data.Clock (Clock, clockInc)
 import Fallback.Data.Grid
 import Fallback.Data.Point
 import Fallback.Data.TotalMap (TotalMap, makeTotalMap, tmAlter, tmGet)
-import Fallback.Draw (Minimap, Paint, Sprite, alterMinimap)
+import Fallback.Draw (Minimap, Paint, alterMinimap)
 import Fallback.Sound (Sound, fadeOutMusic, loopMusic, playSound, stopMusic)
 import Fallback.State.Camera (Camera, setCameraShake, tickCamera)
 import Fallback.State.Creature
@@ -49,7 +49,6 @@ import Fallback.State.Simple
 import Fallback.State.Status (StatusEffects)
 import Fallback.State.Tags (AreaTag, ItemTag, MonsterTag)
 import Fallback.State.Terrain
-import Fallback.Utility (flip3)
 
 -------------------------------------------------------------------------------
 
@@ -107,6 +106,8 @@ class (HasProgress a) => AreaState a where
   -- four positions, one for each conscious party member.
   arsPartyPositions :: a -> [Position]
 
+  arsUpdateVisibility :: a -> IO a
+
   -- | Return the set of positions visible to just one character.  In town
   -- mode, this is the same as 'arsVisibleForParty' (because all characters are
   -- in the same position), but for combat mode it is not.
@@ -162,8 +163,7 @@ arsTerrainMap = acsTerrainMap . arsCommon
 arsTerrainOpenness :: (AreaState a) => Position -> a -> TerrainOpenness
 arsTerrainOpenness pos ars =
   let acs = arsCommon ars
-  in flip3 maybe (devOpenness . geValue) (gridSearch (acsDevices acs) pos) $
-     ttOpenness $ flip fromMaybe (Map.lookup pos (acsTerrainOverrides acs)) $
+  in ttOpenness $ flip fromMaybe (Map.lookup pos (acsTerrainOverrides acs)) $
      tmapGet (acsTerrainMap acs) pos
 
 arsVisibleForParty :: (AreaState a) => a -> Set.Set Position
@@ -174,8 +174,8 @@ arsIsOpaque ars pos = not $ canSeeThrough $ arsTerrainOpenness pos ars
 
 -- | Determine if the given monster cannot occupy the given position (for large
 -- monsters, this position corresponds to the top-left position of the
--- monster's rectangle) without falling afoul of the party, terrain, devices,
--- and/or other monsters.
+-- monster's rectangle) without falling afoul of the party, terrain, and/or
+-- other monsters.
 arsIsBlockedForMonster :: (AreaState a) => GridEntry Monster -> a -> Position
                        -> Bool
 arsIsBlockedForMonster ge ars pos =
@@ -237,25 +237,6 @@ arsBeamPositions ars start thru =
            takeThru p (x : xs) = if p x then [x] else x : takeThru p xs
        in takeThru blocked $ drop 1 $ bresenhamPositions start $
           until (not . rectContains arena) (pAdd delta) start
-{-
-data Occupant = CharacterOccupant CharacterNumber
-              | DeviceOccupant (GridEntry Device)
-              | MonsterOccupant (GridEntry Monster)
-
-arsOccupant :: (AreaState a) => Position -> a -> Maybe Occupant
-arsOccupant pos ars =
-  case gridSearch (arsMonsters ars) pos of
-    Just entry -> Just (MonsterOccupant entry)
-    Nothing ->
-      case gridSearch (arsDevices ars) pos of
-        Just entry -> Just (DeviceOccupant entry)
-        Nothing -> flip firstJust [minBound .. maxBound] $ \charNum -> do
-          -- TODO This does not quite the right thing in town mode (should
-          --      yield the active character, not the first character)
-          guard $ pos == arsCharacterPosition charNum ars
-          guard $ chrIsConscious $ arsGetCharacter charNum ars
-          Just (CharacterOccupant charNum)
--}
 
 arsOccupant :: (AreaState a) => Position -> a
             -> Maybe (Either CharacterNumber (GridEntry Monster))
@@ -277,9 +258,7 @@ data Device = Device
   { devId :: DeviceId,
     devInteract :: GridEntry Device -> CharacterNumber ->
                    Script AreaEffect (),
-    devOpenness :: TerrainOpenness,
-    devRange :: SqDist,
-    devSprite :: Resources -> Clock -> Sprite }
+    devRadius :: Int }
 
 -------------------------------------------------------------------------------
 
@@ -526,7 +505,6 @@ executeAreaCommonEffect eff ars = do
     EffAreaGet fn -> return (fn ars, ars)
     EffMessage text -> change acs { acsMessage = Just (makeMessage text) }
     EffTryAddDevice pos device -> do
-      -- TODO update visibility
       case gridTryInsert (makeRect pos (1, 1)) device (acsDevices acs) of
         Nothing -> return (Nothing, ars)
         Just (entry, devices') ->
@@ -542,7 +520,6 @@ executeAreaCommonEffect eff ars = do
         Nothing -> return (False, ars)
         Just grid' -> return (True, set acs { acsMonsters = grid' })
     EffReplaceDevice key mbDevice' -> do
-      -- TODO update visibility
       change acs { acsDevices = maybe (gridDelete key) (gridReplace key)
                                       mbDevice' (acsDevices acs) }
     EffReplaceMonster key mbMonst' -> do
@@ -553,7 +530,9 @@ executeAreaCommonEffect eff ars = do
             if ttId tile == ttId (tmapGet (acsTerrainMap acs) pos)
             then Map.delete pos overrides else Map.insert pos tile overrides
       let overrides' = foldr update (acsTerrainOverrides acs) updates
-      change acs { acsTerrainOverrides = overrides' }
+      ars' <- arsUpdateVisibility $
+              set acs { acsTerrainOverrides = overrides' }
+      return ((), ars')
     EffShakeCamera ampl duration -> do
       change acs { acsCamera = setCameraShake ampl duration (acsCamera acs) }
   where

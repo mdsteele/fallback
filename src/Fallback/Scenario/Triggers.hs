@@ -28,9 +28,11 @@ where
 import Control.Applicative ((<$>))
 import Control.Monad (forM, join, zipWithM_)
 import qualified Control.Monad.State as State
+import Data.List (find)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import Fallback.Data.Grid (geRect)
 import Fallback.Data.Point
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
@@ -38,9 +40,10 @@ import Fallback.State.Area --(arsGetCharacter)
 import Fallback.State.Creature (MonsterTownAI(..))
 import Fallback.State.Party (chrClass)
 import Fallback.State.Progress (Progress, splitVarSeed)
-import Fallback.State.Resources (MusicTag(..), SoundTag(..), rsrcTerrainSprite)
-import Fallback.State.Simple (CharacterClass(..), TerrainOpenness(..))
+import Fallback.State.Resources (MusicTag(..), SoundTag(..), rsrcTileset)
+import Fallback.State.Simple (CharacterClass(..))
 import Fallback.State.Tags
+import Fallback.State.Terrain (TerrainTile, ttId)
 import Fallback.Utility (firstJust, flip3, maybeM, whenM)
 
 -------------------------------------------------------------------------------
@@ -61,23 +64,25 @@ scenarioTriggers = compileScenario $ do
 
   ---------------------------------- Devices ----------------------------------
 
-  let spriteAt coords rsrc _ = rsrcTerrainSprite rsrc coords
-  --let grassSignDt = (TerrainWindow, ofRadius 3, spriteAt (22, 9))
-  let snowSignDt = (TerrainWindow, ofRadius 3, spriteAt (18, 5))
-  let newUnlockedDoor vseed oCoords cCoords = do
+  -- The standard interaction radius for signs/placards:
+  let signRadius = 3 :: Int
+
+  let newUnlockedDoor vseed openId closedId = do
         let (cSeed, oSeed) = splitVarSeed vseed
-        rec open <- newDevice oSeed (TerrainOpen, ofRadius 1,
-                                     spriteAt oCoords) $ \ge _ -> do
-              playSound SndDoorShut
+        rec open <- newDevice oSeed 1 $ \ge _ -> do
+              tile <- getTerrainFromId closedId
+              setTerrain [(rectTopleft $ geRect ge, tile)]
               replaceDevice ge closed
-            closed <- newDevice cSeed (TerrainSolid, ofRadius 1,
-                                       spriteAt cCoords) $ \ge _ -> do
-              playSound SndDoorOpen
+              playSound SndDoorShut
+            closed <- newDevice cSeed 1 $ \ge _ -> do
+              tile <- getTerrainFromId openId
+              setTerrain [(rectTopleft $ geRect ge, tile)]
               replaceDevice ge open
+              playSound SndDoorOpen
         return closed
-  stoneDoor <- newUnlockedDoor 398282 (9, 3) (9, 2)
-  basaltDoor <- newUnlockedDoor 349783 (10, 5) (10, 4)
-  adobeDoor <- newUnlockedDoor 109823 (11, 5) (11, 4)
+  stoneDoor <- newUnlockedDoor 398282 0983 5588
+  basaltDoor <- newUnlockedDoor 349783 6383 6933
+  adobeDoor <- newUnlockedDoor 109823 2993 3891
 
   ----------------------------- Global Variables ------------------------------
 
@@ -115,6 +120,19 @@ scenarioTriggers = compileScenario $ do
   ----------------------------------- Areas -----------------------------------
 
   compileArea Valhalla Nothing $ do
+
+    onStartDaily 409487 $ do
+      addDevice_ stoneDoor (Point 8 2)
+      addDevice_ stoneDoor (Point 12 4)
+      addDevice_ stoneDoor (Point 3 6)
+      addDevice_ stoneDoor (Point 4 6)
+      addDevice_ stoneDoor (Point 10 6)
+      addDevice_ stoneDoor (Point 2 9)
+      addDevice_ stoneDoor (Point 10 9)
+      addDevice_ stoneDoor (Point 4 11)
+      addDevice_ stoneDoor (Point 7 11)
+      addDevice_ stoneDoor (Point 5 13)
+      addDevice_ stoneDoor (Point 10 13)
 
     simpleMonster 660632 DemonWolf (Point 29 2) ChaseAI
     simpleMonster 660633 DemonWolf (Point 6 20) ChaseAI
@@ -298,8 +316,7 @@ scenarioTriggers = compileScenario $ do
 
     makeExit 102938 MountainPath (Rect 0 10 2 12) (Point 2 16)
 
-    alwaysLockedDoor <- newDevice 963970 (TerrainSolid, ofRadius 1,
-                                          spriteAt (11, 4)) $ \_ _ -> do
+    alwaysLockedDoor <- newDevice 963970 1 $ \_ _ -> do
       setMessage "The door is locked."
 
     onStartDaily 820304 $ do
@@ -604,7 +621,7 @@ scenarioTriggers = compileScenario $ do
 
   compileArea FrozenPass Nothing $ do
     -- Devices:
-    signpost <- newDevice 981323 snowSignDt $ \_ _ -> do
+    signpost <- newDevice 981323 signRadius $ \_ _ -> do
       narrate "This signpost looks like it has seen better days, but you can\
               \ still read it clearly.  It says:\n\n      {c}Holmgare: 2 mi. E"
     onStartDaily 028371 $ do
@@ -795,6 +812,13 @@ scenarioTriggers = compileScenario $ do
 
 -------------------------------------------------------------------------------
 
+-- TODO This is kinda gross.  Is there a nicer way?
+getTerrainFromId :: (FromAreaEffect f) => Int -> Script f TerrainTile
+getTerrainFromId tileId = do
+  tileset <- areaGet (rsrcTileset . arsResources)
+  maybe (fail $ "Bad tile id: " ++ show tileId) return $
+    find ((tileId ==) . ttId) tileset
+
 -- 400278, 372710, 262175, 115489, 648882, 642527, 643253, 035698, 904223,
 -- 915362, 041045, 514224, 762406, 999849, 390882, 028595, 542093, 092923,
 -- 898699, 365950, 903733, 947379, 171095, 171407, 653092, 783351, 806315,
@@ -803,6 +827,6 @@ scenarioTriggers = compileScenario $ do
 -- 699149, 626625, 542400, 646620, 231202, 895064, 244106, 335736, 962886,
 -- 555634, 762040, 965783, 181915, 593047, 830701, 475373, 448374, 453147,
 -- 547952, 623179, 477627, 328351, 126701, 477117, 373102, 434118, 080509,
--- 296464, 697145, 035978, 571346, 233177, 044279, 232166, 385861, 409487
+-- 296464, 697145, 035978, 571346, 233177, 044279, 232166, 385861
 
 -------------------------------------------------------------------------------

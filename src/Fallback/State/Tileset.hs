@@ -91,6 +91,7 @@ tileSpecs = [
  TileSpec 7966 (Left (8, 3)) TerrainWindow green, -- sparse trees
  TileSpec 0723 (Left (8, 4)) TerrainWindow green, -- small tree
  TileSpec 8596 (Left (21, 4)) TerrainOpen green, -- six small bushes
+ TileSpec 8799 (Left (22, 9)) TerrainWindow green, -- signpost
 
  TileSpec 2276 (Left (21, 7)) TerrainOpen gray, -- stone road
  TileSpec 8769 (Left (20, 0)) TerrainOpen gray,
@@ -154,7 +155,9 @@ tileSpecs = [
 
  TileSpec 7292 (Left (8, 10)) TerrainSolid white, -- stone wall
  TileSpec 3112 (Left (8, 11)) TerrainSmoke white, -- stone secret door
+ TileSpec 5588 (Left (9, 2)) TerrainSolid gray, -- stone closed door
  TileSpec 0983 (Left (9, 3)) TerrainOpen gray, -- stone open door
+ TileSpec 2330 (Left (9, 4)) TerrainWindow gray, -- stone closed gate
  TileSpec 5719 (Left (9, 5)) TerrainOpen gray, -- stone open gate
  TileSpec 3254 (Left (9, 6)) TerrainSolid white, -- stone sign
  TileSpec 6250 (Left (9, 7)) TerrainSolid white, -- stone crack
@@ -165,7 +168,9 @@ tileSpecs = [
 
  TileSpec 7791 (Left (10, 2)) TerrainSolid white, -- basalt wall
  TileSpec 1306 (Left (10, 3)) TerrainSmoke white, -- basalt secret door
+ TileSpec 6933 (Left (10, 4)) TerrainSolid gray, -- basalt closed door
  TileSpec 6383 (Left (10, 5)) TerrainOpen gray, -- basalt open door
+ TileSpec 0865 (Left (10, 6)) TerrainWindow gray, -- basalt closed gate
  TileSpec 7148 (Left (10, 7)) TerrainOpen gray, -- basalt open gate
  TileSpec 9011 (Left (10, 8)) TerrainSolid white, -- basalt sign
  TileSpec 6051 (Left (10, 9)) TerrainSolid white, -- basalt crack
@@ -174,7 +179,9 @@ tileSpecs = [
 
  TileSpec 1752 (Left (11, 2)) TerrainSolid white, -- adobe wall
  TileSpec 5489 (Left (11, 3)) TerrainSmoke white, -- adobe secret door
+ TileSpec 3891 (Left (11, 4)) TerrainSolid gray, -- adobe closed door
  TileSpec 2993 (Left (11, 5)) TerrainOpen gray, -- adobe open door
+ TileSpec 8625 (Left (11, 7)) TerrainWindow gray, -- adobe closed gate
  TileSpec 0605 (Left (11, 7)) TerrainOpen gray, -- adobe open gate
  TileSpec 0280 (Left (11, 6)) TerrainWindow gray, -- adobe closed gate
  TileSpec 0364 (Left (11, 8)) TerrainSolid white, -- adobe sign
@@ -207,6 +214,7 @@ tileSpecs = [
  TileSpec 8590 (Left (15, 2)) TerrainWindow gray, -- table (north end)
  TileSpec 9381 (Left (15, 3)) TerrainWindow gray, -- table (north/south)
  TileSpec 4094 (Left (15, 4)) TerrainWindow gray, -- table (south end)
+ TileSpec 2367 (Left (13, 10)) TerrainWindow gray, -- chest
  TileSpec 9475 (Left (13, 11)) TerrainOpen gray, -- chair
  TileSpec 2060 (Left (14, 2)) TerrainOpen gray, -- chair
  TileSpec 2118 (Left (14, 3)) TerrainOpen gray, -- chair
@@ -248,6 +256,8 @@ tileSpecs = [
  TileSpec 5390 (Left (24, 7)) TerrainSolid cyan, -- snow w/ ice wall
  TileSpec 9409 (Left (18, 2)) TerrainOpen gray, -- green trash
  TileSpec 9456 (Left (18, 4)) TerrainOpen gray, -- red trash
+ TileSpec 1287 (Left (18, 5)) TerrainWindow gray, -- signpost
+ TileSpec 4556 (Left (18, 6)) TerrainWindow gray, -- obelisk
  TileSpec 0563 (Right (((46, 8), (46, 11)), 4)) TerrainWindow orange, -- cmpfir
 
  TileSpec 5203 (Left (0, 7)) TerrainSolid purple, -- snow wall
@@ -340,6 +350,10 @@ tileSpecs = [
     purple = Color 64 16 32
     white = whiteColor
 
--- 7264, 7108, 5376, 1701
+-- 7264, 7108, 5376, 1701, 3235, 6921, 4701, 9878, 6996, 2443, 6760, 0295,
+-- 4196, 5306, 0545, 6852, 3086, 5892, 7042, 5643, 3895, 9108, 6079, 8591,
+-- 3915, 9224, 2317, 0486, 3899, 4408, 3431, 0781, 3082, 6386, 3714, 7032,
+-- 7122, 1331, 2411, 8859, 2097, 4219, 8510, 5948, 7558, 6296, 6842, 2040,
+-- 9622, 0957, 7991, 0761, 4682
 
 -------------------------------------------------------------------------------

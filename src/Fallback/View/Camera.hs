@@ -22,8 +22,8 @@
 module Fallback.View.Camera
   (-- * Painting terrain
    paintTerrain, paintTerrainFullyExplored, tintNonVisibleTiles,
-   -- * Painting devices and monsters
-   paintFields, paintDevices, paintMonsters, paintStatusDecorations,
+   -- * Painting fields and creatures
+   paintFields, paintMonsters, paintStatusDecorations,
    -- * Painting GUI elements
    paintMessage, paintTargeting, paintWeaponRange,
    -- * Utility views
@@ -103,15 +103,6 @@ paintFields resources cameraTopleft visible clock =
             blit $ rsrcStrip resources SrpIceAura ! clockMod 4 5 clock
           _ -> return () -- FIXME
       where blit s = blitStretch s $ positionRect pos `rectMinus` cameraTopleft
-
-paintDevices :: Resources -> IPoint -> ExploredMap -> Clock
-             -> [GridEntry Device] -> Paint ()
-paintDevices resources cameraTopleft explored clock = mapM_ paintDevice where
-  paintDevice entry = do
-    let position = rectTopleft (geRect entry)
-    if not (explored `hasExplored` position) then return () else do
-    blitStretch (devSprite (geValue entry) resources clock)
-                (positionRect position `rectMinus` cameraTopleft)
 
 -- | Paint monsters, given the topleft position of the camera, a set of visible
 -- tile locations, a list of party member positions (used to determine if the

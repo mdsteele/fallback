@@ -103,8 +103,8 @@ maxAdrenaline = 100
 sightRangeSquared :: SqDist
 sightRangeSquared = ofRadius 10
 
-talkRangeSquared :: SqDist
-talkRangeSquared = ofRadius 6
+talkRadius :: Int
+talkRadius = 6
 
 experiencePerLevel :: Int
 experiencePerLevel = 1000

@@ -55,7 +55,7 @@ module Fallback.Scenario.Script
    -- *** Status effects
    alterStatus, grantInvisibility, inflictPoison,
    -- *** Other
-   grantExperience, removeFields, setFields,
+   grantExperience, removeFields, setFields, resetTerrain, setTerrain,
 
    -- ** Animation
    -- *** Camera motion
@@ -125,7 +125,8 @@ import Fallback.State.Simple
 import Fallback.State.Status
 import Fallback.State.Tags
   (AbilityTag(Recuperation), AreaTag, ItemTag(..), MonsterTag, WeaponItemTag)
-import Fallback.State.Terrain (positionCenter, prectRect, tmapSize)
+import Fallback.State.Terrain
+  (TerrainTile, positionCenter, prectRect, tmapGet, tmapSize)
 import Fallback.Utility
   (ceilDiv, flip3, flip4, groupKey, maybeM, sortKey, square)
 
@@ -158,7 +159,7 @@ instance ToAreaEffect AreaEffect where toAreaEffect = id
 
 emitAreaEffect :: (ToAreaEffect e, FromAreaEffect f) => e a -> Script f a
 emitAreaEffect = emitEffect . fromAreaEffect . toAreaEffect
- 
+
 -------------------------------------------------------------------------------
 -- Control:
 
@@ -1149,6 +1150,12 @@ replaceDevice :: (FromAreaEffect f) => GridEntry Device -> Device
 replaceDevice entry device =
   emitAreaEffect $ EffReplaceDevice (geKey entry) (Just device)
 
+resetTerrain :: (FromAreaEffect f) => [Position] -> Script f ()
+resetTerrain positions = do
+  tmap <- areaGet arsTerrainMap
+  let update pos = (pos, tmapGet tmap pos)
+  emitAreaEffect $ EffSetTerrain $ map update positions
+
 setFields :: (FromAreaEffect f) => Field -> [Position] -> Script f ()
 setFields field = emitAreaEffect . EffAlterFields fn where
   fn Nothing = Just field
@@ -1162,6 +1169,9 @@ setFields field = emitAreaEffect . EffAlterFields fn where
       (SmokeScreen a, SmokeScreen b) -> SmokeScreen (max a b)
       (Webbing a, Webbing b) -> Webbing (max a b)
       _ -> field
+
+setTerrain :: (FromAreaEffect f) => [(Position, TerrainTile)] -> Script f ()
+setTerrain = emitAreaEffect . EffSetTerrain
 
 summonAllyMonster :: (FromAreaEffect f) => Position -> MonsterTag
                   -> Script f ()

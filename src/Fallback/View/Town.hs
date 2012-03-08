@@ -27,7 +27,7 @@ import Control.Applicative ((<$), (<$>))
 import Control.Monad (guard, when)
 import qualified Data.Set as Set
 
-import Fallback.Constants (sidebarWidth, talkRangeSquared)
+import Fallback.Constants (sidebarWidth, talkRadius)
 import Fallback.Control.Script (Script, mapEffect)
 import Fallback.Data.Grid (GridEntry, geValue, gridEntries, gridSearch)
 import Fallback.Data.Point
@@ -45,8 +45,8 @@ import Fallback.Utility (flip3, maybeM)
 import Fallback.View.Abilities
 import Fallback.View.Base
 import Fallback.View.Camera
-  (paintDevices, paintFields, paintMessage, paintMonsters, paintTargeting,
-   paintTerrain, tintNonVisibleTiles)
+  (paintFields, paintMessage, paintMonsters, paintTargeting, paintTerrain,
+   tintNonVisibleTiles)
 import Fallback.View.Hover
 import Fallback.View.Inventory
 import Fallback.View.Quiver
@@ -117,8 +117,6 @@ newTownMapView resources cursorSink = do
       let explored = arsExploredMap ts
       -- TODO factor out duplicated code from here and Fallback.View.Combat
       paintTerrain acs
-      paintDevices resources cameraTopleft explored (acsClock acs)
-                   (gridEntries $ acsDevices acs)
       paintDoodads cameraTopleft LowDood (acsDoodads acs)
       paintFields resources cameraTopleft (acsVisible acs) (acsClock acs)
                   (acsFields acs)
@@ -179,12 +177,14 @@ newTownMapView resources cursorSink = do
               -> (Direction -> a) -> TownState -> IRect -> IPoint -> a
     mouseCase monFn devFn dirFn ts rect pt =
       let acs = tsCommon ts
-          pos = pointPosition (pt `pAdd` camTopleft (acsCamera acs))
-          checkRange r s = guard (pos `pSqDist` tsPartyPosition ts <= r) >> s
+          pos = pointPosition (pt `pSub` rectTopleft rect `pAdd`
+                               camTopleft (acsCamera acs))
+          checkRadius r s =
+            guard (pos `pSqDist` tsPartyPosition ts <= ofRadius r) >> s
           search grid = do guard $ Set.member pos $ acsVisible acs
                            gridSearch grid pos
-          monFn' script = monFn $ checkRange talkRangeSquared $ Just script
-          devFn' ge = devFn $ checkRange (devRange $ geValue ge) $ Just $
+          monFn' script = monFn $ checkRadius talkRadius $ Just script
+          devFn' ge = devFn $ checkRadius (devRadius $ geValue ge) $ Just $
                       mapEffect EffTownArea $ devInteract (geValue ge) ge $
                       tsActiveCharacter ts
           getScript ge = do mscript <- monstScript (geValue ge)

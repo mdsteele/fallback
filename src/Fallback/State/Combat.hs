@@ -81,6 +81,7 @@ instance AreaState CombatState where
     map (ccsPosition . snd) $
     filter (chrIsConscious . (partyGetCharacter $ arsParty cs) . fst) $
     tmAssocs $ csCharStates cs
+  arsUpdateVisibility = updateCombatVisibility
   arsVisibleForCharacter charNum = ccsVisible . tmGet charNum . csCharStates
 
 instance HasProgress CombatState where
