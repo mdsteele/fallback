@@ -43,7 +43,7 @@ import Fallback.State.Progress (Progress, splitVarSeed)
 import Fallback.State.Resources (MusicTag(..), SoundTag(..), rsrcTileset)
 import Fallback.State.Simple (CharacterClass(..))
 import Fallback.State.Tags
-import Fallback.State.Terrain (TerrainTile, ttId)
+import Fallback.State.Terrain (TerrainTile, terrainGetTile, ttId)
 import Fallback.Utility (firstJust, flip3, maybeM, whenM)
 
 -------------------------------------------------------------------------------
@@ -171,7 +171,7 @@ scenarioTriggers = compileScenario $ do
         \ beginning to set over the western peaks.\n\n\
         \You know very little about this village, but it's a remote town in\
         \ dangerous territory; surely {i}they'll{_} have some quests for you!"
-      tile <- areaGet (acsGetTerrainTile (Point 10 10) . arsCommon)
+      tile <- areaGet (terrainGetTile (Point 10 10) . arsTerrain)
       emitAreaEffect $ EffSetTerrain [(Point 20 5, tile)]
 
     once 741589 (isSecondTimeThroughLongvale `andP`

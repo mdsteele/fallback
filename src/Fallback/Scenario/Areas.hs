@@ -19,7 +19,7 @@
 
 module Fallback.Scenario.Areas
   (areaEntrance, areaLinks, areaLocation, areaTerrain,
-   enterPartyIntoArea, createMinimap, startingArea, startingPosition)
+   enterPartyIntoArea, startingArea, startingPosition)
 where
 
 import qualified Data.Map as Map
@@ -29,12 +29,12 @@ import Fallback.Control.Error (IOEO, onlyIO)
 import Fallback.Data.Clock (initClock)
 import Fallback.Data.Grid (emptyGrid)
 import Fallback.Data.Point (IPoint, Point(Point), Position)
-import Fallback.Draw (Minimap, newMinimap)
 import Fallback.Scenario.Triggers
 import Fallback.State.Area
   (AreaCommonState(..), TownEffect, Trigger, emptyDoodads)
 import Fallback.State.Camera (makeCameraWithCenter)
 import Fallback.State.Creature (CreatureAnim(NoAnim))
+import Fallback.State.Minimap (newMinimapFromTerrain)
 import Fallback.State.Party (Party(partyCurrentArea), partyExploredMap)
 import Fallback.State.Resources (Resources)
 import Fallback.State.Simple (FaceDir(..))
@@ -67,8 +67,10 @@ enterPartyIntoArea :: Resources -> Party -> AreaTag -> Position
                    -> IOEO TownState
 enterPartyIntoArea resources origParty tag position = do
   let party = origParty { partyCurrentArea = tag }
-  terrainMap <- loadTerrainMap resources (areaTerrain party tag)
-  minimap <- onlyIO $ createMinimap terrainMap party
+  tmap <- loadTerrainMap resources (areaTerrain party tag)
+  let terrain = Terrain { terrainMap = tmap, terrainOverrides = Map.empty }
+  minimap <- onlyIO $ newMinimapFromTerrain terrain $
+             partyExploredMap terrain party
   onlyIO $ updateTownVisibility $ TownState
     { tsActiveCharacter = minBound,
       tsCommon = AreaCommonState
@@ -82,8 +84,7 @@ enterPartyIntoArea resources origParty tag position = do
           acsMonsters = emptyGrid,
           acsParty = party,
           acsResources = resources,
-          acsTerrainMap = terrainMap,
-          acsTerrainOverrides = Map.empty,
+          acsTerrain = terrain,
           acsVisible = Set.empty },
       tsPartyAnim = NoAnim,
       tsPartyFaceDir = FaceRight, -- TODO face towards center of map
@@ -91,13 +92,5 @@ enterPartyIntoArea resources origParty tag position = do
       tsPhase = WalkingPhase,
       tsTriggersFired = [],
       tsTriggersReady = areaTriggers tag }
-
-createMinimap :: TerrainMap -> Party -> IO Minimap
-createMinimap terrainMap party = do
-  minimap <- newMinimap $ tmapSize terrainMap
-  updateMinimapFromTerrainMap minimap terrainMap $
-    filter (partyExploredMap terrainMap party `hasExplored`) $
-    tmapAllPositions terrainMap
-  return minimap
 
 -------------------------------------------------------------------------------

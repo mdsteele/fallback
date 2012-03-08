@@ -39,17 +39,18 @@ import Fallback.Control.Error (IOEO, onlyIO)
 import Fallback.Data.Clock (initClock)
 import Fallback.Data.Point (Position)
 import Fallback.Draw (Sprite, loadSprite, runDraw)
-import Fallback.Scenario.Areas (createMinimap)
 import Fallback.Scenario.Triggers
   (getAreaDevice, getAreaTriggers, scenarioTriggers)
 import Fallback.State.Area
   (AreaCommonState(..), arsParty, devId, emptyDoodads, triggerId)
 import Fallback.State.Camera (makeCameraWithCenter)
-import Fallback.State.Party (Party(..))
+import Fallback.State.Minimap (newMinimapFromTerrain)
+import Fallback.State.Party (Party(..), partyExploredMap)
 import Fallback.State.Region (RegionState(..))
 import Fallback.State.Resources (Resources, rsrcTileset)
 import Fallback.State.Tags (areaName, regionName)
-import Fallback.State.Terrain (loadTerrainMap, positionCenter, tmapName, ttId)
+import Fallback.State.Terrain
+  (Terrain(..), loadTerrainMap, positionCenter, tmapName, ttId)
 import Fallback.State.Town (TownPhase(WalkingPhase), TownState(..))
 import Fallback.Utility (sortKey)
 
@@ -212,19 +213,15 @@ newtype ReadAreaCommonState = ReadAreaCommonState
 
 instance Read ReadAreaCommonState where
   readPrec = do
-    (deviceIds, fields, party, terrainName, overrideIds) <- readPrec
+    (deviceIds, fields, party, wrappedTerrain) <- readPrec
     return $ ReadAreaCommonState $ \resources partyPosition -> do
       let getDevice di =
             maybe (fail $ "Unknown device ID: " ++ show di) return $
             getAreaDevice scenarioTriggers (partyCurrentArea party) di
       devices <- traverse getDevice deviceIds
-      terrainMap <- loadTerrainMap resources terrainName
-      let getTile ti =
-            maybe (fail $ "Unknown terrain tile ID: " ++ show ti) return $
-            find ((ti ==) . ttId) (rsrcTileset resources)
-      overrides <- traverse getTile overrideIds
-      -- FIXME take overrides into account when building minimap
-      minimap <- onlyIO $ createMinimap terrainMap party
+      terrain <- unwrapTerrain wrappedTerrain resources
+      minimap <- onlyIO $ newMinimapFromTerrain terrain $
+                 partyExploredMap terrain party
       return AreaCommonState
         { acsCamera = makeCameraWithCenter (positionCenter partyPosition),
           acsClock = initClock,
@@ -236,8 +233,7 @@ instance Read ReadAreaCommonState where
           acsMonsters = error "FIXME ReadAreaCommonState",
           acsParty = party,
           acsResources = resources,
-          acsTerrainMap = terrainMap,
-          acsTerrainOverrides = overrides,
+          acsTerrain = terrain,
           acsVisible = Set.empty }
 
 newtype ShowAreaCommonState = ShowAreaCommonState AreaCommonState
@@ -245,6 +241,28 @@ newtype ShowAreaCommonState = ShowAreaCommonState AreaCommonState
 instance Show ShowAreaCommonState where
   showsPrec p (ShowAreaCommonState acs) = showsPrec p $
     (fmap devId (acsDevices acs), acsFields acs, acsParty acs,
-     tmapName (acsTerrainMap acs), ttId <$> acsTerrainOverrides acs)
+     ShowTerrain (acsTerrain acs))
+
+-------------------------------------------------------------------------------
+
+newtype ReadTerrain = ReadTerrain
+  { unwrapTerrain :: Resources -> IOEO Terrain }
+
+instance Read ReadTerrain where
+  readPrec = do
+    (terrainName, overrideIds) <- readPrec
+    return $ ReadTerrain $ \resources -> do
+      tmap <- loadTerrainMap resources terrainName
+      let getTile ti =
+            maybe (fail $ "Unknown terrain tile ID: " ++ show ti) return $
+            find ((ti ==) . ttId) (rsrcTileset resources)
+      overrides <- traverse getTile overrideIds
+      return Terrain { terrainMap = tmap, terrainOverrides = overrides }
+
+newtype ShowTerrain = ShowTerrain Terrain
+
+instance Show ShowTerrain where
+  showsPrec p (ShowTerrain terrain) = showsPrec p $
+    (tmapName (terrainMap terrain), ttId <$> terrainOverrides terrain)
 
 -------------------------------------------------------------------------------

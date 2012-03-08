@@ -36,10 +36,11 @@ import Fallback.Data.Clock (Clock, clockInc)
 import Fallback.Data.Grid
 import Fallback.Data.Point
 import Fallback.Data.TotalMap (TotalMap, makeTotalMap, tmAlter, tmGet)
-import Fallback.Draw (Minimap, Paint, alterMinimap)
+import Fallback.Draw (Minimap, Paint)
 import Fallback.Sound (Sound, fadeOutMusic, loopMusic, playSound, stopMusic)
 import Fallback.State.Camera (Camera, setCameraShake, tickCamera)
 import Fallback.State.Creature
+import Fallback.State.Minimap (updateMinimapFromTerrain)
 import Fallback.State.Party
 import Fallback.State.Progress
   (DeviceId, HasProgress, MonsterScriptId, TriggerId, Var, VarType,
@@ -63,14 +64,8 @@ data AreaCommonState = AreaCommonState
     acsMonsters :: Grid Monster,
     acsParty :: Party,
     acsResources :: Resources,
-    acsTerrainMap :: TerrainMap,
-    acsTerrainOverrides :: Map.Map Position TerrainTile,
+    acsTerrain :: Terrain,
     acsVisible :: Set.Set Position }
-
-acsGetTerrainTile :: Position -> AreaCommonState -> TerrainTile
-acsGetTerrainTile pos acs =
-  fromMaybe (tmapGet (acsTerrainMap acs) pos) $
-  Map.lookup pos $ acsTerrainOverrides acs
 
 tickAnimations :: DPoint -> AreaCommonState -> AreaCommonState
 tickAnimations cameraGoalTopleft acs =
@@ -82,8 +77,7 @@ tickAnimations cameraGoalTopleft acs =
 
 updateMinimap :: AreaCommonState -> [Position] -> IO ()
 updateMinimap acs visible = do
-  let posToColor pos = (pos, ttColor $ acsGetTerrainTile pos acs)
-  alterMinimap (acsMinimap acs) $ map posToColor visible
+  updateMinimapFromTerrain (acsMinimap acs) (acsTerrain acs) visible
 
 -------------------------------------------------------------------------------
 
@@ -129,7 +123,7 @@ arsDevices :: (AreaState a) => a -> Grid Device
 arsDevices = acsDevices . arsCommon
 
 arsExploredMap :: (AreaState a) => a -> ExploredMap
-arsExploredMap ars = partyExploredMap (arsTerrainMap ars) (arsParty ars)
+arsExploredMap ars = partyExploredMap (arsTerrain ars) (arsParty ars)
 
 arsFields :: (AreaState a) => a -> Map.Map Position Field
 arsFields = acsFields . arsCommon
@@ -157,14 +151,12 @@ arsParty = acsParty . arsCommon
 arsResources :: (AreaState a) => a -> Resources
 arsResources = acsResources . arsCommon
 
-arsTerrainMap :: (AreaState a) => a -> TerrainMap
-arsTerrainMap = acsTerrainMap . arsCommon
+arsTerrain :: (AreaState a) => a -> Terrain
+arsTerrain = acsTerrain . arsCommon
 
 arsTerrainOpenness :: (AreaState a) => Position -> a -> TerrainOpenness
 arsTerrainOpenness pos ars =
-  let acs = arsCommon ars
-  in ttOpenness $ flip fromMaybe (Map.lookup pos (acsTerrainOverrides acs)) $
-     tmapGet (acsTerrainMap acs) pos
+  ttOpenness $ terrainGetTile pos $ acsTerrain $ arsCommon ars
 
 arsVisibleForParty :: (AreaState a) => a -> Set.Set Position
 arsVisibleForParty = acsVisible . arsCommon
@@ -526,12 +518,8 @@ executeAreaCommonEffect eff ars = do
       change acs { acsMonsters = maybe (gridDelete key) (gridReplace key)
                                        mbMonst' (acsMonsters acs) }
     EffSetTerrain updates -> do
-      let update (pos, tile) overrides =
-            if ttId tile == ttId (tmapGet (acsTerrainMap acs) pos)
-            then Map.delete pos overrides else Map.insert pos tile overrides
-      let overrides' = foldr update (acsTerrainOverrides acs) updates
-      ars' <- arsUpdateVisibility $
-              set acs { acsTerrainOverrides = overrides' }
+      let terrain' = foldr (uncurry terrainSetTile) (acsTerrain acs) updates
+      ars' <- arsUpdateVisibility $ set acs { acsTerrain = terrain' }
       return ((), ars')
     EffShakeCamera ampl duration -> do
       change acs { acsCamera = setCameraShake ampl duration (acsCamera acs) }

@@ -126,7 +126,7 @@ import Fallback.State.Status
 import Fallback.State.Tags
   (AbilityTag(Recuperation), AreaTag, ItemTag(..), MonsterTag, WeaponItemTag)
 import Fallback.State.Terrain
-  (TerrainTile, positionCenter, prectRect, tmapGet, tmapSize)
+  (TerrainTile, positionCenter, prectRect, terrainMap, terrainSize, tmapGet)
 import Fallback.Utility
   (ceilDiv, flip3, flip4, groupKey, maybeM, sortKey, square)
 
@@ -1098,7 +1098,7 @@ addBasicEnemyMonster nearPos tag mbDeadVar townAi = do
   let mtype = getMonsterType tag
   within <- emitAreaEffect $ EffIfCombat
     (areaGet arsArenaRect)
-    (areaGet (makeRect pZero . tmapSize . arsTerrainMap))
+    (areaGet (makeRect pZero . terrainSize . arsTerrain))
   -- TODO Allow for non-SizeSmall monsters
   spot <- areaGet $ \ars ->
     if not $ arsIsBlockedForParty ars nearPos then nearPos
@@ -1152,7 +1152,7 @@ replaceDevice entry device =
 
 resetTerrain :: (FromAreaEffect f) => [Position] -> Script f ()
 resetTerrain positions = do
-  tmap <- areaGet arsTerrainMap
+  tmap <- areaGet (terrainMap . arsTerrain)
   let update pos = (pos, tmapGet tmap pos)
   emitAreaEffect $ EffSetTerrain $ map update positions
 

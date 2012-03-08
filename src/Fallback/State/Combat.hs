@@ -41,7 +41,7 @@ import Fallback.State.Simple
   (CastingCost, CharacterNumber, CostModifier, FaceDir, PowerModifier)
 import Fallback.State.Status
 import Fallback.State.Tags (FeatTag, ItemTag)
-import Fallback.State.Terrain
+import Fallback.State.Terrain (terrainSize)
 
 -------------------------------------------------------------------------------
 -- CombatState datatype:
@@ -195,13 +195,13 @@ tickCharStateWaiting char ccs =
 updateCombatVisibility :: CombatState -> IO CombatState
 updateCombatVisibility cs = do
   let acs = csCommon cs
-  let terrainMap = acsTerrainMap acs
+  let terrain = acsTerrain acs
   let updateCcs ccs = ccs { ccsVisible =
-        fieldOfView (tmapSize terrainMap) (arsIsOpaque cs) sightRangeSquared
+        fieldOfView (terrainSize terrain) (arsIsOpaque cs) sightRangeSquared
                     (ccsPosition ccs) Set.empty }
   let ccss' = fmap updateCcs (csCharStates cs)
   let visible' = Set.unions $ map ccsVisible $ toList ccss'
-  let party' = partyUpdateExploredMap terrainMap visible' (acsParty acs)
+  let party' = partyUpdateExploredMap terrain visible' (acsParty acs)
   updateMinimap acs (Set.toList visible')
   return cs { csCharStates = ccss',
               csCommon = acs { acsParty = party', acsVisible = visible' } }

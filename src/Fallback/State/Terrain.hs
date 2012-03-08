@@ -20,12 +20,12 @@
 module Fallback.State.Terrain
   (-- * Terrain tiles
    TerrainTile(..),
+   -- * Terrain
+   Terrain(..), terrainSize, terrainOffTile, terrainGetTile, terrainSetTile,
    -- * Terrain maps
-   TerrainMap, makeEmptyTerrain, tmapSize, tmapName, tmapOffTile,
+   TerrainMap, makeEmptyTerrainMap, tmapSize, tmapName, tmapOffTile,
    tmapAllPositions, tmapGet, tmapSet, tmapResize, tmapShift,
    loadTerrainMap, saveTerrainMap,
-   -- * Minimap
-   updateMinimapFromTerrainMap,
    -- * Positions
    positionRect, positionTopleft, positionCenter, pointPosition, prectRect,
    -- * Explored maps
@@ -36,29 +36,50 @@ import Data.Array.Diff (DiffUArray)
 import Data.Array.IArray
 import qualified Data.Foldable as Fold (foldl')
 import qualified Data.IntMap as IntMap
-import Data.Maybe (listToMaybe)
+import qualified Data.Map as Map
+import Data.Maybe (fromMaybe, listToMaybe)
 import qualified Data.Traversable as Trav (mapM)
 import qualified Text.Read as Read (readPrec)
 
 import Fallback.Constants (tileHeight, tileWidth)
 import Fallback.Control.Error
 import Fallback.Data.Point
-import Fallback.Draw (Minimap, alterMinimap)
 import Fallback.Resource (getResourcePath)
 import Fallback.State.Resources (Resources, rsrcTileset)
 import Fallback.State.Tileset
 
 -------------------------------------------------------------------------------
 
--- TODO consider making a Terrain type that merges TerrainMap with terrain
---      overrides
+data Terrain = Terrain
+  { terrainMap :: TerrainMap,
+    terrainOverrides :: Map.Map Position TerrainTile }
+
+terrainSize :: Terrain -> (Int, Int)
+terrainSize = tmapSize . terrainMap
+
+terrainOffTile :: Terrain -> TerrainTile
+terrainOffTile = tmapOffTile . terrainMap
+
+terrainGetTile :: Position -> Terrain -> TerrainTile
+terrainGetTile pos terrain =
+  fromMaybe (tmapGet (terrainMap terrain) pos) $
+  Map.lookup pos $ terrainOverrides terrain
+
+terrainSetTile :: Position -> TerrainTile -> Terrain -> Terrain
+terrainSetTile pos tile terrain = terrain { terrainOverrides = over' } where
+  over' = (if ttId tile == ttId (tmapGet (terrainMap terrain) pos)
+           then Map.delete pos else Map.insert pos tile)
+          (terrainOverrides terrain)
+
+-------------------------------------------------------------------------------
+
 data TerrainMap = TerrainMap
   { tmapArray :: Array Position TerrainTile,
     tmapName :: String,
     tmapOffTile :: TerrainTile }
 
-makeEmptyTerrain :: (Int, Int) -> TerrainTile -> TerrainTile -> TerrainMap
-makeEmptyTerrain (w, h) offTile nullTile = TerrainMap
+makeEmptyTerrainMap :: (Int, Int) -> TerrainTile -> TerrainTile -> TerrainMap
+makeEmptyTerrainMap (w, h) offTile nullTile = TerrainMap
   { tmapArray = listArray (Point 0 0, Point (w - 1) (h - 1)) (repeat nullTile),
     tmapName = "", tmapOffTile = offTile }
 
@@ -117,13 +138,6 @@ saveTerrainMap name tmap = do
   writeFile path $ show (tmapSize tmap, fmap ttId $ elems $ tmapArray tmap)
 
 -------------------------------------------------------------------------------
--- Minimap:
-
-updateMinimapFromTerrainMap :: Minimap -> TerrainMap -> [Position] -> IO ()
-updateMinimapFromTerrainMap minimap terrain visible =
-  alterMinimap minimap $ map (\p -> (p, ttColor $ tmapGet terrain p)) visible
-
--------------------------------------------------------------------------------
 -- Positions:
 
 positionRect :: Position -> IRect
@@ -158,9 +172,10 @@ instance Read ExploredMap where
     (bound, string) <- Read.readPrec
     return $ ExploredMap $ listArray bound $ map ('1' ==) string
 
-unexploredMap :: TerrainMap -> ExploredMap
-unexploredMap tmap =
-  ExploredMap $ listArray (bounds $ tmapArray tmap) $ repeat False
+unexploredMap :: Terrain -> ExploredMap
+unexploredMap terrain =
+  ExploredMap $ listArray (bounds $ tmapArray $ terrainMap terrain) $
+  repeat False
 
 hasExplored :: ExploredMap -> Position -> Bool
 hasExplored (ExploredMap arr) pos = inRange (bounds arr) pos && (arr ! pos)

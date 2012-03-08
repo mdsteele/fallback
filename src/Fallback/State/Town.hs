@@ -35,7 +35,7 @@ import Fallback.State.Party
 import Fallback.State.Progress (HasProgress, getProgress)
 import Fallback.State.Simple
 import Fallback.State.Tags (AreaTag, ItemTag)
-import Fallback.State.Terrain
+import Fallback.State.Terrain (positionCenter, terrainSize)
 
 -------------------------------------------------------------------------------
 -- TownState datatype:
@@ -85,10 +85,10 @@ data TownPhase = WalkingPhase
 updateTownVisibility :: TownState -> IO TownState
 updateTownVisibility ts = do
   let acs = tsCommon ts
-  let terrainMap = acsTerrainMap acs
-  let visible' = fieldOfView (tmapSize terrainMap) (arsIsOpaque ts)
+  let terrain = acsTerrain acs
+  let visible' = fieldOfView (terrainSize terrain) (arsIsOpaque ts)
                              sightRangeSquared (tsPartyPosition ts) Set.empty
-  let party' = partyUpdateExploredMap terrainMap visible' (arsParty ts)
+  let party' = partyUpdateExploredMap terrain visible' (arsParty ts)
   updateMinimap acs (Set.toList visible')
   return ts { tsCommon = acs { acsParty = party', acsVisible = visible' } }
 

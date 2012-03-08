@@ -63,10 +63,10 @@ paintTerrain acs = paintTiles paintTile (camTopleft $ acsCamera acs)
   where
     paintTile pos rect = blitStretch (ttSprite (getTile pos) clock) rect
     getTile pos = if exmap `hasExplored` pos
-                  then acsGetTerrainTile pos acs else tmapOffTile tmap
+                  then terrainGetTile pos terrain else terrainOffTile terrain
     clock = acsClock acs
-    exmap = partyExploredMap (acsTerrainMap acs) (acsParty acs)
-    tmap = acsTerrainMap acs
+    exmap = partyExploredMap (acsTerrain acs) (acsParty acs)
+    terrain = acsTerrain acs
 
 paintTerrainFullyExplored :: IPoint -> TerrainMap -> Clock -> Paint ()
 paintTerrainFullyExplored cameraTopleft tmap clock =

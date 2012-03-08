@@ -36,11 +36,13 @@ import Fallback.Control.Error (runEO, runIOEO)
 import Fallback.Data.Clock (initClock)
 import Fallback.Data.Point
   (Point(Point), Position, cardinalDirections, pAdd, plusDir, pZero)
-import Fallback.Draw (newMinimap, paintScreen, runDraw)
+import Fallback.Draw (paintScreen, runDraw)
 import Fallback.Event
 import Fallback.Mode.Base
 import Fallback.Mode.Dialog (newTextEntryDialogMode)
 import Fallback.Mode.Narrate (newNarrateMode)
+import Fallback.State.Minimap
+  (newMinimapFromTerrainMap, updateMinimapFromTerrainMap)
 import Fallback.State.Resources (Resources, rsrcTileset)
 import Fallback.State.Terrain
 import Fallback.Utility (maybeM)
@@ -184,8 +186,7 @@ newEditorMode resources = do
     recreateMinimap = do
       es <- readIORef stateRef
       let tmap = esTerrain es
-      minimap <- newMinimap $ tmapSize tmap
-      updateMinimapFromTerrainMap minimap tmap $ tmapAllPositions tmap
+      minimap <- newMinimapFromTerrainMap tmap
       writeIORef stateRef es { esMinimap = minimap }
 
   return mode
@@ -210,9 +211,8 @@ newEditorState resources = do
   let tileArray = listArray (0, length tileList - 1) tileList
   let offTile = tileArray ! 0
       nullTile = tileArray ! 1
-  let terrain = makeEmptyTerrain (55, 44) offTile nullTile
-  minimap <- newMinimap $ tmapSize terrain
-  updateMinimapFromTerrainMap minimap terrain $ tmapAllPositions terrain
+  let tmap = makeEmptyTerrainMap (55, 44) offTile nullTile
+  minimap <- newMinimapFromTerrainMap tmap
   return EditorState
     { esBrush = nullTile,
       esCameraTopleft = pZero,
@@ -222,7 +222,7 @@ newEditorState resources = do
       esNullTile = nullTile,
       esPaletteTop = 0,
       esRedoStack = [],
-      esTerrain = terrain,
+      esTerrain = tmap,
       esTileset = tileArray,
       esUndoStack = [],
       esUnsaved = False }

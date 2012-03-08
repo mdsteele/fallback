@@ -37,7 +37,7 @@ import Fallback.State.Simple
 import Fallback.State.Status (StatusEffects, seMentalEffect)
 import Fallback.State.Tags
 import Fallback.State.Terrain
-  (ExploredMap, TerrainMap, setExplored, unexploredMap)
+  (ExploredMap, Terrain, setExplored, unexploredMap)
 import Fallback.State.Progress (HasProgress(..), Progress)
 
 -------------------------------------------------------------------------------
@@ -74,12 +74,12 @@ partyAlterCharacter :: CharacterNumber -> (Character -> Character)
 partyAlterCharacter charNum fn party =
   party { partyCharacters = tmAlter charNum fn $ partyCharacters party }
 
-partyExploredMap :: TerrainMap -> Party -> ExploredMap
+partyExploredMap :: Terrain -> Party -> ExploredMap
 partyExploredMap terrain party =
   fromMaybe (unexploredMap terrain) $ Map.lookup (partyCurrentArea party) $
   partyExploredMaps party
 
-partyUpdateExploredMap :: TerrainMap -> Set.Set Position -> Party -> Party
+partyUpdateExploredMap :: Terrain -> Set.Set Position -> Party -> Party
 partyUpdateExploredMap terrain visible party =
   let tag = partyCurrentArea party
       exploredMaps = partyExploredMaps party
