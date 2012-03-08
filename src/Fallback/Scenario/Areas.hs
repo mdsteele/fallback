@@ -67,8 +67,8 @@ enterPartyIntoArea :: Resources -> Party -> AreaTag -> Position
                    -> IOEO TownState
 enterPartyIntoArea resources origParty tag position = do
   let party = origParty { partyCurrentArea = tag }
-  terrain <- loadTerrainMap resources (areaTerrain party tag)
-  minimap <- onlyIO $ createMinimap terrain party
+  terrainMap <- loadTerrainMap resources (areaTerrain party tag)
+  minimap <- onlyIO $ createMinimap terrainMap party
   onlyIO $ updateTownVisibility $ TownState
     { tsActiveCharacter = minBound,
       tsCommon = AreaCommonState
@@ -82,7 +82,8 @@ enterPartyIntoArea resources origParty tag position = do
           acsMonsters = emptyGrid,
           acsParty = party,
           acsResources = resources,
-          acsTerrain = terrain,
+          acsTerrainMap = terrainMap,
+          acsTerrainOverrides = Map.empty,
           acsVisible = Set.empty },
       tsPartyAnim = NoAnim,
       tsPartyFaceDir = FaceRight, -- TODO face towards center of map
@@ -92,11 +93,11 @@ enterPartyIntoArea resources origParty tag position = do
       tsTriggersReady = areaTriggers tag }
 
 createMinimap :: TerrainMap -> Party -> IO Minimap
-createMinimap terrain party = do
-  minimap <- newMinimap $ tmapSize terrain
-  updateMinimap minimap terrain $
-    filter (partyExploredMap terrain party `hasExplored`) $
-    tmapAllPositions terrain
+createMinimap terrainMap party = do
+  minimap <- newMinimap $ tmapSize terrainMap
+  updateMinimapFromTerrainMap minimap terrainMap $
+    filter (partyExploredMap terrainMap party `hasExplored`) $
+    tmapAllPositions terrainMap
   return minimap
 
 -------------------------------------------------------------------------------

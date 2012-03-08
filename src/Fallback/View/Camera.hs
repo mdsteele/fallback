@@ -43,7 +43,9 @@ import Fallback.Data.Grid (GridEntry(..), rectPositions)
 import Fallback.Data.Point
 import Fallback.Draw
 import Fallback.State.Area
+import Fallback.State.Camera (camTopleft)
 import Fallback.State.Creature
+import Fallback.State.Party (partyExploredMap)
 import Fallback.State.Resources
   (FontTag(FontGeorgia14), Resources, StatusDecorations(..), StripTag(..),
    rsrcFont, rsrcMonsterImages, rsrcStatusDecorations, rsrcStrip)
@@ -56,12 +58,15 @@ import Fallback.View.Base (View, inertView)
 
 -------------------------------------------------------------------------------
 
-paintTerrain :: IPoint -> TerrainMap -> ExploredMap -> Clock -> Paint ()
-paintTerrain cameraTopleft tmap exmap clock =
-  paintTiles paintTile cameraTopleft where
+paintTerrain :: AreaCommonState -> Paint ()
+paintTerrain acs = paintTiles paintTile (camTopleft $ acsCamera acs)
+  where
     paintTile pos rect = blitStretch (ttSprite (getTile pos) clock) rect
     getTile pos = if exmap `hasExplored` pos
-                  then tmapGet tmap pos else tmapOffTile tmap
+                  then acsGetTerrainTile pos acs else tmapOffTile tmap
+    clock = acsClock acs
+    exmap = partyExploredMap (acsTerrainMap acs) (acsParty acs)
+    tmap = acsTerrainMap acs
 
 paintTerrainFullyExplored :: IPoint -> TerrainMap -> Clock -> Paint ()
 paintTerrainFullyExplored cameraTopleft tmap clock =

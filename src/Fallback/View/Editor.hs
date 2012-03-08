@@ -18,7 +18,7 @@
 ============================================================================ -}
 
 module Fallback.View.Editor
-  (EditorState(..), newEditorState, tickEditorState,
+  (EditorState(..), tickEditorState,
    EditorAction(..), newEditorView)
 where
 
@@ -30,12 +30,12 @@ import Data.List (find)
 
 import Fallback.Constants
   (cameraWidth, cameraHeight, sidebarWidth, tileHeight, tileWidth)
-import Fallback.Data.Clock
+import Fallback.Data.Clock (Clock, clockInc)
 import Fallback.Data.Color (Tint(Tint), blackColor)
 import Fallback.Data.Point
 import Fallback.Draw
 import Fallback.Event
-import Fallback.State.Resources (FontTag(..), Resources, rsrcFont, rsrcTileset)
+import Fallback.State.Resources (FontTag(..), Resources, rsrcFont)
 import Fallback.State.Terrain
 import Fallback.Utility (ceilDiv)
 import Fallback.View.Base
@@ -75,28 +75,6 @@ data EditorState = EditorState
 esCameraRect :: EditorState -> IRect
 esCameraRect es = let Point x y = esCameraTopleft es
                   in Rect x y cameraWidth cameraHeight
-
-newEditorState :: Resources -> IO EditorState
-newEditorState resources = do
-  let tileset = rsrcTileset resources
-  let offTile = tileset ! 0
-      nullTile = tileset ! 1
-  let terrain = makeEmptyTerrain (55, 44) offTile nullTile
-  minimap <- newMinimap $ tmapSize terrain
-  updateMinimap minimap terrain $ tmapAllPositions terrain
-  return EditorState
-    { esBrush = nullTile,
-      esCameraTopleft = pZero,
-      esClock = initClock,
-      esFilename = "",
-      esMinimap = minimap,
-      esNullTile = nullTile,
-      esPaletteTop = 0,
-      esRedoStack = [],
-      esTerrain = terrain,
-      esTileset = tileset,
-      esUndoStack = [],
-      esUnsaved = False }
 
 tickEditorState :: EditorState -> EditorState
 tickEditorState es = es { esClock = clockInc (esClock es) }

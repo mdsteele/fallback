@@ -34,7 +34,7 @@ import qualified Data.Set as Set
 import Fallback.Data.Point
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
-import Fallback.State.Area (arsGetCharacter)
+import Fallback.State.Area --(arsGetCharacter)
 import Fallback.State.Creature (MonsterTownAI(..))
 import Fallback.State.Party (chrClass)
 import Fallback.State.Progress (Progress, splitVarSeed)
@@ -143,7 +143,6 @@ scenarioTriggers = compileScenario $ do
 
     once 085585 (isFirstTimeThroughLongvale `andP`
                  walkOff startingPosition) $ do
-      startMusic MusicMovementProposition
       narrate "You're finally here!  A brand new band of adventures, on a\
         \ journey to seek out your very first quest.  Without a doubt, the\
         \ days ahead will be filled with countless monsters, and hopefully,\
@@ -154,8 +153,8 @@ scenarioTriggers = compileScenario $ do
         \ beginning to set over the western peaks.\n\n\
         \You know very little about this village, but it's a remote town in\
         \ dangerous territory; surely {i}they'll{_} have some quests for you!"
-      fadeOutMusic 3
-      setMessage "Trigger done!"
+      tile <- areaGet (acsGetTerrainTile (Point 10 10) . arsCommon)
+      emitAreaEffect $ EffSetTerrain [(Point 20 5, tile)]
 
     once 741589 (isSecondTimeThroughLongvale `andP`
                  walkOff startingPosition) $ do

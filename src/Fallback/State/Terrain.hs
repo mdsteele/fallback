@@ -23,9 +23,9 @@ module Fallback.State.Terrain
    -- * Terrain maps
    TerrainMap, makeEmptyTerrain, tmapSize, tmapName, tmapOffTile,
    tmapAllPositions, tmapGet, tmapSet, tmapResize, tmapShift,
-   loadTileset, loadTerrainMap, saveTerrainMap,
+   loadTerrainMap, saveTerrainMap,
    -- * Minimap
-   updateMinimap,
+   updateMinimapFromTerrainMap,
    -- * Positions
    positionRect, positionTopleft, positionCenter, pointPosition, prectRect,
    -- * Explored maps
@@ -50,6 +50,8 @@ import Fallback.State.Tileset
 
 -------------------------------------------------------------------------------
 
+-- TODO consider making a Terrain type that merges TerrainMap with terrain
+--      overrides
 data TerrainMap = TerrainMap
   { tmapArray :: Array Position TerrainTile,
     tmapName :: String,
@@ -117,8 +119,8 @@ saveTerrainMap name tmap = do
 -------------------------------------------------------------------------------
 -- Minimap:
 
-updateMinimap :: Minimap -> TerrainMap -> [Position] -> IO ()
-updateMinimap minimap terrain visible =
+updateMinimapFromTerrainMap :: Minimap -> TerrainMap -> [Position] -> IO ()
+updateMinimapFromTerrainMap minimap terrain visible =
   alterMinimap minimap $ map (\p -> (p, ttColor $ tmapGet terrain p)) visible
 
 -------------------------------------------------------------------------------

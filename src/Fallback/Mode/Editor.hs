@@ -23,6 +23,7 @@ where
 
 import Control.Applicative ((<$>))
 import Control.Monad (when)
+import Data.Array ((!), listArray)
 import Data.Char (isDigit)
 import Data.List (intercalate)
 import Data.Maybe (listToMaybe)
@@ -32,6 +33,7 @@ import qualified Text.ParserCombinators.ReadP as Read
 
 import Fallback.Constants (screenRect)
 import Fallback.Control.Error (runEO, runIOEO)
+import Fallback.Data.Clock (initClock)
 import Fallback.Data.Point
   (Point(Point), Position, cardinalDirections, pAdd, plusDir, pZero)
 import Fallback.Draw (newMinimap, paintScreen, runDraw)
@@ -39,7 +41,7 @@ import Fallback.Event
 import Fallback.Mode.Base
 import Fallback.Mode.Dialog (newTextEntryDialogMode)
 import Fallback.Mode.Narrate (newNarrateMode)
-import Fallback.State.Resources (Resources)
+import Fallback.State.Resources (Resources, rsrcTileset)
 import Fallback.State.Terrain
 import Fallback.Utility (maybeM)
 import Fallback.View (fromAction, viewHandler, viewPaint)
@@ -83,13 +85,13 @@ newEditorMode resources = do
         Just (PaintAt pos) -> do
           when (ttId (tmapGet (esTerrain es) pos) /= ttId (esBrush es)) $ do
             let terrain' = tmapSet [pos] (esBrush es) (esTerrain es)
-            updateMinimap (esMinimap es) terrain' [pos]
+            updateMinimapFromTerrainMap (esMinimap es) terrain' [pos]
             setTerrain es terrain'
           return SameMode
         Just (FloodFill pos) -> do
           when (ttId (tmapGet (esTerrain es) pos) /= ttId (esBrush es)) $ do
             let (terrain', filled) = floodFill pos (esBrush es) (esTerrain es)
-            updateMinimap (esMinimap es) terrain' filled
+            updateMinimapFromTerrainMap (esMinimap es) terrain' filled
             setTerrain es terrain'
           return SameMode
         Just DoSave -> do
@@ -183,7 +185,7 @@ newEditorMode resources = do
       es <- readIORef stateRef
       let tmap = esTerrain es
       minimap <- newMinimap $ tmapSize tmap
-      updateMinimap minimap tmap $ tmapAllPositions tmap
+      updateMinimapFromTerrainMap minimap tmap $ tmapAllPositions tmap
       writeIORef stateRef es { esMinimap = minimap }
 
   return mode
@@ -201,5 +203,28 @@ floodFill start tile tmap =
       startId = ttId (tmapGet tmap start)
       filled = Set.toList $ fill [start] Set.empty
   in (tmapSet filled tile tmap, filled)
+
+newEditorState :: Resources -> IO EditorState
+newEditorState resources = do
+  let tileList = rsrcTileset resources
+  let tileArray = listArray (0, length tileList - 1) tileList
+  let offTile = tileArray ! 0
+      nullTile = tileArray ! 1
+  let terrain = makeEmptyTerrain (55, 44) offTile nullTile
+  minimap <- newMinimap $ tmapSize terrain
+  updateMinimapFromTerrainMap minimap terrain $ tmapAllPositions terrain
+  return EditorState
+    { esBrush = nullTile,
+      esCameraTopleft = pZero,
+      esClock = initClock,
+      esFilename = "",
+      esMinimap = minimap,
+      esNullTile = nullTile,
+      esPaletteTop = 0,
+      esRedoStack = [],
+      esTerrain = terrain,
+      esTileset = tileArray,
+      esUndoStack = [],
+      esUnsaved = False }
 
 -------------------------------------------------------------------------------

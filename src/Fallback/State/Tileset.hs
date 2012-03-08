@@ -43,11 +43,10 @@ offTileId = 0
 
 -------------------------------------------------------------------------------
 
-loadTileset :: Sheet -> IO (Array Int TerrainTile)
+loadTileset :: Sheet -> IO [TerrainTile]
 loadTileset terrainSheet = do
   foldM_ check Set.empty tileSpecs
-  let tiles = map makeTile tileSpecs
-  return $ listArray (0, length tiles - 1) tiles
+  return $ map makeTile tileSpecs
   where
     check ids spec =
       if Set.member tid ids then fail ("repeat tile ID: " ++ show tid)

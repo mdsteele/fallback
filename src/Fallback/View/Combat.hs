@@ -104,8 +104,7 @@ newCombatMapView resources = do
     paint (cs, mbMousePt) = do
       let acs = csCommon cs
       let cameraTopleft = camTopleft (acsCamera acs)
-      paintTerrain cameraTopleft (acsTerrain acs) (arsExploredMap cs)
-                   (acsClock acs)
+      paintTerrain acs
       paintDevices resources cameraTopleft (arsExploredMap cs) (acsClock acs)
                    (gridEntries $ acsDevices acs)
       paintDoodads cameraTopleft LowDood (acsDoodads acs)

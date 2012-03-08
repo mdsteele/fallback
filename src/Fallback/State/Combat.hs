@@ -193,16 +193,16 @@ tickCharStateWaiting char ccs =
 
 updateCombatVisibility :: CombatState -> IO CombatState
 updateCombatVisibility cs = do
-  let terrain = arsTerrain cs
+  let acs = csCommon cs
+  let terrainMap = acsTerrainMap acs
   let updateCcs ccs = ccs { ccsVisible =
-        fieldOfView (tmapSize terrain) (arsIsOpaque cs) sightRangeSquared
+        fieldOfView (tmapSize terrainMap) (arsIsOpaque cs) sightRangeSquared
                     (ccsPosition ccs) Set.empty }
   let ccss' = fmap updateCcs (csCharStates cs)
   let visible' = Set.unions $ map ccsVisible $ toList ccss'
-  let party' = partyUpdateExploredMap terrain visible' (arsParty cs)
-  updateMinimap (acsMinimap $ csCommon cs) terrain (Set.toList visible')
+  let party' = partyUpdateExploredMap terrainMap visible' (acsParty acs)
+  updateMinimap acs (Set.toList visible')
   return cs { csCharStates = ccss',
-              csCommon = (csCommon cs) { acsParty = party',
-                                         acsVisible = visible' } }
+              csCommon = acs { acsParty = party', acsVisible = visible' } }
 
 -------------------------------------------------------------------------------

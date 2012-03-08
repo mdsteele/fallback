@@ -70,7 +70,7 @@ data Resources = Resources
     rsrcStatusIcons :: Strip,
     rsrcStrips :: TotalMap StripTag Strip,
     rsrcTerrainSheet :: Sheet,
-    rsrcTileset :: Array Int TerrainTile } -- TODO change to list
+    rsrcTileset :: [TerrainTile] }
 
 newResources :: IO Resources
 newResources = do

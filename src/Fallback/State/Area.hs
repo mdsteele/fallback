@@ -36,7 +36,7 @@ import Fallback.Data.Clock (Clock, clockInc)
 import Fallback.Data.Grid
 import Fallback.Data.Point
 import Fallback.Data.TotalMap (TotalMap, makeTotalMap, tmAlter, tmGet)
-import Fallback.Draw (Minimap, Paint, Sprite)
+import Fallback.Draw (Minimap, Paint, Sprite, alterMinimap)
 import Fallback.Sound (Sound, fadeOutMusic, loopMusic, playSound, stopMusic)
 import Fallback.State.Camera (Camera, setCameraShake, tickCamera)
 import Fallback.State.Creature
@@ -49,6 +49,7 @@ import Fallback.State.Simple
 import Fallback.State.Status (StatusEffects)
 import Fallback.State.Tags (AreaTag, ItemTag, MonsterTag)
 import Fallback.State.Terrain
+import Fallback.Utility (flip3)
 
 -------------------------------------------------------------------------------
 
@@ -63,8 +64,14 @@ data AreaCommonState = AreaCommonState
     acsMonsters :: Grid Monster,
     acsParty :: Party,
     acsResources :: Resources,
-    acsTerrain :: TerrainMap,
+    acsTerrainMap :: TerrainMap,
+    acsTerrainOverrides :: Map.Map Position TerrainTile,
     acsVisible :: Set.Set Position }
+
+acsGetTerrainTile :: Position -> AreaCommonState -> TerrainTile
+acsGetTerrainTile pos acs =
+  fromMaybe (tmapGet (acsTerrainMap acs) pos) $
+  Map.lookup pos $ acsTerrainOverrides acs
 
 tickAnimations :: DPoint -> AreaCommonState -> AreaCommonState
 tickAnimations cameraGoalTopleft acs =
@@ -73,6 +80,11 @@ tickAnimations cameraGoalTopleft acs =
         acsDoodads = tickDoodads (acsDoodads acs),
         acsMessage = acsMessage acs >>= decayMessage,
         acsMonsters = gridUpdate tickMonsterAnim (acsMonsters acs) }
+
+updateMinimap :: AreaCommonState -> [Position] -> IO ()
+updateMinimap acs visible = do
+  let posToColor pos = (pos, ttColor $ acsGetTerrainTile pos acs)
+  alterMinimap (acsMinimap acs) $ map posToColor visible
 
 -------------------------------------------------------------------------------
 
@@ -116,7 +128,7 @@ arsDevices :: (AreaState a) => a -> Grid Device
 arsDevices = acsDevices . arsCommon
 
 arsExploredMap :: (AreaState a) => a -> ExploredMap
-arsExploredMap ars = partyExploredMap (arsTerrain ars) (arsParty ars)
+arsExploredMap ars = partyExploredMap (arsTerrainMap ars) (arsParty ars)
 
 arsFields :: (AreaState a) => a -> Map.Map Position Field
 arsFields = acsFields . arsCommon
@@ -144,13 +156,15 @@ arsParty = acsParty . arsCommon
 arsResources :: (AreaState a) => a -> Resources
 arsResources = acsResources . arsCommon
 
-arsTerrain :: (AreaState a) => a -> TerrainMap
-arsTerrain = acsTerrain . arsCommon
+arsTerrainMap :: (AreaState a) => a -> TerrainMap
+arsTerrainMap = acsTerrainMap . arsCommon
 
 arsTerrainOpenness :: (AreaState a) => Position -> a -> TerrainOpenness
 arsTerrainOpenness pos ars =
-  maybe (ttOpenness $ tmapGet (arsTerrain ars) pos) (devOpenness . geValue) $
-  gridSearch (arsDevices ars) pos
+  let acs = arsCommon ars
+  in flip3 maybe (devOpenness . geValue) (gridSearch (acsDevices acs) pos) $
+     ttOpenness $ flip fromMaybe (Map.lookup pos (acsTerrainOverrides acs)) $
+     tmapGet (acsTerrainMap acs) pos
 
 arsVisibleForParty :: (AreaState a) => a -> Set.Set Position
 arsVisibleForParty = acsVisible . arsCommon
@@ -534,7 +548,12 @@ executeAreaCommonEffect eff ars = do
     EffReplaceMonster key mbMonst' -> do
       change acs { acsMonsters = maybe (gridDelete key) (gridReplace key)
                                        mbMonst' (acsMonsters acs) }
-    EffSetTerrain _ -> fail "FIXME executeAreaCommonEffect EffSetTerrain"
+    EffSetTerrain updates -> do
+      let update (pos, tile) overrides =
+            if ttId tile == ttId (tmapGet (acsTerrainMap acs) pos)
+            then Map.delete pos overrides else Map.insert pos tile overrides
+      let overrides' = foldr update (acsTerrainOverrides acs) updates
+      change acs { acsTerrainOverrides = overrides' }
     EffShakeCamera ampl duration -> do
       change acs { acsCamera = setCameraShake ampl duration (acsCamera acs) }
   where

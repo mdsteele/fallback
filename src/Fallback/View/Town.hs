@@ -115,7 +115,8 @@ newTownMapView resources cursorSink = do
       let acs = tsCommon ts
       let cameraTopleft = camTopleft $ acsCamera acs
       let explored = arsExploredMap ts
-      paintTerrain cameraTopleft (acsTerrain acs) explored (acsClock acs)
+      -- TODO factor out duplicated code from here and Fallback.View.Combat
+      paintTerrain acs
       paintDevices resources cameraTopleft explored (acsClock acs)
                    (gridEntries $ acsDevices acs)
       paintDoodads cameraTopleft LowDood (acsDoodads acs)

@@ -47,9 +47,9 @@ import Fallback.State.Area
 import Fallback.State.Camera (makeCameraWithCenter)
 import Fallback.State.Party (Party(..))
 import Fallback.State.Region (RegionState(..))
-import Fallback.State.Resources (Resources)
+import Fallback.State.Resources (Resources, rsrcTileset)
 import Fallback.State.Tags (areaName, regionName)
-import Fallback.State.Terrain (loadTerrainMap, positionCenter, tmapName)
+import Fallback.State.Terrain (loadTerrainMap, positionCenter, tmapName, ttId)
 import Fallback.State.Town (TownPhase(WalkingPhase), TownState(..))
 import Fallback.Utility (sortKey)
 
@@ -212,14 +212,19 @@ newtype ReadAreaCommonState = ReadAreaCommonState
 
 instance Read ReadAreaCommonState where
   readPrec = do
-    (deviceIds, fields, party, terrainName) <- readPrec
+    (deviceIds, fields, party, terrainName, overrideIds) <- readPrec
     return $ ReadAreaCommonState $ \resources partyPosition -> do
       let getDevice di =
             maybe (fail $ "Unknown device ID: " ++ show di) return $
             getAreaDevice scenarioTriggers (partyCurrentArea party) di
       devices <- traverse getDevice deviceIds
-      terrain <- loadTerrainMap resources terrainName
-      minimap <- onlyIO $ createMinimap terrain party
+      terrainMap <- loadTerrainMap resources terrainName
+      let getTile ti =
+            maybe (fail $ "Unknown terrain tile ID: " ++ show ti) return $
+            find ((ti ==) . ttId) (rsrcTileset resources)
+      overrides <- traverse getTile overrideIds
+      -- FIXME take overrides into account when building minimap
+      minimap <- onlyIO $ createMinimap terrainMap party
       return AreaCommonState
         { acsCamera = makeCameraWithCenter (positionCenter partyPosition),
           acsClock = initClock,
@@ -231,7 +236,8 @@ instance Read ReadAreaCommonState where
           acsMonsters = error "FIXME ReadAreaCommonState",
           acsParty = party,
           acsResources = resources,
-          acsTerrain = terrain,
+          acsTerrainMap = terrainMap,
+          acsTerrainOverrides = overrides,
           acsVisible = Set.empty }
 
 newtype ShowAreaCommonState = ShowAreaCommonState AreaCommonState
@@ -239,6 +245,6 @@ newtype ShowAreaCommonState = ShowAreaCommonState AreaCommonState
 instance Show ShowAreaCommonState where
   showsPrec p (ShowAreaCommonState acs) = showsPrec p $
     (fmap devId (acsDevices acs), acsFields acs, acsParty acs,
-     tmapName (acsTerrain acs))
+     tmapName (acsTerrainMap acs), ttId <$> acsTerrainOverrides acs)
 
 -------------------------------------------------------------------------------

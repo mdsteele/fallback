@@ -83,13 +83,13 @@ data TownPhase = WalkingPhase
 
 updateTownVisibility :: TownState -> IO TownState
 updateTownVisibility ts = do
-  let terrain = arsTerrain ts
-  let visible' = fieldOfView (tmapSize terrain) (arsIsOpaque ts)
+  let acs = tsCommon ts
+  let terrainMap = acsTerrainMap acs
+  let visible' = fieldOfView (tmapSize terrainMap) (arsIsOpaque ts)
                              sightRangeSquared (tsPartyPosition ts) Set.empty
-  let party' = partyUpdateExploredMap terrain visible' (arsParty ts)
-  updateMinimap (arsMinimap ts) terrain (Set.toList visible')
-  return ts { tsCommon = (tsCommon ts) { acsParty = party',
-                                         acsVisible = visible' } }
+  let party' = partyUpdateExploredMap terrainMap visible' (arsParty ts)
+  updateMinimap acs (Set.toList visible')
+  return ts { tsCommon = acs { acsParty = party', acsVisible = visible' } }
 
 tickTownAnimations :: TownState -> TownState
 tickTownAnimations ts =

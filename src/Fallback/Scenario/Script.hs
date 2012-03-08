@@ -1097,7 +1097,7 @@ addBasicEnemyMonster nearPos tag mbDeadVar townAi = do
   let mtype = getMonsterType tag
   within <- emitAreaEffect $ EffIfCombat
     (areaGet arsArenaRect)
-    (areaGet (makeRect pZero . tmapSize . arsTerrain))
+    (areaGet (makeRect pZero . tmapSize . arsTerrainMap))
   -- TODO Allow for non-SizeSmall monsters
   spot <- areaGet $ \ars ->
     if not $ arsIsBlockedForParty ars nearPos then nearPos
