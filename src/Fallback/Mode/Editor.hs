@@ -23,7 +23,6 @@ where
 
 import Control.Applicative ((<$>))
 import Control.Monad (when)
-import Data.Array ((!), listArray)
 import Data.Char (isDigit)
 import Data.List (intercalate)
 import Data.Maybe (listToMaybe)
@@ -45,6 +44,7 @@ import Fallback.State.Minimap
   (newMinimapFromTerrainMap, updateMinimapFromTerrainMap)
 import Fallback.State.Resources (Resources, rsrcTileset)
 import Fallback.State.Terrain
+import Fallback.State.Tileset
 import Fallback.Utility (maybeM)
 import Fallback.View (fromAction, viewHandler, viewPaint)
 import Fallback.View.Editor
@@ -207,10 +207,9 @@ floodFill start tile tmap =
 
 newEditorState :: Resources -> IO EditorState
 newEditorState resources = do
-  let tileList = rsrcTileset resources
-  let tileArray = listArray (0, length tileList - 1) tileList
-  let offTile = tileArray ! 0
-      nullTile = tileArray ! 1
+  let tileset = rsrcTileset resources
+  let offTile = tilesetGet OffTile tileset
+  let nullTile = tilesetGet NullTile tileset
   let tmap = makeEmptyTerrainMap (55, 44) offTile nullTile
   minimap <- newMinimapFromTerrainMap tmap
   return EditorState
@@ -223,7 +222,7 @@ newEditorState resources = do
       esPaletteTop = 0,
       esRedoStack = [],
       esTerrain = tmap,
-      esTileset = tileArray,
+      esTileset = tilesetArray tileset,
       esUndoStack = [],
       esUnsaved = False }
 

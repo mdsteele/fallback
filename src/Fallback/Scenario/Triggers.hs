@@ -28,7 +28,6 @@ where
 import Control.Applicative ((<$>))
 import Control.Monad (forM, join, zipWithM_)
 import qualified Control.Monad.State as State
-import Data.List (find)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -43,7 +42,8 @@ import Fallback.State.Progress (Progress, splitVarSeed)
 import Fallback.State.Resources (MusicTag(..), SoundTag(..), rsrcTileset)
 import Fallback.State.Simple (CharacterClass(..))
 import Fallback.State.Tags
-import Fallback.State.Terrain (TerrainTile, terrainGetTile, ttId)
+import Fallback.State.Terrain (terrainGetTile)
+import Fallback.State.Tileset (TerrainTile, TileTag(..), tilesetGet)
 import Fallback.Utility (firstJust, flip3, maybeM, whenM)
 
 -------------------------------------------------------------------------------
@@ -67,22 +67,22 @@ scenarioTriggers = compileScenario $ do
   -- The standard interaction radius for signs/placards:
   let signRadius = 3 :: Int
 
-  let newUnlockedDoor vseed openId closedId = do
+  let newUnlockedDoor vseed cTag oTag = do
         let (cSeed, oSeed) = splitVarSeed vseed
-        rec open <- newDevice oSeed 1 $ \ge _ -> do
-              tile <- getTerrainFromId closedId
-              setTerrain [(rectTopleft $ geRect ge, tile)]
-              replaceDevice ge closed
-              playSound SndDoorShut
-            closed <- newDevice cSeed 1 $ \ge _ -> do
-              tile <- getTerrainFromId openId
+        rec closed <- newDevice cSeed 1 $ \ge _ -> do
+              tile <- getTerrainTile oTag
               setTerrain [(rectTopleft $ geRect ge, tile)]
               replaceDevice ge open
               playSound SndDoorOpen
+            open <- newDevice oSeed 1 $ \ge _ -> do
+              tile <- getTerrainTile cTag
+              setTerrain [(rectTopleft $ geRect ge, tile)]
+              replaceDevice ge closed
+              playSound SndDoorShut
         return closed
-  stoneDoor <- newUnlockedDoor 398282 0983 5588
-  basaltDoor <- newUnlockedDoor 349783 6383 6933
-  adobeDoor <- newUnlockedDoor 109823 2993 3891
+  stoneDoor <- newUnlockedDoor 398282 StoneDoorClosedTile StoneDoorOpenTile
+  basaltDoor <- newUnlockedDoor 349783 BasaltDoorClosedTile BasaltDoorOpenTile
+  adobeDoor <- newUnlockedDoor 109823 AdobeDoorClosedTile AdobeDoorOpenTile
 
   ----------------------------- Global Variables ------------------------------
 
@@ -812,12 +812,10 @@ scenarioTriggers = compileScenario $ do
 
 -------------------------------------------------------------------------------
 
--- TODO This is kinda gross.  Is there a nicer way?
-getTerrainFromId :: (FromAreaEffect f) => Int -> Script f TerrainTile
-getTerrainFromId tileId = do
-  tileset <- areaGet (rsrcTileset . arsResources)
-  maybe (fail $ "Bad tile id: " ++ show tileId) return $
-    find ((tileId ==) . ttId) tileset
+getTerrainTile :: (FromAreaEffect f) => TileTag -> Script f TerrainTile
+getTerrainTile tag = do
+  resources <- areaGet arsResources
+  return $ tilesetGet tag $ rsrcTileset resources
 
 -- 400278, 372710, 262175, 115489, 648882, 642527, 643253, 035698, 904223,
 -- 915362, 041045, 514224, 762406, 999849, 390882, 028595, 542093, 092923,

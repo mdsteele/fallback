@@ -34,8 +34,6 @@ where
 
 import Data.Array.Diff (DiffUArray)
 import Data.Array.IArray
-import qualified Data.Foldable as Fold (foldl')
-import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe, listToMaybe)
 import qualified Data.Traversable as Trav (mapM)
@@ -117,20 +115,18 @@ tmapShift nullTile delta tmap = tmap { tmapArray = arr' } where
 
 loadTerrainMap :: Resources -> String -> IOEO TerrainMap
 loadTerrainMap resources name = do
+  let tileset = rsrcTileset resources
   path <- onlyIO $ getResourcePath "terrain" name
-  let tileMap = Fold.foldl' (\m t -> IntMap.insert (ttId t) t m) IntMap.empty $
-                rsrcTileset resources
-  let getTile i = maybe (fail $ "Bad tile id: " ++ show i) return $
-                  IntMap.lookup i tileMap
+  let getTile tid = maybe (fail $ "Bad tile id: " ++ show tid) return $
+                    tilesetLookup tid tileset
   tileArray <- do
     string <- onlyIO $ readFile path
     ((w, h), ids) <- maybe (fail $ "Couldn't read terrain from " ++ name)
                          (return . fst) (listToMaybe $ reads string)
     onlyEO $ Trav.mapM getTile $
       listArray (Point 0 0, Point (w - 1) (h - 1)) ids
-  offTile <- onlyEO $ getTile offTileId
   return TerrainMap { tmapArray = tileArray, tmapName = name,
-                      tmapOffTile = offTile }
+                      tmapOffTile = tilesetGet OffTile tileset }
 
 saveTerrainMap :: String -> TerrainMap -> IO ()
 saveTerrainMap name tmap = do

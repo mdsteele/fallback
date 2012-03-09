@@ -50,7 +50,7 @@ import Fallback.Sound (Sound, loadSound)
 import Fallback.State.Creature (CreatureImages(CreatureImages))
 import Fallback.State.Simple
   (CharacterClass, CharacterAppearance, CreatureSize(..))
-import Fallback.State.Tileset (TerrainTile, loadTileset)
+import Fallback.State.Tileset (Tileset, loadTileset)
 
 -------------------------------------------------------------------------------
 
@@ -70,7 +70,7 @@ data Resources = Resources
     rsrcStatusIcons :: Strip,
     rsrcStrips :: TotalMap StripTag Strip,
     rsrcTerrainSheet :: Sheet,
-    rsrcTileset :: [TerrainTile] }
+    rsrcTileset :: Tileset }
 
 newResources :: IO Resources
 newResources = do

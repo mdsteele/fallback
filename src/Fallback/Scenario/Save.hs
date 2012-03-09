@@ -51,6 +51,7 @@ import Fallback.State.Resources (Resources, rsrcTileset)
 import Fallback.State.Tags (areaName, regionName)
 import Fallback.State.Terrain
   (Terrain(..), loadTerrainMap, positionCenter, tmapName, ttId)
+import Fallback.State.Tileset (tilesetLookup)
 import Fallback.State.Town (TownPhase(WalkingPhase), TownState(..))
 import Fallback.Utility (sortKey)
 
@@ -255,7 +256,7 @@ instance Read ReadTerrain where
       tmap <- loadTerrainMap resources terrainName
       let getTile ti =
             maybe (fail $ "Unknown terrain tile ID: " ++ show ti) return $
-            find ((ti ==) . ttId) (rsrcTileset resources)
+            tilesetLookup ti $ rsrcTileset resources
       overrides <- traverse getTile overrideIds
       return Terrain { terrainMap = tmap, terrainOverrides = overrides }
 

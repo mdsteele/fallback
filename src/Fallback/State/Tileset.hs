@@ -18,17 +18,20 @@
 ============================================================================ -}
 
 module Fallback.State.Tileset
-  (TerrainTile(..), offTileId, loadTileset)
+  (TerrainTile(..), TileTag(..),
+   Tileset, tilesetGet, tilesetLookup, tilesetArray, loadTileset)
 where
 
-import Control.Monad (foldM_)
-import Data.Array ((!), Array, listArray, range, rangeSize)
-import qualified Data.Set as Set
+import Control.Monad (foldM)
+import Data.Array ((!), Array, Ix, listArray, range, rangeSize)
+import qualified Data.Map as Map
 
 import Fallback.Data.Clock (Clock, clockMod)
 import Fallback.Data.Color (Color(Color), blackColor, whiteColor)
+import Fallback.Data.TotalMap (TotalMap, makeTotalMapA, tmGet)
 import Fallback.Draw (Sheet, Sprite)
 import Fallback.State.Simple (TerrainOpenness(..))
+import Fallback.Utility (flip3)
 
 -------------------------------------------------------------------------------
 
@@ -38,19 +41,68 @@ data TerrainTile = TerrainTile
     ttOpenness :: TerrainOpenness,
     ttSprite :: Clock -> Sprite }
 
-offTileId :: Int
-offTileId = 0
+-------------------------------------------------------------------------------
+
+data TileTag = OffTile | NullTile | StoneFloorTile
+             -- Doors and gates:
+             | AdobeDoorClosedTile | AdobeDoorOpenTile
+             | AdobeGateClosedTile | AdobeGateOpenTile
+             | BasaltDoorClosedTile | BasaltDoorOpenTile
+             | BasaltGateClosedTile | BasaltGateOpenTile
+             | StoneDoorClosedTile | StoneDoorOpenTile
+             | StoneGateClosedTile | StoneGateOpenTile
+             -- Other devices:
+  {-
+             | LeverLeftTile | LeverRightTile
+-}
+  deriving (Bounded, Eq, Ix, Ord)
+
+tileTagId :: TileTag -> Int
+tileTagId OffTile = 0000
+tileTagId NullTile = 0001
+tileTagId StoneFloorTile = 8222
+tileTagId AdobeDoorClosedTile = 3891
+tileTagId AdobeDoorOpenTile = 2993
+tileTagId AdobeGateClosedTile = 8625
+tileTagId AdobeGateOpenTile = 0605
+tileTagId BasaltDoorClosedTile = 6933
+tileTagId BasaltDoorOpenTile = 6383
+tileTagId BasaltGateClosedTile = 0865
+tileTagId BasaltGateOpenTile = 7148
+tileTagId StoneDoorClosedTile = 5588
+tileTagId StoneDoorOpenTile = 0983
+tileTagId StoneGateClosedTile = 2330
+tileTagId StoneGateOpenTile = 5719
 
 -------------------------------------------------------------------------------
 
-loadTileset :: Sheet -> IO [TerrainTile]
+data Tileset = Tileset
+  { tilesetArray :: Array Int TerrainTile,
+    tilesetMap :: Map.Map Int TerrainTile,
+    tilesetTotalMap :: TotalMap TileTag TerrainTile }
+
+tilesetLookup :: Int -> Tileset -> Maybe TerrainTile
+tilesetLookup tid tileset = Map.lookup tid $ tilesetMap tileset
+
+tilesetGet :: TileTag -> Tileset -> TerrainTile
+tilesetGet tag tileset = tmGet tag $ tilesetTotalMap tileset
+
+-------------------------------------------------------------------------------
+
+loadTileset :: Sheet -> IO Tileset
 loadTileset terrainSheet = do
-  foldM_ check Set.empty tileSpecs
-  return $ map makeTile tileSpecs
+  let tilesList = map makeTile tileSpecs
+  tilesMap <- flip3 foldM Map.empty tilesList $ \mp tile ->
+    if Map.member (ttId tile) mp
+    then fail $ "repeat tile ID: " ++ show (ttId tile)
+    else return $ Map.insert (ttId tile) tile mp
+  tilesTM <- makeTotalMapA $ \tag ->
+    maybe (fail $ "no such tile ID: " ++ show (tileTagId tag)) return $
+    Map.lookup (tileTagId tag) tilesMap
+  let tilesArr = listArray (0, length tilesList - 1) tilesList
+  return Tileset { tilesetArray = tilesArr, tilesetMap = tilesMap,
+                   tilesetTotalMap = tilesTM }
   where
-    check ids spec =
-      if Set.member tid ids then fail ("repeat tile ID: " ++ show tid)
-      else return (Set.insert tid ids) where tid = tspecId spec
     makeTile spec =
       let fn = case tspecSprite spec of
                  Left loc -> const (terrainSheet ! loc)
@@ -74,7 +126,7 @@ data TileSpec = TileSpec
 -- that this is so.
 tileSpecs :: [TileSpec]
 tileSpecs = [
- TileSpec offTileId (Left (0, 0)) TerrainSolid black, -- unexplored
+ TileSpec 0000 (Left (0, 0)) TerrainSolid black, -- unexplored
  TileSpec 0001 (Left (0, 1)) TerrainSolid magenta, -- null tile
 
  TileSpec 8983 (Left (0, 4)) TerrainOpen green, -- grass
