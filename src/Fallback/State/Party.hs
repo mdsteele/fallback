@@ -220,11 +220,27 @@ partyGrantExperience xp party =
       level' = xp' `div` experiencePerLevel
       delta = level' - partyLevel party
   in if delta <= 0 then party { partyExperience = xp' } else
-       let levelUp char = char
-             { chrSkillPoints = chrSkillPoints char + delta,
-               chrStatPoints = chrStatPoints char + 2 * delta }
-       in party { partyCharacters = levelUp <$> partyCharacters party,
-                  partyExperience = xp', partyLevel = level' }
+       party { partyCharacters = (if delta <= 0 then id
+                                  else fmap (levelUp delta))
+                                 (partyCharacters party),
+               partyExperience = xp', partyLevel = level' }
+  where
+    levelUp levels char =
+      char { chrBaseStats = (+) <$> chrStatDeltas char levels <*>
+                            chrBaseStats char,
+             chrSkillPoints = chrSkillPoints char + levels,
+             chrStatPoints = chrStatPoints char + 2 * levels }
+    chrStatDeltas char levels = fmap (levels *) $ makeTotalMap $ statOf $
+      case chrClass char of
+        WarriorClass -> (3, 2, 1)
+        RogueClass -> (1, 3, 2)
+        HunterClass -> (2, 3, 1)
+        AlchemistClass -> (3, 1, 2)
+        ClericClass -> (2, 1, 3)
+        MagusClass -> (1, 2, 3)
+    statOf (s, _, _) Strength = s
+    statOf (_, a, _) Agility = a
+    statOf (_, _, i) Intellect = i
 
 -- | Add an item to the first open slot in the party inventory.
 partyGrantItem :: ItemTag -> Party -> Party
