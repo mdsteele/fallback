@@ -52,9 +52,7 @@ data TileTag = OffTile | NullTile | StoneFloorTile
              | StoneDoorClosedTile | StoneDoorOpenTile
              | StoneGateClosedTile | StoneGateOpenTile
              -- Other devices:
-  {-
              | LeverLeftTile | LeverRightTile
--}
   deriving (Bounded, Eq, Ix, Ord)
 
 tileTagId :: TileTag -> Int
@@ -73,6 +71,8 @@ tileTagId StoneDoorClosedTile = 5588
 tileTagId StoneDoorOpenTile = 0983
 tileTagId StoneGateClosedTile = 2330
 tileTagId StoneGateOpenTile = 5719
+tileTagId LeverLeftTile = 7991
+tileTagId LeverRightTile = 0761
 
 -------------------------------------------------------------------------------
 
@@ -233,9 +233,8 @@ tileSpecs = [
  TileSpec 5489 (Left (11, 3)) TerrainSmoke white, -- adobe secret door
  TileSpec 3891 (Left (11, 4)) TerrainSolid gray, -- adobe closed door
  TileSpec 2993 (Left (11, 5)) TerrainOpen gray, -- adobe open door
- TileSpec 8625 (Left (11, 7)) TerrainWindow gray, -- adobe closed gate
+ TileSpec 8625 (Left (11, 6)) TerrainWindow gray, -- adobe closed gate
  TileSpec 0605 (Left (11, 7)) TerrainOpen gray, -- adobe open gate
- TileSpec 0280 (Left (11, 6)) TerrainWindow gray, -- adobe closed gate
  TileSpec 0364 (Left (11, 8)) TerrainSolid white, -- adobe sign
  TileSpec 7185 (Left (11, 9)) TerrainSolid white, -- adobe crack
  TileSpec 1814 (Left (11, 10)) TerrainSolid white, -- adobe dirty
@@ -249,6 +248,19 @@ tileSpecs = [
  TileSpec 0832 (Left (15, 0)) TerrainHover black, -- pit
 
  TileSpec 8222 (Left (12, 5)) TerrainOpen gray, -- stone floor
+ TileSpec 0957 (Left (6, 0)) TerrainOpen gray,
+ TileSpec 9622 (Left (6, 1)) TerrainOpen gray,
+ TileSpec 2040 (Left (7, 0)) TerrainOpen gray,
+ TileSpec 6842 (Left (7, 1)) TerrainOpen gray,
+ TileSpec 6296 (Left (8, 0)) TerrainOpen gray,
+ TileSpec 7558 (Left (8, 1)) TerrainOpen gray,
+ TileSpec 5948 (Left (9, 0)) TerrainOpen gray,
+ TileSpec 8510 (Left (9, 1)) TerrainOpen gray,
+ TileSpec 4219 (Left (10, 0)) TerrainOpen gray,
+ TileSpec 2097 (Left (10, 1)) TerrainOpen gray,
+ TileSpec 8859 (Left (11, 0)) TerrainOpen gray,
+ TileSpec 2411 (Left (11, 1)) TerrainOpen gray,
+
  TileSpec 1602 (Right (((47, 8), (47, 11)), 4)) TerrainOpen gray, -- torch
  TileSpec 6808 (Right (((48, 8), (48, 11)), 4)) TerrainOpen gray, -- torch
  TileSpec 6445 (Left (12, 6)) TerrainOpen gray, -- rune
@@ -278,6 +290,9 @@ tileSpecs = [
  TileSpec 9028 (Left (15, 5)) TerrainWindow gray, -- cauldron
  TileSpec 1969 (Left (15, 7)) TerrainOpen gray, -- rug
  TileSpec 7555 (Left (15, 8)) TerrainWindow gray, -- anvil
+ TileSpec 0761 (Left (21, 5)) TerrainOpen gray, -- lever right
+ TileSpec 7991 (Left (21, 6)) TerrainOpen gray, -- lever left
+ TileSpec 4682 (Left (44, 11)) TerrainWindow gray, -- wheel
  TileSpec 3813 (Left (12, 1)) TerrainOpen gray, -- stone floor w/ snow
 
  TileSpec 0040 (Left (15, 9)) TerrainOpen gray, -- white tile floor
@@ -405,7 +420,6 @@ tileSpecs = [
 -- 7264, 7108, 5376, 1701, 3235, 6921, 4701, 9878, 6996, 2443, 6760, 0295,
 -- 4196, 5306, 0545, 6852, 3086, 5892, 7042, 5643, 3895, 9108, 6079, 8591,
 -- 3915, 9224, 2317, 0486, 3899, 4408, 3431, 0781, 3082, 6386, 3714, 7032,
--- 7122, 1331, 2411, 8859, 2097, 4219, 8510, 5948, 7558, 6296, 6842, 2040,
--- 9622, 0957, 7991, 0761, 4682
+-- 7122, 1331
 
 -------------------------------------------------------------------------------
