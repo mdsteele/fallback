@@ -398,7 +398,7 @@ newTownMode resources modes initState = do
       let arenaTopleft =
             pp `pSub` Point (half combatArenaCols) (half combatArenaRows)
       let arenaRect = makeRect arenaTopleft (combatArenaCols, combatArenaRows)
-      let mkCharState _ claimed =
+      let mkCharState _charNum claimed =
             let pos = arsFindOpenSpot ts pp arenaRect claimed
                 ccs = CombatCharState
                         { ccsAnim = WalkAnim 6 6 pp,

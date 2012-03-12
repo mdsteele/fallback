@@ -82,17 +82,11 @@ data MonsterAttack = MonsterAttack
     maEffects :: [AttackEffect],
     maRange :: AttackRange }
 
--- anyM :: (Monad m) => a -> [a -> m Bool] -> m Bool
--- anyM _ [] = return False
--- anyM input (fn : fns) = do
---   done <- fn input
---   if done then return True else anyM input fns
-
-data MonsterTownAI = ChaseAI
+data MonsterTownAI = ChaseAI -- chase party relentlessly
                    | GuardAI Position
-                   | ImmobileAI
+                   | ImmobileAI -- never move; start combat when could attack
+                   | MindlessAI -- chase party only when visible
                    | PatrolAI Position Position
-                   | RoamAI PRect
 
 data MonsterType = MonsterType
   { mtAttacks :: [MonsterAttack],

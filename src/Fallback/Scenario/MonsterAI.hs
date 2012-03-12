@@ -21,22 +21,25 @@ module Fallback.Scenario.MonsterAI
   (defaultMonsterCombatAI, monsterTownStep)
 where
 
+import Control.Applicative ((<$), (<$>))
 import Control.Monad (unless, when)
+import qualified Data.Set as Set
 
-import Fallback.Data.Grid (GridEntry(..))
+import Fallback.Constants (sightRangeSquared)
+import Fallback.Data.Grid (GridEntry(..), GridKey, rectPositions)
 import Fallback.Data.Point
 import Fallback.Scenario.MonsterSpells (tryMonsterSpell)
 import Fallback.Scenario.Script
 import Fallback.State.Area
 import Fallback.State.Creature
+import Fallback.State.FOV (fieldOfView)
 import Fallback.State.Pathfind (pathfindRectToRange, pathfindRectToRanges)
 import Fallback.State.Simple
 import Fallback.State.Tags (MonsterSpellTag)
-import Fallback.Utility (flip3)
+import Fallback.State.Terrain (terrainSize)
 
 -------------------------------------------------------------------------------
 
--- FIXME Move this to another file, presumably in Scenario
 defaultMonsterCombatAI :: GridEntry Monster -> Script CombatEffect ()
 defaultMonsterCombatAI ge = do
   done <- tryMonsterSpells ge (mtSpells $ monstType $ geValue ge)
@@ -45,7 +48,7 @@ defaultMonsterCombatAI ge = do
   if null attacks then fleeMonsterCombatAI ge else do
   attack <- getRandomElem attacks
   isBlocked <- areaGet (arsIsBlockedForMonster ge)
-  goals <- areaGet arsPartyPositions -- TODO also include party allies
+  goals <- getMonsterOpponentPositions (geKey ge)
   let rect = geRect ge
   let sqDist = rangeSqDist $ maRange attack
   let path = pathfindRectToRanges isBlocked rect goals sqDist 20
@@ -53,7 +56,9 @@ defaultMonsterCombatAI ge = do
   let path' = take 4 $ drop 1 path
   mapM_ (walkMonster 4 $ geKey ge) path'
   if length path' > 3 then return () else do
-  let targets = filter (flip3 rangeTouchesRect sqDist rect) goals
+  visible <- getMonsterVisibility (geKey ge)
+  let targets = filter (\pos -> rangeTouchesRect pos sqDist rect &&
+                                Set.member pos visible) goals
   if null targets then return () else do
   target <- getRandomElem targets
   monsterPerformAttack (geKey ge) attack target
@@ -83,40 +88,36 @@ monsterTownStep ge = do
         return False else do
       let path = pathfindRectToRange isBlocked rect partyPos 2 30
       if null path then return False else do
-      remaining <- takeStep path
-      return (remaining <= 3)
+      stepTowardsParty path
     GuardAI home -> do
       let partyPath = pathfindRectToRange isBlocked rect partyPos 2 5
       -- TODO only chase the party so far from home
-      if null partyPath then do
-        let homePath = pathfindRectToRange isBlocked rect home 0 30
-        unless (null homePath) $ do
-          _ <- takeStep homePath
-          return ()
-        return False
-       else do
-        remaining <- takeStep partyPath
-        return (remaining <= 3)
+      if not (null partyPath) then stepTowardsParty partyPath else do
+      let homePath = pathfindRectToRange isBlocked rect home 0 30
+      unless (null homePath) $ () <$ takeStep homePath
+      return False
     ImmobileAI -> do
       if monstIsAlly monst then return False else do
       let attacks = mtAttacks $ monstType monst
       if null attacks then return False else do
-      --let attack = maximumKey (rangeSqDist . maRange) attacks
-      return False -- FIXME
+      let sqDist = maximum $ map (rangeSqDist . maRange) attacks
+      if not (rangeTouchesRect partyPos sqDist rect) then return False else do
+      canMonsterSeeParty (geKey ge)
+    MindlessAI -> do
+      canSee <- canMonsterSeeParty (geKey ge)
+      if not canSee then return False else do
+      let path = pathfindRectToRange isBlocked rect partyPos 2 20
+      if null path then return False else do
+      stepTowardsParty path
     PatrolAI home goal -> do
       let partyPath = pathfindRectToRange isBlocked rect partyPos 2 5
-      if null partyPath then do
-        let patrolPath = pathfindRectToRange isBlocked rect goal 0 30
-        unless (null patrolPath) $ do
-          remaining <- takeStep patrolPath
-          when (remaining <= 0) $ do
-            emitAreaEffect $ EffReplaceMonster (geKey ge) $
-              Just monst { monstTownAI = PatrolAI goal home }
-        return False
-       else do
-        remaining <- takeStep partyPath
-        return (remaining <= 3)
-    _ -> return False -- FIXME
+      if not (null partyPath) then stepTowardsParty partyPath else do
+      let patrolPath = pathfindRectToRange isBlocked rect goal 0 30
+      unless (null patrolPath) $ do
+        remaining <- takeStep patrolPath
+        when (remaining <= 0) $ do
+          setMonsterTownAI (geKey ge) (PatrolAI goal home)
+      return False
   where
     monst = geValue ge
     rect = geRect ge
@@ -125,5 +126,45 @@ monsterTownStep ge = do
                           then (2, 2) else (4, 1)
       mapM_ (walkMonster time $ geKey ge) $ take steps $ drop 1 path
       return (length path - steps - 1)
+    stepTowardsParty path = do
+      remaining <- takeStep path
+      return (remaining <= 3 && not (monstIsAlly monst))
+
+-------------------------------------------------------------------------------
+
+getMonsterOpponentPositions :: (FromAreaEffect f) => GridKey Monster
+                            -> Script f [Position]
+getMonsterOpponentPositions key = do
+  maybeMonsterEntry key [] $ \entry -> do
+  let isAlly = monstIsAlly $ geValue entry
+  positions1 <- if isAlly then return [] else areaGet arsPartyPositions
+  positions2 <- concatMap (rectPositions . geRect) <$>
+                if isAlly then getAllEnemyMonsters else getAllAllyMonsters
+  return (positions1 ++ positions2)
+
+-- | Return the set of positions visible to the specified monster.
+getMonsterVisibility :: (FromAreaEffect f) => GridKey Monster
+                     -> Script f (Set.Set Position)
+getMonsterVisibility key = do
+  maybeMonsterEntry key Set.empty $ \entry -> do
+  size <- terrainSize <$> areaGet arsTerrain
+  isOpaque <- areaGet arsIsOpaque
+  return (foldr (fieldOfView size isOpaque sightRangeSquared) Set.empty $
+          rectPositions $ geRect entry)
+
+-- | Return 'True' if the monster can see the party, 'False' otherwise.
+canMonsterSeeParty :: GridKey Monster -> Script TownEffect Bool
+canMonsterSeeParty key = do
+  maybeMonsterEntry key False $ \entry -> do
+  visible <- areaGet arsVisibleForParty
+  return $ any (`Set.member` visible) $ rectPositions $ geRect entry
+
+-- | Call an action with the monster's grid entry, or return the given default
+-- value if the monster doesn't exist.
+maybeMonsterEntry :: (FromAreaEffect f) => GridKey Monster -> a
+                  -> (GridEntry Monster -> Script f a) -> Script f a
+maybeMonsterEntry key defaultValue action = do
+  mbEntry <- lookupMonsterEntry key
+  maybe (return defaultValue) action mbEntry
 
 -------------------------------------------------------------------------------

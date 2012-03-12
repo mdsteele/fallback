@@ -29,7 +29,7 @@ module Fallback.Scenario.Script
    whenCombat, unlessCombat, whenDifficulty,
 
    -- ** Query
-   areaGet,
+   areaGet, lookupMonsterEntry,
    -- *** Group retrieval
    getAllConsciousCharacters, getAllAllyMonsters, getAllEnemyMonsters,
    getAllAllyTargets,
@@ -39,7 +39,7 @@ module Fallback.Scenario.Script
    -- ** Actions
    -- *** Movement
    getPartyPosition, setPartyPosition, partyWalkTo, charWalkTo, teleport,
-   exitTo, walkMonster,
+   exitTo, walkMonster, setMonsterTownAI,
    -- *** Attacks
    characterBeginOffensiveAction, characterWeaponAttack,
    characterWeaponInitialAnimation, characterWeaponBaseDamage,
@@ -233,10 +233,6 @@ areaGet :: (FromAreaEffect f) => (forall s. (AreaState s) => s -> a)
         -> Script f a
 areaGet = emitAreaEffect . EffAreaGet
 
-lookupMonster :: (FromAreaEffect f) => GridKey Monster
-              -> Script f (Maybe Monster)
-lookupMonster key = areaGet (fmap geValue . gridLookup key . arsMonsters)
-
 lookupMonsterEntry :: (FromAreaEffect f) => GridKey Monster
                    -> Script f (Maybe (GridEntry Monster))
 lookupMonsterEntry key = areaGet (gridLookup key . arsMonsters)
@@ -375,6 +371,12 @@ walkMonster frames gkey pos' = do
       emitAreaEffect $ EffReplaceMonster (geKey entry) $
         Just (geValue entry) { monstAnim = anim', monstFaceDir = dir }
       wait frames
+
+setMonsterTownAI :: (FromAreaEffect f) => GridKey Monster -> MonsterTownAI
+                 -> Script f ()
+setMonsterTownAI key townAI = withMonsterEntry key $ \entry -> do
+  emitAreaEffect (EffReplaceMonster key $
+                  Just (geValue entry) { monstTownAI = townAI })
 
 -------------------------------------------------------------------------------
 -- Attacks:
@@ -755,7 +757,7 @@ alterMonsterStatus :: (FromAreaEffect f) => GridKey Monster
                    -> (StatusEffects -> StatusEffects) -> Script f ()
 alterMonsterStatus key fn = do
   fn' <- emitAreaEffect $ EffIfCombat (return fn) (return (townifyStatus . fn))
-  mbMonst <- lookupMonster key
+  mbMonst <- fmap geValue <$> lookupMonsterEntry key
   let mbMonst' = (\m -> m { monstStatus = fn' (monstStatus m) }) <$> mbMonst
   emitAreaEffect $ EffReplaceMonster key mbMonst'
 

@@ -49,10 +49,10 @@ import Fallback.Utility (firstJust, flip3, maybeM, whenM)
 -------------------------------------------------------------------------------
 
 startingArea :: AreaTag
-startingArea = {-FrozenPass -- -} MountainPath
+startingArea = MountainPath
 
 startingPosition :: Position
-startingPosition = {-Point 5 9 -- -} Point 14 6
+startingPosition = Point 14 6
 
 initialProgress :: Progress
 initialProgress = scenarioInitialProgress scenarioTriggers
@@ -133,9 +133,12 @@ scenarioTriggers = compileScenario $ do
       addDevice_ stoneDoor (Point 7 11)
       addDevice_ stoneDoor (Point 5 13)
       addDevice_ stoneDoor (Point 10 13)
+      addDevice_ basaltDoor (Point 32 17)
 
-    simpleMonster 660632 DemonWolf (Point 29 2) ChaseAI
+    simpleMonster 660632 DemonWolf (Point 29 2) MindlessAI
     simpleMonster 660633 DemonWolf (Point 6 20) ChaseAI
+    simpleMonster 660634 Wolf (Point 27 16)
+                  (PatrolAI (Point 27 16) (Point 36 16))
 
   compileArea MountainPath Nothing $ do
 
