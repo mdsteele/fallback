@@ -112,6 +112,7 @@ newCombatMapView resources = do
                     (map ccsPosition $ toList $ csCharStates cs)
                     (gridEntries $ acsMonsters acs)
       paintCharacters resources cameraTopleft cs
+      paintHealthBars cs
       paintDoodads cameraTopleft MidDood (acsDoodads acs)
       tintNonVisibleTiles cameraTopleft (arsExploredMap cs) (acsVisible acs)
       paintDoodads cameraTopleft HighDood (acsDoodads acs)

@@ -23,7 +23,7 @@ module Fallback.View.Camera
   (-- * Painting terrain
    paintTerrain, paintTerrainFullyExplored, tintNonVisibleTiles,
    -- * Painting fields and creatures
-   paintFields, paintMonsters, paintStatusDecorations,
+   paintFields, paintMonsters, paintStatusDecorations, paintHealthBars,
    -- * Painting GUI elements
    paintMessage, paintTargeting, paintWeaponRange,
    -- * Utility views
@@ -38,14 +38,14 @@ import qualified Data.Set as Set
 
 import Fallback.Constants (tileHeight, tileWidth)
 import Fallback.Data.Clock (Clock, clockMod, clockZigzag)
-import Fallback.Data.Color (Tint(..), whiteColor)
-import Fallback.Data.Grid (GridEntry(..), rectPositions)
+import Fallback.Data.Color (Tint(..), blackTint, whiteColor)
+import Fallback.Data.Grid (GridEntry(..), gridEntries, rectPositions)
 import Fallback.Data.Point
 import Fallback.Draw
 import Fallback.State.Area
 import Fallback.State.Camera (camTopleft)
 import Fallback.State.Creature
-import Fallback.State.Party (partyExploredMap)
+import Fallback.State.Party
 import Fallback.State.Resources
   (FontTag(FontGeorgia14), Resources, StatusDecorations(..), StripTag(..),
    rsrcFont, rsrcMonsterImages, rsrcStatusDecorations, rsrcStrip)
@@ -209,6 +209,31 @@ paintStatusDecorations resources cameraTopleft clock prect status = do
           LocCenter $ centerPlus ((halfW - 2) * cos th) ((halfH - 2) * sin th)
     mapM_ paint [spinTheta + pi / 4, spinTheta + 3 * (pi / 4),
                  spinTheta + 5 * (pi / 4), spinTheta + 7 * (pi / 4)]
+
+-- | Paint health bars on the map for all (conscious) characters and monsters.
+paintHealthBars :: (AreaState a) => a -> Paint ()
+paintHealthBars ars = do
+  let topleft = camTopleft $ arsCamera ars
+  let paintHealthBar ally prect health maxHealth = do
+        let barWidth = 20
+        let Rect x y w h = prectRect prect `rectMinus` topleft
+        let rect = Rect (x + half (w - barWidth)) (y + h - 4) barWidth 5
+        tintRect (if ally then Tint 192 192 255 255
+                  else Tint 255 192 192 255) rect
+        tintRect (if ally then Tint 64 64 255 255
+                  else Tint 255 64 64 255)
+                 (rect { rectW = barWidth * health `div` maxHealth })
+        drawRect blackTint rect
+  forM_ [minBound .. maxBound] $ \charNum -> do
+    let char = arsGetCharacter charNum ars
+    when (chrIsConscious char) $ do
+    let pos = arsCharacterPosition charNum ars
+    paintHealthBar True (makeRect pos (1, 1)) (chrHealth char)
+                   (chrMaxHealth (arsParty ars) char)
+  forM_ (gridEntries $ arsMonsters ars) $ \entry -> do
+    let monst = geValue entry
+    paintHealthBar (monstIsAlly monst) (geRect entry) (monstHealth monst)
+                   (mtMaxHealth $ monstType monst)
 
 -------------------------------------------------------------------------------
 
