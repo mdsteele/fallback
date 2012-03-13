@@ -56,9 +56,9 @@ data AreaTag = Valhalla
              -- Longvale:
              | MountainPath | Corenglen
              -- Svengaard:
-             | FrozenPass | Holmgare | SewerCaves | IcyFord | StoneBridge
-             | Tragorda | WhistlingWoods | NorthernTundra
-             | Duskwood | PerilousTrail
+             | FrozenPass | Holmgare | SewerCaves | PerilousRoad
+             | StoneBridge | Tragorda | WhistlingWoods | IcyConfluence
+             | Marata | NorthernTundra | Duskwood
              | Icehold | Icehold2 | Icehold3
              -- Tahariam:
              | BurningMaze
@@ -72,11 +72,11 @@ areaName :: AreaTag -> String
 areaName MountainPath = "Mountain Path"
 areaName FrozenPass = "Frozen Pass"
 areaName SewerCaves = "Sewer Caves"
-areaName IcyFord = "Icy Ford"
+areaName PerilousRoad = "Perilous Road"
 areaName StoneBridge = "Stone Bridge"
 areaName WhistlingWoods = "Whistling Woods"
+areaName IcyConfluence = "Icy Confluence"
 areaName NorthernTundra = "Northern Tundra"
-areaName PerilousTrail = "Perilous Trail"
 areaName BurningMaze = "Burning Maze"
 areaName ArcaneLab = "Arcane Laboratory"
 areaName InnerLab = "Inner Laboratory"
@@ -89,13 +89,14 @@ areaRegion Corenglen = Longvale
 areaRegion FrozenPass = Svengaard
 areaRegion Holmgare = Svengaard
 areaRegion SewerCaves = Svengaard
-areaRegion IcyFord = Svengaard
+areaRegion PerilousRoad = Svengaard
 areaRegion StoneBridge = Svengaard
 areaRegion Tragorda = Svengaard
 areaRegion WhistlingWoods = Svengaard
+areaRegion IcyConfluence = Svengaard
+areaRegion Marata = Svengaard
 areaRegion NorthernTundra = Svengaard
 areaRegion Duskwood = Svengaard
-areaRegion PerilousTrail = Svengaard
 areaRegion Icehold = Svengaard
 areaRegion Icehold2 = OtherFloors
 areaRegion Icehold3 = OtherFloors

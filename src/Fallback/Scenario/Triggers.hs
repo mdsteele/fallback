@@ -39,8 +39,8 @@ import Fallback.State.Area --(arsGetCharacter)
 import Fallback.State.Creature (MonsterTownAI(..))
 import Fallback.State.Party (chrClass)
 import Fallback.State.Progress (Progress, splitVarSeed)
-import Fallback.State.Resources (MusicTag(..), SoundTag(..), rsrcTileset)
-import Fallback.State.Simple (CharacterClass(..))
+import Fallback.State.Resources
+import Fallback.State.Simple
 import Fallback.State.Tags
 import Fallback.State.Terrain (terrainGetTile)
 import Fallback.State.Tileset (TerrainTile, TileTag(..), tilesetGet)
@@ -623,20 +623,30 @@ scenarioTriggers = compileScenario $ do
       teleport FrozenPass svengaardEntryPosition
 
   compileArea FrozenPass Nothing $ do
+
+    makeExit 593047 Holmgare (Rect 53 37 2 5) (Point 51 38)
+
     -- Devices:
-    signpost <- newDevice 981323 signRadius $ \_ _ -> do
-      narrate "This signpost looks like it has seen better days, but you can\
-              \ still read it clearly.  It says:\n\n      {c}Holmgare: 2 mi. E"
     onStartDaily 028371 $ do
       addDevice_ stoneDoor (Point 44 12)
       addDevice_ adobeDoor (Point 5 36)
       addDevice_ basaltDoor (Point 26 40)
-      addDevice_ signpost (Point 48 36)
+    uniqueDevice 981323 (Point 48 36) signRadius $ \_ _ -> do
+      narrate "This signpost looks like it has seen better days, but you can\
+              \ still read it clearly.  It says:\n\n      {c}Holmgare: 2 mi. E"
 
     -- Monsters:
+
     simpleMonster 398273 Wolf (Point 31 5) ChaseAI
     simpleMonster 142118 Wolf (Point 29 7) ChaseAI
     simpleMonster 293554 Wolf (Point 34 6) ChaseAI
+
+    simpleMonster 233177 Skeleton (Point 7 34) MindlessAI
+    simpleMonster 571346 Skeleton (Point 8 36) MindlessAI
+    simpleMonster 035978 Skeleton (Point 7 37) MindlessAI
+    simpleMonster 697145 Ghoul (Point 10 35) MindlessAI
+    simpleMonster 296464 Ghoul (Point 12 38) MindlessAI
+    simpleMonster 080509 Wraith (Point 11 36) MindlessAI
 
     --simpleMonster ?????? Zombie (Point 20 20) (roamWithin 15 15 10 10)
 
@@ -701,8 +711,116 @@ scenarioTriggers = compileScenario $ do
         \ you really can defeat this Vhaegyst lich, and maybe then you'll get\
         \ some answers."
 
+    once 830701 (walkIn (Rect 40 20 10 1)) $ do
+      narrate "{b}The undead!{_}\n\n\
+        \Well, you're apparently on a quest to defeat an evil lich, so you\
+        \ probably shouldn't be surprised to run into a group of zombies\
+        \ shambling around.  Get used to it--there's likely to be more in the\
+        \ near future.\n\n\
+        \Zombies are pretty stupid, but they're dangerous.  All undead are. \
+        \ They don't feel pain, they don't feel fear, and they {i}always{_}\
+        \ feel hunger for mortal flesh.  Even a smallish pack of zombies would\
+        \ be perilous foes for warriors as inexperienced as yourselves, but\
+        \ with three out of the four Astral Weapons still in your hands, you\
+        \ should be able to get through this."
+    simpleMonster 547952 Zombie (Point 36 27) MindlessAI
+    simpleMonster 453147 Zombie (Point 39 28) MindlessAI
+    simpleMonster 448374 Zombie (Point 38 29) MindlessAI
+    simpleMonster 475373 Zombie (Point 40 29) MindlessAI
+
+    once 385861 (walkIn (Rect 3 34 2 2)) $ do
+      narrate "This old, cracked building looks like it has seen better days. \
+        \ Well, assuming this area has {i}ever{_} had better days; so far this\
+        \ place is depressing and cold and not somewhere you'd ever much want\
+        \ to go on vacation.  But the flat roof seems to be sagging under the\
+        \ weight of the snow piled up, and the look of the walls doesn't give\
+        \ you a lot of confidence.  If you're planning to step inside, you\
+        \ think you might not want to linger very long."
+
+    uniqueDevice 044279 (Point 6 34) 1 $ \_ _ -> do
+      narrate "Aha!  This book probably holds all sorts of interesting\
+        \ information, clues about what's going on around here, and powerful\
+        \ magical arcana that will be a great boon to you in your\
+        \ adventures.\n\n\
+        \At least, it probably {i}did{_}.  But it looks like the ghouls in\
+        \ here went and chewed it to pieces long before you arrived.  Not a\
+        \ single legible page remains."
+
+    once 232166 (walkOn (Point 12 39)) $ do
+      narrate "Now that's interesting...what first looked like another crack\
+        \ in the wall turns out to be a secret panel leading to a narrow\
+        \ passage behind the building.  Why would someone hide a secret\
+        \ passage behind a building that's probably going to fall over any day\
+        \ now?"
+
+    once 434118 (walkOn (Point 18 40)) $ do
+      narrate "Brrrrr...it is {i}freezing{_} back here.  Edvidentally not a\
+        \ lot of sunlight makes it down into this tiny opening.\n\n\
+        \You take a moment to examine the walls of the passage.  Now that you\
+        \ look more closely, the rock walls don't look natural, which means\
+        \ that someone must have dug it out on purpose.  But they don't really\
+        \ look like they were dug out with tools, or animal claws, or anything\
+        \ else you can think of either.  Which means...magic?  Pretty powerful\
+        \ magic, if whoever it was was boring through solid rock.\n\n\
+        \Odd.  Powerful magic tends to be in short supply, and is not usually\
+        \ wasted on digging pointless tunnels."
+
+--     ironDoorAttempted <- newPersistentVar 126701 False
+--     ironDoorUnlocked <- newPersistentVar 477117 False
+--     uniqueDevice 373102 (Point 26 40) 1 $ \_ _ -> do
+--       narrate "FIXME a locked iron door!"
+
+    once 328351 (walkOn (Point 26 40)) $ do
+      narrate "A huge, solid crystal of ice dominates the center of this tiny\
+        \ room.  You can almost feel it sucking the heat out of your bodies,\
+        \ even from here.  It is almost certainly magical, whatever it's for."
+
+    uniqueDevice 623179 (Point 28 40) 1 $ \_ charNum -> do
+      mbTouch <- forcedChoice "The faces of the giant ice crystal are almost\
+        \ flawless.  From up close, you can definitely feel the aura of magic\
+        \ around this thing; if nothing else, it's somehow making the room a\
+        \ whole lot colder than it would be naturally.  It sure isn't just for\
+        \ decoration, or it wouldn't be stowed away back here, behind a door\
+        \ locked by a key that was held by an infernal daemon.  Logically,\
+        \ this block of ice must {i}do{_} something.  And you can't help\
+        \ feeling that it's probably something bad.\n\n\
+        \Okay.  So that means you're standing in front of an evil magical ice\
+        \ crystal.  What's the next step?"
+        [("Touch it.", Just True), ("Smash it.", Just False),
+         ("Leave it alone.", Nothing)]
+      case mbTouch of
+        Just True -> do
+          narrate "You reach out a hand hesitantly, and then, slowly, place\
+            \ your fingertips on the ice.  It is colder than you thought\
+            \ possible.  For a fraction of a moment, nothing happens.  And\
+            \ then..."
+          pos <- areaGet (arsCharacterPosition charNum)
+          -- TODO boom sound, maybe a scream?
+          addBoomDoodadAtPosition IceBoom 1 pos
+          dealDamage [(HitCharacter charNum, ColdDamage, 150)]
+          wait 10
+          narrate "Augh, bloody hell, that hurt!  Okay, new rule: touching\
+            \ an evil magical ice crystal is a Bad Plan."
+        Just False -> narrate "Have you ever tried to shatter a giant, solid\
+          \ block of ice?  Even normal ice?  It doesn't work very well; ice is\
+          \ actually pretty strong.  Your weapon just bounces off, doing\
+          \ hardly any damage at all beyond loosing a few chips of frost."
+        Nothing -> return ()
+
+    uniqueDevice 477627 (Point 30 40) signRadius $ \_ _ -> do
+      narrate "There is some kind of inscription on the wall.  Peering closely\
+        \ at it, it appears to be written in a language you can't understand,\
+        \ using symbols you don't even recognize.  A foreign tongue?  Magical\
+        \ runes?  Meaningless shapes?  You can't tell for sure."
+
   compileArea Holmgare Nothing $ do
+
+    makeExit 181915 FrozenPass (Rect 0 3 2 8) (Point 3 7)
+    makeExit 965783 SewerCaves (Rect 34 0 3 2) (Point 36 3)
+    makeExit 555634 PerilousRoad (Rect 53 18 2 15) (Point 51 25)
+
     onStartDaily 472927 $ do
+      setAreaCleared Holmgare True
       addDevice_ adobeDoor (Point 16 13)
       addDevice_ adobeDoor (Point 17 23)
       addDevice_ adobeDoor (Point 19 14)
@@ -757,14 +875,19 @@ scenarioTriggers = compileScenario $ do
       narrate $ "You chose " ++ show (number :: Int) ++ ", I guess."
     return ()
 
-  compileArea SewerCaves Nothing $ return ()
-  compileArea IcyFord Nothing $ return ()
+  compileArea SewerCaves Nothing $ do
+    makeExit 762040 Holmgare (Rect 20 42 5 2) (Point 21 40)
+
+  compileArea PerilousRoad Nothing $ do
+    makeExit 962886 Holmgare (Rect 0 18 2 15) (Point 3 25)
+
   compileArea StoneBridge Nothing $ return ()
   compileArea Tragorda Nothing $ return ()
   compileArea WhistlingWoods Nothing $ return ()
+  compileArea IcyConfluence Nothing $ return ()
+  compileArea Marata Nothing $ return ()
   compileArea NorthernTundra Nothing $ return ()
   compileArea Duskwood Nothing $ return ()
-  compileArea PerilousTrail Nothing $ return ()
 
   compileArea Icehold Nothing $ do
     onStartDaily 789321 $ do
@@ -820,14 +943,14 @@ getTerrainTile tag = do
   resources <- areaGet arsResources
   return $ tilesetGet tag $ rsrcTileset resources
 
+setAreaCleared :: (FromAreaEffect f) => AreaTag -> Bool -> Script f ()
+setAreaCleared tag cleared = emitAreaEffect $ EffSetAreaCleared tag cleared
+
 -- 400278, 372710, 262175, 115489, 648882, 642527, 643253, 035698, 904223,
 -- 915362, 041045, 514224, 762406, 999849, 390882, 028595, 542093, 092923,
 -- 898699, 365950, 903733, 947379, 171095, 171407, 653092, 783351, 806315,
 -- 005531, 009036, 487271, 495591, 598625, 434231, 366747, 473842, 420006,
 -- 651111, 754308, 289083, 244612, 352173, 799563, 450713, 293845, 807555,
--- 699149, 626625, 542400, 646620, 231202, 895064, 244106, 335736, 962886,
--- 555634, 762040, 965783, 181915, 593047, 830701, 475373, 448374, 453147,
--- 547952, 623179, 477627, 328351, 126701, 477117, 373102, 434118, 080509,
--- 296464, 697145, 035978, 571346, 233177, 044279, 232166, 385861
+-- 699149, 626625, 542400, 646620, 231202, 895064, 244106, 335736
 
 -------------------------------------------------------------------------------

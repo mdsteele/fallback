@@ -32,7 +32,7 @@ module Fallback.Scenario.Compile
    -- * Defining triggers
    DefineTrigger(..), onStartDaily, onStartOnce, daily, once,
    -- * Devices
-   DefineDevice(..),
+   DefineDevice(..), uniqueDevice,
    -- * Variables
    Var, getVar, readVar, writeVar, modifyVar,
    -- * Trigger predicates
@@ -328,6 +328,14 @@ instance DefineDevice CompileArea where
     State.put cas { casDeviceIds = Set.insert di (casDeviceIds cas),
                     casDevices = Map.insert di device (casDevices cas) }
     return device
+
+uniqueDevice :: VarSeed -> Position -> Int
+             -> (GridEntry Device -> CharacterNumber -> Script AreaEffect ())
+             -> CompileArea ()
+uniqueDevice vseed position radius sfn = do
+  let (vseed', vseed'') = splitVarSeed vseed
+  device <- newDevice vseed' radius sfn
+  onStartDaily vseed'' $ addDevice_ device position
 
 -------------------------------------------------------------------------------
 -- Defining monster scripts:

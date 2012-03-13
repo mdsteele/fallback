@@ -53,6 +53,10 @@ areaLinks = getAreaLinks scenarioTriggers
 areaLocation :: AreaTag -> IPoint
 areaLocation MountainPath = Point 314 293
 areaLocation Corenglen = Point 389 348
+areaLocation FrozenPass = Point 110 130
+areaLocation Holmgare = Point 175 170
+areaLocation SewerCaves = Point 175 130
+areaLocation PerilousRoad = Point 255 255
 areaLocation _ = Point 100 100 -- FIXME
 
 areaTerrain :: Party -> AreaTag -> String
