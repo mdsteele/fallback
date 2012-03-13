@@ -70,7 +70,8 @@ newRegionMapView bgPath = do
       let found = rsFoundAreas state
       let makeLinks tag =
             let makeLink dest = if dest < tag then (dest, tag) else (tag, dest)
-            in Set.fromList $ map makeLink $ areaLinks tag
+            in Set.fromList $ map makeLink $ filter (`Set.member` found) $
+               areaLinks tag
       let selected = rsSelectedArea state
       let drawLink (tag1, tag2) = do
             let pos1 = fmap fromIntegral $ areaLocation tag1
