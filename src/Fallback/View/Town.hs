@@ -29,7 +29,7 @@ import qualified Data.Set as Set
 
 import Fallback.Constants (sidebarWidth, talkRadius)
 import Fallback.Control.Script (Script, mapEffect)
-import Fallback.Data.Grid (GridEntry, geValue, gridEntries, gridSearch)
+import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Draw
 import Fallback.Event
@@ -121,7 +121,7 @@ newTownMapView resources cursorSink = do
       paintFields resources cameraTopleft (acsVisible acs) (acsClock acs)
                   (acsFields acs)
       paintMonsters resources cameraTopleft (acsClock acs) (acsVisible acs)
-                    [tsPartyPosition ts] (gridEntries $ acsMonsters acs)
+                    [tsPartyPosition ts] (Grid.gridEntries $ acsMonsters acs)
       paintParty resources cameraTopleft ts
       paintDoodads cameraTopleft MidDood (acsDoodads acs)
       tintNonVisibleTiles cameraTopleft explored (acsVisible acs)
@@ -182,12 +182,12 @@ newTownMapView resources cursorSink = do
           checkRadius r s =
             guard (pos `pSqDist` tsPartyPosition ts <= ofRadius r) >> s
           search grid = do guard $ Set.member pos $ acsVisible acs
-                           gridSearch grid pos
+                           Grid.gridSearch grid pos
           monFn' script = monFn $ checkRadius talkRadius $ Just script
-          devFn' ge = devFn $ checkRadius (devRadius $ geValue ge) $ Just $
-                      mapEffect EffTownArea $ devInteract (geValue ge) ge $
-                      tsActiveCharacter ts
-          getScript ge = do mscript <- monstScript (geValue ge)
+          devFn' ge = devFn $ checkRadius (devRadius $ Grid.geValue ge) $
+                      Just $ mapEffect EffTownArea $
+                      devInteract (Grid.geValue ge) ge $ tsActiveCharacter ts
+          getScript ge = do mscript <- monstScript (Grid.geValue ge)
                             Just (mscriptScriptFn mscript ge)
       in flip3 maybe monFn' (search (acsMonsters acs) >>= getScript) $
          flip3 maybe devFn' (search (acsDevices acs)) $

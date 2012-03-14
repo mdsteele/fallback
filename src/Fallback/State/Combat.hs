@@ -29,7 +29,7 @@ import Fallback.Constants
   (baseMomentsPerFrame, maxActionPoints, momentsPerActionPoint,
    sightRangeSquared)
 import Fallback.Control.Script (Script)
-import Fallback.Data.Grid (Grid)
+import qualified Fallback.Data.Grid as Grid (Grid)
 import Fallback.Data.Point
 import Fallback.Data.TotalMap (TotalMap, tmAlter, tmAssocs, tmGet)
 import Fallback.State.Area
@@ -62,7 +62,7 @@ data CombatState = CombatState
   { csArenaTopleft :: Position,
     csCharStates :: TotalMap CharacterNumber CombatCharState,
     csCommon :: AreaCommonState,
-    csMonstersNotInArena :: Grid Monster,
+    csMonstersNotInArena :: Grid.Grid Monster,
     csPeriodicTimer :: Int,
     csPhase :: CombatPhase,
     csTownFiredTriggerIds :: Set.Set TriggerId,

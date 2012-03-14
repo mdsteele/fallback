@@ -29,7 +29,7 @@ import Data.Maybe (catMaybes)
 import qualified Data.Set as Set
 
 import Fallback.Data.Color (Tint(Tint))
-import Fallback.Data.Grid
+import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Data.TotalMap (makeTotalMap, tmAssocs)
 import Fallback.Scenario.Script
@@ -244,11 +244,12 @@ getAbility characterClass abilityNumber level =
             Just (Left charNum) -> do
               return $ Just (HitCharacter charNum, MagicDamage, 0)
             Just (Right monstEntry) -> do
-              let mtype = monstType $ geValue monstEntry
+              let mtype = monstType $ Grid.geValue monstEntry
               dmg <- if not (mtIsUndead mtype ||
                              level >= Level3 && mtIsDaemonic mtype)
                      then return 0 else (baseDamage *) <$> getRandomR 0.9 1.1
-              return $ Just (HitMonster (geKey monstEntry), MagicDamage, dmg)
+              return $ Just (HitMonster (Grid.geKey monstEntry),
+                             MagicDamage, dmg)
             Nothing -> return Nothing
         dealDamage hits >> wait 12
     Clarity -> PassiveAbility
@@ -271,9 +272,9 @@ getAbility characterClass abilityNumber level =
               addBoomDoodadAtPosition HealBoom 4 pos
               healCharacter charNum healAmount
             Right monstEntry -> do
-              mapM_ (addBoomDoodadAtPosition HealBoom 4) $ rectPositions $
-                geRect monstEntry
-              healMonster (geKey monstEntry) healAmount
+              mapM_ (addBoomDoodadAtPosition HealBoom 4) $ Grid.rectPositions $
+                Grid.geRect monstEntry
+              healMonster (Grid.geKey monstEntry) healAmount
           wait 1
     Sunbeam ->
       combat (ManaCost 1) beamTarget $ \caster power (endPos, targets) -> do
@@ -299,8 +300,8 @@ getAbility characterClass abilityNumber level =
           case occupant of
             Left charNum -> return [(HitCharacter charNum, FireDamage, damage)]
             Right monstEntry -> do
-              let hitTarget = HitMonster (geKey monstEntry)
-              let mtype = monstType $ geValue monstEntry
+              let hitTarget = HitMonster (Grid.geKey monstEntry)
+              let mtype = monstType $ Grid.geValue monstEntry
               let dealExtraDamage =
                     mtIsUndead mtype || level >= Level2 && mtIsDaemonic mtype
               return $ (hitTarget, FireDamage, damage) :

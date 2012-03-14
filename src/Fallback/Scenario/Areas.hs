@@ -27,7 +27,7 @@ import qualified Data.Set as Set
 
 import Fallback.Control.Error (IOEO, onlyIO)
 import Fallback.Data.Clock (initClock)
-import Fallback.Data.Grid (emptyGrid)
+import qualified Fallback.Data.Grid as Grid (emptyGrid)
 import Fallback.Data.Point (IPoint, Point(Point), Position)
 import Fallback.Scenario.Triggers
 import Fallback.State.Area
@@ -80,12 +80,12 @@ enterPartyIntoArea resources origParty tag position = do
       tsCommon = AreaCommonState
         { acsCamera = makeCameraWithCenter (positionCenter position),
           acsClock = initClock,
-          acsDevices = emptyGrid,
+          acsDevices = Grid.emptyGrid,
           acsDoodads = emptyDoodads,
           acsFields = Map.empty,
           acsMessage = Nothing,
           acsMinimap = minimap,
-          acsMonsters = emptyGrid,
+          acsMonsters = Grid.emptyGrid,
           acsParty = party,
           acsResources = resources,
           acsTerrain = terrain,

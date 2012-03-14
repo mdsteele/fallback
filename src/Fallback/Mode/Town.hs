@@ -35,7 +35,7 @@ import Fallback.Constants
    momentsPerActionPoint, screenRect)
 import Fallback.Control.Error (runEO, runIOEO)
 import Fallback.Control.Script
-import Fallback.Data.Grid
+import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
   (Point(Point), Position, half, makeRect, plusDir, pSqDist, pSub)
 import qualified Fallback.Data.SparseMap as SM
@@ -317,7 +317,7 @@ newTownMode resources modes initState = do
                       addToCharacterAdrenaline (negate 1) charNum
                     startCombat <-
                       alsoWith (flip const) (partyWalkTo pos') $
-                      concurrentAny (gridEntries $ acsMonsters acs) $
+                      concurrentAny (Grid.gridEntries $ acsMonsters acs) $
                       monsterTownStep
                     inflictAllPeriodicDamage
                     when startCombat $ emitEffect EffStartCombat
@@ -408,7 +408,8 @@ newTownMode resources modes initState = do
                           ccsVisible = Set.empty,
                           ccsWantsTurn = False }
             in (ccs, Set.insert pos claimed)
-      let (combatMonsts, otherMonsts) = gridExcise arenaRect (arsMonsters ts)
+      let (combatMonsts, otherMonsts) =
+            Grid.gridExcise arenaRect (arsMonsters ts)
       let acs' = (tsCommon ts) { acsMonsters = combatMonsts }
       playSound (rsrcSound resources SndCombatStart)
       ChangeMode <$> newCombatMode' modes CombatState

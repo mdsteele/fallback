@@ -22,7 +22,7 @@ module Fallback.Scenario.Feats (getFeat) where
 import Control.Monad (forM_)
 import Data.List (delete)
 
-import Fallback.Data.Grid (geKey)
+import qualified Fallback.Data.Grid as Grid (geKey)
 import Fallback.Data.Point
 import Fallback.Scenario.Script
 import Fallback.State.Action
@@ -80,7 +80,7 @@ getFeat Zodiac = CombatFeat
       entries <- randomPermutation =<< getAllEnemyMonsters
       forM_ entries $ \entry -> do
         damage <- getRandomR 40 60 -- TODO how much damage?
-        dealDamage [(HitMonster (geKey entry), EnergyDamage, damage)]
+        dealDamage [(HitMonster (Grid.geKey entry), EnergyDamage, damage)]
         -- TODO doodad/sound
         wait 3
       return () } -- TODO

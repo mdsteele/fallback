@@ -109,7 +109,7 @@ import Fallback.Constants
   (framesPerSecond, maxAdrenaline, momentsPerActionPoint, sightRangeSquared)
 import Fallback.Control.Script
 import Fallback.Data.Color (Tint(Tint, tintAlpha))
-import Fallback.Data.Grid (GridEntry(..), GridKey, gridEntries, gridLookup)
+import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Data.TotalMap (tmGet)
 import Fallback.Draw
@@ -233,17 +233,17 @@ areaGet :: (FromAreaEffect f) => (forall s. (AreaState s) => s -> a)
         -> Script f a
 areaGet = emitAreaEffect . EffAreaGet
 
-lookupMonsterEntry :: (FromAreaEffect f) => GridKey Monster
-                   -> Script f (Maybe (GridEntry Monster))
-lookupMonsterEntry key = areaGet (gridLookup key . arsMonsters)
+lookupMonsterEntry :: (FromAreaEffect f) => Grid.GridKey Monster
+                   -> Script f (Maybe (Grid.GridEntry Monster))
+lookupMonsterEntry key = areaGet (Grid.gridLookup key . arsMonsters)
 
-demandMonsterEntry :: (FromAreaEffect f) => GridKey Monster
-                   -> Script f (GridEntry Monster)
+demandMonsterEntry :: (FromAreaEffect f) => Grid.GridKey Monster
+                   -> Script f (Grid.GridEntry Monster)
 demandMonsterEntry key =
   maybe (fail "demandMonsterEntry") return =<< lookupMonsterEntry key
 
-withMonsterEntry :: (FromAreaEffect f) => GridKey Monster
-                 -> (GridEntry Monster -> Script f ()) -> Script f ()
+withMonsterEntry :: (FromAreaEffect f) => Grid.GridKey Monster
+                 -> (Grid.GridEntry Monster -> Script f ()) -> Script f ()
 withMonsterEntry key action = do
   mbEntry <- lookupMonsterEntry key
   maybeM mbEntry action
@@ -261,24 +261,25 @@ getAllConsciousCharacters = do
 
 -- | Return a list of all ally monster grid entries.  In combat mode, this will
 -- only include monsters within the combat arena.
-getAllAllyMonsters :: (FromAreaEffect f) => Script f [GridEntry Monster]
+getAllAllyMonsters :: (FromAreaEffect f) => Script f [Grid.GridEntry Monster]
 getAllAllyMonsters = do
   monsters <- areaGet arsMonsters
-  return $ filter (monstIsAlly . geValue) $ gridEntries monsters
+  return $ filter (monstIsAlly . Grid.geValue) $ Grid.gridEntries monsters
 
 -- | Return a list of all enemy (non-ally) monster grid entries.  In combat
 -- mode, this will only include monsters within the combat arena.
-getAllEnemyMonsters :: (FromAreaEffect f) => Script f [GridEntry Monster]
+getAllEnemyMonsters :: (FromAreaEffect f) => Script f [Grid.GridEntry Monster]
 getAllEnemyMonsters = do
   monsters <- areaGet arsMonsters
-  return $ filter (not . monstIsAlly . geValue) $ gridEntries monsters
+  return $ filter (not . monstIsAlly . Grid.geValue) $
+    Grid.gridEntries monsters
 
 -- | Get the 'HitTarget' for each conscious party member and each living ally
 -- monster (in no particular order).
 getAllAllyTargets :: (FromAreaEffect f) => Script f [HitTarget]
 getAllAllyTargets = do
   chars <- map HitCharacter <$> getAllConsciousCharacters
-  allies <- map (HitMonster . geKey) <$> getAllAllyMonsters
+  allies <- map (HitMonster . Grid.geKey) <$> getAllAllyMonsters
   return (chars ++ allies)
 
 -------------------------------------------------------------------------------
@@ -358,25 +359,25 @@ exitTo tag = do
   fadeOutMusic 0.8
   emitEffect $ EffExitTowardArea tag
 
-walkMonster :: (FromAreaEffect f) => Int -> GridKey Monster -> Position
+walkMonster :: (FromAreaEffect f) => Int -> Grid.GridKey Monster -> Position
             -> Script f ()
 walkMonster frames gkey pos' = do
   withMonsterEntry gkey $ \entry -> do
-    let rect' = makeRect pos' $ rectSize $ geRect entry
-    ok <- emitAreaEffect $ EffTryMoveMonster (geKey entry) rect'
+    let rect' = makeRect pos' $ rectSize $ Grid.geRect entry
+    ok <- emitAreaEffect $ EffTryMoveMonster (Grid.geKey entry) rect'
     when ok $ do
-      let deltaX = pointX $ pos' `pSub` rectTopleft (geRect entry)
+      let deltaX = pointX $ pos' `pSub` rectTopleft (Grid.geRect entry)
       let dir = if deltaX < 0 then FaceLeft else FaceRight
-      let anim' = WalkAnim frames frames $ rectTopleft $ geRect entry
-      emitAreaEffect $ EffReplaceMonster (geKey entry) $
-        Just (geValue entry) { monstAnim = anim', monstFaceDir = dir }
+      let anim' = WalkAnim frames frames $ rectTopleft $ Grid.geRect entry
+      emitAreaEffect $ EffReplaceMonster (Grid.geKey entry) $
+        Just (Grid.geValue entry) { monstAnim = anim', monstFaceDir = dir }
       wait frames
 
-setMonsterTownAI :: (FromAreaEffect f) => GridKey Monster -> MonsterTownAI
+setMonsterTownAI :: (FromAreaEffect f) => Grid.GridKey Monster -> MonsterTownAI
                  -> Script f ()
 setMonsterTownAI key townAI = withMonsterEntry key $ \entry -> do
   emitAreaEffect (EffReplaceMonster key $
-                  Just (geValue entry) { monstTownAI = townAI })
+                  Just (Grid.geValue entry) { monstTownAI = townAI })
 
 -------------------------------------------------------------------------------
 -- Attacks:
@@ -435,14 +436,14 @@ characterWeaponHit wd target critical damage = do
   attackHit (wdAppearance wd) (wdElement wd) (wdEffects wd)
             target critical damage
 
-monsterBeginOffensiveAction :: GridKey Monster -> Position
+monsterBeginOffensiveAction :: Grid.GridKey Monster -> Position
                             -> Script CombatEffect ()
 monsterBeginOffensiveAction key target = do
   faceMonsterToward key target
   alterMonsterStatus key $ seSetInvisibility Nothing
   setMonsterAnim key (AttackAnim 8)
 
-monsterPerformAttack :: GridKey Monster -> MonsterAttack -> Position
+monsterPerformAttack :: Grid.GridKey Monster -> MonsterAttack -> Position
                      -> Script CombatEffect ()
 monsterPerformAttack key attack target = do
   monsterAttackInitialAnimation key attack target
@@ -458,8 +459,8 @@ monsterPerformAttack key attack target = do
                           monsterAttackBaseDamage attack
     monsterAttackHit attack target critical damage
 
-monsterAttackInitialAnimation :: GridKey Monster -> MonsterAttack -> Position
-                              -> Script CombatEffect ()
+monsterAttackInitialAnimation :: Grid.GridKey Monster -> MonsterAttack
+                              -> Position -> Script CombatEffect ()
 monsterAttackInitialAnimation key attack target = do
   monsterBeginOffensiveAction key target
   withMonsterEntry key $ \entry -> do
@@ -570,7 +571,7 @@ attackHit appearance element effects target critical damage = do
 -- Damage:
 
 data HitTarget = HitCharacter CharacterNumber
-               | HitMonster (GridKey Monster)
+               | HitMonster (Grid.GridKey Monster)
                | HitPosition Position
 
 dealDamage :: (FromAreaEffect f) => [(HitTarget, DamageType, Double)]
@@ -594,16 +595,16 @@ dealDamage' gentle hits = do
               char <- areaGet (arsGetCharacter charNum)
               return $ applyCharResistances char dmgType damage stun
             Right monstEntry -> do
-              return $ applyMonsterResistances (geValue monstEntry)
+              return $ applyMonsterResistances (Grid.geValue monstEntry)
                                                dmgType damage stun
         return (occupant, damage', stun')
-  let keyFn (k, _, _) = right geKey k
+  let keyFn (k, _, _) = right Grid.geKey k
   let combine (_, dmg1, s1) (k, dmg2, s2) = (k, dmg1 + dmg2, s1 + s2)
   let inflict (occupant, damage, stun) = do
         case occupant of
           Left charNum -> dealRawDamageToCharacter gentle charNum damage stun
           Right monstEntry ->
-            dealRawDamageToMonster gentle (geKey monstEntry) damage stun
+            dealRawDamageToMonster gentle (Grid.geKey monstEntry) damage stun
   mapM_ inflict . map (foldl1' combine) . groupKey keyFn . sortKey keyFn =<<
     (mapM resist . catMaybes =<< mapM convert hits)
 
@@ -651,11 +652,11 @@ dealRawDamageToCharacter gentle charNum damage stun = do
 
 -- | Inflict damage and stun on a monster, ignoring armor and resistances.
 -- Stun is measured in action points.  The monster must exist.
-dealRawDamageToMonster :: (FromAreaEffect f) => Bool -> GridKey Monster -> Int
-                       -> Double -> Script f ()
+dealRawDamageToMonster :: (FromAreaEffect f) => Bool -> Grid.GridKey Monster
+                       -> Int -> Double -> Script f ()
 dealRawDamageToMonster gentle key damage stun = do
   entry <- demandMonsterEntry key
-  let monst = geValue entry
+  let monst = Grid.geValue entry
   -- If this is non-gentle damage, wake us up from being dazed and add
   -- adrenaline.
   unless gentle $ alterMonsterStatus key seWakeFromDaze
@@ -671,7 +672,7 @@ dealRawDamageToMonster gentle key damage stun = do
                                 monstAnim = HurtAnim 12, monstHealth = health',
                                 monstMoments = moments' }
   emitAreaEffect $ EffReplaceMonster key mbMonst'
-  addNumberDoodadAtPoint damage $ rectCenter $ prectRect $ geRect entry
+  addNumberDoodadAtPoint damage $ rectCenter $ prectRect $ Grid.geRect entry
   -- If the monster is now dead, add a death doodad, set the monster's
   -- "dead" var (if any) to True, and grant experience if it's an enemy.
   when (isNothing mbMonst') $ do
@@ -679,7 +680,7 @@ dealRawDamageToMonster gentle key damage stun = do
     let mtype = monstType monst
     addDeathDoodad (rsrcMonsterImages resources (mtSize mtype)
                                       (mtImageRow mtype))
-                   (monstFaceDir monst) (geRect entry)
+                   (monstFaceDir monst) (Grid.geRect entry)
     maybeM (monstDeadVar monst) (emitAreaEffect . flip EffSetVar True)
     unless (monstIsAlly monst) $ do
       grantExperience $ mtExperienceValue $ monstType monst
@@ -704,14 +705,14 @@ healCharacter charNum baseAmount = do
     char { chrHealth = min (chrMaxHealth party char)
                            (chrHealth char + amount) }
 
-healMonster :: (FromAreaEffect f) => GridKey Monster -> Int -> Script f ()
+healMonster :: (FromAreaEffect f) => Grid.GridKey Monster -> Int -> Script f ()
 healMonster key amount = withMonsterEntry key $ \entry -> do
-  let monst = geValue entry
+  let monst = Grid.geValue entry
   let health' = min (monstHealth monst + amount)
                     (mtMaxHealth $ monstType monst)
   let monst' = monst { monstHealth = health' }
   emitAreaEffect $ EffReplaceMonster key (Just monst')
-  addNumberDoodadAtPoint amount $ rectCenter $ prectRect $ geRect entry
+  addNumberDoodadAtPoint amount $ rectCenter $ prectRect $ Grid.geRect entry
 
 alterCharacterMana :: (FromAreaEffect f) => CharacterNumber -> (Int -> Int)
                    -> Script f ()
@@ -743,7 +744,7 @@ alterStatus hitTarget fn = do
   mbOccupant <- getHitTargetOccupant hitTarget
   case mbOccupant of
     Just (Left charNum) -> alterCharacterStatus charNum fn
-    Just (Right monstEntry) -> alterMonsterStatus (geKey monstEntry) fn
+    Just (Right monstEntry) -> alterMonsterStatus (Grid.geKey monstEntry) fn
     Nothing -> return ()
 
 alterCharacterStatus :: (FromAreaEffect f) => CharacterNumber
@@ -753,11 +754,11 @@ alterCharacterStatus charNum fn = do
   emitAreaEffect $ EffAlterCharacter charNum $ \char ->
     char { chrStatus = fn' (chrStatus char) }
 
-alterMonsterStatus :: (FromAreaEffect f) => GridKey Monster
+alterMonsterStatus :: (FromAreaEffect f) => Grid.GridKey Monster
                    -> (StatusEffects -> StatusEffects) -> Script f ()
 alterMonsterStatus key fn = do
   fn' <- emitAreaEffect $ EffIfCombat (return fn) (return (townifyStatus . fn))
-  mbMonst <- fmap geValue <$> lookupMonsterEntry key
+  mbMonst <- fmap Grid.geValue <$> lookupMonsterEntry key
   let mbMonst' = (\m -> m { monstStatus = fn' (monstStatus m) }) <$> mbMonst
   emitAreaEffect $ EffReplaceMonster key mbMonst'
 
@@ -773,9 +774,10 @@ grantInvisibility hitTarget invis = do
       when (seInvisibility status < Just invis) $ do
         alterCharacterStatus charNum $ seSetInvisibility $ Just invis
     Just (Right monstEntry) -> do
-      let status = monstStatus $ geValue monstEntry
+      let status = monstStatus $ Grid.geValue monstEntry
       when (seInvisibility status < Just invis) $ do
-        alterMonsterStatus (geKey monstEntry) $ seSetInvisibility $ Just invis
+        alterMonsterStatus (Grid.geKey monstEntry) $ seSetInvisibility $
+          Just invis
     Nothing -> return ()
 
 -- | Inflicts poison damage (as opposed to direct damage) onto the target,
@@ -790,8 +792,8 @@ inflictPoison hitTarget basePoison = do
       alterCharacterStatus charNum $ seAlterPoison (poison +)
     Just (Right monstEntry) -> do
       let poison = round $ (basePoison *) $ tmGet ResistChemical $
-                   mtResistances $ monstType $ geValue monstEntry
-      alterMonsterStatus (geKey monstEntry) $ seAlterPoison (poison +)
+                   mtResistances $ monstType $ Grid.geValue monstEntry
+      alterMonsterStatus (Grid.geKey monstEntry) $ seAlterPoison (poison +)
     Nothing -> return ()
 
 -------------------------------------------------------------------------------
@@ -811,7 +813,7 @@ faceCharacterToward charNum pos = do
     let dir = if deltaX < 0 then FaceLeft else FaceRight
     emitEffect $ EffSetCharFaceDir charNum dir
 
-faceMonsterToward :: (FromAreaEffect f) => GridKey Monster -> Position
+faceMonsterToward :: (FromAreaEffect f) => Grid.GridKey Monster -> Position
                   -> Script f ()
 faceMonsterToward key pos = do
   withMonsterEntry key $ \entry -> do
@@ -819,7 +821,7 @@ faceMonsterToward key pos = do
     when (deltaX /= 0) $ do
       let dir = if deltaX < 0 then FaceLeft else FaceRight
       emitAreaEffect $ EffReplaceMonster key $
-        Just (geValue entry) { monstFaceDir = dir }
+        Just (Grid.geValue entry) { monstFaceDir = dir }
 
 facePartyToward :: Position -> Script TownEffect ()
 facePartyToward pos = do
@@ -831,17 +833,18 @@ facePartyToward pos = do
 setCharacterAnim :: CharacterNumber -> CreatureAnim -> Script CombatEffect ()
 setCharacterAnim charNum anim = emitEffect $ EffSetCharAnim charNum anim
 
-setMonsterAnim :: (FromAreaEffect f) => GridKey Monster -> CreatureAnim
+setMonsterAnim :: (FromAreaEffect f) => Grid.GridKey Monster -> CreatureAnim
                -> Script f ()
 setMonsterAnim key anim = do
   withMonsterEntry key $ \entry -> do
-    let monst = geValue entry
+    let monst = Grid.geValue entry
     emitAreaEffect $ EffReplaceMonster key $ Just monst { monstAnim = anim }
 
 setPartyAnim :: CreatureAnim -> Script TownEffect ()
 setPartyAnim = emitEffect . EffSetPartyAnim
 
-getMonsterHeadPos :: (FromAreaEffect f) => GridKey Monster -> Script f Position
+getMonsterHeadPos :: (FromAreaEffect f) => Grid.GridKey Monster
+                  -> Script f Position
 getMonsterHeadPos key = do
   entry <- demandMonsterEntry key
   return $ monsterHeadPos entry
@@ -1147,10 +1150,10 @@ grantExperience xp = do
 removeFields :: (FromAreaEffect f) => [Position] -> Script f ()
 removeFields = emitAreaEffect . EffAlterFields (const Nothing)
 
-replaceDevice :: (FromAreaEffect f) => GridEntry Device -> Device
+replaceDevice :: (FromAreaEffect f) => Grid.GridEntry Device -> Device
               -> Script f ()
 replaceDevice entry device =
-  emitAreaEffect $ EffReplaceDevice (geKey entry) (Just device)
+  emitAreaEffect $ EffReplaceDevice (Grid.geKey entry) (Just device)
 
 resetTerrain :: (FromAreaEffect f) => [Position] -> Script f ()
 resetTerrain positions = do
@@ -1199,7 +1202,7 @@ summonAllyMonster startPos tag = do
   return ()
 
 tryAddMonster :: (FromAreaEffect f) => Position -> Monster
-              -> Script f (Maybe (GridEntry Monster))
+              -> Script f (Maybe (Grid.GridEntry Monster))
 tryAddMonster position monster = do
   emitAreaEffect $ EffTryAddMonster position monster
 {-
@@ -1252,13 +1255,14 @@ inflictAllPeriodicDamage = do
       let damage = totalPoison `ceilDiv` 5
       alterCharacterStatus charNum $ seAlterPoison $ subtract damage
       return $ Just (HitCharacter charNum, RawDamage, fromIntegral damage)
-  monsters <- gridEntries <$> areaGet arsMonsters
+  monsters <- Grid.gridEntries <$> areaGet arsMonsters
   monstPoisonDamages <- fmap catMaybes $ forM monsters $ \monstEntry -> do
-    let totalPoison = sePoison $ monstStatus $ geValue monstEntry
+    let totalPoison = sePoison $ monstStatus $ Grid.geValue monstEntry
     if totalPoison <= 0 then return Nothing else do
       let damage = totalPoison `ceilDiv` 5
-      alterMonsterStatus (geKey monstEntry) $ seAlterPoison $ subtract damage
-      return $ Just (HitMonster (geKey monstEntry), RawDamage,
+      alterMonsterStatus (Grid.geKey monstEntry) $ seAlterPoison $
+        subtract damage
+      return $ Just (HitMonster (Grid.geKey monstEntry), RawDamage,
                      fromIntegral damage)
   dealDamage' True (fieldDamages ++ charPoisonDamages ++ monstPoisonDamages)
 
@@ -1339,16 +1343,16 @@ characterScreamSound char =
 
 getHitTargetOccupant :: (FromAreaEffect f) => HitTarget
                      -> Script f (Maybe (Either CharacterNumber
-                                                (GridEntry Monster)))
+                                                (Grid.GridEntry Monster)))
 getHitTargetOccupant (HitCharacter charNum) = return $ Just $ Left charNum
 getHitTargetOccupant (HitMonster monstKey) =
   fmap Right <$> lookupMonsterEntry monstKey
 getHitTargetOccupant (HitPosition pos) = areaGet (arsOccupant pos)
 
-monsterHeadPos :: GridEntry Monster -> Position
+monsterHeadPos :: Grid.GridEntry Monster -> Position
 monsterHeadPos entry =
-  let Rect x y w _ = geRect entry
-  in case monstFaceDir (geValue entry) of
+  let Rect x y w _ = Grid.geRect entry
+  in case monstFaceDir (Grid.geValue entry) of
        FaceLeft -> Point x y
        FaceRight -> Point (x + w - 1) y
 

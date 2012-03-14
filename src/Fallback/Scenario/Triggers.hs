@@ -31,7 +31,7 @@ import qualified Control.Monad.State as State
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import Fallback.Data.Grid (geRect)
+import qualified Fallback.Data.Grid as Grid (geRect)
 import Fallback.Data.Point
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
@@ -71,12 +71,12 @@ scenarioTriggers = compileScenario $ do
         let (cSeed, oSeed) = splitVarSeed vseed
         rec closed <- newDevice cSeed 1 $ \ge _ -> do
               tile <- getTerrainTile oTag
-              setTerrain [(rectTopleft $ geRect ge, tile)]
+              setTerrain [(rectTopleft $ Grid.geRect ge, tile)]
               replaceDevice ge open
               playSound SndDoorOpen
             open <- newDevice oSeed 1 $ \ge _ -> do
               tile <- getTerrainTile cTag
-              setTerrain [(rectTopleft $ geRect ge, tile)]
+              setTerrain [(rectTopleft $ Grid.geRect ge, tile)]
               replaceDevice ge closed
               playSound SndDoorShut
         return closed

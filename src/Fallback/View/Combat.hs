@@ -27,7 +27,7 @@ import Data.Maybe (isJust)
 
 import Fallback.Constants (sidebarWidth)
 import Fallback.Data.Color (Tint(Tint))
-import Fallback.Data.Grid (gridEntries)
+import qualified Fallback.Data.Grid as Grid (gridEntries)
 import Fallback.Data.Point
 import Fallback.Data.TotalMap (tmGet)
 import Fallback.Draw
@@ -110,7 +110,7 @@ newCombatMapView resources = do
                   (acsClock acs) (acsFields acs)
       paintMonsters resources cameraTopleft (acsClock acs) (acsVisible acs)
                     (map ccsPosition $ toList $ csCharStates cs)
-                    (gridEntries $ acsMonsters acs)
+                    (Grid.gridEntries $ acsMonsters acs)
       paintCharacters resources cameraTopleft cs
       paintHealthBars cs
       paintDoodads cameraTopleft MidDood (acsDoodads acs)

@@ -24,7 +24,7 @@ where
 import Control.Applicative ((<$>))
 
 import Fallback.Data.Color (Tint(Tint))
-import Fallback.Data.Grid (GridEntry, geKey, geRect)
+import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Scenario.Script
 import Fallback.State.Area
@@ -36,19 +36,19 @@ import Fallback.Utility (flip3)
 
 -------------------------------------------------------------------------------
 
-tryMonsterSpell :: MonsterSpellTag -> GridEntry Monster
+tryMonsterSpell :: MonsterSpellTag -> Grid.GridEntry Monster
                 -> Script CombatEffect Bool
 tryMonsterSpell FireSpray ge = do
   ifRandom 0.35 $ do
   let maxRange = 5
-  let rect = geRect ge
+  let rect = Grid.geRect ge
   targets <- randomPermutation =<<
              filter (flip3 rangeTouchesRect (ofRadius maxRange) rect) <$>
              areaGet arsPartyPositions
   -- TODO only hit targets we can see
   ifSatisfies (length targets >= 2) $ do
-  monsterBeginOffensiveAction (geKey ge) (head targets)
-  origin <- getMonsterHeadPos (geKey ge)
+  monsterBeginOffensiveAction (Grid.geKey ge) (head targets)
+  origin <- getMonsterHeadPos (Grid.geKey ge)
   -- TODO sound
   concurrent_ (zip targets [0..]) $ \(target, index) -> do
     wait (index * 4)
@@ -59,7 +59,8 @@ tryMonsterSpell FireSpray ge = do
     wait 20
 tryMonsterSpell IceBomb ge = do
   ifRandom 0.5 $ do
-  alterStatus (HitMonster $ geKey ge) (seApplyArmor (-10) . seApplyHaste (10))
+  alterStatus (HitMonster $ Grid.geKey ge)
+              (seApplyArmor (-10) . seApplyHaste (10))
   --alterStatus (HitMonster $ geKey ge) (seApplyArmor (-10) . seApplyMagicShield 10)
 
 -------------------------------------------------------------------------------

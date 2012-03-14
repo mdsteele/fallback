@@ -39,7 +39,7 @@ import qualified Data.Set as Set
 import Fallback.Constants (tileHeight, tileWidth)
 import Fallback.Data.Clock (Clock, clockMod, clockZigzag)
 import Fallback.Data.Color (Tint(..), blackTint, whiteColor)
-import Fallback.Data.Grid (GridEntry(..), gridEntries, rectPositions)
+import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Draw
 import Fallback.State.Area
@@ -109,17 +109,18 @@ paintFields resources cameraTopleft visible clock =
 -- party is adjacent to any invisible monsters), and finally the list of
 -- monsters to draw.
 paintMonsters :: Resources -> IPoint -> Clock -> Set.Set Position -> [Position]
-              -> [GridEntry Monster] -> Paint ()
+              -> [Grid.GridEntry Monster] -> Paint ()
 paintMonsters resources cameraTopleft clock visible eyes = mapM_ paintMonster
  where
   paintMonster entry = do
-    let rect = geRect entry
-    let monst = geValue entry
+    let rect = Grid.geRect entry
+    let monst = Grid.geValue entry
     -- If the monster is not on a visible tile, and it's not curently walking
     -- from a visible tile, don't draw it.
-    if all (flip Set.notMember visible) $ rectPositions rect ++
+    if all (flip Set.notMember visible) $ Grid.rectPositions rect ++
        case monstAnim monst of
-         WalkAnim _ _ from -> rectPositions $ makeRect from $ rectSize rect
+         WalkAnim _ _ from ->
+           Grid.rectPositions $ makeRect from $ rectSize rect
          _ -> []
      then return () else do
     -- If the monster is majorly invisible, or otherwise invisible with no
@@ -230,9 +231,9 @@ paintHealthBars ars = do
     let pos = arsCharacterPosition charNum ars
     paintHealthBar True (makeRect pos (1, 1)) (chrHealth char)
                    (chrMaxHealth (arsParty ars) char)
-  forM_ (gridEntries $ arsMonsters ars) $ \entry -> do
-    let monst = geValue entry
-    paintHealthBar (monstIsAlly monst) (geRect entry) (monstHealth monst)
+  forM_ (Grid.gridEntries $ arsMonsters ars) $ \entry -> do
+    let monst = Grid.geValue entry
+    paintHealthBar (monstIsAlly monst) (Grid.geRect entry) (monstHealth monst)
                    (mtMaxHealth $ monstType monst)
 
 -------------------------------------------------------------------------------

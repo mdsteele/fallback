@@ -33,7 +33,7 @@ import System.Random (Random, randomRIO)
 import Fallback.Constants (combatArenaCols, combatArenaRows, secondsPerFrame)
 import Fallback.Control.Script (Script)
 import Fallback.Data.Clock (Clock, clockInc)
-import Fallback.Data.Grid
+import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Data.TotalMap (TotalMap, makeTotalMap, tmAlter, tmGet)
 import Fallback.Draw (Minimap, Paint)
@@ -56,12 +56,12 @@ import Fallback.State.Terrain
 data AreaCommonState = AreaCommonState
   { acsCamera :: Camera,
     acsClock :: Clock,
-    acsDevices :: Grid Device,
+    acsDevices :: Grid.Grid Device,
     acsDoodads :: Doodads,
     acsFields :: Map.Map Position Field,
     acsMessage :: Maybe Message,
     acsMinimap :: Minimap,
-    acsMonsters :: Grid Monster,
+    acsMonsters :: Grid.Grid Monster,
     acsParty :: Party,
     acsResources :: Resources,
     acsTerrain :: Terrain,
@@ -73,7 +73,7 @@ tickAnimations cameraGoalTopleft acs =
         acsCamera = tickCamera cameraGoalTopleft (acsCamera acs),
         acsDoodads = tickDoodads (acsDoodads acs),
         acsMessage = acsMessage acs >>= decayMessage,
-        acsMonsters = gridUpdate tickMonsterAnim (acsMonsters acs) }
+        acsMonsters = Grid.gridUpdate tickMonsterAnim (acsMonsters acs) }
 
 updateMinimap :: AreaCommonState -> [Position] -> IO ()
 updateMinimap acs visible = do
@@ -119,7 +119,7 @@ arsCamera = acsCamera . arsCommon
 arsClock :: (AreaState a) => a -> Clock
 arsClock = acsClock . arsCommon
 
-arsDevices :: (AreaState a) => a -> Grid Device
+arsDevices :: (AreaState a) => a -> Grid.Grid Device
 arsDevices = acsDevices . arsCommon
 
 arsExploredMap :: (AreaState a) => a -> ExploredMap
@@ -139,7 +139,7 @@ arsIsVisibleToCharacter :: (AreaState a) => CharacterNumber -> a -> Position
 arsIsVisibleToCharacter charNum ars pos =
   Set.member pos (arsVisibleForCharacter charNum ars)
 
-arsMonsters :: (AreaState a) => a -> Grid Monster
+arsMonsters :: (AreaState a) => a -> Grid.Grid Monster
 arsMonsters = acsMonsters . arsCommon
 
 arsMinimap :: (AreaState a) => a -> Minimap
@@ -168,20 +168,20 @@ arsIsOpaque ars pos = not $ canSeeThrough $ arsTerrainOpenness pos ars
 -- monsters, this position corresponds to the top-left position of the
 -- monster's rectangle) without falling afoul of the party, terrain, and/or
 -- other monsters.
-arsIsBlockedForMonster :: (AreaState a) => GridEntry Monster -> a -> Position
-                       -> Bool
+arsIsBlockedForMonster :: (AreaState a) => Grid.GridEntry Monster -> a
+                       -> Position -> Bool
 arsIsBlockedForMonster ge ars pos =
   any (rectContains rect') (arsPartyPositions ars) ||
-  any ((if mtCanFly $ monstType $ geValue ge
+  any ((if mtCanFly $ monstType $ Grid.geValue ge
         then cannotFlyOver else cannotWalkOn) .
-       flip arsTerrainOpenness ars) (rectPositions rect') ||
-  not (gridCouldMove (geKey ge) rect' $ arsMonsters ars)
-  where rect' = makeRect pos $ rectSize $ geRect ge
+       flip arsTerrainOpenness ars) (Grid.rectPositions rect') ||
+  not (Grid.gridCouldMove (Grid.geKey ge) rect' $ arsMonsters ars)
+  where rect' = makeRect pos $ rectSize $ Grid.geRect ge
 
 arsIsBlockedForParty :: (AreaState a) => a -> Position -> Bool
 arsIsBlockedForParty ars pos =
   arsIsBlockedForPartyModuloMonsters ars pos ||
-  gridOccupied (arsMonsters ars) pos
+  Grid.gridOccupied (arsMonsters ars) pos
 
 arsIsBlockedForPartyModuloMonsters :: (AreaState a) => a -> Position -> Bool
 arsIsBlockedForPartyModuloMonsters ars pos =
@@ -198,7 +198,8 @@ arsAreMonstersNearby ars = check (Set.fromList origins) origins where
     let ps = filter (\p -> any ((ofRadius 4 >=) . pSqDist p) origins) $
              filter (`Set.notMember` visited) $
              map (next `plusDir`) allDirections
-    in any (\p -> gridOccupied (arsMonsters ars) p && arsIsVisible ars p) ps ||
+    in any (\p -> Grid.gridOccupied (arsMonsters ars) p &&
+                  arsIsVisible ars p) ps ||
        check (foldr Set.insert visited ps)
              (filter (not . arsIsBlockedForPartyModuloMonsters ars) ps ++ rest)
   origins = arsPartyPositions ars
@@ -213,7 +214,7 @@ arsFindOpenSpot ars start within claimed = check Set.empty [start] where
              filter (rectContains within) $ map (next `plusDir`) allDirections
     in fromMaybe (check (foldr Set.insert visited ps) (rest ++ ps))
                  (find (\p -> Set.notMember p claimed &&
-                              not (gridOccupied (arsMonsters ars) p)) ps)
+                              not (Grid.gridOccupied (arsMonsters ars) p)) ps)
 
 -- | If you shoot a beam spell from the @start@ position, passing through the
 -- @thru@ position, what positions does it hit?  It will stop when it reaches
@@ -231,11 +232,11 @@ arsBeamPositions ars start thru =
           until (not . rectContains arena) (pAdd delta) start
 
 arsOccupant :: (AreaState a) => Position -> a
-            -> Maybe (Either CharacterNumber (GridEntry Monster))
+            -> Maybe (Either CharacterNumber (Grid.GridEntry Monster))
 arsOccupant pos ars =
   case arsCharacterAtPosition pos ars of
     Just charNum -> Just (Left charNum)
-    Nothing -> Right <$> gridSearch (arsMonsters ars) pos
+    Nothing -> Right <$> Grid.gridSearch (arsMonsters ars) pos
 
 -------------------------------------------------------------------------------
 -- AreaState setters:
@@ -248,7 +249,7 @@ arsSetMessage text ars =
 
 data Device = Device
   { devId :: DeviceId,
-    devInteract :: GridEntry Device -> CharacterNumber ->
+    devInteract :: Grid.GridEntry Device -> CharacterNumber ->
                    Script AreaEffect (),
     devRadius :: Int }
 
@@ -318,7 +319,7 @@ data Monster = Monster
 
 data MonsterScript = MonsterScript
   { mscriptId :: MonsterScriptId,
-    mscriptScriptFn :: GridEntry Monster -> Script TownEffect () }
+    mscriptScriptFn :: Grid.GridEntry Monster -> Script TownEffect () }
 
 -- monstImageRect :: Monster -> IRect
 -- monstImageRect monst =
@@ -405,12 +406,14 @@ data AreaCommonEffect :: * -> * where
   EffAreaGet :: (forall s. (AreaState s) => s -> a) -> AreaCommonEffect a
   EffMessage :: String -> AreaCommonEffect ()
   EffTryAddDevice :: Position -> Device
-                  -> AreaCommonEffect (Maybe (GridEntry Device))
+                  -> AreaCommonEffect (Maybe (Grid.GridEntry Device))
   EffTryAddMonster :: Position -> Monster
-                   -> AreaCommonEffect (Maybe (GridEntry Monster))
-  EffTryMoveMonster :: GridKey Monster -> PRect -> AreaCommonEffect Bool
-  EffReplaceDevice :: GridKey Device -> Maybe Device -> AreaCommonEffect ()
-  EffReplaceMonster :: GridKey Monster -> Maybe Monster -> AreaCommonEffect ()
+                   -> AreaCommonEffect (Maybe (Grid.GridEntry Monster))
+  EffTryMoveMonster :: Grid.GridKey Monster -> PRect -> AreaCommonEffect Bool
+  EffReplaceDevice :: Grid.GridKey Device -> Maybe Device
+                   -> AreaCommonEffect ()
+  EffReplaceMonster :: Grid.GridKey Monster -> Maybe Monster
+                    -> AreaCommonEffect ()
   EffShakeCamera :: Double -> Int -> AreaCommonEffect ()
   EffSetTerrain :: [(Position, TerrainTile)] -> AreaCommonEffect ()
 
@@ -497,25 +500,27 @@ executeAreaCommonEffect eff ars = do
     EffAreaGet fn -> return (fn ars, ars)
     EffMessage text -> change acs { acsMessage = Just (makeMessage text) }
     EffTryAddDevice pos device -> do
-      case gridTryInsert (makeRect pos (1, 1)) device (acsDevices acs) of
+      case Grid.gridTryInsert (makeRect pos (1, 1)) device (acsDevices acs) of
         Nothing -> return (Nothing, ars)
         Just (entry, devices') ->
           return (Just entry, set acs { acsDevices = devices' })
     EffTryAddMonster topleft monster -> do
-      case gridTryInsert (makeRect topleft $ sizeSize $ mtSize $
+      case Grid.gridTryInsert (makeRect topleft $ sizeSize $ mtSize $
                           monstType monster) monster (acsMonsters acs) of
         Nothing -> return (Nothing, ars)
         Just (entry, monsters') ->
           return (Just entry, set acs { acsMonsters = monsters' })
     EffTryMoveMonster monstKey rect -> do
-      case gridTryMove monstKey rect (acsMonsters acs) of
+      case Grid.gridTryMove monstKey rect (acsMonsters acs) of
         Nothing -> return (False, ars)
         Just grid' -> return (True, set acs { acsMonsters = grid' })
     EffReplaceDevice key mbDevice' -> do
-      change acs { acsDevices = maybe (gridDelete key) (gridReplace key)
+      change acs { acsDevices = maybe (Grid.gridDelete key)
+                                      (Grid.gridReplace key)
                                       mbDevice' (acsDevices acs) }
     EffReplaceMonster key mbMonst' -> do
-      change acs { acsMonsters = maybe (gridDelete key) (gridReplace key)
+      change acs { acsMonsters = maybe (Grid.gridDelete key)
+                                       (Grid.gridReplace key)
                                        mbMonst' (acsMonsters acs) }
     EffSetTerrain updates -> do
       let terrain' = foldr (uncurry terrainSetTile) (acsTerrain acs) updates
