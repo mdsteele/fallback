@@ -233,17 +233,17 @@ areaGet :: (FromAreaEffect f) => (forall s. (AreaState s) => s -> a)
         -> Script f a
 areaGet = emitAreaEffect . EffAreaGet
 
-lookupMonsterEntry :: (FromAreaEffect f) => Grid.GridKey Monster
-                   -> Script f (Maybe (Grid.GridEntry Monster))
-lookupMonsterEntry key = areaGet (Grid.gridLookup key . arsMonsters)
+lookupMonsterEntry :: (FromAreaEffect f) => Grid.Key Monster
+                   -> Script f (Maybe (Grid.Entry Monster))
+lookupMonsterEntry key = areaGet (Grid.lookup key . arsMonsters)
 
-demandMonsterEntry :: (FromAreaEffect f) => Grid.GridKey Monster
-                   -> Script f (Grid.GridEntry Monster)
+demandMonsterEntry :: (FromAreaEffect f) => Grid.Key Monster
+                   -> Script f (Grid.Entry Monster)
 demandMonsterEntry key =
   maybe (fail "demandMonsterEntry") return =<< lookupMonsterEntry key
 
-withMonsterEntry :: (FromAreaEffect f) => Grid.GridKey Monster
-                 -> (Grid.GridEntry Monster -> Script f ()) -> Script f ()
+withMonsterEntry :: (FromAreaEffect f) => Grid.Key Monster
+                 -> (Grid.Entry Monster -> Script f ()) -> Script f ()
 withMonsterEntry key action = do
   mbEntry <- lookupMonsterEntry key
   maybeM mbEntry action
@@ -261,18 +261,17 @@ getAllConsciousCharacters = do
 
 -- | Return a list of all ally monster grid entries.  In combat mode, this will
 -- only include monsters within the combat arena.
-getAllAllyMonsters :: (FromAreaEffect f) => Script f [Grid.GridEntry Monster]
+getAllAllyMonsters :: (FromAreaEffect f) => Script f [Grid.Entry Monster]
 getAllAllyMonsters = do
   monsters <- areaGet arsMonsters
-  return $ filter (monstIsAlly . Grid.geValue) $ Grid.gridEntries monsters
+  return $ filter (monstIsAlly . Grid.geValue) $ Grid.entries monsters
 
 -- | Return a list of all enemy (non-ally) monster grid entries.  In combat
 -- mode, this will only include monsters within the combat arena.
-getAllEnemyMonsters :: (FromAreaEffect f) => Script f [Grid.GridEntry Monster]
+getAllEnemyMonsters :: (FromAreaEffect f) => Script f [Grid.Entry Monster]
 getAllEnemyMonsters = do
   monsters <- areaGet arsMonsters
-  return $ filter (not . monstIsAlly . Grid.geValue) $
-    Grid.gridEntries monsters
+  return $ filter (not . monstIsAlly . Grid.geValue) $ Grid.entries monsters
 
 -- | Get the 'HitTarget' for each conscious party member and each living ally
 -- monster (in no particular order).
@@ -359,7 +358,7 @@ exitTo tag = do
   fadeOutMusic 0.8
   emitEffect $ EffExitTowardArea tag
 
-walkMonster :: (FromAreaEffect f) => Int -> Grid.GridKey Monster -> Position
+walkMonster :: (FromAreaEffect f) => Int -> Grid.Key Monster -> Position
             -> Script f ()
 walkMonster frames gkey pos' = do
   withMonsterEntry gkey $ \entry -> do
@@ -373,7 +372,7 @@ walkMonster frames gkey pos' = do
         Just (Grid.geValue entry) { monstAnim = anim', monstFaceDir = dir }
       wait frames
 
-setMonsterTownAI :: (FromAreaEffect f) => Grid.GridKey Monster -> MonsterTownAI
+setMonsterTownAI :: (FromAreaEffect f) => Grid.Key Monster -> MonsterTownAI
                  -> Script f ()
 setMonsterTownAI key townAI = withMonsterEntry key $ \entry -> do
   emitAreaEffect (EffReplaceMonster key $
@@ -436,14 +435,14 @@ characterWeaponHit wd target critical damage = do
   attackHit (wdAppearance wd) (wdElement wd) (wdEffects wd)
             target critical damage
 
-monsterBeginOffensiveAction :: Grid.GridKey Monster -> Position
+monsterBeginOffensiveAction :: Grid.Key Monster -> Position
                             -> Script CombatEffect ()
 monsterBeginOffensiveAction key target = do
   faceMonsterToward key target
   alterMonsterStatus key $ seSetInvisibility Nothing
   setMonsterAnim key (AttackAnim 8)
 
-monsterPerformAttack :: Grid.GridKey Monster -> MonsterAttack -> Position
+monsterPerformAttack :: Grid.Key Monster -> MonsterAttack -> Position
                      -> Script CombatEffect ()
 monsterPerformAttack key attack target = do
   monsterAttackInitialAnimation key attack target
@@ -459,8 +458,8 @@ monsterPerformAttack key attack target = do
                           monsterAttackBaseDamage attack
     monsterAttackHit attack target critical damage
 
-monsterAttackInitialAnimation :: Grid.GridKey Monster -> MonsterAttack
-                              -> Position -> Script CombatEffect ()
+monsterAttackInitialAnimation :: Grid.Key Monster -> MonsterAttack -> Position
+                              -> Script CombatEffect ()
 monsterAttackInitialAnimation key attack target = do
   monsterBeginOffensiveAction key target
   withMonsterEntry key $ \entry -> do
@@ -571,7 +570,7 @@ attackHit appearance element effects target critical damage = do
 -- Damage:
 
 data HitTarget = HitCharacter CharacterNumber
-               | HitMonster (Grid.GridKey Monster)
+               | HitMonster (Grid.Key Monster)
                | HitPosition Position
 
 dealDamage :: (FromAreaEffect f) => [(HitTarget, DamageType, Double)]
@@ -652,7 +651,7 @@ dealRawDamageToCharacter gentle charNum damage stun = do
 
 -- | Inflict damage and stun on a monster, ignoring armor and resistances.
 -- Stun is measured in action points.  The monster must exist.
-dealRawDamageToMonster :: (FromAreaEffect f) => Bool -> Grid.GridKey Monster
+dealRawDamageToMonster :: (FromAreaEffect f) => Bool -> Grid.Key Monster
                        -> Int -> Double -> Script f ()
 dealRawDamageToMonster gentle key damage stun = do
   entry <- demandMonsterEntry key
@@ -705,7 +704,7 @@ healCharacter charNum baseAmount = do
     char { chrHealth = min (chrMaxHealth party char)
                            (chrHealth char + amount) }
 
-healMonster :: (FromAreaEffect f) => Grid.GridKey Monster -> Int -> Script f ()
+healMonster :: (FromAreaEffect f) => Grid.Key Monster -> Int -> Script f ()
 healMonster key amount = withMonsterEntry key $ \entry -> do
   let monst = Grid.geValue entry
   let health' = min (monstHealth monst + amount)
@@ -754,7 +753,7 @@ alterCharacterStatus charNum fn = do
   emitAreaEffect $ EffAlterCharacter charNum $ \char ->
     char { chrStatus = fn' (chrStatus char) }
 
-alterMonsterStatus :: (FromAreaEffect f) => Grid.GridKey Monster
+alterMonsterStatus :: (FromAreaEffect f) => Grid.Key Monster
                    -> (StatusEffects -> StatusEffects) -> Script f ()
 alterMonsterStatus key fn = do
   fn' <- emitAreaEffect $ EffIfCombat (return fn) (return (townifyStatus . fn))
@@ -813,7 +812,7 @@ faceCharacterToward charNum pos = do
     let dir = if deltaX < 0 then FaceLeft else FaceRight
     emitEffect $ EffSetCharFaceDir charNum dir
 
-faceMonsterToward :: (FromAreaEffect f) => Grid.GridKey Monster -> Position
+faceMonsterToward :: (FromAreaEffect f) => Grid.Key Monster -> Position
                   -> Script f ()
 faceMonsterToward key pos = do
   withMonsterEntry key $ \entry -> do
@@ -833,7 +832,7 @@ facePartyToward pos = do
 setCharacterAnim :: CharacterNumber -> CreatureAnim -> Script CombatEffect ()
 setCharacterAnim charNum anim = emitEffect $ EffSetCharAnim charNum anim
 
-setMonsterAnim :: (FromAreaEffect f) => Grid.GridKey Monster -> CreatureAnim
+setMonsterAnim :: (FromAreaEffect f) => Grid.Key Monster -> CreatureAnim
                -> Script f ()
 setMonsterAnim key anim = do
   withMonsterEntry key $ \entry -> do
@@ -843,7 +842,7 @@ setMonsterAnim key anim = do
 setPartyAnim :: CreatureAnim -> Script TownEffect ()
 setPartyAnim = emitEffect . EffSetPartyAnim
 
-getMonsterHeadPos :: (FromAreaEffect f) => Grid.GridKey Monster
+getMonsterHeadPos :: (FromAreaEffect f) => Grid.Key Monster
                   -> Script f Position
 getMonsterHeadPos key = do
   entry <- demandMonsterEntry key
@@ -1150,7 +1149,7 @@ grantExperience xp = do
 removeFields :: (FromAreaEffect f) => [Position] -> Script f ()
 removeFields = emitAreaEffect . EffAlterFields (const Nothing)
 
-replaceDevice :: (FromAreaEffect f) => Grid.GridEntry Device -> Device
+replaceDevice :: (FromAreaEffect f) => Grid.Entry Device -> Device
               -> Script f ()
 replaceDevice entry device =
   emitAreaEffect $ EffReplaceDevice (Grid.geKey entry) (Just device)
@@ -1202,13 +1201,13 @@ summonAllyMonster startPos tag = do
   return ()
 
 tryAddMonster :: (FromAreaEffect f) => Position -> Monster
-              -> Script f (Maybe (Grid.GridEntry Monster))
+              -> Script f (Maybe (Grid.Entry Monster))
 tryAddMonster position monster = do
   emitAreaEffect $ EffTryAddMonster position monster
 {-
 tryAddMonster :: (FromAreaEffect f) => MonsterTag -> MonsterType -> Position
               -> Maybe (Var Bool) -> MonsterTownAI -> Maybe MonsterScript
-              -> Script f (Maybe (GridEntry Monster))
+              -> Script f (Maybe (Entry Monster))
 tryAddMonster tag mtype position mbDeadVar ai mbMscript = do
   emitAreaEffect $ EffTryAddMonster position $ Monster
     { monstAnim = NoAnim,
@@ -1255,7 +1254,7 @@ inflictAllPeriodicDamage = do
       let damage = totalPoison `ceilDiv` 5
       alterCharacterStatus charNum $ seAlterPoison $ subtract damage
       return $ Just (HitCharacter charNum, RawDamage, fromIntegral damage)
-  monsters <- Grid.gridEntries <$> areaGet arsMonsters
+  monsters <- Grid.entries <$> areaGet arsMonsters
   monstPoisonDamages <- fmap catMaybes $ forM monsters $ \monstEntry -> do
     let totalPoison = sePoison $ monstStatus $ Grid.geValue monstEntry
     if totalPoison <= 0 then return Nothing else do
@@ -1343,13 +1342,13 @@ characterScreamSound char =
 
 getHitTargetOccupant :: (FromAreaEffect f) => HitTarget
                      -> Script f (Maybe (Either CharacterNumber
-                                                (Grid.GridEntry Monster)))
+                                                (Grid.Entry Monster)))
 getHitTargetOccupant (HitCharacter charNum) = return $ Just $ Left charNum
 getHitTargetOccupant (HitMonster monstKey) =
   fmap Right <$> lookupMonsterEntry monstKey
 getHitTargetOccupant (HitPosition pos) = areaGet (arsOccupant pos)
 
-monsterHeadPos :: Grid.GridEntry Monster -> Position
+monsterHeadPos :: Grid.Entry Monster -> Position
 monsterHeadPos entry =
   let Rect x y w _ = Grid.geRect entry
   in case monstFaceDir (Grid.geValue entry) of

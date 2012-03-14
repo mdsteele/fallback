@@ -19,23 +19,25 @@
 
 module Fallback.Data.Grid
   (-- * Grid type
-   Grid, emptyGrid,
-   GridEntry(..),
-   GridKey, nullGridKey,
+   Grid, empty,
+   Entry(..),
+   Key,
    -- * Query
-   gridNull, gridSize, gridEntries,
-   gridLookup, gridOccupied, gridSearch, gridSearchRect,
-   gridCouldMove,
+   null, size, entries,
+   lookup, occupied, search, searchRect,
+   couldMove,
    -- * Update
-   gridTryInsert, gridDelete, gridReplace, gridTryMove,
-   gridUpdate, gridUpdateSelect,
+   tryInsert, delete, replace, tryMove,
+   update, updateSelect,
    -- * Split/combine
-   gridExcise, gridMerge,
+   excise, merge,
    -- * Utility
    rectPositions,
    -- * Debug
-   gridValid)
+   valid)
 where
+
+import Prelude hiding (lookup, null)
 
 import Control.Applicative ((<$>), (<|>))
 import Control.Monad (foldM, guard)
@@ -57,9 +59,9 @@ import Fallback.Utility (nubKey, square)
 -- object occupies a given grid position, and does not allow more than one
 -- object to occupy a position.
 data Grid a = Grid
-  { gridNextKey :: !(GridKey a),
-    gridMap1 :: IntMap.IntMap (GridEntry a),
-    gridMap2 :: Map.Map Position (GridKey a) }
+  { gridNextKey :: !(Key a),
+    gridMap1 :: IntMap.IntMap (Entry a),
+    gridMap2 :: Map.Map Position (Key a) }
 
 instance Functor Grid where
   fmap fn grid = Grid { gridNextKey = rekey (gridNextKey grid),
@@ -67,7 +69,7 @@ instance Functor Grid where
                         gridMap2 = fmap rekey (gridMap2 grid) }
 
 instance Fold.Foldable Grid where
-  foldr fn start grid = foldr fn start $ map geValue $ gridEntries grid
+  foldr fn start grid = foldr fn start $ map geValue $ entries grid
 
 instance Trav.Traversable Grid where
   traverse fn grid = fmap mkGrid $ Trav.traverse fn' $ gridMap1 grid
@@ -82,128 +84,112 @@ instance Trav.Traversable Grid where
 instance (Read a) => Read (Grid a) where
   readPrec = Read.parens $ Read.prec 10 $ do
     Read.Ident "grid" <- Read.lexP
-    entries <- Read.readPrec
+    ents <- Read.readPrec
     let fn grid entry =
-          case gridTryAddEntry entry grid of
+          case tryAddEntry entry grid of
             Just grid' -> return grid'
             Nothing -> fail "Grid.readPrec: overlapping entries"
-    foldM fn emptyGrid entries
+    foldM fn empty ents
 
 instance (Show a) => Show (Grid a) where
   showsPrec p grid = showParen (p > 10) $
                      showString "grid " .
-                     showsPrec 11 (gridEntries grid)
+                     showsPrec 11 (entries grid)
 
 -- | A grid containing no members.
-emptyGrid :: Grid a
-emptyGrid = Grid
-  { gridNextKey = GridKey 1,
+empty :: Grid a
+empty = Grid
+  { gridNextKey = Key 1,
     gridMap1 = IntMap.empty,
     gridMap2 = Map.empty }
 
 -- | An entry in a 'Grid'.
-data GridEntry a = GridEntry
-  { geKey :: GridKey a,
+data Entry a = Entry
+  { geKey :: Key a,
     geRect :: PRect,
     geValue :: a }
   deriving (Eq, Read, Show)
 
-instance Functor GridEntry where
+instance Functor Entry where
   fmap fn ge = ge { geKey = rekey (geKey ge), geValue = fn (geValue ge) }
 
 -- | The key type for 'Grid' values.
-newtype GridKey a = GridKey { fromGridKey :: Int }
+newtype Key a = Key { fromKey :: Int }
   deriving (Eq, Ord, Read, Show)
-
--- | A 'GridKey' that is never a member of any 'Grid'.
-nullGridKey :: GridKey a
-nullGridKey = GridKey 0
 
 -------------------------------------------------------------------------------
 -- Query:
 
 -- | Return 'True' if the grid contains no entries, 'False' otherwise.
-gridNull :: Grid a -> Bool
-gridNull = IntMap.null . gridMap1
+null :: Grid a -> Bool
+null = IntMap.null . gridMap1
 
 -- | Return the number of entries in the grid.
-gridSize :: Grid a -> Int
-gridSize = IntMap.size . gridMap1
+size :: Grid a -> Int
+size = IntMap.size . gridMap1
 
 -- | Return the list of entries in the grid.
-gridEntries :: Grid a -> [GridEntry a]
-gridEntries = IntMap.elems . gridMap1
+entries :: Grid a -> [Entry a]
+entries = IntMap.elems . gridMap1
 
 -- | Look up the entry associated with the given key (if any).
-gridLookup :: GridKey a -> Grid a -> Maybe (GridEntry a)
-gridLookup key grid = IntMap.lookup (fromGridKey key) (gridMap1 grid)
+lookup :: Key a -> Grid a -> Maybe (Entry a)
+lookup key grid = IntMap.lookup (fromKey key) (gridMap1 grid)
 
 -- | Return 'True' if the given position is occupied by an object, 'False'
 -- otherwise.
-gridOccupied :: Grid a -> Position -> Bool
-gridOccupied grid pos = isJust $ Map.lookup pos $ gridMap2 grid
+occupied :: Grid a -> Position -> Bool
+occupied grid pos = isJust $ Map.lookup pos $ gridMap2 grid
 
--- | Find the 'GridEntry' of the object occupying a given position, if any.
-gridSearch :: Grid a -> Position -> Maybe (GridEntry a)
-gridSearch grid pos =
+-- | Find the 'Entry' of the object occupying a given position, if any.
+search :: Grid a -> Position -> Maybe (Entry a)
+search grid pos =
   case Map.lookup pos (gridMap2 grid) of
-    Just key -> case IntMap.lookup (fromGridKey key) (gridMap1 grid) of
+    Just key -> case IntMap.lookup (fromKey key) (gridMap1 grid) of
                   Just entry -> Just entry
-                  Nothing -> error "gridSearch: inconsistent grid"
+                  Nothing -> error "Grid.search: inconsistent grid"
     Nothing -> Nothing
 
--- | Find the 'GridEntry' of all objects that intersect the given rect.
-gridSearchRect :: Grid a -> PRect -> [GridEntry a]
-gridSearchRect grid rect =
+-- | Find the 'Entry' of all objects that intersect the given rect.
+searchRect :: Grid a -> PRect -> [Entry a]
+searchRect grid rect =
   -- Use a different strategy for small/large rects.
-  if gridSize grid > square (rectW rect * rectH rect)
-  then nubKey geKey $ mapMaybe (gridSearch grid) (rectPositions rect)
-  else filter (rectIntersects rect . geRect) (gridEntries grid)
+  if size grid > square (rectW rect * rectH rect)
+  then nubKey geKey $ mapMaybe (search grid) (rectPositions rect)
+  else filter (rectIntersects rect . geRect) (entries grid)
 
 -- | Determine whether the specified item could move to occupy the given
 -- rectangle without creating a collision.
-gridCouldMove :: GridKey a -> PRect -> Grid a -> Bool
-gridCouldMove key rect' grid = isJust (gridTryMove key rect' grid)
+couldMove :: Key a -> PRect -> Grid a -> Bool
+couldMove key rect' grid = isJust (tryMove key rect' grid)
 
 -------------------------------------------------------------------------------
 -- Update:
 
--- | Insert a new item into the grid, and return the resulting 'GridEntry',
--- along with the updated 'Grid'.  If the new item collides with any existing
--- items in the grid, return 'Nothing' instead.  Note that with the current
+-- | Insert a new item into the grid, and return the resulting 'Entry', along
+-- with the updated 'Grid'.  If the new item collides with any existing items
+-- in the grid, return 'Nothing' instead.  Note that with the current
 -- implementation, insertion is efficient only for objects occupying small
 -- rectangles.
-gridTryInsert :: PRect -> a -> Grid a -> Maybe (GridEntry a, Grid a)
-gridTryInsert rect value grid = (,) ent <$> gridTryAddEntry ent grid where
-  ent = GridEntry { geKey = gridNextKey grid, geRect = rect, geValue = value }
--- gridTryInsert rect value grid =
---   if any (gridOccupied grid) positions then Nothing else Just (entry, grid')
---   where
---     positions = rectPositions rect
---     key = gridNextKey grid
---     intkey = fromGridKey key
---     entry = GridEntry { geKey = key, geRect = rect, geValue = value }
---     grid' = grid { gridNextKey = GridKey (1 + intkey),
---                    gridMap1 = IntMap.insert intkey entry (gridMap1 grid),
---                    gridMap2 = Map.unionWith (flip const) (gridMap2 grid) $
---                               Map.fromList $ map (flip (,) key) positions }
+tryInsert :: PRect -> a -> Grid a -> Maybe (Entry a, Grid a)
+tryInsert rect value grid = (,) ent <$> tryAddEntry ent grid where
+  ent = Entry { geKey = gridNextKey grid, geRect = rect, geValue = value }
 
-gridTryAddEntry :: GridEntry a -> Grid a -> Maybe (Grid a)
-gridTryAddEntry entry grid =
-  if IntMap.member intkey (gridMap1 grid) ||
-     any (gridOccupied grid) positions
+tryAddEntry :: Entry a -> Grid a -> Maybe (Grid a)
+tryAddEntry entry grid =
+  if IntMap.member intkey (gridMap1 grid) || any (occupied grid) positions
   then Nothing else Just grid' where
     positions = rectPositions (geRect entry)
     key = geKey entry
-    intkey = fromGridKey key
-    grid' = grid { gridNextKey = max (gridNextKey grid) (GridKey (1 + intkey)),
+    intkey = fromKey key
+    grid' = grid { gridNextKey = max (gridNextKey grid) (Key (1 + intkey)),
                    gridMap1 = IntMap.insert intkey entry (gridMap1 grid),
                    gridMap2 = Map.unionWith (flip const) (gridMap2 grid) $
                               Map.fromList $ map (flip (,) key) positions }
 
 -- | Remove an entry from the grid.
-gridDelete :: GridKey a -> Grid a -> Grid a
-gridDelete (GridKey intkey) grid =
+delete :: Key a -> Grid a -> Grid a
+delete (Key intkey) grid =
   case IntMap.lookup intkey (gridMap1 grid) of
     Just entry -> grid { gridMap1 = IntMap.delete intkey (gridMap1 grid),
                          gridMap2 = foldr Map.delete (gridMap2 grid) $
@@ -212,34 +198,34 @@ gridDelete (GridKey intkey) grid =
 
 -- | Replace an existing entry in the grid, or return the grid unchanged if
 -- there is no entry for the given key.
-gridReplace :: GridKey a -> a -> Grid a -> Grid a
-gridReplace key value grid =
+replace :: Key a -> a -> Grid a -> Grid a
+replace key value grid =
   let fn entry = entry { geValue = value }
-  in grid { gridMap1 = IntMap.adjust fn (fromGridKey key) (gridMap1 grid) }
+  in grid { gridMap1 = IntMap.adjust fn (fromKey key) (gridMap1 grid) }
 
 -- | Try to move an item in the grid to occupy a different rectangle.  Return
 -- 'Nothing' if the move would create a collision, or if no entry exists for
 -- the given key.
-gridTryMove :: GridKey a -> PRect -> Grid a -> Maybe (Grid a)
-gridTryMove key rect' grid = do
-  entry <- gridLookup key grid
+tryMove :: Key a -> PRect -> Grid a -> Maybe (Grid a)
+tryMove key rect' grid = do
+  entry <- lookup key grid
   let positions' = rectPositions rect'
   guard $ all (maybe True (key ==) .
                flip Map.lookup (gridMap2 grid)) positions'
-  Just grid { gridMap1 = IntMap.insert (fromGridKey key)
+  Just grid { gridMap1 = IntMap.insert (fromKey key)
                            (entry { geRect = rect' }) (gridMap1 grid),
               gridMap2 = foldr (flip Map.insert key)
                                (foldr Map.delete (gridMap2 grid) $
                                 rectPositions $ geRect entry) positions' }
 
 -- | Alter all items in the grid.
-gridUpdate :: (a -> a) -> Grid a -> Grid a
-gridUpdate fn grid = grid { gridMap1 = IntMap.map fn' (gridMap1 grid) } where
+update :: (a -> a) -> Grid a -> Grid a
+update fn grid = grid { gridMap1 = IntMap.map fn' (gridMap1 grid) } where
   fn' entry = entry { geValue = fn (geValue entry) }
 
-gridUpdateSelect :: (GridEntry a -> (a, Maybe b)) -> Grid a
+updateSelect :: (Entry a -> (a, Maybe b)) -> Grid a
                  -> (Grid a, Maybe b)
-gridUpdateSelect fn grid = (grid { gridMap1 = map1' }, result) where
+updateSelect fn grid = (grid { gridMap1 = map1' }, result) where
   (result, map1') = IntMap.mapAccum fn' Nothing (gridMap1 grid)
   fn' res entry = let (value', res') = fn entry
                   in (res <|> res', entry { geValue = value' })
@@ -247,18 +233,18 @@ gridUpdateSelect fn grid = (grid { gridMap1 = map1' }, result) where
 -------------------------------------------------------------------------------
 -- Split/combine:
 
-gridPartition :: (GridEntry a -> Bool) -> Grid a -> (Grid a, Grid a)
+gridPartition :: (Entry a -> Bool) -> Grid a -> (Grid a, Grid a)
 gridPartition fn grid = (grid', grid'') where
   (map1', map1'') = IntMap.partition fn (gridMap1 grid)
   grid' = grid { gridMap1 = map1', gridMap2 = regenMap2 map1' }
   grid'' = grid { gridMap1 = map1'', gridMap2 = regenMap2 map1'' }
 
-gridExcise :: PRect -> Grid a -> (Grid a, Grid a)
-gridExcise rect grid = gridPartition (rectIntersects rect . geRect) grid
+excise :: PRect -> Grid a -> (Grid a, Grid a)
+excise rect grid = gridPartition (rectIntersects rect . geRect) grid
 
-gridMerge :: Grid a -> [GridEntry a] -> (Grid a, [GridEntry a])
-gridMerge grid entries = foldl fn (grid, []) entries where
-  fn (gr, es) entry = case gridTryAddEntry entry gr of
+merge :: Grid a -> [Entry a] -> (Grid a, [Entry a])
+merge grid ents = foldl fn (grid, []) ents where
+  fn (gr, es) entry = case tryAddEntry entry gr of
                         Nothing -> (gr, entry : es)
                         Just gr' -> (gr', es)
 
@@ -268,27 +254,26 @@ gridMerge grid entries = foldl fn (grid, []) entries where
 rectPositions :: PRect -> [Position]
 rectPositions (Rect x y w h) = range (Point x y, Point (x + w - 1) (y + h - 1))
 
-regenMap2 :: IntMap.IntMap (GridEntry a) -> Map.Map Position (GridKey a)
+regenMap2 :: IntMap.IntMap (Entry a) -> Map.Map Position (Key a)
 regenMap2 map1 = Map.fromList $ concatMap fn $ IntMap.elems map1 where
   fn entry = map (flip (,) $ geKey entry) $ rectPositions $ geRect entry
 
-rekey :: GridKey a -> GridKey b
-rekey = GridKey . fromGridKey
+rekey :: Key a -> Key b
+rekey = Key . fromKey
 
 -------------------------------------------------------------------------------
 -- Debug:
 
-gridValid :: Grid a -> Bool
-gridValid grid = (all assoc1ok $ IntMap.assocs map1) &&
-                 (all assoc2ok $ Map.assocs map2)
+valid :: Grid a -> Bool
+valid grid = (all assoc1ok $ IntMap.assocs map1) &&
+             (all assoc2ok $ Map.assocs map2)
   where
     assoc1ok (intKey, entry) =
-      intKey > fromGridKey nullGridKey &&
-      intKey < fromGridKey (gridNextKey grid) &&
-      intKey == fromGridKey (geKey entry) &&
+      intKey < fromKey (gridNextKey grid) &&
+      intKey == fromKey (geKey entry) &&
       (all ((Just (geKey entry) ==) . flip Map.lookup map2) $
        rectPositions $ geRect entry)
-    assoc2ok (pos, GridKey intKey) =
+    assoc2ok (pos, Key intKey) =
       maybe False (flip rectContains pos . geRect) $ IntMap.lookup intKey map1
     map1 = gridMap1 grid
     map2 = gridMap2 grid

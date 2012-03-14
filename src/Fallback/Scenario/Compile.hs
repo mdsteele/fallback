@@ -49,7 +49,7 @@ import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
 
-import qualified Fallback.Data.Grid as Grid (GridEntry)
+import qualified Fallback.Data.Grid as Grid (Entry)
 import Fallback.Data.Point (Position, PRect, pZero, rectContains)
 import Fallback.Data.TotalMap
 import Fallback.Scenario.Monsters (getMonsterType)
@@ -227,7 +227,7 @@ simpleMonster vseed tag pos ai = do
       addBasicEnemyMonster pos tag (Just isDeadVar) ai
 
 simpleTownsperson :: VarSeed -> MonsterTag -> Position -> MonsterTownAI
-                  -> (Grid.GridEntry Monster -> Script TownEffect ())
+                  -> (Grid.Entry Monster -> Script TownEffect ())
                   -> CompileArea ()
 simpleTownsperson vseed tag pos ai sfn = do
   let (vseed', vseed'') = splitVarSeed vseed
@@ -304,8 +304,7 @@ once vseed predicate script = do
 
 class DefineDevice m where
   newDevice :: VarSeed -> Int
-            -> (Grid.GridEntry Device -> CharacterNumber ->
-                Script AreaEffect ())
+            -> (Grid.Entry Device -> CharacterNumber -> Script AreaEffect ())
             -> m Device
 
 instance DefineDevice CompileScenario where
@@ -331,8 +330,7 @@ instance DefineDevice CompileArea where
     return device
 
 uniqueDevice :: VarSeed -> Position -> Int
-             -> (Grid.GridEntry Device -> CharacterNumber ->
-                 Script AreaEffect ())
+             -> (Grid.Entry Device -> CharacterNumber -> Script AreaEffect ())
              -> CompileArea ()
 uniqueDevice vseed position radius sfn = do
   let (vseed', vseed'') = splitVarSeed vseed
@@ -343,8 +341,7 @@ uniqueDevice vseed position radius sfn = do
 -- Defining monster scripts:
 
 class DefineMonsterScript m where
-  newMonsterScript :: VarSeed
-                   -> (Grid.GridEntry Monster -> Script TownEffect ())
+  newMonsterScript :: VarSeed -> (Grid.Entry Monster -> Script TownEffect ())
                    -> m MonsterScript
 
 instance DefineMonsterScript CompileArea where

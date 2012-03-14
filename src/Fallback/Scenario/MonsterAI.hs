@@ -40,7 +40,7 @@ import Fallback.State.Terrain (terrainSize)
 
 -------------------------------------------------------------------------------
 
-defaultMonsterCombatAI :: Grid.GridEntry Monster -> Script CombatEffect ()
+defaultMonsterCombatAI :: Grid.Entry Monster -> Script CombatEffect ()
 defaultMonsterCombatAI ge = do
   done <- tryMonsterSpells ge (mtSpells $ monstType $ Grid.geValue ge)
   unless done $ do
@@ -63,11 +63,11 @@ defaultMonsterCombatAI ge = do
   target <- getRandomElem targets
   monsterPerformAttack (Grid.geKey ge) attack target
 
-fleeMonsterCombatAI :: Grid.GridEntry Monster -> Script CombatEffect ()
+fleeMonsterCombatAI :: Grid.Entry Monster -> Script CombatEffect ()
 fleeMonsterCombatAI _ge = do
   return () -- FIXME
 
-tryMonsterSpells :: Grid.GridEntry Monster -> [MonsterSpellTag]
+tryMonsterSpells :: Grid.Entry Monster -> [MonsterSpellTag]
                  -> Script CombatEffect Bool
 tryMonsterSpells _ [] = return False
 tryMonsterSpells ge (spell : spells) = do
@@ -78,7 +78,7 @@ tryMonsterSpells ge (spell : spells) = do
 
 -- | Given a monster in town mode, return the script to run for the monster's
 -- turn.  The script returns 'True' if the monster wants to start combat.
-monsterTownStep :: Grid.GridEntry Monster -> Script TownEffect Bool
+monsterTownStep :: Grid.Entry Monster -> Script TownEffect Bool
 monsterTownStep ge = do
   isBlocked <- areaGet (arsIsBlockedForMonster ge)
   partyPos <- getPartyPosition
@@ -132,7 +132,7 @@ monsterTownStep ge = do
 
 -------------------------------------------------------------------------------
 
-getMonsterOpponentPositions :: (FromAreaEffect f) => Grid.GridKey Monster
+getMonsterOpponentPositions :: (FromAreaEffect f) => Grid.Key Monster
                             -> Script f [Position]
 getMonsterOpponentPositions key = do
   maybeMonsterEntry key [] $ \entry -> do
@@ -143,7 +143,7 @@ getMonsterOpponentPositions key = do
   return (positions1 ++ positions2)
 
 -- | Return the set of positions visible to the specified monster.
-getMonsterVisibility :: (FromAreaEffect f) => Grid.GridKey Monster
+getMonsterVisibility :: (FromAreaEffect f) => Grid.Key Monster
                      -> Script f (Set.Set Position)
 getMonsterVisibility key = do
   maybeMonsterEntry key Set.empty $ \entry -> do
@@ -153,7 +153,7 @@ getMonsterVisibility key = do
           Grid.rectPositions $ Grid.geRect entry)
 
 -- | Return 'True' if the monster can see the party, 'False' otherwise.
-canMonsterSeeParty :: Grid.GridKey Monster -> Script TownEffect Bool
+canMonsterSeeParty :: Grid.Key Monster -> Script TownEffect Bool
 canMonsterSeeParty key = do
   maybeMonsterEntry key False $ \entry -> do
   visible <- areaGet arsVisibleForParty
@@ -161,8 +161,8 @@ canMonsterSeeParty key = do
 
 -- | Call an action with the monster's grid entry, or return the given default
 -- value if the monster doesn't exist.
-maybeMonsterEntry :: (FromAreaEffect f) => Grid.GridKey Monster -> a
-                  -> (Grid.GridEntry Monster -> Script f a) -> Script f a
+maybeMonsterEntry :: (FromAreaEffect f) => Grid.Key Monster -> a
+                  -> (Grid.Entry Monster -> Script f a) -> Script f a
 maybeMonsterEntry key defaultValue action = do
   mbEntry <- lookupMonsterEntry key
   maybe (return defaultValue) action mbEntry

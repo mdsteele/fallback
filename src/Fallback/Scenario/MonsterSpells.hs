@@ -36,7 +36,7 @@ import Fallback.Utility (flip3)
 
 -------------------------------------------------------------------------------
 
-tryMonsterSpell :: MonsterSpellTag -> Grid.GridEntry Monster
+tryMonsterSpell :: MonsterSpellTag -> Grid.Entry Monster
                 -> Script CombatEffect Bool
 tryMonsterSpell FireSpray ge = do
   ifRandom 0.35 $ do

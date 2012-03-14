@@ -317,7 +317,7 @@ newTownMode resources modes initState = do
                       addToCharacterAdrenaline (negate 1) charNum
                     startCombat <-
                       alsoWith (flip const) (partyWalkTo pos') $
-                      concurrentAny (Grid.gridEntries $ acsMonsters acs) $
+                      concurrentAny (Grid.entries $ acsMonsters acs) $
                       monsterTownStep
                     inflictAllPeriodicDamage
                     when startCombat $ emitEffect EffStartCombat
@@ -408,8 +408,7 @@ newTownMode resources modes initState = do
                           ccsVisible = Set.empty,
                           ccsWantsTurn = False }
             in (ccs, Set.insert pos claimed)
-      let (combatMonsts, otherMonsts) =
-            Grid.gridExcise arenaRect (arsMonsters ts)
+      let (combatMonsts, otherMonsts) = Grid.excise arenaRect (arsMonsters ts)
       let acs' = (tsCommon ts) { acsMonsters = combatMonsts }
       playSound (rsrcSound resources SndCombatStart)
       ChangeMode <$> newCombatMode' modes CombatState

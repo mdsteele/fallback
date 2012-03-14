@@ -121,7 +121,7 @@ newTownMapView resources cursorSink = do
       paintFields resources cameraTopleft (acsVisible acs) (acsClock acs)
                   (acsFields acs)
       paintMonsters resources cameraTopleft (acsClock acs) (acsVisible acs)
-                    [tsPartyPosition ts] (Grid.gridEntries $ acsMonsters acs)
+                    [tsPartyPosition ts] (Grid.entries $ acsMonsters acs)
       paintParty resources cameraTopleft ts
       paintDoodads cameraTopleft MidDood (acsDoodads acs)
       tintNonVisibleTiles cameraTopleft explored (acsVisible acs)
@@ -182,7 +182,7 @@ newTownMapView resources cursorSink = do
           checkRadius r s =
             guard (pos `pSqDist` tsPartyPosition ts <= ofRadius r) >> s
           search grid = do guard $ Set.member pos $ acsVisible acs
-                           Grid.gridSearch grid pos
+                           Grid.search grid pos
           monFn' script = monFn $ checkRadius talkRadius $ Just script
           devFn' ge = devFn $ checkRadius (devRadius $ Grid.geValue ge) $
                       Just $ mapEffect EffTownArea $

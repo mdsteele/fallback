@@ -424,8 +424,8 @@ newCombatMode resources modes initState = do
             getAreaTriggers scenarioTriggers $ partyCurrentArea $ acsParty acs
       let wasFired = flip Set.member (csTownFiredTriggerIds cs) . triggerId
       let (monsters, extraMonsters) =
-            Grid.gridMerge (csMonstersNotInArena cs)
-                           (Grid.gridEntries $ acsMonsters acs)
+            Grid.merge (csMonstersNotInArena cs)
+                       (Grid.entries $ acsMonsters acs)
       let party' = (acsParty acs) { partyCharacters =
             fmap townifyCharacter $ partyCharacters $ acsParty acs }
       let acs' = acs { acsMonsters = monsters, acsParty = party' }
@@ -508,11 +508,11 @@ Execution:
 tickWaiting :: CombatState -> IO (CombatState, Maybe Interrupt)
 tickWaiting cs = do
   let acs = csCommon cs
-  if Grid.gridNull (acsMonsters acs) then return (cs, Just DoEndCombat) else do
+  if Grid.null (acsMonsters acs) then return (cs, Just DoEndCombat) else do
   -- Update monster status effects and time bars, and see if any monsters are
   -- ready for a turn.
   let (monsters', mbScript) =
-        Grid.gridUpdateSelect tickMonsterWaiting (acsMonsters acs)
+        Grid.updateSelect tickMonsterWaiting (acsMonsters acs)
   -- Update party status effects.
   let party' = tickPartyWaiting (acsParty acs)
   -- Update party time bars.
@@ -546,7 +546,7 @@ doTickExecution cs ce = do
   (cs', mbScriptInterrupt) <- executeScript cs (ceScript ce)
   case mbScriptInterrupt of
     Nothing ->
-      if (Grid.gridNull (arsMonsters cs') ||
+      if (Grid.null (arsMonsters cs') ||
           cePendingEndCombat ce && not (arsAreMonstersNearby cs'))
       then return (cs', Just DoEndCombat) else
         let endTurn cs'' = do
@@ -630,7 +630,7 @@ ccssCharThatWantsATurn ccss party =
                    chrCanTakeTurn (partyGetCharacter party charNum)
   in find fn [minBound .. maxBound]
 
-tickMonsterWaiting :: Grid.GridEntry Monster
+tickMonsterWaiting :: Grid.Entry Monster
                    -> (Monster, Maybe (Script CombatEffect ()))
 tickMonsterWaiting entry = (monst', mbScript) where
   monst = Grid.geValue entry
@@ -640,7 +640,7 @@ tickMonsterWaiting entry = (monst', mbScript) where
              else Nothing
   resetMoments = do
     monsters <- areaGet arsMonsters
-    maybeM (Grid.gridLookup (Grid.geKey entry) monsters) $ \entry' -> do
+    maybeM (Grid.lookup (Grid.geKey entry) monsters) $ \entry' -> do
       emitAreaEffect $ EffReplaceMonster (Grid.geKey entry') $
         Just (Grid.geValue entry') { monstMoments = 0 }
   moments' = max moments $ min (maxActionPoints * momentsPerActionPoint) $

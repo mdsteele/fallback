@@ -109,7 +109,7 @@ paintFields resources cameraTopleft visible clock =
 -- party is adjacent to any invisible monsters), and finally the list of
 -- monsters to draw.
 paintMonsters :: Resources -> IPoint -> Clock -> Set.Set Position -> [Position]
-              -> [Grid.GridEntry Monster] -> Paint ()
+              -> [Grid.Entry Monster] -> Paint ()
 paintMonsters resources cameraTopleft clock visible eyes = mapM_ paintMonster
  where
   paintMonster entry = do
@@ -231,7 +231,7 @@ paintHealthBars ars = do
     let pos = arsCharacterPosition charNum ars
     paintHealthBar True (makeRect pos (1, 1)) (chrHealth char)
                    (chrMaxHealth (arsParty ars) char)
-  forM_ (Grid.gridEntries $ arsMonsters ars) $ \entry -> do
+  forM_ (Grid.entries $ arsMonsters ars) $ \entry -> do
     let monst = Grid.geValue entry
     paintHealthBar (monstIsAlly monst) (Grid.geRect entry) (monstHealth monst)
                    (mtMaxHealth $ monstType monst)
