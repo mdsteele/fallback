@@ -445,6 +445,7 @@ data TownEffect :: * -> * where
   EffSetPartyAnim :: CreatureAnim -> TownEffect ()
   EffSetPartyFaceDir :: FaceDir -> TownEffect ()
   EffSetPartyPosition :: Position -> TownEffect ()
+  EffShop :: [Either Ingredient ItemTag] -> TownEffect ()
   EffStartCombat :: TownEffect ()
   EffTeleportToArea :: AreaTag -> Position -> TownEffect ()
 {-

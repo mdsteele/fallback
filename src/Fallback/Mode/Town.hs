@@ -532,6 +532,7 @@ executeEffect ts eff sfn =
     EffSetPartyPosition dest -> do
       ts' <- updateTownVisibility ts { tsPartyPosition = dest }
       return (ts', Right $ sfn ())
+    EffShop _ -> do fail "FIXME EffShop"
     EffStartCombat -> return (ts, Left DoStartCombat)
     EffTeleportToArea tag pos -> return (ts, Left $ DoTeleport tag pos)
     EffTownArea eff' ->
