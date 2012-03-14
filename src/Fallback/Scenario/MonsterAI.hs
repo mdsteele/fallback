@@ -138,7 +138,7 @@ getMonsterOpponentPositions key = do
   maybeMonsterEntry key [] $ \entry -> do
   let isAlly = monstIsAlly $ Grid.geValue entry
   positions1 <- if isAlly then return [] else areaGet arsPartyPositions
-  positions2 <- concatMap (Grid.rectPositions . Grid.geRect) <$>
+  positions2 <- concatMap (prectPositions . Grid.geRect) <$>
                 if isAlly then getAllEnemyMonsters else getAllAllyMonsters
   return (positions1 ++ positions2)
 
@@ -150,14 +150,14 @@ getMonsterVisibility key = do
   size <- terrainSize <$> areaGet arsTerrain
   isOpaque <- areaGet arsIsOpaque
   return (foldr (fieldOfView size isOpaque sightRangeSquared) Set.empty $
-          Grid.rectPositions $ Grid.geRect entry)
+          prectPositions $ Grid.geRect entry)
 
 -- | Return 'True' if the monster can see the party, 'False' otherwise.
 canMonsterSeeParty :: Grid.Key Monster -> Script TownEffect Bool
 canMonsterSeeParty key = do
   maybeMonsterEntry key False $ \entry -> do
   visible <- areaGet arsVisibleForParty
-  return $ any (`Set.member` visible) $ Grid.rectPositions $ Grid.geRect entry
+  return $ any (`Set.member` visible) $ prectPositions $ Grid.geRect entry
 
 -- | Call an action with the monster's grid entry, or return the given default
 -- value if the monster doesn't exist.

@@ -31,8 +31,6 @@ module Fallback.Data.Grid
    update, updateSelect,
    -- * Split/combine
    excise, merge,
-   -- * Utility
-   rectPositions,
    -- * Debug
    valid)
 where
@@ -43,7 +41,6 @@ import Control.Applicative ((<$>), (<|>))
 import Control.Monad (foldM, guard)
 import qualified Data.Foldable as Fold
 import qualified Data.IntMap as IntMap
-import Data.Ix (range)
 import qualified Data.Map as Map
 import Data.Maybe (isJust, mapMaybe)
 import qualified Data.Traversable as Trav
@@ -155,7 +152,7 @@ searchRect :: Grid a -> PRect -> [Entry a]
 searchRect grid rect =
   -- Use a different strategy for small/large rects.
   if size grid > square (rectW rect * rectH rect)
-  then nubKey geKey $ mapMaybe (search grid) (rectPositions rect)
+  then nubKey geKey $ mapMaybe (search grid) (prectPositions rect)
   else filter (rectIntersects rect . geRect) (entries grid)
 
 -- | Determine whether the specified item could move to occupy the given
@@ -175,25 +172,14 @@ tryInsert :: PRect -> a -> Grid a -> Maybe (Entry a, Grid a)
 tryInsert rect value grid = (,) ent <$> tryAddEntry ent grid where
   ent = Entry { geKey = gridNextKey grid, geRect = rect, geValue = value }
 
-tryAddEntry :: Entry a -> Grid a -> Maybe (Grid a)
-tryAddEntry entry grid =
-  if IntMap.member intkey (gridMap1 grid) || any (occupied grid) positions
-  then Nothing else Just grid' where
-    positions = rectPositions (geRect entry)
-    key = geKey entry
-    intkey = fromKey key
-    grid' = grid { gridNextKey = max (gridNextKey grid) (Key (1 + intkey)),
-                   gridMap1 = IntMap.insert intkey entry (gridMap1 grid),
-                   gridMap2 = Map.unionWith (flip const) (gridMap2 grid) $
-                              Map.fromList $ map (flip (,) key) positions }
-
--- | Remove an entry from the grid.
+-- | Remove an entry from the grid.  If there is no entry for the key provided,
+-- return the grid unchanged.
 delete :: Key a -> Grid a -> Grid a
 delete (Key intkey) grid =
   case IntMap.lookup intkey (gridMap1 grid) of
     Just entry -> grid { gridMap1 = IntMap.delete intkey (gridMap1 grid),
                          gridMap2 = foldr Map.delete (gridMap2 grid) $
-                                    rectPositions $ geRect entry }
+                                    prectPositions $ geRect entry }
     Nothing -> grid
 
 -- | Replace an existing entry in the grid, or return the grid unchanged if
@@ -209,22 +195,21 @@ replace key value grid =
 tryMove :: Key a -> PRect -> Grid a -> Maybe (Grid a)
 tryMove key rect' grid = do
   entry <- lookup key grid
-  let positions' = rectPositions rect'
+  let positions' = prectPositions rect'
   guard $ all (maybe True (key ==) .
                flip Map.lookup (gridMap2 grid)) positions'
   Just grid { gridMap1 = IntMap.insert (fromKey key)
                            (entry { geRect = rect' }) (gridMap1 grid),
               gridMap2 = foldr (flip Map.insert key)
                                (foldr Map.delete (gridMap2 grid) $
-                                rectPositions $ geRect entry) positions' }
+                                prectPositions $ geRect entry) positions' }
 
 -- | Alter all items in the grid.
 update :: (a -> a) -> Grid a -> Grid a
 update fn grid = grid { gridMap1 = IntMap.map fn' (gridMap1 grid) } where
   fn' entry = entry { geValue = fn (geValue entry) }
 
-updateSelect :: (Entry a -> (a, Maybe b)) -> Grid a
-                 -> (Grid a, Maybe b)
+updateSelect :: (Entry a -> (a, Maybe b)) -> Grid a -> (Grid a, Maybe b)
 updateSelect fn grid = (grid { gridMap1 = map1' }, result) where
   (result, map1') = IntMap.mapAccum fn' Nothing (gridMap1 grid)
   fn' res entry = let (value', res') = fn entry
@@ -249,19 +234,6 @@ merge grid ents = foldl fn (grid, []) ents where
                         Just gr' -> (gr', es)
 
 -------------------------------------------------------------------------------
--- Utility functions:
-
-rectPositions :: PRect -> [Position]
-rectPositions (Rect x y w h) = range (Point x y, Point (x + w - 1) (y + h - 1))
-
-regenMap2 :: IntMap.IntMap (Entry a) -> Map.Map Position (Key a)
-regenMap2 map1 = Map.fromList $ concatMap fn $ IntMap.elems map1 where
-  fn entry = map (flip (,) $ geKey entry) $ rectPositions $ geRect entry
-
-rekey :: Key a -> Key b
-rekey = Key . fromKey
-
--------------------------------------------------------------------------------
 -- Debug:
 
 valid :: Grid a -> Bool
@@ -272,10 +244,32 @@ valid grid = (all assoc1ok $ IntMap.assocs map1) &&
       intKey < fromKey (gridNextKey grid) &&
       intKey == fromKey (geKey entry) &&
       (all ((Just (geKey entry) ==) . flip Map.lookup map2) $
-       rectPositions $ geRect entry)
+       prectPositions $ geRect entry)
     assoc2ok (pos, Key intKey) =
       maybe False (flip rectContains pos . geRect) $ IntMap.lookup intKey map1
     map1 = gridMap1 grid
     map2 = gridMap2 grid
+
+-------------------------------------------------------------------------------
+-- Private utility functions:
+
+regenMap2 :: IntMap.IntMap (Entry a) -> Map.Map Position (Key a)
+regenMap2 map1 = Map.fromList $ concatMap fn $ IntMap.elems map1 where
+  fn entry = map (flip (,) $ geKey entry) $ prectPositions $ geRect entry
+
+rekey :: Key a -> Key b
+rekey = Key . fromKey
+
+tryAddEntry :: Entry a -> Grid a -> Maybe (Grid a)
+tryAddEntry entry grid =
+  if IntMap.member intkey (gridMap1 grid) || any (occupied grid) positions
+  then Nothing else Just grid' where
+    positions = prectPositions (geRect entry)
+    key = geKey entry
+    intkey = fromKey key
+    grid' = grid { gridNextKey = max (gridNextKey grid) (Key (1 + intkey)),
+                   gridMap1 = IntMap.insert intkey entry (gridMap1 grid),
+                   gridMap2 = Map.unionWith (flip const) (gridMap2 grid) $
+                              Map.fromList $ map (flip (,) key) positions }
 
 -------------------------------------------------------------------------------

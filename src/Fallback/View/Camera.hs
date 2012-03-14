@@ -117,10 +117,9 @@ paintMonsters resources cameraTopleft clock visible eyes = mapM_ paintMonster
     let monst = Grid.geValue entry
     -- If the monster is not on a visible tile, and it's not curently walking
     -- from a visible tile, don't draw it.
-    if all (flip Set.notMember visible) $ Grid.rectPositions rect ++
+    if all (flip Set.notMember visible) $ prectPositions rect ++
        case monstAnim monst of
-         WalkAnim _ _ from ->
-           Grid.rectPositions $ makeRect from $ rectSize rect
+         WalkAnim _ _ from -> prectPositions $ makeRect from $ rectSize rect
          _ -> []
      then return () else do
     -- If the monster is majorly invisible, or otherwise invisible with no

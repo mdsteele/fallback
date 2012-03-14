@@ -34,11 +34,11 @@ module Fallback.Data.Point
    Direction(..), allDirections, cardinalDirections, ipointDir, dirDelta,
    plusDir,
    -- * Position type
-   Position, PRect, adjacent, bresenhamPositions,
+   Position, PRect, adjacent, bresenhamPositions, prectPositions,
    SqDist, ofRadius, rangeTouchesRect)
 where
 
-import Data.Ix (Ix)
+import Data.Ix (Ix, range)
 import Data.List (unfoldr)
 import System.Random (Random(random, randomR))
 import Text.Read (readPrec)
@@ -306,6 +306,11 @@ bresenhamPositions (Point x1'' y1'') (Point x2'' y2'') =
                    else (x + 1, y, err'))
       positions = unfoldr yield (x1, y1, dx `div` 2)
   in if reversed then reverse positions else positions
+
+-- | Return a list of all positions within a position-rectangle.
+prectPositions :: PRect -> [Position]
+prectPositions (Rect x y w h) =
+  range (Point x y, Point (x + w - 1) (y + h - 1))
 
 -- | A squared distance between two positions.
 type SqDist = Int

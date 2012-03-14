@@ -272,7 +272,7 @@ getAbility characterClass abilityNumber level =
               addBoomDoodadAtPosition HealBoom 4 pos
               healCharacter charNum healAmount
             Right monstEntry -> do
-              mapM_ (addBoomDoodadAtPosition HealBoom 4) $ Grid.rectPositions $
+              mapM_ (addBoomDoodadAtPosition HealBoom 4) $ prectPositions $
                 Grid.geRect monstEntry
               healMonster (Grid.geKey monstEntry) healAmount
           wait 1

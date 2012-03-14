@@ -174,7 +174,7 @@ arsIsBlockedForMonster ge ars pos =
   any (rectContains rect') (arsPartyPositions ars) ||
   any ((if mtCanFly $ monstType $ Grid.geValue ge
         then cannotFlyOver else cannotWalkOn) .
-       flip arsTerrainOpenness ars) (Grid.rectPositions rect') ||
+       flip arsTerrainOpenness ars) (prectPositions rect') ||
   not (Grid.couldMove (Grid.geKey ge) rect' $ arsMonsters ars)
   where rect' = makeRect pos $ rectSize $ Grid.geRect ge
 

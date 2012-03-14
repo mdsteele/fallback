@@ -19,10 +19,11 @@
 
 module Fallback.Test.Grid (gridTests) where
 
+import Control.Arrow ((***))
 import Data.List (sort)
 import Test.HUnit ((~:), Test(TestList))
 
-import Fallback.Data.Point (Point(Point), Rect(Rect))
+import Fallback.Data.Point (Point(Point), Rect(Rect), prectPositions)
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Test.Base (insist, insistAll, insistEq)
 
@@ -33,16 +34,27 @@ gridTests = "grid" ~: TestList [
   insist $ Grid.null Grid.empty,
   insist $ Grid.size Grid.empty == 0,
   insist $ Grid.valid Grid.empty,
+  insist $ Grid.valid grid1,
+  insistEq "ABCDEF" $ gvalues grid1,
   insist $ Grid.occupied grid1 (Point 3 2),
   insistEq (Just 'A') $ fmap Grid.geValue $ Grid.search grid1 (Point 3 2),
   insistEq Nothing $ fmap Grid.geValue $ Grid.search grid1 (Point 4 1),
-  insistAll (Grid.rectPositions $ Rect 0 0 7 5) $ \pos ->
+  insistAll (prectPositions $ Rect 0 0 7 5) $ \pos ->
     maybe True (\ge -> Grid.lookup (Grid.geKey ge) grid1 == Just ge)
           (Grid.search grid1 pos),
-  insistEq "ABCF" $ sort $ map Grid.geValue $ Grid.searchRect grid1 $
-                    Rect 3 1 3 3,
-  insistEq "AC" $ sort $ map Grid.geValue $ Grid.searchRect grid1 $
-                  Rect 3 2 2 1]
+  insistEq "ABCF" $ evalues $ Grid.searchRect grid1 $ Rect 3 1 3 3,
+  insistEq "AC" $ evalues $ Grid.searchRect grid1 $ Rect 3 2 2 1,
+  insistEq "BCDEFG" $ gvalues $ Grid.update succ grid1,
+  insistEq (Just 'B') $ fmap Grid.geValue $
+    Grid.search (Grid.update succ grid1) (Point 2 2),
+  insist $ uncurry (&&) $ (Grid.valid *** Grid.valid) $
+    Grid.excise (Rect 2 0 4 2) grid1,
+  insistEq ("AB", "CDEF") $ (gvalues *** gvalues) $
+    Grid.excise (Rect 2 0 4 2) grid1,
+  insist $ uncurry (&&) $ (Grid.valid *** Grid.valid) $
+    Grid.excise (Rect 3 2 3 2) grid1,
+  insistEq ("ACF", "BDE") $ (gvalues *** gvalues) $
+    Grid.excise (Rect 3 2 3 2) grid1]
 
 -------------------------------------------------------------------------------
 
@@ -58,5 +70,11 @@ grid1 = foldr add Grid.empty entries where
              (6, 3, 1, 1, 'D'), (3, 4, 1, 1, 'E'), (5, 3, 1, 2, 'F')]
   add (x, y, w, h, c) grid =
     maybe (error [c]) snd $ Grid.tryInsert (Rect x y w h) c grid
+
+evalues :: (Ord a) => [Grid.Entry a] -> [a]
+evalues = sort . map Grid.geValue
+
+gvalues :: (Ord a) => Grid.Grid a -> [a]
+gvalues = evalues . Grid.entries
 
 -------------------------------------------------------------------------------
