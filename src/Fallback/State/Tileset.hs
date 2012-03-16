@@ -132,10 +132,10 @@ tileSpecs = [
  TileSpec 8983 (Left (0, 4)) TerrainOpen green, -- grass
  TileSpec 2583 (Left (0, 5)) TerrainOpen green, -- grass w/ pebbles
  TileSpec 2938 (Left (0, 6)) TerrainOpen green, -- grass w/ shrubs
- TileSpec 8301 (Left (7, 9)) TerrainWindow green, -- boulder
- TileSpec 8740 (Left (8, 7)) TerrainWindow green, -- small rock pile
- TileSpec 0678 (Left (8, 8)) TerrainWindow green, -- big rock pile left
- TileSpec 8415 (Left (8, 9)) TerrainWindow green, -- big rock pile right
+ TileSpec 8301 (Left (7, 9)) TerrainWindow gray, -- boulder
+ TileSpec 8740 (Left (8, 7)) TerrainWindow gray, -- small rock pile
+ TileSpec 0678 (Left (8, 8)) TerrainWindow gray, -- big rock pile left
+ TileSpec 8415 (Left (8, 9)) TerrainWindow gray, -- big rock pile right
  TileSpec 1397 (Left (7, 11)) TerrainSolid darkgreen, -- big tree dark
  TileSpec 5398 (Left (20, 11)) TerrainSolid darkgreen, -- big tree light
  TileSpec 7100 (Left (20, 10)) TerrainSolid darkgreen, -- two trees
@@ -165,7 +165,7 @@ tileSpecs = [
  TileSpec 8417 (Left (4, 7)) TerrainOpen darkgreen,
 
  TileSpec 3404 (Left (3, 4)) TerrainOpen darkgreen, -- dark grass
- TileSpec 1953 (Left (3, 5)) TerrainWindow darkgreen, -- w/ rocks
+ TileSpec 1953 (Left (3, 5)) TerrainWindow gray, -- w/ rocks
 
  TileSpec 2851 (Left (1, 10)) TerrainSolid brown, -- grass wall
  TileSpec 5871 (Left (1, 11)) TerrainSolid brown,
@@ -311,21 +311,29 @@ tileSpecs = [
  TileSpec 7760 (Left (24, 11)) TerrainOpen green, -- pentagram bottom-left
  TileSpec 1433 (Left (25, 2)) TerrainOpen green, -- pentagram bottom-right
 
- TileSpec 5709 (Left (0, 2)) TerrainOpen gray, -- snow
- TileSpec 3930 (Left (0, 3)) TerrainOpen gray, -- snow w/ three mushrooms
- TileSpec 7591 (Left (7, 4)) TerrainOpen gray, -- snow w/ five mushrooms
- TileSpec 6995 (Left (7, 3)) TerrainWindow gray, -- snow w/ dead shrubs
- TileSpec 2571 (Left (7, 2)) TerrainWindow gray, -- snow w/ dead tree
+ TileSpec 5709 (Left (0, 2)) TerrainOpen lightgray, -- snow
+ TileSpec 3930 (Left (0, 3)) TerrainOpen lightgray, -- snow w/ three mushrooms
+ TileSpec 7591 (Left (7, 4)) TerrainOpen lightgray, -- snow w/ five mushrooms
+ TileSpec 6995 (Left (7, 3)) TerrainWindow lightgray, -- dead shrubs
+ TileSpec 2571 (Left (7, 2)) TerrainWindow lightgray, -- dead tree
+ TileSpec 1332 (Left (1, 0)) TerrainSolid brown, -- big dead tree
+ TileSpec 7122 (Left (1, 1)) TerrainWindow green, -- three evergreens
+ TileSpec 0781 (Left (2, 0)) TerrainSolid darkgreen, -- dense evergreens
  TileSpec 3384 (Left (6, 9)) TerrainWindow gray, -- small rocks
  TileSpec 3236 (Left (6, 10)) TerrainWindow gray, -- big rocks left
  TileSpec 2011 (Left (22, 4)) TerrainWindow gray, -- big rocks center
  TileSpec 8721 (Left (6, 11)) TerrainWindow gray, -- big rocks right
  TileSpec 5390 (Left (24, 7)) TerrainSolid cyan, -- snow w/ ice wall
- TileSpec 9409 (Left (18, 2)) TerrainOpen gray, -- green trash
- TileSpec 9456 (Left (18, 4)) TerrainOpen gray, -- red trash
- TileSpec 1287 (Left (18, 5)) TerrainWindow gray, -- signpost
- TileSpec 4556 (Left (18, 6)) TerrainWindow gray, -- obelisk
+ TileSpec 9409 (Left (18, 2)) TerrainOpen lightgray, -- green trash
+ TileSpec 9456 (Left (18, 4)) TerrainOpen lightgray, -- red trash
+ TileSpec 1287 (Left (18, 5)) TerrainWindow lightgray, -- signpost
+ TileSpec 4556 (Left (18, 6)) TerrainWindow lightgray, -- obelisk
  TileSpec 0563 (Right (((46, 8), (46, 11)), 4)) TerrainWindow orange, -- cmpfir
+
+ TileSpec 7032 (Left (22, 0)) TerrainOpen gray, -- snowy road
+ TileSpec 3714 (Left (22, 1)) TerrainOpen gray,
+ TileSpec 6386 (Left (23, 0)) TerrainOpen gray,
+ TileSpec 3082 (Left (23, 1)) TerrainOpen gray,
 
  TileSpec 5203 (Left (0, 7)) TerrainSolid purple, -- snow wall
  TileSpec 1455 (Left (0, 8)) TerrainSolid purple,
@@ -350,34 +358,46 @@ tileSpecs = [
  TileSpec 3402 (Left (33, 10)) TerrainSolid purple,
  TileSpec 1279 (Left (33, 11)) TerrainSolid purple,
 
- TileSpec 5679 (Left (32, 2)) TerrainOpen gray, -- snow/cave floor
- TileSpec 9193 (Left (32, 3)) TerrainOpen gray,
- TileSpec 1548 (Left (32, 4)) TerrainOpen gray,
- TileSpec 1210 (Left (32, 5)) TerrainOpen gray,
- TileSpec 7007 (Left (32, 6)) TerrainOpen gray,
- TileSpec 5586 (Left (32, 7)) TerrainOpen gray,
- TileSpec 6754 (Left (32, 8)) TerrainOpen gray,
- TileSpec 2158 (Left (32, 9)) TerrainOpen gray,
- TileSpec 4973 (Left (32, 10)) TerrainOpen gray,
- TileSpec 6025 (Left (32, 11)) TerrainOpen gray,
- TileSpec 7303 (Left (33, 2)) TerrainOpen gray,
- TileSpec 5329 (Left (33, 3)) TerrainOpen gray,
+ TileSpec 5679 (Left (32, 2)) TerrainOpen lightgray, -- snow/cave floor
+ TileSpec 9193 (Left (32, 3)) TerrainOpen lightgray,
+ TileSpec 1548 (Left (32, 4)) TerrainOpen lightgray,
+ TileSpec 1210 (Left (32, 5)) TerrainOpen lightgray,
+ TileSpec 7007 (Left (32, 6)) TerrainOpen lightgray,
+ TileSpec 5586 (Left (32, 7)) TerrainOpen lightgray,
+ TileSpec 6754 (Left (32, 8)) TerrainOpen lightgray,
+ TileSpec 2158 (Left (32, 9)) TerrainOpen lightgray,
+ TileSpec 4973 (Left (32, 10)) TerrainOpen lightgray,
+ TileSpec 6025 (Left (32, 11)) TerrainOpen lightgray,
+ TileSpec 7303 (Left (33, 2)) TerrainOpen lightgray,
+ TileSpec 5329 (Left (33, 3)) TerrainOpen lightgray,
 
  TileSpec 1171 (Left (26, 8)) TerrainOpen bluegreen, -- cave floor
  TileSpec 6498 (Left (26, 9)) TerrainOpen bluegreen, -- w/ shrooms
  TileSpec 8959 (Left (28, 11)) TerrainOpen bluegreen, -- w/ shrooms
  TileSpec 4581 (Left (28, 10)) TerrainOpen bluegreen, -- w/ shrooms
  TileSpec 9760 (Left (31, 2)) TerrainOpen bluegreen, -- w/ shrooms
- TileSpec 1376 (Left (28, 5)) TerrainWindow bluegreen, -- small rocks
- TileSpec 0772 (Left (28, 6)) TerrainWindow bluegreen, -- big rocks left
- TileSpec 0179 (Left (29, 2)) TerrainWindow bluegreen, -- big rocks center
- TileSpec 6341 (Left (28, 7)) TerrainWindow bluegreen, -- big rocks right
+ TileSpec 1376 (Left (28, 5)) TerrainWindow gray, -- small rocks
+ TileSpec 0772 (Left (28, 6)) TerrainWindow gray, -- big rocks left
+ TileSpec 0179 (Left (29, 2)) TerrainWindow gray, -- big rocks center
+ TileSpec 6341 (Left (28, 7)) TerrainWindow gray, -- big rocks right
  TileSpec 6109 (Left (29, 5)) TerrainWindow bluegreen, -- stalagmites
  TileSpec 6914 (Left (29, 6)) TerrainWindow bluegreen, -- stalagmites
  TileSpec 7234 (Left (30, 10)) TerrainWindow bluegreen, -- stalagmites
  TileSpec 5653 (Left (30, 11)) TerrainWindow bluegreen, -- stalagmites
  TileSpec 5073 (Left (29, 9)) TerrainOpen bluegreen, -- green trash
  TileSpec 6814 (Left (29, 11)) TerrainOpen bluegreen, -- red trash
+
+ TileSpec 3431 (Left (28, 1)) TerrainOpen gray, -- mine cart tracks
+ TileSpec 4408 (Left (29, 0)) TerrainOpen gray,
+ TileSpec 3899 (Left (29, 1)) TerrainOpen gray,
+ TileSpec 0486 (Left (30, 0)) TerrainOpen gray,
+ TileSpec 2317 (Left (30, 1)) TerrainOpen gray,
+ TileSpec 9224 (Left (31, 0)) TerrainOpen gray,
+ TileSpec 3915 (Left (31, 1)) TerrainOpen gray,
+ TileSpec 8591 (Left (32, 0)) TerrainOpen gray,
+ TileSpec 6079 (Left (32, 1)) TerrainOpen gray,
+ TileSpec 9108 (Left (33, 0)) TerrainOpen gray,
+ TileSpec 3895 (Left (33, 1)) TerrainOpen gray,
 
  TileSpec 1422 (Left (26, 10)) TerrainSolid purple, -- cave wall
  TileSpec 8648 (Left (26, 11)) TerrainSolid purple,
@@ -412,14 +432,13 @@ tileSpecs = [
     darkgreen = Color 0 96 0
     gray = Color 128 128 128
     green = Color 0 128 0
+    lightgray = Color 192 192 192
     magenta = Color 255 0 255
     orange = Color 255 128 0
     purple = Color 64 16 32
     white = whiteColor
 
 -- 7264, 7108, 5376, 1701, 3235, 6921, 4701, 9878, 6996, 2443, 6760, 0295,
--- 4196, 5306, 0545, 6852, 3086, 5892, 7042, 5643, 3895, 9108, 6079, 8591,
--- 3915, 9224, 2317, 0486, 3899, 4408, 3431, 0781, 3082, 6386, 3714, 7032,
--- 7122, 1331
+-- 4196, 5306, 0545, 6852, 3086, 5892, 7042, 5643
 
 -------------------------------------------------------------------------------
