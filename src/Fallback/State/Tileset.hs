@@ -329,6 +329,7 @@ tileSpecs = [
  TileSpec 1287 (Left (18, 5)) TerrainWindow lightgray, -- signpost
  TileSpec 4556 (Left (18, 6)) TerrainWindow lightgray, -- obelisk
  TileSpec 0563 (Right (((46, 8), (46, 11)), 4)) TerrainWindow orange, -- cmpfir
+ TileSpec 5643 (Left (23, 7)) TerrainWindow lightgray, -- stalagmites
 
  TileSpec 7032 (Left (22, 0)) TerrainOpen gray, -- snowy road
  TileSpec 3714 (Left (22, 1)) TerrainOpen gray,
@@ -370,6 +371,7 @@ tileSpecs = [
  TileSpec 6025 (Left (32, 11)) TerrainOpen lightgray,
  TileSpec 7303 (Left (33, 2)) TerrainOpen lightgray,
  TileSpec 5329 (Left (33, 3)) TerrainOpen lightgray,
+ TileSpec 7042 (Left (34, 9)) TerrainOpen lightgray, -- stalagmites
 
  TileSpec 1171 (Left (26, 8)) TerrainOpen bluegreen, -- cave floor
  TileSpec 6498 (Left (26, 9)) TerrainOpen bluegreen, -- w/ shrooms
@@ -380,12 +382,18 @@ tileSpecs = [
  TileSpec 0772 (Left (28, 6)) TerrainWindow gray, -- big rocks left
  TileSpec 0179 (Left (29, 2)) TerrainWindow gray, -- big rocks center
  TileSpec 6341 (Left (28, 7)) TerrainWindow gray, -- big rocks right
+ TileSpec 5892 (Left (29, 3)) TerrainHover blue, -- small pool
  TileSpec 6109 (Left (29, 5)) TerrainWindow bluegreen, -- stalagmites
  TileSpec 6914 (Left (29, 6)) TerrainWindow bluegreen, -- stalagmites
  TileSpec 7234 (Left (30, 10)) TerrainWindow bluegreen, -- stalagmites
  TileSpec 5653 (Left (30, 11)) TerrainWindow bluegreen, -- stalagmites
  TileSpec 5073 (Left (29, 9)) TerrainOpen bluegreen, -- green trash
  TileSpec 6814 (Left (29, 11)) TerrainOpen bluegreen, -- red trash
+ TileSpec 3086 (Left (29, 7)) TerrainWindow bluegreen, -- chest
+ TileSpec 6852 (Left (30, 2)) TerrainWindow bluegreen, -- sign
+ TileSpec 0545 (Left (30, 3)) TerrainWindow bluegreen, -- obelisk
+ TileSpec 5306 (Left (30, 4)) TerrainWindow bluegreen, -- totems
+ TileSpec 4196 (Left (30, 5)) TerrainWindow bluegreen, -- statue
 
  TileSpec 3431 (Left (28, 1)) TerrainOpen gray, -- mine cart tracks
  TileSpec 4408 (Left (29, 0)) TerrainOpen gray,
@@ -438,7 +446,6 @@ tileSpecs = [
     purple = Color 64 16 32
     white = whiteColor
 
--- 7264, 7108, 5376, 1701, 3235, 6921, 4701, 9878, 6996, 2443, 6760, 0295,
--- 4196, 5306, 0545, 6852, 3086, 5892, 7042, 5643
+-- 7264, 7108, 5376, 1701, 3235, 6921, 4701, 9878, 6996, 2443, 6760, 0295
 
 -------------------------------------------------------------------------------
