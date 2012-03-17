@@ -37,6 +37,7 @@ import Fallback.Draw
 import Fallback.Event
 import Fallback.State.Resources (FontTag(..), Resources, rsrcFont)
 import Fallback.State.Terrain
+import Fallback.State.Tileset
 import Fallback.Utility (ceilDiv)
 import Fallback.View.Base
 import Fallback.View.Camera (paintTerrainFullyExplored)
@@ -51,6 +52,7 @@ data EditorAction = ScrollMap IPoint
                   | JumpMapTo Position
                   | ScrollPalette Int
                   | PickTile TerrainTile
+                  | AutoPaintAt Position
                   | PaintAt Position
                   | FloodFill Position
                   | DoLoad
@@ -68,7 +70,8 @@ data EditorState = EditorState
     esPaletteTop :: Int,
     esRedoStack :: [TerrainMap],
     esTerrain :: TerrainMap,
-    esTileset :: Array Int TerrainTile,
+    esTileArray :: Array Int TerrainTile,
+    esTileset :: Tileset,
     esUndoStack :: [TerrainMap],
     esUnsaved :: Bool }
 
@@ -97,8 +100,9 @@ newEditorMapView :: HoverSink (Maybe Position)
 newEditorMapView sink = do
   quiver <- newQuiver
   dragRef <- newDrawRef False
-  keyFRef <- newDrawRef False
+  keyARef <- newDrawRef False
   keyERef <- newDrawRef False
+  keyFRef <- newDrawRef False
   let
 
     paint state = do
@@ -120,10 +124,11 @@ newEditorMapView sink = do
             maybe Ignore (Action . PickTile . tmapGet (esTerrain state)) $
             positionAt state rect pt
        else if fill
-            then return $ maybe Ignore (Action . FloodFill) $
-                 positionAt state rect pt
-            else writeDrawRef dragRef True >> paintAt state rect pt)
+       then return $ maybe Ignore (Action . FloodFill) $
+            positionAt state rect pt
+       else writeDrawRef dragRef True >> paintAt state rect pt)
     handler _ _ (EvMouseUp _) = Ignore <$ writeDrawRef dragRef False
+    handler _ _ (EvKeyDown KeyA _ _) = Suppress <$ writeDrawRef keyARef True
     handler _ _ (EvKeyDown KeyE _ _) = Suppress <$ writeDrawRef keyERef True
     handler _ _ (EvKeyDown KeyF _ _) = Suppress <$ writeDrawRef keyFRef True
     handler _ _ (EvKeyDown KeyO [KeyModCmd] _) = return (Action DoLoad)
@@ -132,6 +137,7 @@ newEditorMapView sink = do
     handler _ _ (EvKeyDown KeyZ [KeyModCmd, KeyModShift] _) =
       return (Action DoRedo)
     handler _ _ (EvKeyDown key _ _) = Ignore <$ quiverKeyDown quiver key
+    handler _ _ (EvKeyUp KeyA) = Ignore <$ writeDrawRef keyARef False
     handler _ _ (EvKeyUp KeyE) = Ignore <$ writeDrawRef keyERef False
     handler _ _ (EvKeyUp KeyF) = Ignore <$ writeDrawRef keyFRef False
     handler _ _ (EvKeyUp key) = Ignore <$ quiverKeyUp quiver key
@@ -141,13 +147,16 @@ newEditorMapView sink = do
     handler _ _ EvBlur = do
       resetQuiver quiver
       writeDrawRef dragRef False
+      writeDrawRef keyARef False
       writeDrawRef keyERef False
       writeDrawRef keyFRef False
       return Ignore
     handler _ _ _ = return Ignore
 
-    paintAt state rect pt = return $ maybe Ignore (Action . PaintAt) $
-                            positionAt state rect pt
+    paintAt state rect pt = do
+      auto <- readDrawRef keyARef
+      let action = if auto then AutoPaintAt else PaintAt
+      return $ maybe Ignore (Action . action) $ positionAt state rect pt
     positionAt state rect pt =
       if not (rectContains rect pt) then Nothing
       else Just $ pointPosition $
@@ -170,7 +179,7 @@ newEditorSidebarView resources ref = do
     -- Palette and scroll bar:
     (subView_ (Rect 12 114 88 340) <$> newEditorPaletteView),
     (subView_ (Rect 12 114 101 340) .
-     vmap (\es -> (0, (snd $ bounds $ esTileset es) `ceilDiv` 3, 9,
+     vmap (\es -> (0, (snd $ bounds $ esTileArray es) `ceilDiv` 3, 9,
                    esPaletteTop es)) .
      fmap ScrollPalette <$> newScrollZone),
     -- Position label:
@@ -199,13 +208,13 @@ newEditorPaletteView = do
       let gap = 2
           numCols = (width + gap) `div` (tileWidth + gap)
           numRows = (height + gap) `div` (tileHeight + gap)
-          (lo, hi) = bounds (esTileset state)
+          (lo, hi) = bounds (esTileArray state)
           start = min hi (esPaletteTop state * numCols + lo + 1)
           rAndT index = let (row, col) = (index - start) `divMod` numCols
                         in (Rect (col * (tileWidth + gap))
                                  (row * (tileHeight + gap))
                                  tileWidth tileHeight,
-                            esTileset state ! index)
+                            esTileArray state ! index)
       in map rAndT $ range (start, min hi (start + numCols * numRows - 1))
 
   return $ View paint handler

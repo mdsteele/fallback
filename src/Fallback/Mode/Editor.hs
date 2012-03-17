@@ -25,7 +25,7 @@ import Control.Applicative ((<$>))
 import Control.Monad (when)
 import Data.Char (isDigit)
 import Data.List (intercalate)
-import Data.Maybe (listToMaybe)
+import Data.Maybe (fromMaybe, listToMaybe)
 import Data.IORef
 import qualified Data.Set as Set
 import qualified Text.ParserCombinators.ReadP as Read
@@ -34,7 +34,6 @@ import Fallback.Constants (screenRect)
 import Fallback.Control.Error (runEO, runIOEO)
 import Fallback.Data.Clock (initClock)
 import Fallback.Data.Point
-  (Point(Point), Position, cardinalDirections, pAdd, plusDir, pZero)
 import Fallback.Draw (paintScreen, runDraw)
 import Fallback.Event
 import Fallback.Mode.Base
@@ -84,6 +83,13 @@ newEditorMode resources = do
         Just (ScrollPalette top) -> alterState $
           es { esPaletteTop = max 0 top }
         Just (PickTile tile) -> alterState es { esBrush = tile }
+        Just (AutoPaintAt pos) -> do
+          let brush = autoPaintTile (esTileset es) (esTerrain es) pos
+          when (ttId (tmapGet (esTerrain es) pos) /= ttId brush) $ do
+            let terrain' = tmapSet [pos] brush (esTerrain es)
+            updateMinimapFromTerrainMap (esMinimap es) terrain' [pos]
+            setTerrain es terrain'
+          return SameMode
         Just (PaintAt pos) -> do
           when (ttId (tmapGet (esTerrain es) pos) /= ttId (esBrush es)) $ do
             let terrain' = tmapSet [pos] (esBrush es) (esTerrain es)
@@ -193,6 +199,36 @@ newEditorMode resources = do
 
 -------------------------------------------------------------------------------
 
+autoPaintTile :: Tileset -> TerrainMap -> Position -> TerrainTile
+autoPaintTile tileset tmap pos =
+  if ttId tile `elem` caveWallIds
+  then case surround caveWallIds of
+         (True, True, True, True, True, True, True, True) -> get 1422
+         (True, _, False, _, True, _, True, _) -> get 8648
+         (False, _, False, _, True, _, True, _) -> get 7655
+         (False, _, True, _, True, _, True, _) -> get 7069
+         (False, _, True, _, True, _, False, _) -> get 9022
+         (True, _, True, _, True, _, False, _) -> get 9090
+         (True, _, True, _, False, _, False, _) -> get 2636
+         (True, _, True, _, False, _, True, _) -> get 8111
+         (True, _, False, _, False, _, True, _) -> get 5652
+         (True, True, True, False, True, True, True, True) -> get 2680
+         (True, True, True, True, True, False, True, True) -> get 9166
+         (True, True, True, True, True, True, True, False) -> get 5750
+         (True, False, True, True, True, True, True, True) -> get 1212
+         _ -> tile
+  else tile
+  where
+    tile = tmapGet tmap pos
+    caveWallIds = [1422, 8648, 7655, 7069, 9022, 9090, 2636, 8111, 5652,
+                   2680, 9166, 5750, 1212]
+    surround ids =
+      let check dir = ttId (tmapGet tmap (pos `plusDir` dir)) `elem` ids
+      in (check DirE, check DirSE, check DirS, check DirSW,
+          check DirW, check DirNW, check DirN, check DirNE)
+    get tid = fromMaybe (error $ "no such tile: " ++ show tid) $
+              tilesetLookup tid tileset
+
 floodFill :: Position -> TerrainTile -> TerrainMap -> (TerrainMap, [Position])
 floodFill start tile tmap =
   let fill [] visited = visited
@@ -222,7 +258,8 @@ newEditorState resources = do
       esPaletteTop = 0,
       esRedoStack = [],
       esTerrain = tmap,
-      esTileset = tilesetArray tileset,
+      esTileArray = tilesetArray tileset, -- TODO remove this field
+      esTileset = tileset,
       esUndoStack = [],
       esUnsaved = False }
 
