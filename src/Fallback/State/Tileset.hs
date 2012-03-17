@@ -18,28 +18,31 @@
 ============================================================================ -}
 
 module Fallback.State.Tileset
-  (TerrainTile(..), TileTag(..),
+  (TerrainTile(..), TileAppearance(..), TileTag(..),
    Tileset, tilesetGet, tilesetLookup, tilesetArray, loadTileset)
 where
 
 import Control.Monad (foldM)
-import Data.Array ((!), Array, Ix, listArray, range, rangeSize)
+import Data.Array (Array, Ix, listArray)
 import qualified Data.Map as Map
 
-import Fallback.Data.Clock (Clock, clockMod)
 import Fallback.Data.Color (Color(Color), blackColor, whiteColor)
 import Fallback.Data.TotalMap (TotalMap, makeTotalMapA, tmGet)
-import Fallback.Draw (Sheet, Sprite)
 import Fallback.State.Simple (TerrainOpenness(..))
 import Fallback.Utility (flip3)
 
 -------------------------------------------------------------------------------
 
-data TerrainTile = TerrainTile
-  { ttColor :: Color,
-    ttId :: Int,
+data TerrainTile = Tile
+  { ttId :: Int,
+    ttAppearance :: TileAppearance,
     ttOpenness :: TerrainOpenness,
-    ttSprite :: Clock -> Sprite }
+    ttColor :: Color }
+
+data TileAppearance = Still !Int !Int
+                    | Anim !Int !Int !Int -- !TileOverlay
+
+--data TileOverlay = NoOverlay | Overlay !Int !Int
 
 -------------------------------------------------------------------------------
 
@@ -89,9 +92,8 @@ tilesetGet tag tileset = tmGet tag $ tilesetTotalMap tileset
 
 -------------------------------------------------------------------------------
 
-loadTileset :: Sheet -> IO Tileset
-loadTileset terrainSheet = do
-  let tilesList = map makeTile tileSpecs
+loadTileset :: IO Tileset
+loadTileset = do
   tilesMap <- flip3 foldM Map.empty tilesList $ \mp tile ->
     if Map.member (ttId tile) mp
     then fail $ "repeat tile ID: " ++ show (ttId tile)
@@ -102,334 +104,316 @@ loadTileset terrainSheet = do
   let tilesArr = listArray (0, length tilesList - 1) tilesList
   return Tileset { tilesetArray = tilesArr, tilesetMap = tilesMap,
                    tilesetTotalMap = tilesTM }
-  where
-    makeTile spec =
-      let fn = case tspecSprite spec of
-                 Left loc -> const (terrainSheet ! loc)
-                 Right (rang, slowdown) ->
-                   let size = rangeSize rang
-                       images = listArray (0, size - 1) $
-                                map (terrainSheet !) $ range rang
-                   in ((images :: Array Int Sprite) !) . clockMod size slowdown
-      in TerrainTile { ttColor = tspecColor spec, ttId = tspecId spec,
-                       ttOpenness = tspecOpenness spec, ttSprite = fn }
 
 -------------------------------------------------------------------------------
 
-data TileSpec = TileSpec
-  { tspecId :: Int,
-    tspecSprite :: Either (Int, Int) (((Int, Int), (Int, Int)), Int),
-    tspecOpenness :: TerrainOpenness,
-    tspecColor :: Color }
-
 -- Tile IDs must be unique in this list.  The loadTileset function will verify
 -- that this is so.
-tileSpecs :: [TileSpec]
-tileSpecs = [
- TileSpec 0000 (Left (0, 0)) TerrainSolid black, -- unexplored
- TileSpec 0001 (Left (0, 1)) TerrainSolid magenta, -- null tile
+tilesList :: [TerrainTile]
+tilesList = [
+ Tile 0000 (Still 0 0) TerrainSolid black, -- unexplored
+ Tile 0001 (Still 0 1) TerrainSolid magenta, -- null tile
 
- TileSpec 8983 (Left (0, 4)) TerrainOpen green, -- grass
- TileSpec 2583 (Left (0, 5)) TerrainOpen green, -- grass w/ pebbles
- TileSpec 2938 (Left (0, 6)) TerrainOpen green, -- grass w/ shrubs
- TileSpec 8301 (Left (7, 9)) TerrainWindow gray, -- boulder
- TileSpec 8740 (Left (8, 7)) TerrainWindow gray, -- small rock pile
- TileSpec 0678 (Left (8, 8)) TerrainWindow gray, -- big rock pile left
- TileSpec 8415 (Left (8, 9)) TerrainWindow gray, -- big rock pile right
- TileSpec 1397 (Left (7, 11)) TerrainSolid darkgreen, -- big tree dark
- TileSpec 5398 (Left (20, 11)) TerrainSolid darkgreen, -- big tree light
- TileSpec 7100 (Left (20, 10)) TerrainSolid darkgreen, -- two trees
- TileSpec 5308 (Left (8, 2)) TerrainSolid darkgreen, -- dense trees
- TileSpec 7966 (Left (8, 3)) TerrainWindow green, -- sparse trees
- TileSpec 0723 (Left (8, 4)) TerrainWindow green, -- small tree
- TileSpec 8596 (Left (21, 4)) TerrainOpen green, -- six small bushes
- TileSpec 8799 (Left (22, 9)) TerrainWindow green, -- signpost
+ Tile 8983 (Still 0 4) TerrainOpen green, -- grass
+ Tile 2583 (Still 0 5) TerrainOpen green, -- grass w/ pebbles
+ Tile 2938 (Still 0 6) TerrainOpen green, -- grass w/ shrubs
+ Tile 8301 (Still 7 9) TerrainWindow gray, -- boulder
+ Tile 8740 (Still 8 7) TerrainWindow gray, -- small rock pile
+ Tile 0678 (Still 8 8) TerrainWindow gray, -- big rock pile left
+ Tile 8415 (Still 8 9) TerrainWindow gray, -- big rock pile right
+ Tile 1397 (Still 7 11) TerrainSolid darkgreen, -- big tree dark
+ Tile 5398 (Still 20 11) TerrainSolid darkgreen, -- big tree light
+ Tile 7100 (Still 20 10) TerrainSolid darkgreen, -- two trees
+ Tile 5308 (Still 8 2) TerrainSolid darkgreen, -- dense trees
+ Tile 7966 (Still 8 3) TerrainWindow green, -- sparse trees
+ Tile 0723 (Still 8 4) TerrainWindow green, -- small tree
+ Tile 8596 (Still 21 4) TerrainOpen green, -- six small bushes
+ Tile 8799 (Still 22 9) TerrainWindow green, -- signpost
 
- TileSpec 2276 (Left (21, 7)) TerrainOpen gray, -- stone road
- TileSpec 8769 (Left (20, 0)) TerrainOpen gray,
- TileSpec 6164 (Left (20, 1)) TerrainOpen gray,
- TileSpec 6847 (Left (21, 0)) TerrainOpen gray,
- TileSpec 6145 (Left (21, 1)) TerrainOpen gray,
+ Tile 2276 (Still 21 7) TerrainOpen gray, -- stone road
+ Tile 8769 (Still 20 0) TerrainOpen gray,
+ Tile 6164 (Still 20 1) TerrainOpen gray,
+ Tile 6847 (Still 21 0) TerrainOpen gray,
+ Tile 6145 (Still 21 1) TerrainOpen gray,
 
- TileSpec 1783 (Left (3, 6)) TerrainOpen darkgreen, -- dark/grass border
- TileSpec 8052 (Left (3, 7)) TerrainOpen darkgreen,
- TileSpec 6875 (Left (3, 8)) TerrainOpen darkgreen,
- TileSpec 2628 (Left (3, 9)) TerrainOpen darkgreen,
- TileSpec 1435 (Left (3, 10)) TerrainOpen darkgreen,
- TileSpec 3002 (Left (3, 11)) TerrainOpen darkgreen,
- TileSpec 7912 (Left (4, 2)) TerrainOpen darkgreen,
- TileSpec 3602 (Left (4, 3)) TerrainOpen darkgreen,
- TileSpec 7088 (Left (4, 4)) TerrainOpen darkgreen,
- TileSpec 3632 (Left (4, 5)) TerrainOpen darkgreen,
- TileSpec 7401 (Left (4, 6)) TerrainOpen darkgreen,
- TileSpec 8417 (Left (4, 7)) TerrainOpen darkgreen,
+ Tile 1783 (Still 3 6) TerrainOpen darkgreen, -- dark/grass border
+ Tile 8052 (Still 3 7) TerrainOpen darkgreen,
+ Tile 6875 (Still 3 8) TerrainOpen darkgreen,
+ Tile 2628 (Still 3 9) TerrainOpen darkgreen,
+ Tile 1435 (Still 3 10) TerrainOpen darkgreen,
+ Tile 3002 (Still 3 11) TerrainOpen darkgreen,
+ Tile 7912 (Still 4 2) TerrainOpen darkgreen,
+ Tile 3602 (Still 4 3) TerrainOpen darkgreen,
+ Tile 7088 (Still 4 4) TerrainOpen darkgreen,
+ Tile 3632 (Still 4 5) TerrainOpen darkgreen,
+ Tile 7401 (Still 4 6) TerrainOpen darkgreen,
+ Tile 8417 (Still 4 7) TerrainOpen darkgreen,
 
- TileSpec 3404 (Left (3, 4)) TerrainOpen darkgreen, -- dark grass
- TileSpec 1953 (Left (3, 5)) TerrainWindow gray, -- w/ rocks
+ Tile 3404 (Still 3 4) TerrainOpen darkgreen, -- dark grass
+ Tile 1953 (Still 3 5) TerrainWindow gray, -- w/ rocks
 
- TileSpec 2851 (Left (1, 10)) TerrainSolid brown, -- grass wall
- TileSpec 5871 (Left (1, 11)) TerrainSolid brown,
- TileSpec 4461 (Left (2, 2)) TerrainSolid brown,
- TileSpec 8920 (Left (2, 3)) TerrainSolid brown,
- TileSpec 5255 (Left (2, 4)) TerrainSolid brown,
- TileSpec 3054 (Left (2, 5)) TerrainSolid brown,
- TileSpec 5504 (Left (2, 6)) TerrainSolid brown,
- TileSpec 1491 (Left (2, 7)) TerrainSolid brown,
- TileSpec 1825 (Left (2, 8)) TerrainSolid brown,
- TileSpec 6055 (Left (2, 9)) TerrainSolid brown,
- TileSpec 3302 (Left (2, 10)) TerrainSolid brown,
- TileSpec 3597 (Left (2, 11)) TerrainSolid brown,
- TileSpec 6745 (Left (3, 2)) TerrainSolid brown,
- TileSpec 3394 (Left (3, 3)) TerrainSolid brown,
+ Tile 2851 (Still 1 10) TerrainSolid brown, -- grass wall
+ Tile 5871 (Still 1 11) TerrainSolid brown,
+ Tile 4461 (Still 2 2) TerrainSolid brown,
+ Tile 8920 (Still 2 3) TerrainSolid brown,
+ Tile 5255 (Still 2 4) TerrainSolid brown,
+ Tile 3054 (Still 2 5) TerrainSolid brown,
+ Tile 5504 (Still 2 6) TerrainSolid brown,
+ Tile 1491 (Still 2 7) TerrainSolid brown,
+ Tile 1825 (Still 2 8) TerrainSolid brown,
+ Tile 6055 (Still 2 9) TerrainSolid brown,
+ Tile 3302 (Still 2 10) TerrainSolid brown,
+ Tile 3597 (Still 2 11) TerrainSolid brown,
+ Tile 6745 (Still 3 2) TerrainSolid brown,
+ Tile 3394 (Still 3 3) TerrainSolid brown,
 
- TileSpec 4181 (Left (4, 8)) TerrainHover blue, -- ocean
- TileSpec 7279 (Left (4, 9)) TerrainHover blue, -- shore
- TileSpec 1729 (Left (4, 10)) TerrainHover blue,
- TileSpec 3908 (Left (4, 11)) TerrainHover blue,
- TileSpec 1479 (Left (5, 2)) TerrainHover blue,
- TileSpec 6744 (Left (5, 3)) TerrainHover blue,
- TileSpec 8336 (Left (5, 4)) TerrainHover blue,
- TileSpec 4855 (Left (5, 5)) TerrainHover blue,
- TileSpec 9373 (Left (5, 6)) TerrainHover blue,
- TileSpec 5854 (Left (5, 7)) TerrainHover blue,
- TileSpec 1359 (Left (5, 8)) TerrainHover blue,
- TileSpec 5285 (Left (5, 9)) TerrainHover blue,
- TileSpec 6087 (Left (5, 10)) TerrainHover blue,
- TileSpec 2467 (Left (5, 11)) TerrainHover blue,
- TileSpec 9702 (Left (6, 2)) TerrainHover blue,
+ Tile 4181 (Still 4 8) TerrainHover blue, -- ocean
+ Tile 7279 (Still 4 9) TerrainHover blue, -- shore
+ Tile 1729 (Still 4 10) TerrainHover blue,
+ Tile 3908 (Still 4 11) TerrainHover blue,
+ Tile 1479 (Still 5 2) TerrainHover blue,
+ Tile 6744 (Still 5 3) TerrainHover blue,
+ Tile 8336 (Still 5 4) TerrainHover blue,
+ Tile 4855 (Still 5 5) TerrainHover blue,
+ Tile 9373 (Still 5 6) TerrainHover blue,
+ Tile 5854 (Still 5 7) TerrainHover blue,
+ Tile 1359 (Still 5 8) TerrainHover blue,
+ Tile 5285 (Still 5 9) TerrainHover blue,
+ Tile 6087 (Still 5 10) TerrainHover blue,
+ Tile 2467 (Still 5 11) TerrainHover blue,
+ Tile 9702 (Still 6 2) TerrainHover blue,
 
- TileSpec 3320 (Left (6, 3)) TerrainOpen gray, -- bridge
- TileSpec 7779 (Left (6, 4)) TerrainOpen gray,
- TileSpec 0387 (Left (6, 5)) TerrainOpen gray,
- TileSpec 3226 (Left (6, 6)) TerrainOpen gray,
- TileSpec 0153 (Left (6, 7)) TerrainOpen gray,
- TileSpec 7584 (Left (6, 8)) TerrainOpen gray,
+ Tile 3320 (Still 6 3) TerrainOpen gray, -- bridge
+ Tile 7779 (Still 6 4) TerrainOpen gray,
+ Tile 0387 (Still 6 5) TerrainOpen gray,
+ Tile 3226 (Still 6 6) TerrainOpen gray,
+ Tile 0153 (Still 6 7) TerrainOpen gray,
+ Tile 7584 (Still 6 8) TerrainOpen gray,
 
- TileSpec 7292 (Left (8, 10)) TerrainSolid white, -- stone wall
- TileSpec 3112 (Left (8, 11)) TerrainSmoke white, -- stone secret door
- TileSpec 5588 (Left (9, 2)) TerrainSolid gray, -- stone closed door
- TileSpec 0983 (Left (9, 3)) TerrainOpen gray, -- stone open door
- TileSpec 2330 (Left (9, 4)) TerrainWindow gray, -- stone closed gate
- TileSpec 5719 (Left (9, 5)) TerrainOpen gray, -- stone open gate
- TileSpec 3254 (Left (9, 6)) TerrainSolid white, -- stone sign
- TileSpec 6250 (Left (9, 7)) TerrainSolid white, -- stone crack
- TileSpec 0111 (Left (9, 8)) TerrainSolid white, -- stone dirty
- TileSpec 7883 (Left (9, 9)) TerrainSolid white, -- stone decoration
- TileSpec 9398 (Left (9, 10)) TerrainSolid white, -- stone painting
- TileSpec 3037 (Left (9, 11)) TerrainWindow white, -- stone window
+ Tile 7292 (Still 8 10) TerrainSolid white, -- stone wall
+ Tile 3112 (Still 8 11) TerrainSmoke white, -- stone secret door
+ Tile 5588 (Still 9 2) TerrainSolid gray, -- stone closed door
+ Tile 0983 (Still 9 3) TerrainOpen gray, -- stone open door
+ Tile 2330 (Still 9 4) TerrainWindow gray, -- stone closed gate
+ Tile 5719 (Still 9 5) TerrainOpen gray, -- stone open gate
+ Tile 3254 (Still 9 6) TerrainSolid white, -- stone sign
+ Tile 6250 (Still 9 7) TerrainSolid white, -- stone crack
+ Tile 0111 (Still 9 8) TerrainSolid white, -- stone dirty
+ Tile 7883 (Still 9 9) TerrainSolid white, -- stone decoration
+ Tile 9398 (Still 9 10) TerrainSolid white, -- stone painting
+ Tile 3037 (Still 9 11) TerrainWindow white, -- stone window
 
- TileSpec 7791 (Left (10, 2)) TerrainSolid white, -- basalt wall
- TileSpec 1306 (Left (10, 3)) TerrainSmoke white, -- basalt secret door
- TileSpec 6933 (Left (10, 4)) TerrainSolid gray, -- basalt closed door
- TileSpec 6383 (Left (10, 5)) TerrainOpen gray, -- basalt open door
- TileSpec 0865 (Left (10, 6)) TerrainWindow gray, -- basalt closed gate
- TileSpec 7148 (Left (10, 7)) TerrainOpen gray, -- basalt open gate
- TileSpec 9011 (Left (10, 8)) TerrainSolid white, -- basalt sign
- TileSpec 6051 (Left (10, 9)) TerrainSolid white, -- basalt crack
- TileSpec 6455 (Left (10, 10)) TerrainSolid white, -- basalt dirty
- TileSpec 0170 (Left (10, 11)) TerrainWindow white, -- basalt window
+ Tile 7791 (Still 10 2) TerrainSolid white, -- basalt wall
+ Tile 1306 (Still 10 3) TerrainSmoke white, -- basalt secret door
+ Tile 6933 (Still 10 4) TerrainSolid gray, -- basalt closed door
+ Tile 6383 (Still 10 5) TerrainOpen gray, -- basalt open door
+ Tile 0865 (Still 10 6) TerrainWindow gray, -- basalt closed gate
+ Tile 7148 (Still 10 7) TerrainOpen gray, -- basalt open gate
+ Tile 9011 (Still 10 8) TerrainSolid white, -- basalt sign
+ Tile 6051 (Still 10 9) TerrainSolid white, -- basalt crack
+ Tile 6455 (Still 10 10) TerrainSolid white, -- basalt dirty
+ Tile 0170 (Still 10 11) TerrainWindow white, -- basalt window
 
- TileSpec 1752 (Left (11, 2)) TerrainSolid white, -- adobe wall
- TileSpec 5489 (Left (11, 3)) TerrainSmoke white, -- adobe secret door
- TileSpec 3891 (Left (11, 4)) TerrainSolid gray, -- adobe closed door
- TileSpec 2993 (Left (11, 5)) TerrainOpen gray, -- adobe open door
- TileSpec 8625 (Left (11, 6)) TerrainWindow gray, -- adobe closed gate
- TileSpec 0605 (Left (11, 7)) TerrainOpen gray, -- adobe open gate
- TileSpec 0364 (Left (11, 8)) TerrainSolid white, -- adobe sign
- TileSpec 7185 (Left (11, 9)) TerrainSolid white, -- adobe crack
- TileSpec 1814 (Left (11, 10)) TerrainSolid white, -- adobe dirty
- TileSpec 3403 (Left (11, 11)) TerrainSolid white, -- adobe decoration
- TileSpec 5216 (Left (12, 2)) TerrainWindow white, -- adobe window
+ Tile 1752 (Still 11 2) TerrainSolid white, -- adobe wall
+ Tile 5489 (Still 11 3) TerrainSmoke white, -- adobe secret door
+ Tile 3891 (Still 11 4) TerrainSolid gray, -- adobe closed door
+ Tile 2993 (Still 11 5) TerrainOpen gray, -- adobe open door
+ Tile 8625 (Still 11 6) TerrainWindow gray, -- adobe closed gate
+ Tile 0605 (Still 11 7) TerrainOpen gray, -- adobe open gate
+ Tile 0364 (Still 11 8) TerrainSolid white, -- adobe sign
+ Tile 7185 (Still 11 9) TerrainSolid white, -- adobe crack
+ Tile 1814 (Still 11 10) TerrainSolid white, -- adobe dirty
+ Tile 3403 (Still 11 11) TerrainSolid white, -- adobe decoration
+ Tile 5216 (Still 12 2) TerrainWindow white, -- adobe window
 
- TileSpec 8559 (Left (13, 0)) TerrainOpen darkgray, -- stairs up
- TileSpec 5724 (Left (13, 1)) TerrainOpen darkgray, -- stairs up
- TileSpec 9605 (Left (14, 0)) TerrainOpen darkgray, -- stairs down
- TileSpec 4839 (Left (14, 1)) TerrainOpen darkgray, -- stairs down
- TileSpec 0832 (Left (15, 0)) TerrainHover black, -- pit
+ Tile 8559 (Still 13 0) TerrainOpen darkgray, -- stairs up
+ Tile 5724 (Still 13 1) TerrainOpen darkgray, -- stairs up
+ Tile 9605 (Still 14 0) TerrainOpen darkgray, -- stairs down
+ Tile 4839 (Still 14 1) TerrainOpen darkgray, -- stairs down
+ Tile 0832 (Still 15 0) TerrainHover black, -- pit
 
- TileSpec 8222 (Left (12, 5)) TerrainOpen gray, -- stone floor
- TileSpec 0957 (Left (6, 0)) TerrainOpen gray,
- TileSpec 9622 (Left (6, 1)) TerrainOpen gray,
- TileSpec 2040 (Left (7, 0)) TerrainOpen gray,
- TileSpec 6842 (Left (7, 1)) TerrainOpen gray,
- TileSpec 6296 (Left (8, 0)) TerrainOpen gray,
- TileSpec 7558 (Left (8, 1)) TerrainOpen gray,
- TileSpec 5948 (Left (9, 0)) TerrainOpen gray,
- TileSpec 8510 (Left (9, 1)) TerrainOpen gray,
- TileSpec 4219 (Left (10, 0)) TerrainOpen gray,
- TileSpec 2097 (Left (10, 1)) TerrainOpen gray,
- TileSpec 8859 (Left (11, 0)) TerrainOpen gray,
- TileSpec 2411 (Left (11, 1)) TerrainOpen gray,
+ Tile 8222 (Still 12 5) TerrainOpen gray, -- stone floor
+ Tile 0957 (Still 6 0) TerrainOpen gray,
+ Tile 9622 (Still 6 1) TerrainOpen gray,
+ Tile 2040 (Still 7 0) TerrainOpen gray,
+ Tile 6842 (Still 7 1) TerrainOpen gray,
+ Tile 6296 (Still 8 0) TerrainOpen gray,
+ Tile 7558 (Still 8 1) TerrainOpen gray,
+ Tile 5948 (Still 9 0) TerrainOpen gray,
+ Tile 8510 (Still 9 1) TerrainOpen gray,
+ Tile 4219 (Still 10 0) TerrainOpen gray,
+ Tile 2097 (Still 10 1) TerrainOpen gray,
+ Tile 8859 (Still 11 0) TerrainOpen gray,
+ Tile 2411 (Still 11 1) TerrainOpen gray,
 
- TileSpec 1602 (Right (((47, 8), (47, 11)), 4)) TerrainOpen gray, -- torch
- TileSpec 6808 (Right (((48, 8), (48, 11)), 4)) TerrainOpen gray, -- torch
- TileSpec 6445 (Left (12, 6)) TerrainOpen gray, -- rune
- TileSpec 2349 (Left (12, 7)) TerrainWindow gray, -- pedestal
- TileSpec 4183 (Left (12, 8)) TerrainWindow gray, -- desk
- TileSpec 7723 (Left (13, 2)) TerrainWindow gray, -- book on pedestal
- TileSpec 4645 (Left (13, 3)) TerrainWindow gray, -- column
- TileSpec 9307 (Left (13, 4)) TerrainWindow gray, -- potted plant
- TileSpec 7551 (Left (13, 5)) TerrainWindow gray, -- statue
- TileSpec 2983 (Left (13, 7)) TerrainSolid brown, -- bookcase
- TileSpec 7576 (Left (25, 4)) TerrainWindow gray, -- shelving
- TileSpec 9720 (Left (12, 9)) TerrainWindow gray, -- table (east end)
- TileSpec 9689 (Left (12, 10)) TerrainWindow gray, -- table (east/west)
- TileSpec 8593 (Left (12, 11)) TerrainWindow gray, -- table (west end)
- TileSpec 8590 (Left (15, 2)) TerrainWindow gray, -- table (north end)
- TileSpec 9381 (Left (15, 3)) TerrainWindow gray, -- table (north/south)
- TileSpec 4094 (Left (15, 4)) TerrainWindow gray, -- table (south end)
- TileSpec 2367 (Left (13, 10)) TerrainWindow gray, -- chest
- TileSpec 9475 (Left (13, 11)) TerrainOpen gray, -- chair
- TileSpec 2060 (Left (14, 2)) TerrainOpen gray, -- chair
- TileSpec 2118 (Left (14, 3)) TerrainOpen gray, -- chair
- TileSpec 5736 (Left (14, 4)) TerrainOpen gray, -- chair
- TileSpec 0422 (Left (14, 5)) TerrainWindow gray, -- bed
- TileSpec 4530 (Left (23, 2)) TerrainWindow gray, -- bed w/ person
- TileSpec 8329 (Left (14, 6)) TerrainWindow gray, -- throne
- TileSpec 1231 (Left (14, 7)) TerrainWindow gray, -- dresser
- TileSpec 9028 (Left (15, 5)) TerrainWindow gray, -- cauldron
- TileSpec 1969 (Left (15, 7)) TerrainOpen gray, -- rug
- TileSpec 7555 (Left (15, 8)) TerrainWindow gray, -- anvil
- TileSpec 0761 (Left (21, 5)) TerrainOpen gray, -- lever right
- TileSpec 7991 (Left (21, 6)) TerrainOpen gray, -- lever left
- TileSpec 4682 (Left (44, 11)) TerrainWindow gray, -- wheel
- TileSpec 3813 (Left (12, 1)) TerrainOpen gray, -- stone floor w/ snow
+ Tile 1602 (Anim 47 8 4) TerrainOpen gray, -- torch
+ Tile 6808 (Anim 48 8 4) TerrainOpen gray, -- torch
+ Tile 6445 (Still 12 6) TerrainOpen gray, -- rune
+ Tile 2349 (Still 12 7) TerrainWindow gray, -- pedestal
+ Tile 4183 (Still 12 8) TerrainWindow gray, -- desk
+ Tile 7723 (Still 13 2) TerrainWindow gray, -- book on pedestal
+ Tile 4645 (Still 13 3) TerrainWindow gray, -- column
+ Tile 9307 (Still 13 4) TerrainWindow gray, -- potted plant
+ Tile 7551 (Still 13 5) TerrainWindow gray, -- statue
+ Tile 2983 (Still 13 7) TerrainSolid brown, -- bookcase
+ Tile 7576 (Still 25 4) TerrainWindow gray, -- shelving
+ Tile 9720 (Still 12 9) TerrainWindow gray, -- table (east end)
+ Tile 9689 (Still 12 10) TerrainWindow gray, -- table (east/west)
+ Tile 8593 (Still 12 11) TerrainWindow gray, -- table (west end)
+ Tile 8590 (Still 15 2) TerrainWindow gray, -- table (north end)
+ Tile 9381 (Still 15 3) TerrainWindow gray, -- table (north/south)
+ Tile 4094 (Still 15 4) TerrainWindow gray, -- table (south end)
+ Tile 2367 (Still 13 10) TerrainWindow gray, -- chest
+ Tile 9475 (Still 13 11) TerrainOpen gray, -- chair
+ Tile 2060 (Still 14 2) TerrainOpen gray, -- chair
+ Tile 2118 (Still 14 3) TerrainOpen gray, -- chair
+ Tile 5736 (Still 14 4) TerrainOpen gray, -- chair
+ Tile 0422 (Still 14 5) TerrainWindow gray, -- bed
+ Tile 4530 (Still 23 2) TerrainWindow gray, -- bed w/ person
+ Tile 8329 (Still 14 6) TerrainWindow gray, -- throne
+ Tile 1231 (Still 14 7) TerrainWindow gray, -- dresser
+ Tile 9028 (Still 15 5) TerrainWindow gray, -- cauldron
+ Tile 1969 (Still 15 7) TerrainOpen gray, -- rug
+ Tile 7555 (Still 15 8) TerrainWindow gray, -- anvil
+ Tile 0761 (Still 21 5) TerrainOpen gray, -- lever right
+ Tile 7991 (Still 21 6) TerrainOpen gray, -- lever left
+ Tile 4682 (Still 44 11) TerrainWindow gray, -- wheel
+ Tile 3813 (Still 12 1) TerrainOpen gray, -- stone floor w/ snow
 
- TileSpec 0040 (Left (15, 9)) TerrainOpen gray, -- white tile floor
- TileSpec 6711 (Left (16, 4)) TerrainWindow gray, -- column
+ Tile 0040 (Still 15 9) TerrainOpen gray, -- white tile floor
+ Tile 6711 (Still 16 4) TerrainWindow gray, -- column
 
- TileSpec 4252 (Left (16, 5)) TerrainOpen green, -- green tile floor
- TileSpec 5404 (Left (16, 8)) TerrainOpen green, -- rug
- TileSpec 9056 (Left (16, 9)) TerrainWindow cyan, -- small ice crystal
- TileSpec 9349 (Left (24, 8)) TerrainWindow cyan, -- ice column
- TileSpec 4357 (Left (21, 11)) TerrainSolid cyan, -- large ice crystal
- TileSpec 7021 (Left (17, 2)) TerrainOpen green, -- rune
- TileSpec 5215 (Left (17, 3)) TerrainWindow green, -- throne
- TileSpec 3038 (Left (17, 9)) TerrainHover green, -- fire pit
- TileSpec 5664 (Left (24, 9)) TerrainOpen green, -- pentagram top-left
- TileSpec 7118 (Left (24, 10)) TerrainOpen green, -- pentagram top-right
- TileSpec 7760 (Left (24, 11)) TerrainOpen green, -- pentagram bottom-left
- TileSpec 1433 (Left (25, 2)) TerrainOpen green, -- pentagram bottom-right
+ Tile 4252 (Still 16 5) TerrainOpen green, -- green tile floor
+ Tile 5404 (Still 16 8) TerrainOpen green, -- rug
+ Tile 9056 (Still 16 9) TerrainWindow cyan, -- small ice crystal
+ Tile 9349 (Still 24 8) TerrainWindow cyan, -- ice column
+ Tile 4357 (Still 21 11) TerrainSolid cyan, -- large ice crystal
+ Tile 7021 (Still 17 2) TerrainOpen green, -- rune
+ Tile 5215 (Still 17 3) TerrainWindow green, -- throne
+ Tile 3038 (Still 17 9) TerrainHover green, -- fire pit
+ Tile 5664 (Still 24 9) TerrainOpen green, -- pentagram top-left
+ Tile 7118 (Still 24 10) TerrainOpen green, -- pentagram top-right
+ Tile 7760 (Still 24 11) TerrainOpen green, -- pentagram bottom-left
+ Tile 1433 (Still 25 2) TerrainOpen green, -- pentagram bottom-right
 
- TileSpec 5709 (Left (0, 2)) TerrainOpen lightgray, -- snow
- TileSpec 3930 (Left (0, 3)) TerrainOpen lightgray, -- snow w/ three mushrooms
- TileSpec 7591 (Left (7, 4)) TerrainOpen lightgray, -- snow w/ five mushrooms
- TileSpec 6995 (Left (7, 3)) TerrainWindow lightgray, -- dead shrubs
- TileSpec 2571 (Left (7, 2)) TerrainWindow lightgray, -- dead tree
- TileSpec 1332 (Left (1, 0)) TerrainSolid brown, -- big dead tree
- TileSpec 7122 (Left (1, 1)) TerrainWindow green, -- three evergreens
- TileSpec 0781 (Left (2, 0)) TerrainSolid darkgreen, -- dense evergreens
- TileSpec 3384 (Left (6, 9)) TerrainWindow gray, -- small rocks
- TileSpec 3236 (Left (6, 10)) TerrainWindow gray, -- big rocks left
- TileSpec 2011 (Left (22, 4)) TerrainWindow gray, -- big rocks center
- TileSpec 8721 (Left (6, 11)) TerrainWindow gray, -- big rocks right
- TileSpec 5390 (Left (24, 7)) TerrainSolid cyan, -- snow w/ ice wall
- TileSpec 9409 (Left (18, 2)) TerrainOpen lightgray, -- green trash
- TileSpec 9456 (Left (18, 4)) TerrainOpen lightgray, -- red trash
- TileSpec 1287 (Left (18, 5)) TerrainWindow lightgray, -- signpost
- TileSpec 4556 (Left (18, 6)) TerrainWindow lightgray, -- obelisk
- TileSpec 0563 (Right (((46, 8), (46, 11)), 4)) TerrainWindow orange, -- cmpfir
- TileSpec 5643 (Left (23, 7)) TerrainWindow lightgray, -- stalagmites
+ Tile 5709 (Still 0 2) TerrainOpen lightgray, -- snow
+ Tile 3930 (Still 0 3) TerrainOpen lightgray, -- snow w/ three mushrooms
+ Tile 7591 (Still 7 4) TerrainOpen lightgray, -- snow w/ five mushrooms
+ Tile 6995 (Still 7 3) TerrainWindow lightgray, -- dead shrubs
+ Tile 2571 (Still 7 2) TerrainWindow lightgray, -- dead tree
+ Tile 1332 (Still 1 0) TerrainSolid brown, -- big dead tree
+ Tile 7122 (Still 1 1) TerrainWindow green, -- three evergreens
+ Tile 0781 (Still 2 0) TerrainSolid darkgreen, -- dense evergreens
+ Tile 3384 (Still 6 9) TerrainWindow gray, -- small rocks
+ Tile 3236 (Still 6 10) TerrainWindow gray, -- big rocks left
+ Tile 2011 (Still 22 4) TerrainWindow gray, -- big rocks center
+ Tile 8721 (Still 6 11) TerrainWindow gray, -- big rocks right
+ Tile 5390 (Still 24 7) TerrainSolid cyan, -- snow w/ ice wall
+ Tile 9409 (Still 18 2) TerrainOpen lightgray, -- green trash
+ Tile 9456 (Still 18 4) TerrainOpen lightgray, -- red trash
+ Tile 1287 (Still 18 5) TerrainWindow lightgray, -- signpost
+ Tile 4556 (Still 18 6) TerrainWindow lightgray, -- obelisk
+ Tile 0563 (Anim 46 8 4) TerrainWindow orange, -- campfire
+ Tile 5643 (Still 23 7) TerrainWindow lightgray, -- stalagmites
 
- TileSpec 7032 (Left (22, 0)) TerrainOpen gray, -- snowy road
- TileSpec 3714 (Left (22, 1)) TerrainOpen gray,
- TileSpec 6386 (Left (23, 0)) TerrainOpen gray,
- TileSpec 3082 (Left (23, 1)) TerrainOpen gray,
+ Tile 7032 (Still 22 0) TerrainOpen gray, -- snowy road
+ Tile 3714 (Still 22 1) TerrainOpen gray,
+ Tile 6386 (Still 23 0) TerrainOpen gray,
+ Tile 3082 (Still 23 1) TerrainOpen gray,
 
- TileSpec 5203 (Left (0, 7)) TerrainSolid purple, -- snow wall
- TileSpec 1455 (Left (0, 8)) TerrainSolid purple,
- TileSpec 6668 (Left (0, 9)) TerrainSolid purple,
- TileSpec 6722 (Left (0, 10)) TerrainSolid purple,
- TileSpec 0245 (Left (0, 11)) TerrainSolid purple,
- TileSpec 2645 (Left (1, 2)) TerrainSolid purple,
- TileSpec 0059 (Left (1, 3)) TerrainSolid purple,
- TileSpec 8854 (Left (1, 4)) TerrainSolid purple,
- TileSpec 0941 (Left (1, 5)) TerrainSolid purple,
- TileSpec 4238 (Left (1, 6)) TerrainSolid purple,
- TileSpec 1331 (Left (1, 7)) TerrainSolid purple,
- TileSpec 7167 (Left (1, 8)) TerrainSolid purple,
- TileSpec 7043 (Left (1, 9)) TerrainSolid purple,
+ Tile 5203 (Still 0 7) TerrainSolid purple, -- snow wall
+ Tile 1455 (Still 0 8) TerrainSolid purple,
+ Tile 6668 (Still 0 9) TerrainSolid purple,
+ Tile 6722 (Still 0 10) TerrainSolid purple,
+ Tile 0245 (Still 0 11) TerrainSolid purple,
+ Tile 2645 (Still 1 2) TerrainSolid purple,
+ Tile 0059 (Still 1 3) TerrainSolid purple,
+ Tile 8854 (Still 1 4) TerrainSolid purple,
+ Tile 0941 (Still 1 5) TerrainSolid purple,
+ Tile 4238 (Still 1 6) TerrainSolid purple,
+ Tile 1331 (Still 1 7) TerrainSolid purple,
+ Tile 7167 (Still 1 8) TerrainSolid purple,
+ Tile 7043 (Still 1 9) TerrainSolid purple,
 
- TileSpec 3425 (Left (33, 4)) TerrainSolid purple, -- snow/cave wall
- TileSpec 1968 (Left (33, 5)) TerrainSolid purple,
- TileSpec 4167 (Left (33, 6)) TerrainSolid purple,
- TileSpec 3630 (Left (33, 7)) TerrainSolid purple,
- TileSpec 8963 (Left (33, 8)) TerrainSolid purple,
- TileSpec 6115 (Left (33, 9)) TerrainSolid purple,
- TileSpec 3402 (Left (33, 10)) TerrainSolid purple,
- TileSpec 1279 (Left (33, 11)) TerrainSolid purple,
+ Tile 3425 (Still 33 4) TerrainSolid purple, -- snow/cave wall
+ Tile 1968 (Still 33 5) TerrainSolid purple,
+ Tile 4167 (Still 33 6) TerrainSolid purple,
+ Tile 3630 (Still 33 7) TerrainSolid purple,
+ Tile 8963 (Still 33 8) TerrainSolid purple,
+ Tile 6115 (Still 33 9) TerrainSolid purple,
+ Tile 3402 (Still 33 10) TerrainSolid purple,
+ Tile 1279 (Still 33 11) TerrainSolid purple,
 
- TileSpec 5679 (Left (32, 2)) TerrainOpen lightgray, -- snow/cave floor
- TileSpec 9193 (Left (32, 3)) TerrainOpen lightgray,
- TileSpec 1548 (Left (32, 4)) TerrainOpen lightgray,
- TileSpec 1210 (Left (32, 5)) TerrainOpen lightgray,
- TileSpec 7007 (Left (32, 6)) TerrainOpen lightgray,
- TileSpec 5586 (Left (32, 7)) TerrainOpen lightgray,
- TileSpec 6754 (Left (32, 8)) TerrainOpen lightgray,
- TileSpec 2158 (Left (32, 9)) TerrainOpen lightgray,
- TileSpec 4973 (Left (32, 10)) TerrainOpen lightgray,
- TileSpec 6025 (Left (32, 11)) TerrainOpen lightgray,
- TileSpec 7303 (Left (33, 2)) TerrainOpen lightgray,
- TileSpec 5329 (Left (33, 3)) TerrainOpen lightgray,
- TileSpec 7042 (Left (34, 9)) TerrainOpen lightgray, -- stalagmites
+ Tile 5679 (Still 32 2) TerrainOpen lightgray, -- snow/cave floor
+ Tile 9193 (Still 32 3) TerrainOpen lightgray,
+ Tile 1548 (Still 32 4) TerrainOpen lightgray,
+ Tile 1210 (Still 32 5) TerrainOpen lightgray,
+ Tile 7007 (Still 32 6) TerrainOpen lightgray,
+ Tile 5586 (Still 32 7) TerrainOpen lightgray,
+ Tile 6754 (Still 32 8) TerrainOpen lightgray,
+ Tile 2158 (Still 32 9) TerrainOpen lightgray,
+ Tile 4973 (Still 32 10) TerrainOpen lightgray,
+ Tile 6025 (Still 32 11) TerrainOpen lightgray,
+ Tile 7303 (Still 33 2) TerrainOpen lightgray,
+ Tile 5329 (Still 33 3) TerrainOpen lightgray,
+ Tile 7042 (Still 34 9) TerrainOpen lightgray, -- stalagmites
 
- TileSpec 1171 (Left (26, 8)) TerrainOpen bluegreen, -- cave floor
- TileSpec 6498 (Left (26, 9)) TerrainOpen bluegreen, -- w/ shrooms
- TileSpec 8959 (Left (28, 11)) TerrainOpen bluegreen, -- w/ shrooms
- TileSpec 4581 (Left (28, 10)) TerrainOpen bluegreen, -- w/ shrooms
- TileSpec 9760 (Left (31, 2)) TerrainOpen bluegreen, -- w/ shrooms
- TileSpec 1376 (Left (28, 5)) TerrainWindow gray, -- small rocks
- TileSpec 0772 (Left (28, 6)) TerrainWindow gray, -- big rocks left
- TileSpec 0179 (Left (29, 2)) TerrainWindow gray, -- big rocks center
- TileSpec 6341 (Left (28, 7)) TerrainWindow gray, -- big rocks right
- TileSpec 5892 (Left (29, 3)) TerrainHover blue, -- small pool
- TileSpec 6109 (Left (29, 5)) TerrainWindow bluegreen, -- stalagmites
- TileSpec 6914 (Left (29, 6)) TerrainWindow bluegreen, -- stalagmites
- TileSpec 7234 (Left (30, 10)) TerrainWindow bluegreen, -- stalagmites
- TileSpec 5653 (Left (30, 11)) TerrainWindow bluegreen, -- stalagmites
- TileSpec 5073 (Left (29, 9)) TerrainOpen bluegreen, -- green trash
- TileSpec 6814 (Left (29, 11)) TerrainOpen bluegreen, -- red trash
- TileSpec 3086 (Left (29, 7)) TerrainWindow bluegreen, -- chest
- TileSpec 6852 (Left (30, 2)) TerrainWindow bluegreen, -- sign
- TileSpec 0545 (Left (30, 3)) TerrainWindow bluegreen, -- obelisk
- TileSpec 5306 (Left (30, 4)) TerrainWindow bluegreen, -- totems
- TileSpec 4196 (Left (30, 5)) TerrainWindow bluegreen, -- statue
+ Tile 1171 (Still 26 8) TerrainOpen bluegreen, -- cave floor
+ Tile 6498 (Still 26 9) TerrainOpen bluegreen, -- w/ shrooms
+ Tile 8959 (Still 28 11) TerrainOpen bluegreen, -- w/ shrooms
+ Tile 4581 (Still 28 10) TerrainOpen bluegreen, -- w/ shrooms
+ Tile 9760 (Still 31 2) TerrainOpen bluegreen, -- w/ shrooms
+ Tile 1376 (Still 28 5) TerrainWindow gray, -- small rocks
+ Tile 0772 (Still 28 6) TerrainWindow gray, -- big rocks left
+ Tile 0179 (Still 29 2) TerrainWindow gray, -- big rocks center
+ Tile 6341 (Still 28 7) TerrainWindow gray, -- big rocks right
+ Tile 5892 (Still 29 3) TerrainHover blue, -- small pool
+ Tile 6109 (Still 29 5) TerrainWindow bluegreen, -- stalagmites
+ Tile 6914 (Still 29 6) TerrainWindow bluegreen, -- stalagmites
+ Tile 7234 (Still 30 10) TerrainWindow bluegreen, -- stalagmites
+ Tile 5653 (Still 30 11) TerrainWindow bluegreen, -- stalagmites
+ Tile 5073 (Still 29 9) TerrainOpen bluegreen, -- green trash
+ Tile 6814 (Still 29 11) TerrainOpen bluegreen, -- red trash
+ Tile 3086 (Still 29 7) TerrainWindow bluegreen, -- chest
+ Tile 6852 (Still 30 2) TerrainWindow bluegreen, -- sign
+ Tile 0545 (Still 30 3) TerrainWindow bluegreen, -- obelisk
+ Tile 5306 (Still 30 4) TerrainWindow bluegreen, -- totems
+ Tile 4196 (Still 30 5) TerrainWindow bluegreen, -- statue
 
- TileSpec 3431 (Left (28, 1)) TerrainOpen gray, -- mine cart tracks
- TileSpec 4408 (Left (29, 0)) TerrainOpen gray,
- TileSpec 3899 (Left (29, 1)) TerrainOpen gray,
- TileSpec 0486 (Left (30, 0)) TerrainOpen gray,
- TileSpec 2317 (Left (30, 1)) TerrainOpen gray,
- TileSpec 9224 (Left (31, 0)) TerrainOpen gray,
- TileSpec 3915 (Left (31, 1)) TerrainOpen gray,
- TileSpec 8591 (Left (32, 0)) TerrainOpen gray,
- TileSpec 6079 (Left (32, 1)) TerrainOpen gray,
- TileSpec 9108 (Left (33, 0)) TerrainOpen gray,
- TileSpec 3895 (Left (33, 1)) TerrainOpen gray,
+ Tile 3431 (Still 28 1) TerrainOpen gray, -- mine cart tracks
+ Tile 4408 (Still 29 0) TerrainOpen gray,
+ Tile 3899 (Still 29 1) TerrainOpen gray,
+ Tile 0486 (Still 30 0) TerrainOpen gray,
+ Tile 2317 (Still 30 1) TerrainOpen gray,
+ Tile 9224 (Still 31 0) TerrainOpen gray,
+ Tile 3915 (Still 31 1) TerrainOpen gray,
+ Tile 8591 (Still 32 0) TerrainOpen gray,
+ Tile 6079 (Still 32 1) TerrainOpen gray,
+ Tile 9108 (Still 33 0) TerrainOpen gray,
+ Tile 3895 (Still 33 1) TerrainOpen gray,
 
- TileSpec 1422 (Left (26, 10)) TerrainSolid purple, -- cave wall
- TileSpec 8648 (Left (26, 11)) TerrainSolid purple,
- TileSpec 7655 (Left (27, 2)) TerrainSolid purple,
- TileSpec 7069 (Left (27, 3)) TerrainSolid purple,
- TileSpec 9022 (Left (27, 4)) TerrainSolid purple,
- TileSpec 9090 (Left (27, 5)) TerrainSolid purple,
- TileSpec 2636 (Left (27, 6)) TerrainSolid purple,
- TileSpec 8111 (Left (27, 7)) TerrainSolid purple,
- TileSpec 5652 (Left (27, 8)) TerrainSolid purple,
- TileSpec 2680 (Left (27, 9)) TerrainSolid purple,
- TileSpec 9166 (Left (27, 10)) TerrainSolid purple,
- TileSpec 5750 (Left (27, 11)) TerrainSolid purple,
- TileSpec 1212 (Left (28, 2)) TerrainSolid purple,
- TileSpec 4444 (Left (27, 0)) TerrainSmoke purple, -- cave passwall
- TileSpec 5916 (Left (27, 1)) TerrainSmoke purple, -- cave passwall
+ Tile 1422 (Still 26 10) TerrainSolid purple, -- cave wall
+ Tile 8648 (Still 26 11) TerrainSolid purple,
+ Tile 7655 (Still 27 2) TerrainSolid purple,
+ Tile 7069 (Still 27 3) TerrainSolid purple,
+ Tile 9022 (Still 27 4) TerrainSolid purple,
+ Tile 9090 (Still 27 5) TerrainSolid purple,
+ Tile 2636 (Still 27 6) TerrainSolid purple,
+ Tile 8111 (Still 27 7) TerrainSolid purple,
+ Tile 5652 (Still 27 8) TerrainSolid purple,
+ Tile 2680 (Still 27 9) TerrainSolid purple,
+ Tile 9166 (Still 27 10) TerrainSolid purple,
+ Tile 5750 (Still 27 11) TerrainSolid purple,
+ Tile 1212 (Still 28 2) TerrainSolid purple,
+ Tile 4444 (Still 27 0) TerrainSmoke purple, -- cave passwall
+ Tile 5916 (Still 27 1) TerrainSmoke purple, -- cave passwall
 
- TileSpec 2937 (Right (((45, 0), (45, 3)), 15)) TerrainHover blue, -- water
- TileSpec 7629 (Right (((46, 0), (46, 3)), 15)) TerrainOpen gray, -- bridge
- TileSpec 1917 (Right (((47, 0), (47, 3)), 15)) TerrainOpen gray, -- bridge
- TileSpec 5658 (Right (((48, 0), (48, 3)), 15)) TerrainWindow blue, -- wtr rock
- TileSpec 4863 (Right (((45, 4), (45, 7)), 15)) TerrainWindow blue, -- wtrfall
-
- TileSpec 0285 (Right (((49, 0), (49, 3)), 6)) TerrainHover orange] -- lava
+ Tile 2937 (Anim 45 0 15) TerrainHover blue, -- water
+ Tile 7629 (Anim 46 0 15) TerrainOpen gray, -- bridge
+ Tile 1917 (Anim 47 0 15) TerrainOpen gray, -- bridge
+ Tile 5658 (Anim 48 0 15) TerrainWindow blue, -- water rock
+ Tile 4863 (Anim 45 4 15) TerrainWindow blue, -- waterfall
+ Tile 0285 (Anim 49 0 6) TerrainHover orange] -- lava
   where
     black = blackColor
     blue = Color 0 0 255

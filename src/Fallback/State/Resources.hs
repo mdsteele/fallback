@@ -88,7 +88,7 @@ newResources = do
   statusIcons <- runDraw $ loadVStrip "gui/status-icons.png" 16
   strips <- makeTotalMapA (runDraw . uncurry loadVStrip . stripSpec)
   terrainSheet <- runDraw $ loadSheet "terrain.png" (50, 12)
-  tileset <- loadTileset terrainSheet
+  tileset <- loadTileset
   return Resources
     { rsrcAbilityIcons = abilityIcons,
       rsrcAllCharacterImages = makeTotalMap $ \(cls, app) ->

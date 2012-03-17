@@ -47,42 +47,51 @@ import Fallback.State.Camera (camTopleft)
 import Fallback.State.Creature
 import Fallback.State.Party
 import Fallback.State.Resources
-  (FontTag(FontGeorgia14), Resources, StatusDecorations(..), StripTag(..),
-   rsrcFont, rsrcMonsterImages, rsrcStatusDecorations, rsrcStrip)
 import Fallback.State.Simple
   (AttackRange, CharacterNumber, Field(..), rangeSqDist)
 import Fallback.State.Status
 import Fallback.State.Terrain
+import Fallback.State.Tileset
 import Fallback.Utility (maybeM)
 import Fallback.View.Base (View, inertView)
 
 -------------------------------------------------------------------------------
 
 paintTerrain :: AreaCommonState -> Paint ()
-paintTerrain acs = paintTiles paintTile (camTopleft $ acsCamera acs)
+paintTerrain acs = paintTiles (acsResources acs) (camTopleft $ acsCamera acs)
+                              getTile (acsClock acs)
   where
-    paintTile pos rect = blitStretch (ttSprite (getTile pos) clock) rect
     getTile pos = if exmap `hasExplored` pos
                   then terrainGetTile pos terrain else terrainOffTile terrain
-    clock = acsClock acs
     exmap = partyExploredMap (acsTerrain acs) (acsParty acs)
     terrain = acsTerrain acs
 
-paintTerrainFullyExplored :: IPoint -> TerrainMap -> Clock -> Paint ()
-paintTerrainFullyExplored cameraTopleft tmap clock =
-  paintTiles paintTile cameraTopleft where
-    paintTile pos rect = blitStretch (ttSprite (tmapGet tmap pos) clock) rect
+paintTerrainFullyExplored :: Resources -> IPoint -> TerrainMap -> Clock
+                          -> Paint ()
+paintTerrainFullyExplored resources cameraTopleft tmap clock =
+  paintTiles resources cameraTopleft (tmapGet tmap) clock
 
 tintNonVisibleTiles :: IPoint -> ExploredMap -> Set.Set Position -> Paint ()
 tintNonVisibleTiles cameraTopleft exmap visible =
-  paintTiles paintTile cameraTopleft where
-    paintTile pos rect =
+  paintCells paintCell cameraTopleft where
+    paintCell pos rect =
       when (exmap `hasExplored` pos && Set.notMember pos visible) $
       tintRect (Tint 0 0 0 128) rect
 
-paintTiles :: (Position -> IRect -> Paint ()) -> IPoint -> Paint ()
-paintTiles fn cameraTopleft = do
-  let paintTile pos = fn pos $ positionRect pos `rectMinus` cameraTopleft
+paintTiles :: Resources -> IPoint -> (Position -> TerrainTile) -> Clock
+           -> Paint ()
+paintTiles resources cameraTopleft getTile clock = do
+  let paintTile pos rect = do
+        let (row, col) =
+              case ttAppearance (getTile pos) of
+                Still r c -> (r, c)
+                Anim r c0 slowdown -> (r, c0 + clockMod 4 slowdown clock)
+        blitStretch (rsrcTerrainSprite resources (row, col)) rect
+  paintCells paintTile cameraTopleft
+
+paintCells :: (Position -> IRect -> Paint ()) -> IPoint -> Paint ()
+paintCells paintFn cameraTopleft = do
+  let paintTile pos = paintFn pos $ positionRect pos `rectMinus` cameraTopleft
   (width, height) <- canvasSize
   let cameraBottomright = cameraTopleft `pAdd` Point width height
   mapM_ paintTile $ range (pointPosition cameraTopleft,

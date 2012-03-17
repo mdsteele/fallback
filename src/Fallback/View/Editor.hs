@@ -30,12 +30,13 @@ import Data.List (find)
 
 import Fallback.Constants
   (cameraWidth, cameraHeight, sidebarWidth, tileHeight, tileWidth)
-import Fallback.Data.Clock (Clock, clockInc)
+import Fallback.Data.Clock (Clock, clockInc, clockMod)
 import Fallback.Data.Color (Tint(Tint), blackColor)
 import Fallback.Data.Point
 import Fallback.Draw
 import Fallback.Event
-import Fallback.State.Resources (FontTag(..), Resources, rsrcFont)
+import Fallback.State.Resources
+  (FontTag(..), Resources, rsrcFont, rsrcTerrainSprite)
 import Fallback.State.Terrain
 import Fallback.State.Tileset
 import Fallback.Utility (ceilDiv)
@@ -90,14 +91,14 @@ newEditorView resources = do
   let mapRect _ (w, h) = Rect sidebarWidth 0 (w - sidebarWidth) h
   let sidebarRect _ (_, h) = Rect 0 0 sidebarWidth h
   hoverJunction ref <$> compoundViewM [
-    (subView mapRect <$> newEditorMapView (hoverSink ref)),
+    (subView mapRect <$> newEditorMapView resources (hoverSink ref)),
     (subView sidebarRect <$> newEditorSidebarView resources ref)]
 
 -------------------------------------------------------------------------------
 
-newEditorMapView :: HoverSink (Maybe Position)
+newEditorMapView :: Resources -> HoverSink (Maybe Position)
                  -> Draw z (View EditorState EditorAction)
-newEditorMapView sink = do
+newEditorMapView resources sink = do
   quiver <- newQuiver
   dragRef <- newDrawRef False
   keyARef <- newDrawRef False
@@ -106,8 +107,8 @@ newEditorMapView sink = do
   let
 
     paint state = do
-      paintTerrainFullyExplored (esCameraTopleft state) (esTerrain state)
-                                (esClock state)
+      paintTerrainFullyExplored resources (esCameraTopleft state)
+                                (esTerrain state) (esClock state)
 
     handler _ _ EvTick =
       maybe Ignore (Action . ScrollMap . (`pMul` 8) . dirDelta) <$>
@@ -177,7 +178,7 @@ newEditorSidebarView resources ref = do
     (subView_ (Rect 2 2 (sidebarWidth - 10) 92) .
      viewMap (esCameraRect &&& esMinimap) JumpMapTo <$> newMinimapView),
     -- Palette and scroll bar:
-    (subView_ (Rect 12 114 88 340) <$> newEditorPaletteView),
+    (subView_ (Rect 12 114 88 340) <$> newEditorPaletteView resources),
     (subView_ (Rect 12 114 101 340) .
      vmap (\es -> (0, (snd $ bounds $ esTileArray es) `ceilDiv` 3, 9,
                    esPaletteTop es)) .
@@ -187,13 +188,18 @@ newEditorSidebarView resources ref = do
      (newMaybeView (fmap show) $ makeLabel font blackColor $ \(_, h) ->
         LocBottomleft $ Point 2 (h - 2)))]
 
-newEditorPaletteView :: Draw z (View EditorState EditorAction)
-newEditorPaletteView = do
+newEditorPaletteView :: Resources -> Draw z (View EditorState EditorAction)
+newEditorPaletteView resources = do
   let
 
     paint state = do
       let paintTile (rect, tile) = do
-            blitStretch (ttSprite tile $ esClock state) rect
+            let (row, col) =
+                  case ttAppearance tile of
+                    Still r c -> (r, c)
+                    Anim r c0 slowdown ->
+                      (r, c0 + clockMod 4 slowdown (esClock state))
+            blitStretch (rsrcTerrainSprite resources (row, col)) rect
             when (ttId tile == ttId (esBrush state)) $ do
               drawRect (Tint 255 0 255 255) rect
       canvasSize >>= (mapM_ paintTile . rectsAndTiles state)
