@@ -223,7 +223,8 @@ autoPaintTile tileset tmap pos =
     caveWallIds = [1422, 8648, 7655, 7069, 9022, 9090, 2636, 8111, 5652,
                    2680, 9166, 5750, 1212]
     surround ids =
-      let check dir = ttId (tmapGet tmap (pos `plusDir` dir)) `elem` ids
+      let check dir = ttId (tmapGet tmap (pos `plusDir` dir)) `elem`
+                      (ttId (tmapOffTile tmap) : ids)
       in (check DirE, check DirSE, check DirS, check DirSW,
           check DirW, check DirNW, check DirN, check DirNE)
     get tid = fromMaybe (error $ "no such tile: " ++ show tid) $
