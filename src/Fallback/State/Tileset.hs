@@ -18,7 +18,7 @@
 ============================================================================ -}
 
 module Fallback.State.Tileset
-  (TerrainTile(..), TileAppearance(..), TileTag(..),
+  (TerrainTile(..), TileAppearance(..), TileOverlay(..), TileTag(..),
    Tileset, tilesetGet, tilesetLookup, tilesetArray, loadTileset)
 where
 
@@ -40,9 +40,9 @@ data TerrainTile = Tile
     ttColor :: Color }
 
 data TileAppearance = Still !Int !Int
-                    | Anim !Int !Int !Int -- !TileOverlay
+                    | Anim !Int !Int !Int !TileOverlay
 
---data TileOverlay = NoOverlay | Overlay !Int !Int
+data TileOverlay = NoOverlay | Overlay !Int !Int
 
 -------------------------------------------------------------------------------
 
@@ -246,8 +246,8 @@ tilesList = [
  Tile 8859 (Still 11 0) TerrainOpen gray,
  Tile 2411 (Still 11 1) TerrainOpen gray,
 
- Tile 1602 (Anim 47 8 4) TerrainOpen gray, -- torch
- Tile 6808 (Anim 48 8 4) TerrainOpen gray, -- torch
+ Tile 1602 (Anim 47 8 4 NoOverlay) TerrainOpen gray, -- torch
+ Tile 6808 (Anim 48 8 4 NoOverlay) TerrainOpen gray, -- torch
  Tile 6445 (Still 12 6) TerrainOpen gray, -- rune
  Tile 2349 (Still 12 7) TerrainWindow gray, -- pedestal
  Tile 4183 (Still 12 8) TerrainWindow gray, -- desk
@@ -313,7 +313,7 @@ tilesList = [
  Tile 9456 (Still 18 4) TerrainOpen lightgray, -- red trash
  Tile 1287 (Still 18 5) TerrainWindow lightgray, -- signpost
  Tile 4556 (Still 18 6) TerrainWindow lightgray, -- obelisk
- Tile 0563 (Anim 46 8 4) TerrainWindow orange, -- campfire
+ Tile 0563 (Anim 46 8 4 NoOverlay) TerrainWindow orange, -- campfire
  Tile 5643 (Still 23 7) TerrainWindow lightgray, -- stalagmites
 
  Tile 7032 (Still 22 0) TerrainOpen gray, -- snowy road
@@ -408,12 +408,36 @@ tilesList = [
  Tile 4444 (Still 27 0) TerrainSmoke purple, -- cave passwall
  Tile 5916 (Still 27 1) TerrainSmoke purple, -- cave passwall
 
- Tile 2937 (Anim 45 0 15) TerrainHover blue, -- water
- Tile 7629 (Anim 46 0 15) TerrainOpen gray, -- bridge
- Tile 1917 (Anim 47 0 15) TerrainOpen gray, -- bridge
- Tile 5658 (Anim 48 0 15) TerrainWindow blue, -- water rock
- Tile 4863 (Anim 45 4 15) TerrainWindow blue, -- waterfall
- Tile 0285 (Anim 49 0 6) TerrainHover orange] -- lava
+ Tile 2937 (Anim 45 0 15 NoOverlay) TerrainHover blue, -- water
+ Tile 0295 (Anim 45 0 15 $ Overlay 0 0) TerrainHover blue, -- w/ cave floor
+ Tile 6760 (Anim 45 0 15 $ Overlay 0 1) TerrainHover blue,
+ Tile 2443 (Anim 45 0 15 $ Overlay 0 2) TerrainHover blue,
+ Tile 6996 (Anim 45 0 15 $ Overlay 0 3) TerrainHover blue,
+ Tile 9878 (Anim 45 0 15 $ Overlay 0 4) TerrainHover blue,
+ Tile 4701 (Anim 45 0 15 $ Overlay 0 5) TerrainHover blue,
+ Tile 6921 (Anim 45 0 15 $ Overlay 0 6) TerrainHover blue,
+ Tile 3235 (Anim 45 0 15 $ Overlay 0 7) TerrainHover blue,
+ Tile 1701 (Anim 45 0 15 $ Overlay 1 4) TerrainHover blue,
+ Tile 5376 (Anim 45 0 15 $ Overlay 1 5) TerrainHover blue,
+ Tile 2494 (Anim 45 0 15 $ Overlay 2 0) TerrainHover blue, -- w/ cave wall
+ Tile 2431 (Anim 45 0 15 $ Overlay 2 1) TerrainHover blue,
+ Tile 3058 (Anim 45 0 15 $ Overlay 2 2) TerrainHover blue,
+ Tile 0367 (Anim 45 0 15 $ Overlay 2 3) TerrainHover blue,
+ Tile 2864 (Anim 45 0 15 $ Overlay 2 4) TerrainHover blue,
+ Tile 4648 (Anim 45 0 15 $ Overlay 2 5) TerrainHover blue,
+ Tile 9755 (Anim 45 0 15 $ Overlay 2 6) TerrainHover blue,
+ Tile 8118 (Anim 45 0 15 $ Overlay 2 7) TerrainHover blue,
+ Tile 5153 (Anim 45 0 15 $ Overlay 3 0) TerrainHover blue, -- w/ floor/wall
+ Tile 5183 (Anim 45 0 15 $ Overlay 3 1) TerrainHover blue,
+
+ Tile 7629 (Anim 46 0 15 NoOverlay) TerrainOpen gray, -- vertical bridge
+--  Tile 7108 (Anim 46 0 15 $ Overlay 0 1) TerrainOpen gray,
+--  Tile 7264 (Anim 46 0 15 $ Overlay 0 3) TerrainOpen gray,
+--  Tile 7739 (Anim 46 0 15 $ Overlay 1 5) TerrainOpen gray,
+ Tile 1917 (Anim 47 0 15 NoOverlay) TerrainOpen gray, -- horizontal bridge
+ Tile 5658 (Anim 48 0 15 NoOverlay) TerrainWindow blue, -- water rock
+ Tile 4863 (Anim 45 4 15 NoOverlay) TerrainWindow blue, -- waterfall
+ Tile 0285 (Anim 49 0 6 NoOverlay) TerrainHover orange] -- lava
   where
     black = blackColor
     blue = Color 0 0 255
@@ -430,6 +454,8 @@ tilesList = [
     purple = Color 64 16 32
     white = whiteColor
 
--- 7264, 7108, 5376, 1701, 3235, 6921, 4701, 9878, 6996, 2443, 6760, 0295
+-- 0073, 3848, 4061, 6450, 8474, 2206, 2885, 2776, 3432, 8040, 8284, 6392,
+-- 5268, 0636, 8011, 5275, 8601, 2212, 3361, 4921, 3530, 8290, 5641, 8790,
+-- 6446, 5497, 3525, 3187, 5199, 8300
 
 -------------------------------------------------------------------------------

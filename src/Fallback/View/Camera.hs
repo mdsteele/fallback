@@ -85,9 +85,15 @@ paintTiles resources cameraTopleft getTile clock = do
         let (row, col) =
               case ttAppearance (getTile pos) of
                 Still r c -> (r, c)
-                Anim r c0 slowdown -> (r, c0 + clockMod 4 slowdown clock)
+                Anim r c0 slowdown _ -> (r, c0 + clockMod 4 slowdown clock)
         blitStretch (rsrcTerrainSprite resources (row, col)) rect
   paintCells paintTile cameraTopleft
+  let paintOverlay pos rect = do
+        case ttAppearance (getTile pos) of
+          Anim _ _ _ (Overlay row col) -> do
+            blitStretch (rsrcTerrainOverlaySprite resources row col) rect
+          _ -> return ()
+  paintCells paintOverlay cameraTopleft
 
 paintCells :: (Position -> IRect -> Paint ()) -> IPoint -> Paint ()
 paintCells paintFn cameraTopleft = do

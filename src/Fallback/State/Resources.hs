@@ -38,7 +38,7 @@ module Fallback.State.Resources
    -- * Status decorations
    StatusDecorations(..), rsrcStatusDecorations,
    -- * Terrain
-   rsrcTerrainSprite, rsrcTileset)
+   rsrcTerrainSprite, rsrcTerrainOverlaySprite, rsrcTileset)
 where
 
 import Data.Array (Array, Ix, listArray)
@@ -70,6 +70,7 @@ data Resources = Resources
     rsrcStatusIcons :: Strip,
     rsrcStrips :: TotalMap StripTag Strip,
     rsrcTerrainSheet :: Sheet,
+    rsrcTerrainOverlaySheet :: Sheet,
     rsrcTileset :: Tileset }
 
 newResources :: IO Resources
@@ -88,6 +89,7 @@ newResources = do
   statusIcons <- runDraw $ loadVStrip "gui/status-icons.png" 16
   strips <- makeTotalMapA (runDraw . uncurry loadVStrip . stripSpec)
   terrainSheet <- runDraw $ loadSheet "terrain.png" (50, 12)
+  terrainOverlaySheet <- runDraw $ loadSheet "terrain-overlays.png" (4, 8)
   tileset <- loadTileset
   return Resources
     { rsrcAbilityIcons = abilityIcons,
@@ -107,6 +109,7 @@ newResources = do
       rsrcStatusIcons = statusIcons,
       rsrcStrips = strips,
       rsrcTerrainSheet = terrainSheet,
+      rsrcTerrainOverlaySheet = terrainOverlaySheet,
       rsrcTileset = tileset }
 
 loadMonsterImages :: CreatureSize -> Draw () (Array Int CreatureImages)
@@ -141,6 +144,10 @@ rsrcMonsterImages rsrc size row = tmGet size (rsrcAllMonsterImages rsrc) ! row
 
 rsrcTerrainSprite :: Resources -> (Int, Int) -> Sprite
 rsrcTerrainSprite rsrc coords = rsrcTerrainSheet rsrc ! coords
+
+rsrcTerrainOverlaySprite :: Resources -> Int -> Int -> Sprite
+rsrcTerrainOverlaySprite rsrc row col =
+  rsrcTerrainOverlaySheet rsrc ! (row, col)
 
 -------------------------------------------------------------------------------
 

@@ -36,7 +36,8 @@ import Fallback.Data.Point
 import Fallback.Draw
 import Fallback.Event
 import Fallback.State.Resources
-  (FontTag(..), Resources, rsrcFont, rsrcTerrainSprite)
+  (FontTag(..), Resources, rsrcFont, rsrcTerrainOverlaySprite,
+   rsrcTerrainSprite)
 import Fallback.State.Terrain
 import Fallback.State.Tileset
 import Fallback.Utility (ceilDiv)
@@ -194,12 +195,16 @@ newEditorPaletteView resources = do
 
     paint state = do
       let paintTile (rect, tile) = do
-            let (row, col) =
-                  case ttAppearance tile of
-                    Still r c -> (r, c)
-                    Anim r c0 slowdown ->
-                      (r, c0 + clockMod 4 slowdown (esClock state))
-            blitStretch (rsrcTerrainSprite resources (row, col)) rect
+            case ttAppearance tile of
+              Still row col -> do
+                blitStretch (rsrcTerrainSprite resources (row, col)) rect
+              Anim row c0 slowdown overlay -> do
+                let col = c0 + clockMod 4 slowdown (esClock state)
+                blitStretch (rsrcTerrainSprite resources (row, col)) rect
+                case overlay of
+                  NoOverlay -> return ()
+                  Overlay r c -> do
+                    blitStretch (rsrcTerrainOverlaySprite resources r c) rect
             when (ttId tile == ttId (esBrush state)) $ do
               drawRect (Tint 255 0 255 255) rect
       canvasSize >>= (mapM_ paintTile . rectsAndTiles state)
