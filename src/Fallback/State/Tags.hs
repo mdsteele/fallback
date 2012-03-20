@@ -58,7 +58,7 @@ data AreaTag = Valhalla
              -- Svengaard:
              | FrozenPass | Holmgare | SewerCaves | PerilousRoad
              | StoneBridge | Tragorda | WhistlingWoods | IcyConfluence
-             | Marata | NorthernTundra | Duskwood
+             | Marata | IronMine | NorthernTundra | Duskwood
              | Icehold | Icehold2 | Icehold3
              -- Tahariam:
              | BurningMaze
@@ -76,6 +76,7 @@ areaName PerilousRoad = "Perilous Road"
 areaName StoneBridge = "Stone Bridge"
 areaName WhistlingWoods = "Whistling Woods"
 areaName IcyConfluence = "Icy Confluence"
+areaName IronMine = "Iron Mine"
 areaName NorthernTundra = "Northern Tundra"
 areaName BurningMaze = "Burning Maze"
 areaName ArcaneLab = "Arcane Laboratory"
@@ -95,6 +96,7 @@ areaRegion Tragorda = Svengaard
 areaRegion WhistlingWoods = Svengaard
 areaRegion IcyConfluence = Svengaard
 areaRegion Marata = Svengaard
+areaRegion IronMine = Svengaard
 areaRegion NorthernTundra = Svengaard
 areaRegion Duskwood = Svengaard
 areaRegion Icehold = Svengaard
@@ -312,7 +314,7 @@ data MonsterTag = Revenant | Revenantor | MasterRevenant
                 -- Undead:
                 | Ghoul | Ghast | Skeleton | Wight | Wraith | Zombie
                 -- Bosses:
-                | Vhaegyst
+                | Vampire | Vhaegyst
                 -- Townspeople:
                 | TownManApron | TownManRed | TownWomanBlue
   deriving (Bounded, Enum, Eq, Ix, Ord, Read, Show)

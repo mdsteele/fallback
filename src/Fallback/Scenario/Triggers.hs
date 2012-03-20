@@ -794,6 +794,7 @@ scenarioTriggers = compileScenario $ do
             \ your fingertips on the ice.  It is colder than you thought\
             \ possible.  For a fraction of a moment, nothing happens.  And\
             \ then..."
+          wait 6
           pos <- areaGet (arsCharacterPosition charNum)
           -- TODO boom sound, maybe a scream?
           addBoomDoodadAtPosition IceBoom 1 pos
@@ -886,6 +887,7 @@ scenarioTriggers = compileScenario $ do
   compileArea WhistlingWoods Nothing $ return ()
   compileArea IcyConfluence Nothing $ return ()
   compileArea Marata Nothing $ return ()
+  compileArea IronMine Nothing $ return ()
   compileArea NorthernTundra Nothing $ return ()
   compileArea Duskwood Nothing $ return ()
 
