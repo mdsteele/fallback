@@ -46,7 +46,8 @@ data TileOverlay = NoOverlay | Overlay !Int !Int
 
 -------------------------------------------------------------------------------
 
-data TileTag = OffTile | NullTile | StoneFloorTile
+data TileTag = OffTile | NullTile
+             | StoneFloorTile | AdobeCrackedWallTile
              -- Doors and gates:
              | AdobeDoorClosedTile | AdobeDoorOpenTile
              | AdobeGateClosedTile | AdobeGateOpenTile
@@ -54,6 +55,9 @@ data TileTag = OffTile | NullTile | StoneFloorTile
              | BasaltGateClosedTile | BasaltGateOpenTile
              | StoneDoorClosedTile | StoneDoorOpenTile
              | StoneGateClosedTile | StoneGateOpenTile
+             -- Mine cart:
+             | MineCartEmptyHorzTile | MineCartEmptyVertTile
+             | MineCartFullHorzTile | MineCartFullVertTile
              -- Other devices:
              | LeverLeftTile | LeverRightTile
   deriving (Bounded, Eq, Ix, Ord)
@@ -62,6 +66,7 @@ tileTagId :: TileTag -> Int
 tileTagId OffTile = 0000
 tileTagId NullTile = 0001
 tileTagId StoneFloorTile = 8222
+tileTagId AdobeCrackedWallTile = 7185
 tileTagId AdobeDoorClosedTile = 3891
 tileTagId AdobeDoorOpenTile = 2993
 tileTagId AdobeGateClosedTile = 8625
@@ -74,6 +79,10 @@ tileTagId StoneDoorClosedTile = 5588
 tileTagId StoneDoorOpenTile = 0983
 tileTagId StoneGateClosedTile = 2330
 tileTagId StoneGateOpenTile = 5719
+tileTagId MineCartEmptyHorzTile = 8300
+tileTagId MineCartEmptyVertTile = 5199
+tileTagId MineCartFullHorzTile = 3187
+tileTagId MineCartFullVertTile = 3525
 tileTagId LeverLeftTile = 7991
 tileTagId LeverRightTile = 0761
 
@@ -380,7 +389,7 @@ tilesList = [
  Tile 5306 (Still 30 4) TerrainWindow bluegreen, -- totems
  Tile 4196 (Still 30 5) TerrainWindow bluegreen, -- statue
 
- Tile 3431 (Still 28 1) TerrainOpen gray, -- mine cart tracks
+ Tile 3431 (Still 28 1) TerrainOpen gray, -- mine tracks
  Tile 4408 (Still 29 0) TerrainOpen gray,
  Tile 3899 (Still 29 1) TerrainOpen gray,
  Tile 0486 (Still 30 0) TerrainOpen gray,
@@ -391,6 +400,10 @@ tilesList = [
  Tile 6079 (Still 32 1) TerrainOpen gray,
  Tile 9108 (Still 33 0) TerrainOpen gray,
  Tile 3895 (Still 33 1) TerrainOpen gray,
+ Tile 8300 (Still 34 0) TerrainWindow gray, -- mine cart horz
+ Tile 5199 (Still 34 1) TerrainWindow gray, -- mine cart vert
+ Tile 3187 (Still 35 0) TerrainWindow gray, -- mine cart horz w/ rocks
+ Tile 3525 (Still 35 1) TerrainWindow gray, -- mine cart vert w/ rocks
 
  Tile 1422 (Still 26 10) TerrainSolid purple, -- cave wall
  Tile 8648 (Still 26 11) TerrainSolid purple,
@@ -456,6 +469,6 @@ tilesList = [
 
 -- 0073, 3848, 4061, 6450, 8474, 2206, 2885, 2776, 3432, 8040, 8284, 6392,
 -- 5268, 0636, 8011, 5275, 8601, 2212, 3361, 4921, 3530, 8290, 5641, 8790,
--- 6446, 5497, 3525, 3187, 5199, 8300
+-- 6446, 5497
 
 -------------------------------------------------------------------------------

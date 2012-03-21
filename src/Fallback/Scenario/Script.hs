@@ -82,8 +82,8 @@ module Fallback.Scenario.Script
 
    -- ** Other
 
-   addBasicEnemyMonster, addDevice_, grantAndEquipWeapon, replaceDevice,
-   summonAllyMonster, tryAddMonster,
+   addBasicEnemyMonster, addDevice_, grantAndEquipWeapon, removeDevice,
+   replaceDevice, summonAllyMonster, tryAddMonster,
 
    inflictAllPeriodicDamage,
 
@@ -1145,6 +1145,9 @@ grantExperience xp = do
     setMessage $ "Party is now level " ++ show newLevel ++ "!"
     mapM_ return =<< areaGet arsPartyPositions -- FIXME doodads
     playSound SndLevelUp
+
+removeDevice :: (FromAreaEffect f) => Grid.Key Device -> Script f ()
+removeDevice key = emitAreaEffect $ EffReplaceDevice key Nothing
 
 removeFields :: (FromAreaEffect f) => [Position] -> Script f ()
 removeFields = emitAreaEffect . EffAlterFields (const Nothing)

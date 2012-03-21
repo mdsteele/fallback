@@ -37,7 +37,7 @@ module Fallback.Scenario.Compile
    Var, getVar, readVar, writeVar, modifyVar,
    -- * Trigger predicates
    Predicate, andP, orP, notP, getP,
-   varTrue, varFalse,
+   varTrue, varFalse, varEq,
    walkOn, walkOff, walkIn)
 where
 
@@ -399,6 +399,9 @@ varTrue var = Predicate (getVar var)
 
 varFalse :: Var Bool -> Predicate
 varFalse var = Predicate (not . getVar var)
+
+varEq :: (Eq a, VarType a) => Var a -> a -> Predicate
+varEq var value = Predicate ((value ==) . getVar var)
 
 walkOn :: Position -> Predicate
 walkOn pos = Predicate (\s -> any (pos ==) (arsPartyPositions s))
