@@ -55,7 +55,8 @@ module Fallback.Scenario.Script
    -- *** Status effects
    alterStatus, grantInvisibility, inflictPoison,
    -- *** Other
-   grantExperience, removeFields, setFields, resetTerrain, setTerrain,
+   grantExperience, removeFields, setFields,
+   getTerrainTile, resetTerrain, setTerrain,
 
    -- ** Animation
    -- *** Camera motion
@@ -127,6 +128,7 @@ import Fallback.State.Tags
   (AbilityTag(Recuperation), AreaTag, ItemTag(..), MonsterTag, WeaponItemTag)
 import Fallback.State.Terrain
   (TerrainTile, positionCenter, prectRect, terrainMap, terrainSize, tmapGet)
+import Fallback.State.Tileset (TileTag, tilesetGet)
 import Fallback.Utility
   (ceilDiv, flip3, flip4, groupKey, maybeM, sortKey, square)
 
@@ -1125,6 +1127,11 @@ addBasicEnemyMonster nearPos tag mbDeadVar townAi = do
 
 addDevice_ :: (FromAreaEffect f) => Device -> Position -> Script f ()
 addDevice_ device pos = () <$ emitAreaEffect (EffTryAddDevice pos device)
+
+getTerrainTile :: (FromAreaEffect f) => TileTag -> Script f TerrainTile
+getTerrainTile tag = do
+  resources <- areaGet arsResources
+  return $ tilesetGet tag $ rsrcTileset resources
 
 grantAndEquipWeapon :: (FromAreaEffect f) => WeaponItemTag -> CharacterNumber
                     -> Script f ()

@@ -17,8 +17,6 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
-{-# LANGUAGE DoRec #-}
-
 module Fallback.Scenario.Triggers
   (startingArea, startingPosition, scenarioTriggers, initialProgress,
    getAreaDevice, getAreaEntrance, getAreaLinks, getAreaTerrain,
@@ -26,24 +24,24 @@ module Fallback.Scenario.Triggers
 where
 
 import Control.Applicative ((<$>))
-import Control.Monad (forM, join, when, zipWithM_)
+import Control.Monad (forM, join, zipWithM_)
 import qualified Control.Monad.State as State
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
+import Fallback.Scenario.Triggers.Globals (Globals(..), compileGlobals)
+import Fallback.Scenario.Triggers.IronMine (compileIronMine)
 import Fallback.State.Area --(arsGetCharacter)
 import Fallback.State.Creature (MonsterTownAI(..))
 import Fallback.State.Party (chrClass)
-import Fallback.State.Progress (Progress, splitVarSeed)
+import Fallback.State.Progress (Progress)
 import Fallback.State.Resources
 import Fallback.State.Simple
 import Fallback.State.Tags
 import Fallback.State.Terrain (terrainGetTile)
-import Fallback.State.Tileset (TerrainTile, TileTag(..), tilesetGet)
 import Fallback.Utility (firstJust, flip3, maybeM, whenM)
 
 -------------------------------------------------------------------------------
@@ -67,22 +65,7 @@ scenarioTriggers = compileScenario $ do
   -- The standard interaction radius for signs/placards:
   let signRadius = 3 :: Int
 
-  let newUnlockedDoor vseed cTag oTag = do
-        let (cSeed, oSeed) = splitVarSeed vseed
-        rec closed <- newDevice cSeed 1 $ \ge _ -> do
-              tile <- getTerrainTile oTag
-              setTerrain [(rectTopleft $ Grid.geRect ge, tile)]
-              replaceDevice ge open
-              playSound SndDoorOpen
-            open <- newDevice oSeed 1 $ \ge _ -> do
-              tile <- getTerrainTile cTag
-              setTerrain [(rectTopleft $ Grid.geRect ge, tile)]
-              replaceDevice ge closed
-              playSound SndDoorShut
-        return closed
-  stoneDoor <- newUnlockedDoor 398282 StoneDoorClosedTile StoneDoorOpenTile
-  basaltDoor <- newUnlockedDoor 349783 BasaltDoorClosedTile BasaltDoorOpenTile
-  adobeDoor <- newUnlockedDoor 109823 AdobeDoorClosedTile AdobeDoorOpenTile
+  globals <- compileGlobals
 
   ----------------------------- Global Variables ------------------------------
 
@@ -122,18 +105,18 @@ scenarioTriggers = compileScenario $ do
   compileArea Valhalla Nothing $ do
 
     onStartDaily 409487 $ do
-      addDevice_ stoneDoor (Point 8 2)
-      addDevice_ stoneDoor (Point 12 4)
-      addDevice_ stoneDoor (Point 3 6)
-      addDevice_ stoneDoor (Point 4 6)
-      addDevice_ stoneDoor (Point 10 6)
-      addDevice_ stoneDoor (Point 2 9)
-      addDevice_ stoneDoor (Point 10 9)
-      addDevice_ stoneDoor (Point 4 11)
-      addDevice_ stoneDoor (Point 7 11)
-      addDevice_ stoneDoor (Point 5 13)
-      addDevice_ stoneDoor (Point 10 13)
-      addDevice_ basaltDoor (Point 32 17)
+      addDevice_ (gStoneDoor globals) (Point 8 2)
+      addDevice_ (gStoneDoor globals) (Point 12 4)
+      addDevice_ (gStoneDoor globals) (Point 3 6)
+      addDevice_ (gStoneDoor globals) (Point 4 6)
+      addDevice_ (gStoneDoor globals) (Point 10 6)
+      addDevice_ (gStoneDoor globals) (Point 2 9)
+      addDevice_ (gStoneDoor globals) (Point 10 9)
+      addDevice_ (gStoneDoor globals) (Point 4 11)
+      addDevice_ (gStoneDoor globals) (Point 7 11)
+      addDevice_ (gStoneDoor globals) (Point 5 13)
+      addDevice_ (gStoneDoor globals) (Point 10 13)
+      addDevice_ (gBasaltDoor globals) (Point 32 17)
 
     simpleMonster 660632 DemonWolf (Point 29 2) MindlessAI
     simpleMonster 660633 DemonWolf (Point 6 20) ChaseAI
@@ -324,12 +307,12 @@ scenarioTriggers = compileScenario $ do
 
     onStartDaily 820304 $ do
       -- Doors in inn:
-      addDevice_ adobeDoor (Point 19 10)
-      addDevice_ adobeDoor (Point 19 12)
-      addDevice_ adobeDoor (Point 23 10)
+      addDevice_ (gAdobeDoor globals) (Point 19 10)
+      addDevice_ (gAdobeDoor globals) (Point 19 12)
+      addDevice_ (gAdobeDoor globals) (Point 23 10)
       addDevice_ alwaysLockedDoor (Point 23 12)
-      addDevice_ adobeDoor (Point 26 11)
-      addDevice_ adobeDoor (Point 30 13)
+      addDevice_ (gAdobeDoor globals) (Point 26 11)
+      addDevice_ (gAdobeDoor globals) (Point 30 13)
       -- Doors on houses:
       addDevice_ alwaysLockedDoor (Point 12 13)
       addDevice_ alwaysLockedDoor (Point 38 9)
@@ -628,9 +611,9 @@ scenarioTriggers = compileScenario $ do
 
     -- Devices:
     onStartDaily 028371 $ do
-      addDevice_ stoneDoor (Point 44 12)
-      addDevice_ adobeDoor (Point 5 36)
-      addDevice_ basaltDoor (Point 26 40)
+      addDevice_ (gStoneDoor globals) (Point 44 12)
+      addDevice_ (gAdobeDoor globals) (Point 5 36)
+      addDevice_ (gBasaltDoor globals) (Point 26 40)
     uniqueDevice 981323 (Point 48 36) signRadius $ \_ _ -> do
       narrate "This signpost looks like it has seen better days, but you can\
               \ still read it clearly.  It says:\n\n      {c}Holmgare: 2 mi. E"
@@ -822,19 +805,19 @@ scenarioTriggers = compileScenario $ do
 
     onStartDaily 472927 $ do
       setAreaCleared Holmgare True
-      addDevice_ adobeDoor (Point 16 13)
-      addDevice_ adobeDoor (Point 17 23)
-      addDevice_ adobeDoor (Point 19 14)
-      addDevice_ adobeDoor (Point 22 21)
-      addDevice_ adobeDoor (Point 36 23)
-      addDevice_ adobeDoor (Point 38 20)
-      addDevice_ stoneDoor (Point 24 26)
-      addDevice_ stoneDoor (Point 26 11)
-      addDevice_ stoneDoor (Point 28  9)
-      addDevice_ stoneDoor (Point 28 24)
-      addDevice_ stoneDoor (Point 31 14)
-      addDevice_ stoneDoor (Point 34 13)
-      addDevice_ stoneDoor (Point 36  8)
+      addDevice_ (gAdobeDoor globals) (Point 16 13)
+      addDevice_ (gAdobeDoor globals) (Point 17 23)
+      addDevice_ (gAdobeDoor globals) (Point 19 14)
+      addDevice_ (gAdobeDoor globals) (Point 22 21)
+      addDevice_ (gAdobeDoor globals) (Point 36 23)
+      addDevice_ (gAdobeDoor globals) (Point 38 20)
+      addDevice_ (gStoneDoor globals) (Point 24 26)
+      addDevice_ (gStoneDoor globals) (Point 26 11)
+      addDevice_ (gStoneDoor globals) (Point 28  9)
+      addDevice_ (gStoneDoor globals) (Point 28 24)
+      addDevice_ (gStoneDoor globals) (Point 31 14)
+      addDevice_ (gStoneDoor globals) (Point 34 13)
+      addDevice_ (gStoneDoor globals) (Point 36  8)
     simpleTownsperson 217809 TownManApron (Point 28 27) ImmobileAI $ \_ -> do
       let page1 = multiChoice
             "The blacksmith wipes his brow and sets down his tongs.  \"The\
@@ -888,159 +871,14 @@ scenarioTriggers = compileScenario $ do
   compileArea IcyConfluence Nothing $ return ()
   compileArea Marata Nothing $ return ()
 
-  compileArea IronMine Nothing $ do
-    onStartDaily 244106 $ do
-      addDevice_ adobeDoor (Point 39 29)
-      addDevice_ adobeDoor (Point 22 6)
-    uniqueDevice 335736 (Point 45 54) signRadius $ \_ _ -> do
-      narrate "Someone has helpfully posted a sign here:\n\n\
-        \          {b}MINE CLOSED{_}\n\
-        \      {i}DANGER: UNDEAD!{_}"
-    uniqueDevice 895064 (Point 38 29) signRadius $ \_ _ -> do
-      narrate "The sign tacked to the wall reads:\n\n\
-        \      {i}SWITCHING STATION{_}"
-    uniqueDevice 895064 (Point 23 6) signRadius $ \_ _ -> do
-      narrate "The sign tacked to the wall reads:\n\n\
-        \      {i}RECORDS OFFICE{_}"
-
-    once 807555 (walkIn (Rect 18 18 3 2)) $ do
-      narrate "Ulgghh.  It appears that the miners used this narrow tunnel as\
-        \ a latrine, to save them the trouble of walking all the way back\
-        \ outside the mine.  The smell of urine and garbage back here is\
-        \ awful."
-
-    once 799563 (walkIn (Rect 9 1 12 9)) $ do
-      narrate "Looking upwards, you see that the miners cut a ventilation\
-        \ shaft in the ceiling of the cave here leading up to the surface\
-        \ above.  Snow has drifted down the shaft from the outside, eventually\
-        \ building up over a small patch of this chamber.\n\n\
-        \The air is remarkably fresh and crisp in here.  Between the snow and\
-        \ the cold air, you imagine that this chamber makes a lovely nest for\
-        \ the wild ice lizard that has somehow gotten in here.  It looks up at\
-        \ you from its nap, evidentally deciding that you will make a nice\
-        \ meal."
-      -- TODO make lizard chase you (change to wide-radius guard AI)
-
-    -- Mine tracks/cart state:
-    tracksSetToTurn <- newPersistentVar 231202 False
-    -- The mineCartLocation should always be between 0 and 5 inclusive:
-    --   0 means the cart is in its starting position
-    --   1 means the cart is at the wall
-    --   2 means the cart is near the switching station
-    --   3 means the cart is near the cave entrance
-    --   4 means the cart is in the rocks room
-    --   5 means the cart has asploded the wall and is gone
-    mineCartLocation <- newPersistentVar 626625 (0 :: Int)
-    mineCartFilledWithRocks <- newPersistentVar 699149 False
-
-    -- Switching station lever:
-    uniqueDevice 646620 (Point 39 31) signRadius $ \ge _ -> do
-      let labelStr turn = if turn then "TURN" else "STRAIGHT"
-      current <- readVar tracksSetToTurn
-      change <- forcedChoice
-        ("There is a large iron lever mounted in the floor here.  On either\
-         \ end of the metal base is engraved a label: \"STRAIGHT\" and\
-         \ \"TURN.\"  The lever is currently in the \"" ++ labelStr current ++
-         "\" position.")
-        [("Move the lever to the \"" ++ labelStr (not current) ++
-          "\" position", True), ("Leave it alone.", False)]
-      when change $ do
-      -- TODO play sound
-      tile <- getTerrainTile (if current then LeverLeftTile
-                              else LeverRightTile)
-      setTerrain [(rectTopleft (Grid.geRect ge), tile)]
-      writeVar tracksSetToTurn (not current)
-      narrate "You hear several loud, metallic {i}clank{_} sounds echo through\
-        \ the mine, and then silence."
-
-    let addCartAtLocation cartDevice cartLoc = do
-          let mbPos = case cartLoc of
-                        0 -> Just $ Point 48 4
-                        1 -> Just $ Point 26 25
-                        2 -> Just $ Point 31 24
-                        3 -> Just $ Point 43 52
-                        4 -> Just $ Point 15 26
-                        _ -> Nothing
-          maybeM mbPos $ \position -> do
-            cartFull <- readVar mineCartFilledWithRocks
-            tile <- getTerrainTile $
-                    if cartLoc == 1
-                    then (if cartFull then MineCartFullVertTile
-                          else MineCartEmptyVertTile)
-                    else (if cartFull then MineCartFullHorzTile
-                          else MineCartEmptyHorzTile)
-            setTerrain [(position, tile)]
-            addDevice_ cartDevice position
-
-    let wallPositions = [Point x 26 | x <- [25, 26, 27]]
-
-    mineCart <- newDevice 293845 1 $ \ge charNum -> do
-      cartLoc <- readVar mineCartLocation
-      cartFull <- readVar mineCartFilledWithRocks
-      let fillCart = do
-            writeVar mineCartFilledWithRocks True
-            removeDevice (Grid.geKey ge)
-            addCartAtLocation (Grid.geValue ge) cartLoc
-            narrate "Oof, these rocks are heavy.  It takes several of you\
-              \ working together to lift them up over the edge of the cart. \
-              \ But it was well worth all that sweat and effort--{i}now{_} you\
-              \ have a cart full of rocks!  It is very heavy.  Fortunately, it\
-              \ is still relatively easy to push."
-      let pushCart = do
-            _charPos <- areaGet (arsCharacterPosition charNum)
-            -- TODO if party is standing in the way, don't move the cart
-            turn <- readVar tracksSetToTurn
-            let newLoc = case cartLoc of
-                           0 -> 1
-                           1 -> if turn then 3 else 2
-                           2 -> if turn then 3 else if cartFull then 5 else 1
-                           3 -> if turn then 2 else 4
-                           4 -> if turn then 2 else 3
-                           _ -> cartLoc
-            removeDevice (Grid.geKey ge)
-            resetTerrain [rectTopleft $ Grid.geRect ge]
-            -- TODO doodad/sound for rolling cart
-            writeVar mineCartLocation newLoc
-            addCartAtLocation (Grid.geValue ge) newLoc
-            when (newLoc == 5) $ do
-              -- TODO splosion doodad/sound
-              resetTerrain wallPositions
-      let desc = if not cartFull then "It is currently empty."
-                 else "It is currently full of very heavy boulders."
-      let canFill = cartLoc == 4 && not cartFull
-      let suffix = if not canFill then "" else "\n\n\
-            \You also notice that this chamber is scattered with loose\
-            \ boulders.  They're far too heavy for you to carry very far, but\
-            \ with some effort you could probably heave some of into the\
-            \ cart, if you wanted to."
-      let choices = (if not canFill then id
-                     else (("Fill the cart with boulders.", fillCart) :))
-                    [("Give the cart a shove.", pushCart),
-                     ("Leave it alone.", return ())]
-      join $ forcedChoice
-        ("You examine the cart.  " ++ desc ++"  Despite its weight, it rolls\
-         \ easily along the tracks; the axles seem to still be well-oiled.  If\
-         \ you were to give it a shove, it would probably follow the  the\
-         \ tracks all the way toward wherever they lead." ++ suffix) choices
-
-    onStartDaily 450713 $ do
-      cartLoc <- readVar mineCartLocation
-      addCartAtLocation mineCart cartLoc
-      when (cartLoc /= 5) $ do
-        tile <- getTerrainTile AdobeCrackedWallTile
-        setTerrain $ map (flip (,) tile) $ wallPositions
-
-    once 542400 (walkIn (Rect 45 1 9 7) `andP` varEq mineCartLocation 0) $ do
-      narrate "Ah ha!  There's a mine cart sitting at the end of the tracks in\
-        \ this chamber.  From here, it looks to still be in good condition. \
-        \ Perhaps it can be of some use to you?"
+  compileIronMine globals
 
   compileArea NorthernTundra Nothing $ return ()
   compileArea Duskwood Nothing $ return ()
 
   compileArea Icehold Nothing $ do
     onStartDaily 789321 $ do
-      addDevice_ stoneDoor (Point 30 27)
+      addDevice_ (gStoneDoor globals) (Point 30 27)
     trigger 182832 (walkOn (Point 25 27)) $ do
       teleport Icehold2 (Point 21 27)
 
@@ -1086,11 +924,6 @@ scenarioTriggers = compileScenario $ do
 -}
 
 -------------------------------------------------------------------------------
-
-getTerrainTile :: (FromAreaEffect f) => TileTag -> Script f TerrainTile
-getTerrainTile tag = do
-  resources <- areaGet arsResources
-  return $ tilesetGet tag $ rsrcTileset resources
 
 setAreaCleared :: (FromAreaEffect f) => AreaTag -> Bool -> Script f ()
 setAreaCleared tag cleared = emitAreaEffect $ EffSetAreaCleared tag cleared
