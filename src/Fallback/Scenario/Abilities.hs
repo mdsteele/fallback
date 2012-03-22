@@ -23,7 +23,7 @@ where
 
 import Control.Applicative ((<$>))
 import Control.Arrow ((***))
-import Control.Monad (foldM, foldM_, forM, forM_, replicateM_, when)
+import Control.Monad (foldM, forM, forM_, replicateM_, when)
 import Data.List (delete, intercalate, sort)
 import Data.Maybe (catMaybes)
 import qualified Data.Set as Set
@@ -203,16 +203,8 @@ getAbility characterClass abilityNumber level =
             return ()
         shakeCamera 20 20
         playSound SndBoomBig
-        also_ (wait 5 >> dealDamage hits) $ do
-          let Point cx cy = positionCenter endPos :: DPoint
-          startTheta <- getRandomR 0 (2 * pi)
-          flip3 foldM_ startTheta (replicate 16 ()) $ \oldTheta () -> do
-            theta <- getRandomR (oldTheta + 0.5 * pi) (oldTheta + 1.5 * pi)
-            rho <- getRandomR 0 1
-            addBoomDoodadAtPoint FireBoom 4 $ fmap round $
-              Point (cx + 35 * rho * cos theta) (cy + 45 * rho * sin theta)
-            wait 1
-            return theta
+        also_ (doExplosionDoodad FireBoom $ positionCenter endPos)
+              (wait 5 >> dealDamage hits)
     Healing ->
       general (ManaCost 4) (AllyTarget $ ofRadius 8) $ \caster power eith -> do
         intBonus <- getIntellectBonus caster

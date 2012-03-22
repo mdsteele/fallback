@@ -69,7 +69,7 @@ module Fallback.Scenario.Script
    addBallisticDoodad, addBeamDoodad, addBlasterDoodad, addBoomDoodadAtPoint,
    addBoomDoodadAtPosition, addDeathDoodad, addLightningDoodad,
    addLightWallDoodad, addNumberDoodadAtPoint, addNumberDoodadAtPosition,
-   addShockwaveDoodad,
+   addShockwaveDoodad, doExplosionDoodad,
 
    -- ** UI
    -- *** Messages and conversation
@@ -96,7 +96,7 @@ import Control.Applicative ((<$), (<$>))
 import Control.Arrow (right, second)
 import Control.Exception (assert)
 import Control.Monad
-  (foldM, forM, forM_, replicateM, replicateM_, unless, when)
+  (foldM, foldM_, forM, forM_, replicateM, replicateM_, unless, when)
 import Data.Array (elems, listArray, range)
 import qualified Data.Array.ST as STArray
 import qualified Data.Foldable as Fold
@@ -1019,6 +1019,17 @@ addShockwaveDoodad limit center fn = do
   emitAreaEffect $ EffAddDoodad $ Doodad { doodadCountdown = limit,
                                            doodadHeight = MidDood,
                                            doodadPaint = paint }
+
+doExplosionDoodad :: (FromAreaEffect f) => StripTag -> DPoint -> Script f ()
+doExplosionDoodad tag (Point cx cy) = do
+  startTheta <- getRandomR 0 (2 * pi)
+  flip3 foldM_ startTheta (replicate 16 ()) $ \oldTheta () -> do
+    theta <- getRandomR (oldTheta + 0.5 * pi) (oldTheta + 1.5 * pi)
+    rho <- getRandomR 0 1
+    let pt = Point (cx + 35 * rho * cos theta) (cy + 45 * rho * sin theta)
+    addBoomDoodadAtPoint tag 4 (round <$> pt)
+    wait 1
+    return theta
 
 -------------------------------------------------------------------------------
 -- Messages and conversation:

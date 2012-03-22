@@ -21,9 +21,9 @@ module Fallback.State.Resources
   (Resources, newResources,
    -- * Creature images
    rsrcCharacterImages, rsrcMonsterImages,
-   -- * Doodad projectiles
+   -- * Doodads
    ProjTag(..), rsrcProj,
-   -- * Doodad strips
+   SpriteTag(..), rsrcSprite,
    StripTag(..), rsrcStrip,
    -- * Fonts
    FontTag(..), rsrcFont,
@@ -66,6 +66,7 @@ data Resources = Resources
     rsrcProjs :: TotalMap ProjTag Sprite,
     rsrcSheetEquipButtons :: Sheet,
     rsrcSounds :: TotalMap SoundTag Sound,
+    rsrcSprites :: TotalMap SpriteTag Sprite,
     rsrcStatusDecorations :: StatusDecorations,
     rsrcStatusIcons :: Strip,
     rsrcStrips :: TotalMap StripTag Strip,
@@ -84,6 +85,7 @@ newResources = do
   monsterImages <- runDraw $ makeTotalMapA loadMonsterImages
   paintDigits <- runDraw $ newDigitPaint
   projStrip <- runDraw $ loadVStrip "doodads/projectiles.png" 5
+  spritesSheet <- runDraw $ loadSheet "doodads/sprites.png" (2, 8)
   sounds <- makeTotalMapA (loadSound . soundPath)
   statusDecorations <- loadStatusDecorations
   statusIcons <- runDraw $ loadVStrip "gui/status-icons.png" 16
@@ -105,6 +107,7 @@ newResources = do
       rsrcProjs = makeTotalMap ((projStrip !) . projIndex),
       rsrcSheetEquipButtons = sheetEquipButtons,
       rsrcSounds = sounds,
+      rsrcSprites = makeTotalMap ((spritesSheet !) . spriteCoords),
       rsrcStatusDecorations = statusDecorations,
       rsrcStatusIcons = statusIcons,
       rsrcStrips = strips,
@@ -167,6 +170,7 @@ loadStatusDecorations = do
       sdMagicShieldSprite = makeSubSprite (Rect 13 1 7 7) texture }
 
 -------------------------------------------------------------------------------
+-- Doodads:
 
 data ProjTag = AcidProj | FireProj | IceProj | StarProj | ArrowProj
   deriving (Bounded, Eq, Ix, Ord)
@@ -181,8 +185,18 @@ projIndex ArrowProj = 4
 rsrcProj :: Resources -> ProjTag -> Sprite
 rsrcProj rsrc tag = tmGet tag $ rsrcProjs rsrc
 
--------------------------------------------------------------------------------
--- Doodad strips:
+data SpriteTag = MineCartEmptyHorzSprite | MineCartEmptyVertSprite
+               | MineCartFullHorzSprite | MineCartFullVertSprite
+  deriving (Bounded, Eq, Ix, Ord)
+
+spriteCoords :: SpriteTag -> (Int, Int)
+spriteCoords MineCartEmptyHorzSprite = (0, 0)
+spriteCoords MineCartEmptyVertSprite = (0, 1)
+spriteCoords MineCartFullHorzSprite = (0, 2)
+spriteCoords MineCartFullVertSprite = (0, 3)
+
+rsrcSprite :: Resources -> SpriteTag -> Sprite
+rsrcSprite rsrc tag = tmGet tag $ rsrcSprites rsrc
 
 data StripTag = SrpFireAura | SrpIceAura
               | AcidBoom | DarkBoom | EnergyBoom | FireBoom | HealBoom
@@ -250,7 +264,8 @@ data SoundTag = SndArrow
               | SndHeal
               | SndHit1 | SndHit2 | SndHit3 | SndHit4
               | SndHurtFemale | SndHurtMale
-              | SndIllusion | SndLevelUp
+              | SndIllusion | SndLevelUp | SndLever
+              | SndMineCartStop | SndMineCartTurn
               | SndMiss1 | SndMiss2
               | SndSummon
               | SndThrow
@@ -279,6 +294,9 @@ soundPath SndHurtFemale = "hurt-female-30.wav"
 soundPath SndHurtMale = "hurt-male-29.wav"
 soundPath SndIllusion = "illusion-52.wav"
 soundPath SndLevelUp = "level-up-16.wav"
+soundPath SndLever = "lever-94.wav"
+soundPath SndMineCartStop = "minecart-stop-cfxr.wav"
+soundPath SndMineCartTurn = "minecart-turn-cfxr.wav"
 soundPath SndMiss1 = "miss1-2.wav"
 soundPath SndMiss2 = "miss2-19.wav"
 soundPath SndSummon = "summon-61.wav"

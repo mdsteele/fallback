@@ -22,14 +22,19 @@ module Fallback.Scenario.Triggers.IronMine
 where
 
 import Control.Monad (join, when)
+import Data.List (intersperse)
+import Data.Maybe (listToMaybe)
 
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
+import Fallback.Draw.Base (blitTopleft)
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Globals (Globals(..))
 import Fallback.State.Area
+import Fallback.State.Resources
 import Fallback.State.Tags
+import Fallback.State.Terrain (positionCenter, positionTopleft)
 import Fallback.State.Tileset (TileTag(..))
 import Fallback.Utility (maybeM)
 
@@ -96,7 +101,7 @@ compileIronMine globals = compileArea IronMine Nothing $ do
       [("Move the lever to the \"" ++ labelStr (not current) ++
         "\" position", True), ("Leave it alone.", False)]
     when change $ do
-    -- TODO play sound
+    playSound SndLever
     tile <- getTerrainTile (if current then LeverLeftTile
                             else LeverRightTile)
     setTerrain [(rectTopleft (Grid.geRect ge), tile)]
@@ -105,13 +110,7 @@ compileIronMine globals = compileArea IronMine Nothing $ do
       \ the mine, and then silence."
 
   let addCartAtLocation cartDevice cartLoc = do
-        let mbPos = case cartLoc of
-                      0 -> Just $ Point 48 4
-                      1 -> Just $ Point 26 25
-                      2 -> Just $ Point 31 24
-                      3 -> Just $ Point 43 52
-                      4 -> Just $ Point 15 26
-                      _ -> Nothing
+        let mbPos = listToMaybe $ snd $ cartPath False False cartLoc
         maybeM mbPos $ \position -> do
           cartFull <- readVar mineCartFilledWithRocks
           tile <- getTerrainTile $
@@ -141,21 +140,18 @@ compileIronMine globals = compileArea IronMine Nothing $ do
           _charPos <- areaGet (arsCharacterPosition charNum)
           -- TODO if party is standing in the way, don't move the cart
           turn <- readVar tracksSetToTurn
-          let newLoc = case cartLoc of
-                         0 -> 1
-                         1 -> if turn then 3 else 2
-                         2 -> if turn then 3 else if cartFull then 5 else 1
-                         3 -> if turn then 2 else 4
-                         4 -> if turn then 2 else 3
-                         _ -> cartLoc
+          let (newLoc, path) = cartPath cartFull turn cartLoc
           removeDevice (Grid.geKey ge)
           resetTerrain [rectTopleft $ Grid.geRect ge]
-          -- TODO doodad/sound for rolling cart
+          doMineCartChain cartFull path
           writeVar mineCartLocation newLoc
           addCartAtLocation (Grid.geValue ge) newLoc
-          when (newLoc == 5) $ do
-            -- TODO splosion doodad/sound
-            resetTerrain wallPositions
+          if (newLoc /= 5) then playSound SndMineCartStop else do
+            shakeCamera 20 20
+            playSound SndBoomBig
+            let pt = positionCenter (Point 26 26) `pSub` Point 0 18
+            also_ (doExplosionDoodad FireBoom pt)
+                  (wait 5 >> resetTerrain wallPositions)
     let desc = if not cartFull then "It is currently empty."
                else "It is currently full of very heavy boulders."
     let canFill = cartLoc == 4 && not cartFull
@@ -185,5 +181,69 @@ compileIronMine globals = compileArea IronMine Nothing $ do
     narrate "Ah ha!  There's a mine cart sitting at the end of the tracks in\
       \ this chamber.  From here, it looks to still be in good condition. \
       \ Perhaps it can be of some use to you?"
+
+-------------------------------------------------------------------------------
+
+cartPath :: Bool {-^full-} -> Bool {-^turn-} -> Int {-^loc-}
+         -> (Int, [Position])
+cartPath _ _ 0 = (1, [Point 48 4, Point 51 4, Point 51 21, Point 26 21,
+                      Point 26 25])
+cartPath _ False 1 = (2, path1to2)
+cartPath _ True 1 = (3, [Point 26 25, Point 26 21, Point 45 21, Point 45 23,
+                         Point 49 23, Point 49 36, Point 39 36, Point 39 44,
+                         Point 42 44, Point 42 51, Point 43 51])
+cartPath full False 2 = (if full then 5 else 1, reverse path1to2)
+cartPath _ True 2 = (3, path2to3)
+cartPath _ False 3 = (4, path3to4)
+cartPath _ True 3 = (2, reverse path2to3)
+cartPath _ False 4 = (3, reverse path3to4)
+cartPath _ True 4 = (2, [Point 15 26, Point  7 26, Point  7 30, Point  2 30,
+                         Point  2 20, Point  6 20, Point  6 14, Point 10 14,
+                         Point 10  8, Point 27  8, Point 27  3, Point 34  3,
+                         Point 34 13, Point 35 13, Point 35 24, Point 31 24])
+cartPath _ _ loc = (loc, [])
+
+path1to2, path2to3, path3to4 :: [Position]
+path1to2 = [Point 26 25, Point 26 13, Point 35 13, Point 35 24, Point 31 24]
+path2to3 = [Point 31 24, Point 35 24, Point 35 14, Point 47 14, Point 47 23,
+            Point 49 23, Point 49 36, Point 39 36, Point 39 44, Point 42 44,
+            Point 42 51, Point 43 51]
+path3to4 = [Point 43 51, Point 42 51, Point 42 44, Point 13 44, Point 13 35,
+            Point  7 35, Point  7 26, Point 15 26]
+
+-------------------------------------------------------------------------------
+
+doMineCartDoodad :: (FromAreaEffect f) => Bool -> Position -> Position
+                 -> Script f ()
+doMineCartDoodad cartFull startPos endPos = do
+  resources <- areaGet arsResources
+  let sprite = rsrcSprite resources $
+               if pointX startPos == pointX endPos
+               then (if cartFull then MineCartFullVertSprite
+                     else MineCartEmptyVertSprite)
+               else (if cartFull then MineCartFullHorzSprite
+                     else MineCartEmptyHorzSprite)
+  let startPt = positionTopleft startPos
+      endPt = positionTopleft endPos
+  let limit = 2 * (abs (pointX startPos - pointX endPos) +
+                   abs (pointY startPos - pointY endPos))
+  let paint count cameraTopleft = do
+        let Point dx dy = startPt `pSub` endPt
+        let topleft = endPt `pSub` cameraTopleft `pAdd`
+                      Point (dx * count `div` limit) (dy * count `div` limit)
+        blitTopleft sprite topleft
+  emitAreaEffect $ EffAddDoodad $ Doodad { doodadCountdown = limit,
+                                           doodadHeight = LowDood,
+                                           doodadPaint = paint }
+  wait limit
+
+doMineCartChain :: (FromAreaEffect f) => Bool -> [Position] -> Script f ()
+doMineCartChain cartFull positions = do
+  sequence_ $ intersperse (playSound SndMineCartTurn) $
+    map (uncurry $ doMineCartDoodad cartFull) $ byPairs positions
+
+byPairs :: [a] -> [(a, a)]
+byPairs (x1 : x2 : xs) = (x1, x2) : byPairs (x2 : xs)
+byPairs _ = []
 
 -------------------------------------------------------------------------------
