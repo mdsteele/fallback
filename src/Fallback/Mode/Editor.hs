@@ -200,35 +200,104 @@ newEditorMode resources = do
 -------------------------------------------------------------------------------
 
 autoPaintTile :: Tileset -> TerrainMap -> Position -> TerrainTile
-autoPaintTile tileset tmap pos =
-  if ttId tile `elem` caveWallIds
-  then case surround caveWallIds of
-         (True, True, True, True, True, True, True, True) -> get 1422
-         (True, _, False, _, True, _, True, _) -> get 8648
-         (False, _, False, _, True, _, True, _) -> get 7655
-         (False, _, True, _, True, _, True, _) -> get 7069
-         (False, _, True, _, True, _, False, _) -> get 9022
-         (True, _, True, _, True, _, False, _) -> get 9090
-         (True, _, True, _, False, _, False, _) -> get 2636
-         (True, _, True, _, False, _, True, _) -> get 8111
-         (True, _, False, _, False, _, True, _) -> get 5652
-         (True, True, True, False, True, True, True, True) -> get 2680
-         (True, True, True, True, True, False, True, True) -> get 9166
-         (True, True, True, True, True, True, True, False) -> get 5750
-         (True, False, True, True, True, True, True, True) -> get 1212
-         _ -> tile
-  else tile
+autoPaintTile tileset tmap pos = get $
+  case ttId tile of
+    c | caveWall c ->
+        case nearbyTileIds of
+          (e, s, w, n, se, sw, nw, ne)
+            | all wall [e, s, w, n, se, sw, nw, ne] -> 1422
+            | all wall [c, e, w, n] && none wall [s] -> 8648
+            | all wall [c, w, n] && none wall [e, s] -> 7655
+            | all wall [c, s, w, n] && none wall [e] -> 7069
+            | all wall [c, s, w] && none wall [e, n] -> 9022
+            | all wall [c, e, s, w] && none wall [n] -> 9090
+            | all wall [c, e, s] && none wall [n, w] -> 2636
+            | all wall [c, e, s, n] && none wall [w] -> 8111
+            | all wall [c, e, n] && none wall [s, w] -> 5652
+            | all wall [c, e, s, w, n, se, nw, ne] && not (wall sw) -> 2680
+            | all wall [c, e, s, w, n, se, sw, ne] && not (wall nw) -> 9166
+            | all wall [c, e, s, w, n, se, sw, nw] && not (wall ne) -> 5750
+            | all wall [c, e, s, w, n, sw, nw, ne] && not (wall se) -> 1212
+            | otherwise -> ignore
+      | openWater c ->
+        case nearbyTileIds of
+          (e, s, w, n, _, _, _, _)
+            | all water [e, s, w, n] -> 2937
+            | all water [s, w, n] && caveFloor e -> 0295
+            | all water [e, w, n] && caveFloor s -> 6760
+            | all water [e, s, n] && caveFloor w -> 2443
+            | all water [e, s, w] && caveFloor n -> 6996
+            | all water [w, n] && all caveFloor [e, s] -> 9878
+            | all water [e, n] && all caveFloor [s, w] -> 4701
+            | all water [e, s] && all caveFloor [n, w] -> 6921
+            | all water [s, w] && all caveFloor [n, e] -> 3235
+            | all water [s, n] && all caveFloor [e, w] -> 1701
+            | all water [e, w] && all caveFloor [n, s] -> 5376
+            | all water [s, w, n] && e `elem` [9022, 9090, 9166] -> 5153
+            | all water [e, s, n] && w `elem` [9090, 2636, 5750] -> 5183
+            | all water [s, w, n] && e `elem` [8648, 7655, 2680] -> 5641
+            | all water [e, s, n] && w `elem` [8648, 5652, 1212] -> 8290
+            | all water [e, w, n] && s `elem` [7655, 7069, 5750] -> 3530
+            | all water [e, s, w] && n `elem` [7069, 9022, 1212] -> 4921
+            | all water [e, w, n] && s `elem` [8111, 5652, 9166] -> 3361
+            | all water [e, s, w] && n `elem` [2636, 8111, 2680] -> 2212
+            | all water [s, w, n] && caveWall e -> 2494
+            | all water [e, w, n] && caveWall s -> 2431
+            | all water [e, s, n] && caveWall w -> 3058
+            | all water [e, s, w] && caveWall n -> 0367
+            | all water [w, n] && all caveWall [e, s] -> 2864
+            | all water [e, n] && all caveWall [s, w] -> 4648
+            | all water [e, s] && all caveWall [n, w] -> 9755
+            | all water [s, w] && all caveWall [n, e] -> 8118
+            | otherwise -> ignore
+      | waterVBridge c ->
+        case nearbyTileIds of
+          (_, s, _, n, _, _, _, _)
+            | water s && water n -> 7629
+            | caveFloor s && water n -> 7108
+            | water s && caveFloor n -> 7264
+            | caveFloor s && caveFloor n -> 7739
+            | otherwise -> ignore
+      | waterHBridge c ->
+        case nearbyTileIds of
+          (e, _, w, _, _, _, _, _)
+            | water e && water w -> 1917
+            | caveFloor e && water w -> 5497
+            | water e && caveFloor w -> 6446
+            | caveFloor e && caveFloor w -> 8790
+            | otherwise -> ignore
+      | otherwise -> ignore
   where
+    wall tid = caveWall tid || buildingWall tid
+    caveWall = (`elem` [1422, 8648, 7655, 7069, 9022, 9090, 2636, 8111, 5652,
+                        2680, 9166, 5750, 1212, 0000])
+    buildingWall = (`elem` [7292, 3112, 5588, 0983, 2330, 5719, 3254, 6250,
+                            0111, 7883, 9398, 3037, 7791, 1306, 6933, 6383,
+                            0865, 7148, 9011, 6051, 6455, 0170, 1752, 5489,
+                            3891, 2993, 8625, 0605, 0364, 7185, 1814, 3403,
+                            5216])
+    caveFloor = (`elem` [1171, 6498, 8959, 4581, 9760, 1376, 0772, 0179, 6341,
+                         5892, 6109, 6914, 7234, 5653, 5073, 6814, 3086, 6852,
+                         0545, 5306, 4196, 3431, 4408, 3899, 0486, 2317, 9224,
+                         3915, 8591, 6079, 9108, 3895, 8300, 5199, 3187, 3525])
+    water tid = openWater tid || waterVBridge tid || waterHBridge tid ||
+                tid `elem` [5658, 4863]
+    openWater = (`elem` [2937, 5658, 4863, 0295, 6760, 2443, 6996, 9878, 4701,
+                         6921, 3235, 1701, 5376, 2494, 2431, 3058, 0367, 2864,
+                         4648, 9755, 8118, 5153, 5183, 5641, 8290, 3530, 4921,
+                         3361, 2212])
+    waterVBridge = (`elem` [7629, 7108, 7264, 7739])
+    waterHBridge = (`elem` [1917, 5497, 6446, 8790])
+
     tile = tmapGet tmap pos
-    caveWallIds = [1422, 8648, 7655, 7069, 9022, 9090, 2636, 8111, 5652,
-                   2680, 9166, 5750, 1212]
-    surround ids =
-      let check dir = ttId (tmapGet tmap (pos `plusDir` dir)) `elem`
-                      (ttId (tmapOffTile tmap) : ids)
-      in (check DirE, check DirSE, check DirS, check DirSW,
-          check DirW, check DirNW, check DirN, check DirNE)
     get tid = fromMaybe (error $ "no such tile: " ++ show tid) $
               tilesetLookup tid tileset
+    nearbyTileIds =
+      let dir = ttId . tmapGet tmap . (pos `plusDir`)
+      in (dir DirE, dir DirS, dir DirW, dir DirN,
+          dir DirSE, dir DirSW, dir DirNW, dir DirNE)
+    none = (not .) . any
+    ignore = ttId tile
 
 floodFill :: Position -> TerrainTile -> TerrainMap -> (TerrainMap, [Position])
 floodFill start tile tmap =

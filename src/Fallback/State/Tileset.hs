@@ -422,6 +422,8 @@ tilesList = [
  Tile 5916 (Still 27 1) TerrainSmoke purple, -- cave passwall
 
  Tile 2937 (Anim 45 0 15 NoOverlay) TerrainHover blue, -- water
+ Tile 5658 (Anim 48 0 15 NoOverlay) TerrainWindow blue, -- water rock
+ Tile 4863 (Anim 45 4 15 NoOverlay) TerrainWindow blue, -- waterfall
  Tile 0295 (Anim 45 0 15 $ Overlay 0 0) TerrainHover blue, -- w/ cave floor
  Tile 6760 (Anim 45 0 15 $ Overlay 0 1) TerrainHover blue,
  Tile 2443 (Anim 45 0 15 $ Overlay 0 2) TerrainHover blue,
@@ -432,25 +434,33 @@ tilesList = [
  Tile 3235 (Anim 45 0 15 $ Overlay 0 7) TerrainHover blue,
  Tile 1701 (Anim 45 0 15 $ Overlay 1 4) TerrainHover blue,
  Tile 5376 (Anim 45 0 15 $ Overlay 1 5) TerrainHover blue,
- Tile 2494 (Anim 45 0 15 $ Overlay 2 0) TerrainHover blue, -- w/ cave wall
- Tile 2431 (Anim 45 0 15 $ Overlay 2 1) TerrainHover blue,
- Tile 3058 (Anim 45 0 15 $ Overlay 2 2) TerrainHover blue,
- Tile 0367 (Anim 45 0 15 $ Overlay 2 3) TerrainHover blue,
- Tile 2864 (Anim 45 0 15 $ Overlay 2 4) TerrainHover blue,
- Tile 4648 (Anim 45 0 15 $ Overlay 2 5) TerrainHover blue,
- Tile 9755 (Anim 45 0 15 $ Overlay 2 6) TerrainHover blue,
- Tile 8118 (Anim 45 0 15 $ Overlay 2 7) TerrainHover blue,
- Tile 5153 (Anim 45 0 15 $ Overlay 3 0) TerrainHover blue, -- w/ floor/wall
- Tile 5183 (Anim 45 0 15 $ Overlay 3 1) TerrainHover blue,
+ Tile 7629 (Anim 45 0 15 $ Overlay 2 0) TerrainOpen gray, -- w/ vert bridge
+ Tile 7108 (Anim 45 0 15 $ Overlay 2 1) TerrainOpen gray,
+ Tile 7264 (Anim 45 0 15 $ Overlay 2 2) TerrainOpen gray,
+ Tile 7739 (Anim 45 0 15 $ Overlay 2 3) TerrainOpen gray,
+ Tile 1917 (Anim 45 0 15 $ Overlay 2 4) TerrainOpen gray, -- w/ horz bridge
+ Tile 5497 (Anim 45 0 15 $ Overlay 2 5) TerrainOpen gray,
+ Tile 6446 (Anim 45 0 15 $ Overlay 2 6) TerrainOpen gray,
+ Tile 8790 (Anim 45 0 15 $ Overlay 2 7) TerrainOpen gray,
+ Tile 2494 (Anim 45 0 15 $ Overlay 3 0) TerrainHover blue, -- w/ cave wall
+ Tile 2431 (Anim 45 0 15 $ Overlay 3 1) TerrainHover blue,
+ Tile 3058 (Anim 45 0 15 $ Overlay 3 2) TerrainHover blue,
+ Tile 0367 (Anim 45 0 15 $ Overlay 3 3) TerrainHover blue,
+ Tile 2864 (Anim 45 0 15 $ Overlay 3 4) TerrainHover blue,
+ Tile 4648 (Anim 45 0 15 $ Overlay 3 5) TerrainHover blue,
+ Tile 9755 (Anim 45 0 15 $ Overlay 3 6) TerrainHover blue,
+ Tile 8118 (Anim 45 0 15 $ Overlay 3 7) TerrainHover blue,
+ Tile 5153 (Anim 45 0 15 $ Overlay 4 0) TerrainHover blue, -- w/ floor/wall
+ Tile 5183 (Anim 45 0 15 $ Overlay 4 1) TerrainHover blue,
+ Tile 5641 (Anim 45 0 15 $ Overlay 4 2) TerrainHover blue,
+ Tile 8290 (Anim 45 0 15 $ Overlay 4 3) TerrainHover blue,
+ Tile 3530 (Anim 45 0 15 $ Overlay 4 4) TerrainHover blue,
+ Tile 4921 (Anim 45 0 15 $ Overlay 4 5) TerrainHover blue,
+ Tile 3361 (Anim 45 0 15 $ Overlay 4 6) TerrainHover blue,
+ Tile 2212 (Anim 45 0 15 $ Overlay 4 7) TerrainHover blue,
 
- Tile 7629 (Anim 46 0 15 NoOverlay) TerrainOpen gray, -- vertical bridge
---  Tile 7108 (Anim 46 0 15 $ Overlay 0 1) TerrainOpen gray,
---  Tile 7264 (Anim 46 0 15 $ Overlay 0 3) TerrainOpen gray,
---  Tile 7739 (Anim 46 0 15 $ Overlay 1 5) TerrainOpen gray,
- Tile 1917 (Anim 47 0 15 NoOverlay) TerrainOpen gray, -- horizontal bridge
- Tile 5658 (Anim 48 0 15 NoOverlay) TerrainWindow blue, -- water rock
- Tile 4863 (Anim 45 4 15 NoOverlay) TerrainWindow blue, -- waterfall
  Tile 0285 (Anim 49 0 6 NoOverlay) TerrainHover orange] -- lava
+
   where
     black = blackColor
     blue = Color 0 0 255
@@ -468,7 +478,6 @@ tilesList = [
     white = whiteColor
 
 -- 0073, 3848, 4061, 6450, 8474, 2206, 2885, 2776, 3432, 8040, 8284, 6392,
--- 5268, 0636, 8011, 5275, 8601, 2212, 3361, 4921, 3530, 8290, 5641, 8790,
--- 6446, 5497
+-- 5268, 0636, 8011, 5275, 8601
 
 -------------------------------------------------------------------------------
