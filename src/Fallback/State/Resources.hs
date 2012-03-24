@@ -253,10 +253,9 @@ rsrcFont rsrc tag = tmGet tag $ rsrcFonts rsrc
 -- Sounds:
 
 data SoundTag = SndArrow
-              | SndBlessing
-              | SndBreath
+              | SndBite | SndBlessing | SndBreath
               | SndBoomBig | SndBoomSmall
-              | SndChemicalDamage
+              | SndChemicalDamage | SndClaw
               | SndCombatEnd | SndCombatStart
               | SndDie1 | SndDie2
               | SndDoorOpen | SndDoorShut
@@ -264,20 +263,23 @@ data SoundTag = SndArrow
               | SndHeal
               | SndHit1 | SndHit2 | SndHit3 | SndHit4
               | SndHurtFemale | SndHurtMale
-              | SndIllusion | SndLevelUp | SndLever
+              | SndIllusion
+              | SndLevelUp | SndLever
               | SndMineCartStop | SndMineCartTurn
               | SndMiss1 | SndMiss2
-              | SndSummon
+              | SndShielding | SndSummon
               | SndThrow
   deriving (Bounded, Eq, Ix, Ord)
 
 soundPath :: SoundTag -> String
 soundPath SndArrow = "arrow-shoot-12.wav"
-soundPath SndBlessing = "blessing-51.wav"
+soundPath SndBite = "bite-87.wav"
+soundPath SndBlessing = "blessing-4.wav"
 soundPath SndBreath = "breath-44.wav"
 soundPath SndBoomBig = "boom-big-5.wav"
 soundPath SndBoomSmall = "boom-small-60.wav"
 soundPath SndChemicalDamage = "chemical-damage-88.wav"
+soundPath SndClaw = "claw-86.wav"
 soundPath SndCombatEnd = "combat-end.wav"
 soundPath SndCombatStart = "combat-start.wav"
 soundPath SndDie1 = "die1-31.wav"
@@ -299,6 +301,7 @@ soundPath SndMineCartStop = "minecart-stop-cfxr.wav"
 soundPath SndMineCartTurn = "minecart-turn-cfxr.wav"
 soundPath SndMiss1 = "miss1-2.wav"
 soundPath SndMiss2 = "miss2-19.wav"
+soundPath SndShielding = "shielding-51.wav"
 soundPath SndSummon = "summon-61.wav"
 soundPath SndThrow = "throw-14.wav"
 

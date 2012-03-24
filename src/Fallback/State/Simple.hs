@@ -71,12 +71,12 @@ type PowerModifier = Double
 -- Attacks:
 
 -- | Determines (along with the element of the attack) how an attack is
--- animated.  Does not affect e.g. the chances of hitting or how damage is
--- determined.  In particular, this does not determine whether an attack is
--- ranged or not for the purposes of e.g. the Parry skill; the 'AttackRange' is
--- used for that instead.
-data AttackAppearance = BowAttack | BreathAttack | MeleeAttack | ThrownAttack
-                      | WandAttack
+-- animated and what sound effects are used.  Does not affect e.g. the chances
+-- of hitting or how damage is determined.  In particular, this does not
+-- determine whether an attack is ranged or not for the purposes of e.g. the
+-- Parry skill; the 'AttackRange' is used for that instead.
+data AttackAppearance = BiteAttack | BladeAttack | BluntAttack | BowAttack
+                      | BreathAttack | ClawAttack | ThrownAttack | WandAttack
   deriving (Eq)
 
 -- | Determines the base damage element for an attack.  This is usually

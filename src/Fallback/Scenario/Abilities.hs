@@ -175,7 +175,7 @@ getAbility characterClass abilityNumber level =
       combat (mix DryIce Limestone) AutoTarget $ \caster power () -> do
         intBonus <- getIntellectBonus caster
         hitTargets <- getAllAllyTargets
-        playSound SndBlessing
+        playSound SndShielding
         concurrent_ hitTargets $ \hitTarget -> do
           randMult <- getRandomR 0.9 1.1
           -- TODO: add doodad, maybe wait a bit before applying status

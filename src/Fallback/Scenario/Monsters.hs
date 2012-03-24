@@ -28,31 +28,24 @@ import Fallback.State.Tags (MonsterSpellTag(..), MonsterTag(..))
 -------------------------------------------------------------------------------
 
 getMonsterType :: MonsterTag -> MonsterType
-getMonsterType Wolf = MonsterType
+getMonsterType Wolf = monsterType
   { mtAttacks = [MonsterAttack
-      { maAppearance = MeleeAttack,
+      { maAppearance = ClawAttack,
         maCriticalChance = 0.1,
         maDamageCount = 6,
         maDamageRange = (1, 8),
         maElement = PhysicalAttack,
         maEffects = [],
         maRange = Melee }],
-    mtCanFly = False,
     mtExperienceValue = 12,
     mtImageRow = 9,
-    mtIsDaemonic = False,
-    mtIsUndead = False,
     mtLevel = 4,
     mtMaxHealth = 50,
     mtName = "Wolf",
-    mtResistances = nullResistances,
-    mtSize = SizeSmall,
-    mtSpeed = 2,
-    mtSpells = [],
-    mtWalksFast = False }
-getMonsterType DemonWolf = MonsterType
+    mtSpeed = 2 }
+getMonsterType DemonWolf = monsterType
   { mtAttacks = [MonsterAttack
-      { maAppearance = MeleeAttack,
+      { maAppearance = ClawAttack,
         maCriticalChance = 0.15,
         maDamageCount = 8,
         maDamageRange = (1, 10),
@@ -66,25 +59,53 @@ getMonsterType DemonWolf = MonsterType
         maElement = AcidAttack,
         maEffects = [InflictPoison 1.5],
         maRange = Ranged 4 }],
-    mtCanFly = False,
     mtExperienceValue = 30,
     mtImageRow = 0,
     mtIsDaemonic = True,
-    mtIsUndead = False,
     mtLevel = 6,
     mtMaxHealth = 100,
     mtName = "Demon Wolf",
-    mtResistances = nullResistances,
     mtSize = SizeWide,
     mtSpeed = 2,
-    mtSpells = [FireSpray],
-    mtWalksFast = False }
+    mtSpells = [FireSpray] }
+getMonsterType Ghoul = monsterType
+  { mtAttacks = [MonsterAttack
+      { maAppearance = BiteAttack,
+        maCriticalChance = 0.2,
+        maDamageCount = 15,
+        maDamageRange = (1, 10),
+        maElement = PhysicalAttack,
+        maEffects = [],
+        maRange = Melee }],
+    mtExperienceValue = 120,
+    mtImageRow = 6,
+    mtIsUndead = True,
+    mtLevel = 99,
+    mtMaxHealth = 80,
+    mtName = "Ghoul",
+    mtSpeed = 1.2 }
+getMonsterType Zombie = monsterType
+  { mtAttacks = [MonsterAttack
+      { maAppearance = BluntAttack,
+        maCriticalChance = 0.05,
+        maDamageCount = 10,
+        maDamageRange = (1, 10),
+        maElement = PhysicalAttack,
+        maEffects = [],
+        maRange = Melee }],
+    mtExperienceValue = 100,
+    mtImageRow = 4,
+    mtIsUndead = True,
+    mtLevel = 99,
+    mtMaxHealth = 150,
+    mtName = "Zombie",
+    mtSpeed = 0.9 }
 getMonsterType TownManRed = townsperson { mtImageRow = 10 }
 getMonsterType TownManApron = townsperson { mtImageRow = 14 }
 getMonsterType TownWomanBlue = townsperson { mtImageRow = 17 }
 getMonsterType _ = MonsterType -- FIXME
   { mtAttacks = [MonsterAttack
-      { maAppearance = MeleeAttack,
+      { maAppearance = BladeAttack,
         maCriticalChance = 0.05,
         maDamageCount = 10,
         maDamageRange = (1, 10),
@@ -105,41 +126,30 @@ getMonsterType _ = MonsterType -- FIXME
     mtSpells = [],
     mtWalksFast = True }
 
--- newMonsterImages :: MonsterTag -> IO CreatureImages
--- newMonsterImages tag =
---   case mtSize mtype of
---     SizeSmall -> CreatureImages <$> sprite 0 row 1 1 <*> sprite 1 row 1 1
---                                 <*> sprite 2 row 1 1 <*> sprite 3 row 1 1
---     SizeWide -> CreatureImages <$> sprite 0 row 2 1 <*> sprite 0 (row + 1) 2 1
---                                <*> sprite 2 row 2 1 <*> sprite 2 (row + 1) 2 1
---     SizeTall -> CreatureImages <$> sprite 0 row 1 2 <*> sprite 1 row 1 2
---                                <*> sprite 2 row 1 2 <*> sprite 3 row 1 2
---     SizeHuge -> CreatureImages <$> sprite 0 row 2 2 <*> sprite 0 (row + 2) 2 2
---                                <*> sprite 2 row 2 2 <*> sprite 2 (row + 2) 2 2
---   where
---     mtype = getMonsterType tag
---     row = mtImageRow mtype
---     sprite x y w h =
---       runDraw $ loadSubSprite "monsters.png" $
---       Rect (x * tileWidth) (y * tileHeight) (w * tileWidth) (h * tileHeight)
-
 -------------------------------------------------------------------------------
 
-townsperson :: MonsterType
-townsperson = MonsterType
+monsterType :: MonsterType
+monsterType = MonsterType
   { mtAttacks = [],
     mtCanFly = False,
-    mtExperienceValue = 100,
-    mtImageRow = 10,
+    mtExperienceValue = 0,
+    mtImageRow = 0,
     mtIsDaemonic = False,
     mtIsUndead = False,
     mtLevel = 0,
-    mtMaxHealth = 40,
-    mtName = "Townsperson",
+    mtMaxHealth = 100,
+    mtName = "???",
     mtResistances = nullResistances,
     mtSize = SizeSmall,
     mtSpeed = 1,
     mtSpells = [],
     mtWalksFast = False }
+
+townsperson :: MonsterType
+townsperson = monsterType
+  { mtExperienceValue = 100,
+    mtImageRow = 10,
+    mtMaxHealth = 40,
+    mtName = "Townsperson" }
 
 -------------------------------------------------------------------------------

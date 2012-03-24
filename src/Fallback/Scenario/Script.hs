@@ -491,6 +491,9 @@ attackInitialAnimation :: (FromAreaEffect f) => AttackAppearance
                        -> AttackElement -> Position -> Position -> Script f ()
 attackInitialAnimation appearance element origin target = do
   case appearance of
+    BiteAttack -> return ()
+    BladeAttack -> return ()
+    BluntAttack -> return ()
     BowAttack -> do
       playSound SndArrow
       addBallisticDoodad ArrowProj origin target 250 >>= wait
@@ -503,7 +506,7 @@ attackInitialAnimation appearance element origin target = do
                    PhysicalAttack -> StarProj
       playSound SndBreath
       addBallisticDoodad proj origin target 220 >>= wait
-    MeleeAttack -> return ()
+    ClawAttack -> return ()
     ThrownAttack -> do
       playSound SndThrow
       addBallisticDoodad StarProj origin target 200 >>= wait
@@ -527,10 +530,13 @@ attackHit appearance element effects target critical damage = do
       elementSnd _ = error "FIXME attackHit"
   playSound =<<
     case appearance of
+      BiteAttack -> return SndBite
       BowAttack -> if critical then return SndHit2 else return SndHit1
-      BreathAttack -> return $ elementSnd element
-      MeleeAttack -> if critical then return SndHit4
+      BladeAttack -> if critical then return SndHit4
                      else getRandomElem [SndHit1, SndHit2, SndHit3]
+      BluntAttack -> if critical then return SndHit2 else return SndHit1
+      BreathAttack -> return $ elementSnd element
+      ClawAttack -> return SndClaw
       ThrownAttack -> if critical then return SndHit2 else return SndHit1
       WandAttack -> return $ elementSnd element
   let elementBoom = do
@@ -542,11 +548,14 @@ attackHit appearance element effects target critical damage = do
                      PhysicalAttack -> SlashRight
         addBoomDoodadAtPosition boom (if critical then 3 else 2) target
   case appearance of
+    BiteAttack -> addBoomDoodadAtPosition SlashRight 2 target -- FIXME
     BowAttack -> addBoomDoodadAtPosition SlashRight 2 target -- FIXME
-    BreathAttack -> elementBoom
-    MeleeAttack -> do
+    BladeAttack -> do
       addBoomDoodadAtPosition SlashRight 2 target
       when critical $ addBoomDoodadAtPosition SlashLeft 3 target
+    BluntAttack -> addBoomDoodadAtPosition SlashRight 2 target -- FIXME
+    BreathAttack -> elementBoom
+    ClawAttack -> addBoomDoodadAtPosition SlashRight 2 target -- FIXME
     ThrownAttack -> addBoomDoodadAtPosition SlashRight 2 target -- FIXME
     WandAttack -> elementBoom
   let hitTarget = HitPosition target

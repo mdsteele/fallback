@@ -296,7 +296,7 @@ getWeaponData Sunrod = WeaponData
     wdUsableBy = usableByAll,
     wdVsUndead = InstantKill }
 getWeaponData Starspear = WeaponData
-  { wdAppearance = MeleeAttack,
+  { wdAppearance = BladeAttack,
     wdBonuses = sumBonuses [Armor +% 20, Intellect += 10],
     wdDamageBonus = 5,
     wdDamageRange = (1, 8),
@@ -318,7 +318,7 @@ getWeaponData Moonbow = WeaponData
     wdUsableBy = usableByAll,
     wdVsUndead = NormalDamage }
 getWeaponData Lifeblade = WeaponData
-  { wdAppearance = MeleeAttack,
+  { wdAppearance = BladeAttack,
     wdBonuses = (Strength += 10),
     wdDamageBonus = 6,
     wdDamageRange = (1, 10),
@@ -329,7 +329,7 @@ getWeaponData Lifeblade = WeaponData
     wdUsableBy = usableByAll,
     wdVsUndead = DoubleDamage }
 getWeaponData Dagger = WeaponData
-  { wdAppearance = MeleeAttack,
+  { wdAppearance = BladeAttack,
     wdBonuses = nullBonuses,
     wdDamageBonus = 1,
     wdDamageRange = (1, 4),
@@ -388,7 +388,7 @@ getWeaponData _ = unarmedWeaponData -- FIXME
 -- | 'WeaponData' for unarmed attacks.
 unarmedWeaponData :: WeaponData
 unarmedWeaponData = WeaponData
-  { wdAppearance = MeleeAttack,
+  { wdAppearance = BluntAttack,
     wdBonuses = nullBonuses,
     wdDamageBonus = 1,
     wdDamageRange = (1, 3),
