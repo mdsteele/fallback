@@ -23,18 +23,17 @@ import Control.Applicative ((<$>))
 import Control.Monad (when)
 import qualified Data.Foldable as Fold (sum)
 import qualified Data.IntMap as IntMap (fromList)
-import Data.List (intercalate)
 import qualified Data.Map as Map (empty)
 import qualified Data.Set as Set (empty)
 
 import Fallback.Constants (screenRect)
-import Fallback.Control.Error (IOEO, onlyIO, runEO, runIOEO)
+import Fallback.Control.Error (IOEO, onlyIO)
 import Fallback.Data.TotalMap (makeTotalMap)
 import Fallback.Draw (paintScreen, runDraw)
 import Fallback.Event
 import Fallback.Mode.Base
 import Fallback.Mode.Dialog (newHorizontalDialogMode, newQuitWithoutSavingMode)
-import Fallback.Mode.Narrate (newNarrateMode)
+import Fallback.Mode.Error (popupIfErrors)
 import Fallback.Scenario.Areas
   (enterPartyIntoArea, startingArea, startingPosition)
 import Fallback.Scenario.Triggers (initialProgress)
@@ -52,7 +51,7 @@ import Fallback.View.NewGame
 newNewGameMode :: Resources -> Modes -> Mode -> View a b -> a -> IO Mode
 newNewGameMode resources modes prevMode bgView bgInput = do
   view <- runDraw $ newNewGameView resources bgView bgInput
-  let mode EvQuit =
+  let mode EvQuit = do
         ChangeMode <$> newQuitWithoutSavingMode resources mode view ()
       mode event = do
         action <- runDraw $ viewHandler view () screenRect event
@@ -62,12 +61,9 @@ newNewGameMode resources modes prevMode bgView bgInput = do
           Just CancelNewGame ->
             ChangeMode <$> newDiscardPartyMode resources prevMode mode view ()
           Just (StartNewGame spec) -> do
-            eoTownState <- runIOEO (newGameTownState resources spec)
-            case runEO eoTownState of
-              Left errors ->
-                ChangeMode <$> newNarrateMode resources view ()
-                                 (intercalate "\n\n" errors) (return mode)
-              Right townState -> ChangeMode <$> newTownMode' modes townState
+            popupIfErrors resources view () (return mode)
+                          (newGameTownState resources spec) $ \ts -> do
+              ChangeMode <$> newTownMode' modes ts
   return mode
 
 newDiscardPartyMode :: Resources -> Mode -> Mode -> View a b -> a -> IO Mode

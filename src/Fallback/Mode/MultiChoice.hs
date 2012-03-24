@@ -26,6 +26,7 @@ import Fallback.Constants (screenRect)
 import Fallback.Draw (paintScreen, runDraw)
 import Fallback.Event
 import Fallback.Mode.Base
+import Fallback.Mode.Dialog (newQuitWithoutSavingMode)
 import Fallback.State.Resources (Resources)
 import Fallback.View (View, fromAction, viewHandler, viewPaint)
 import Fallback.View.MultiChoice (newMultiChoiceView)
@@ -37,7 +38,8 @@ newMultiChoiceMode :: Resources -> View a b -> a -> String -> [(String, c)]
 newMultiChoiceMode resources bgView bgInput text choices cancel nextMode = do
   view <- runDraw $ do
     newMultiChoiceView resources bgView bgInput text choices cancel
-  let mode EvQuit = return SameMode
+  let mode EvQuit = do
+        ChangeMode <$> newQuitWithoutSavingMode resources mode view ()
       mode event = do
         action <- runDraw $ viewHandler view () screenRect event
         when (event == EvTick) $ paintScreen (viewPaint view ())

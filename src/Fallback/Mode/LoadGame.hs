@@ -21,15 +21,13 @@ module Fallback.Mode.LoadGame (newLoadGameMode) where
 
 import Control.Applicative ((<$>))
 import Control.Monad (when)
-import Data.List (intercalate)
 
 import Fallback.Constants (screenRect)
-import Fallback.Control.Error (runEO, runIOEO)
 import Fallback.Draw (paintScreen, runDraw)
 import Fallback.Event
 import Fallback.Mode.Base
 import Fallback.Mode.Dialog
-import Fallback.Mode.Narrate (newNarrateMode)
+import Fallback.Mode.Error (popupIfErrors)
 import Fallback.Scenario.Save
 import Fallback.State.Resources (Resources)
 import Fallback.View (View, fromAction, viewHandler, viewPaint)
@@ -51,15 +49,11 @@ newLoadGameMode resources modes prevMode bgView bgInput = do
         Nothing -> return SameMode
         Just CancelLoadGame -> return (ChangeMode prevMode)
         Just (DoLoadGame sgs) -> do
-          eoSavedGame <- runIOEO $ loadSavedGame resources sgs
-          case runEO eoSavedGame of
-            Right (SavedRegionState rs) ->
-              ChangeMode <$> newRegionMode' modes rs
-            Right (SavedTownState ts) ->
-              ChangeMode <$> newTownMode' modes ts
-            Left errors -> do
-              let msg = intercalate "\n" errors
-              ChangeMode <$> newNarrateMode resources view () msg (return mode)
+          popupIfErrors resources view () (return mode)
+                        (loadSavedGame resources sgs) $ \saved -> do
+            case saved of
+              SavedRegionState rs -> ChangeMode <$> newRegionMode' modes rs
+              SavedTownState ts -> ChangeMode <$> newTownMode' modes ts
   focusBlurMode (return ()) view mode
 
 -------------------------------------------------------------------------------

@@ -23,17 +23,15 @@ where
 
 import Control.Applicative ((<$>))
 import Control.Monad (when)
-import Data.List (intercalate)
 import Data.IORef
 import qualified Data.Set as Set
 
 import Fallback.Constants (screenRect)
-import Fallback.Control.Error (runIOEO, runEO)
 import Fallback.Draw (paintScreen, runDraw, takeScreenshot)
 import Fallback.Event
 import Fallback.Mode.Base
+import Fallback.Mode.Error (popupIfErrors)
 import Fallback.Mode.LoadGame (newLoadGameMode)
-import Fallback.Mode.Narrate (newNarrateMode)
 import Fallback.Mode.SaveGame (newSaveGameMode)
 import Fallback.Scenario.Areas (areaEntrance, areaLinks, enterPartyIntoArea)
 import Fallback.Scenario.Regions (regionBackground)
@@ -86,13 +84,10 @@ newRegionMode resources modes initState = do
           return SameMode
         Just TravelToSelectedArea -> do
           let tag = rsSelectedArea state
-          eo <- runIOEO $ enterPartyIntoArea resources (rsParty state) tag $
-                areaEntrance tag (rsPreviousArea state)
-          case runEO eo of
-            Left errors ->
-              ChangeMode <$> newNarrateMode resources view state
-                               (intercalate "\n\n" errors) (return mode)
-            Right ts -> ChangeMode <$> newTownMode' modes ts
+          popupIfErrors resources view state (return mode)
+                        (enterPartyIntoArea resources (rsParty state) tag $
+                         areaEntrance tag (rsPreviousArea state)) $ \ts -> do
+            ChangeMode <$> newTownMode' modes ts
         Just ShowMenu -> return SameMode -- FIXME
 
   focusBlurMode (readIORef stateRef) view mode

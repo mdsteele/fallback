@@ -17,44 +17,28 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
-module Fallback.Mode.SaveGame (newSaveGameMode) where
+module Fallback.Mode.Error
+  (popupIfErrors)
+where
 
-import Control.Applicative ((<$>))
-import Control.Monad (when)
+import Data.List (intercalate)
 
-import Fallback.Constants (screenRect)
-import Fallback.Draw (Sprite, paintScreen, runDraw)
-import Fallback.Event
+import Fallback.Control.Error (IOEO, runEO, runIOEO)
 import Fallback.Mode.Base
-import Fallback.Mode.Dialog
-import Fallback.Mode.Error (popupIfErrors)
-import Fallback.Scenario.Save
+import Fallback.Mode.Narrate (newNarrateMode)
 import Fallback.State.Resources (Resources)
-import Fallback.View (View, fromAction, viewHandler, viewPaint)
-import Fallback.View.SaveGame
+import Fallback.View (View)
 
 -------------------------------------------------------------------------------
 
-newSaveGameMode :: Resources -> (SavedGameSummary -> IO NextMode) -> Sprite
-                -> SavedGame -> Mode -> View a b -> a -> IO Mode
-newSaveGameMode resources onSave screenshot savedGame
-                prevMode bgView bgInput = do
-  view <- do
-    summaries <- loadSavedGameSummaries
-    runDraw $ newSaveGameView resources bgView bgInput screenshot
-                              (savedGameLocation savedGame) summaries
-  let mode EvQuit =
-        ChangeMode <$> newQuitWithoutSavingMode resources mode view ()
-      mode event = do
-        action <- runDraw $ viewHandler view () screenRect event
-        when (event == EvTick) $ paintScreen (viewPaint view ())
-        case fromAction action of
-          Nothing -> return SameMode
-          Just CancelSaveGame -> return (ChangeMode prevMode)
-          Just (DoSaveGame name) -> do
-            popupIfErrors resources view () (return mode)
-                          (saveGame name screenshot savedGame) $ \summary -> do
-              onSave summary
-  focusBlurMode (return ()) view mode
+popupIfErrors :: Resources -> View a b -> a -> IO Mode -> IOEO c
+              -> (c -> IO NextMode) -> IO NextMode
+popupIfErrors resources bgView bgInput onError ioeo onSuccess = do
+  eo <- runIOEO ioeo
+  case runEO eo of
+    Left errors -> fmap ChangeMode $
+                   newNarrateMode resources bgView bgInput
+                                  (intercalate "\n\n" errors) onError
+    Right value -> onSuccess value
 
 -------------------------------------------------------------------------------

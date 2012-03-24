@@ -26,6 +26,7 @@ import Fallback.Constants (screenRect)
 import Fallback.Draw (paintScreen, runDraw)
 import Fallback.Event
 import Fallback.Mode.Base
+import Fallback.Mode.Dialog (newQuitWithoutSavingMode)
 import Fallback.State.Resources (Resources)
 import Fallback.View (View, fromAction, viewHandler, viewPaint)
 import Fallback.View.Narrate (newNarrateView)
@@ -35,7 +36,8 @@ import Fallback.View.Narrate (newNarrateView)
 newNarrateMode :: Resources -> View a b -> a -> String -> IO Mode -> IO Mode
 newNarrateMode resources bgView bgInput text nextMode = do
   view <- runDraw $ newNarrateView resources bgView bgInput text
-  let mode EvQuit = return SameMode
+  let mode EvQuit = do
+        ChangeMode <$> newQuitWithoutSavingMode resources mode view ()
       mode event = do
         action <- runDraw $ viewHandler view () screenRect event
         when (event == EvTick) $ paintScreen (viewPaint view ())

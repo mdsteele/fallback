@@ -22,6 +22,7 @@ module Fallback.Scenario.Areas
    enterPartyIntoArea, startingArea, startingPosition)
 where
 
+import Control.Applicative ((<*>))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 

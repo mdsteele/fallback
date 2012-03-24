@@ -25,7 +25,7 @@ where
 
 import Control.Applicative ((<$), (<$>))
 import Control.Monad (forM_, guard, when)
-import Data.List (delete, intercalate, partition)
+import Data.List (delete, partition)
 import Data.Maybe (fromMaybe, isNothing, isJust)
 import Data.IORef
 import qualified Data.Set as Set
@@ -33,7 +33,6 @@ import qualified Data.Set as Set
 import Fallback.Constants
   (baseFramesPerActionPoint, combatArenaCols, combatArenaRows,
    momentsPerActionPoint, screenRect)
-import Fallback.Control.Error (runEO, runIOEO)
 import Fallback.Control.Script
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
@@ -44,6 +43,7 @@ import Fallback.Draw (paintScreen, runDraw)
 import Fallback.Event
 import Fallback.Mode.Base
 import Fallback.Mode.Dialog (newTextEntryDialogMode)
+import Fallback.Mode.Error (popupIfErrors)
 import Fallback.Mode.LoadGame (newLoadGameMode)
 import Fallback.Mode.MultiChoice (newMultiChoiceMode)
 import Fallback.Mode.Narrate (newNarrateMode)
@@ -121,14 +121,11 @@ newTownMode resources modes initState = do
             return mode
         Just DoStartCombat -> doStartCombat ts
         Just (DoTeleport tag pos) -> do
-          eo <- runIOEO $ enterPartyIntoArea resources (arsParty ts) tag pos
-          case runEO eo of
-            Left errors -> do
-              ChangeMode <$> newNarrateMode resources view ts
-                               (intercalate "\n\n" errors) (return mode)
-            Right ts' -> do
-              writeIORef stateRef ts'
-              handleAction action
+          popupIfErrors resources view ts (return mode)
+                        (enterPartyIntoArea resources (arsParty ts) tag pos) $
+                        \ts' -> do
+            writeIORef stateRef ts'
+            handleAction action
         Just (DoWait script) -> do
           writeIORef stateRef $
             (tickTownAnimations ts) { tsPhase = ScriptPhase script }
