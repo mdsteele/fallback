@@ -19,7 +19,7 @@
 
 module Fallback.Event
   (Event(..), Key(..), KeyMod(..),
-   fromSDLKey, toSDLKey, getKeyState, getAbsoluteMousePosition, letterKeys)
+   fromSDLKey, toSDLKey, getKeyStateIO, getAbsoluteMousePosition, letterKeys)
 where
 
 import qualified Graphics.UI.SDL as SDL
@@ -154,8 +154,8 @@ fromSDLKey _ = KeyUnknown
 
 -------------------------------------------------------------------------------
 
-getKeyState :: Key -> IO Bool
-getKeyState k = SDLx.getKeyState (toSDLKey k)
+getKeyStateIO :: Key -> IO Bool
+getKeyStateIO k = SDLx.getKeyState (toSDLKey k)
 
 getAbsoluteMousePosition :: IO IPoint
 getAbsoluteMousePosition = do

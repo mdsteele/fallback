@@ -24,6 +24,7 @@ import Control.Monad (zipWithM_)
 import Fallback.Data.Color (Tint, tintAlpha)
 import Fallback.Data.Point
 import Fallback.Draw.Base
+import Fallback.Event (Key(..))
 import Fallback.Utility (fmod)
 
 -------------------------------------------------------------------------------
@@ -118,5 +119,24 @@ drawThickLineChain width tint (p1 : p2 : rest) = do
   drawThickLine width tint p1 p2
   drawThickLineChain width tint (p2 : rest)
 drawThickLineChain _ _ _ = return ()
+
+-------------------------------------------------------------------------------
+
+getArrowKeysDirection :: Draw z (Maybe Direction)
+getArrowKeysDirection = do
+  up <- getKeyState KeyUpArrow
+  dn <- getKeyState KeyDownArrow
+  lf <- getKeyState KeyLeftArrow
+  rt <- getKeyState KeyRightArrow
+  return $ case (up, dn, lf, rt) of
+    (False, False, False,  True) -> Just DirE
+    (False, False,  True, False) -> Just DirW
+    (False,  True, False, False) -> Just DirS
+    (False,  True, False,  True) -> Just DirSE
+    (False,  True,  True, False) -> Just DirSW
+    ( True, False, False, False) -> Just DirN
+    ( True, False, False,  True) -> Just DirNE
+    ( True, False,  True, False) -> Just DirNW
+    _ -> Nothing
 
 -------------------------------------------------------------------------------

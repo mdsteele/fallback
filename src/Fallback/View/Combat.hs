@@ -21,7 +21,7 @@ module Fallback.View.Combat
   (CombatAction(..), newCombatView)
 where
 
-import Control.Applicative ((<$), (<$>))
+import Control.Applicative ((<$>))
 import Data.Foldable (toList)
 import Data.Maybe (isJust)
 
@@ -48,7 +48,6 @@ import Fallback.View.Base
 import Fallback.View.Camera
 import Fallback.View.Hover
 import Fallback.View.Inventory
-import Fallback.View.Quiver
 import Fallback.View.Sidebar
 
 -------------------------------------------------------------------------------
@@ -99,7 +98,6 @@ newCombatView resources = newCursorView resources $ \cursorSink -> do
 
 newCombatMapView :: Resources -> Draw z (View CombatState CombatAction)
 newCombatMapView resources = do
-  quiver <- newQuiver
   let
     paint (cs, mbMousePt) = do
       let acs = csCommon cs
@@ -132,7 +130,7 @@ newCombatMapView resources = do
       maybeM (acsMessage acs) (paintMessage resources)
 
     handler _ _ EvTick =
-      maybe Ignore (Action . CombatMove) <$> quiverDirection quiver
+      maybe Ignore (Action . CombatMove) <$> getArrowKeysDirection
     handler (cs, _) rect (EvMouseDown pt) = do
       if not (rectContains rect pt) then return Ignore else do
       let pt' = pt `pSub` rectTopleft rect `pAdd` (camTopleft $ arsCamera cs)
@@ -161,7 +159,6 @@ newCombatMapView resources = do
         TargetingPhase _ -> return $ Action $ CombatTargetPosition pos
         ExecutionPhase _ -> return Suppress
     handler (cs, _) _ (EvKeyDown key _ _) = do
-      quiverKeyDown quiver key
       case key of
         KeySpace -> do
           case csPhase cs of
@@ -180,8 +177,6 @@ newCombatMapView resources = do
                   return $ Action $ CombatTargetCharacter charNum
                 _ -> return Ignore
             Nothing -> return Ignore
-    handler _ _ (EvKeyUp key) = Ignore <$ quiverKeyUp quiver key
-    handler _ _ EvBlur = Ignore <$ resetQuiver quiver
     handler _ _ _ = return Ignore
 
   newMouseView $ View paint handler

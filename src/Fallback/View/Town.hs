@@ -49,7 +49,6 @@ import Fallback.View.Camera
    tintNonVisibleTiles)
 import Fallback.View.Hover
 import Fallback.View.Inventory
-import Fallback.View.Quiver
 import Fallback.View.Sidebar
 import Fallback.View.Upgrade
 
@@ -108,7 +107,6 @@ newTownView resources = newCursorView resources $ \cursorSink -> do
 newTownMapView :: Resources -> HoverSink Cursor
                -> Draw z (View TownState TownAction)
 newTownMapView resources cursorSink = do
-  quiver <- newQuiver
   let
 
     paint (ts, mbMousePt) = do
@@ -135,7 +133,7 @@ newTownMapView resources cursorSink = do
       maybeM (acsMessage acs) (paintMessage resources)
 
     handler _ _ EvTick =
-      maybe Ignore (Action . TownMove) <$> quiverDirection quiver
+      maybe Ignore (Action . TownMove) <$> getArrowKeysDirection
     handler (ts, _) rect (EvMouseMotion pt _) = Ignore <$ setCursor ts rect pt
     handler (ts, _) rect (EvMouseDown pt) =
       if not (rectContains rect pt) then return Ignore else do
@@ -156,7 +154,6 @@ newTownMapView resources cursorSink = do
         TargetingPhase _ -> return (Action TownCancelTargeting)
         _ -> return Ignore
     handler (ts, _) _ (EvKeyDown key _ _) = do
-      quiverKeyDown quiver key
       case keyCharacterNumber key of
         Nothing -> return Ignore
         Just charNum -> return $
@@ -167,9 +164,7 @@ newTownMapView resources cursorSink = do
                    Action $ TownTargetCharacter charNum
                  _ -> Suppress) :: Action TownAction
             _ -> Ignore
-    handler _ _ (EvKeyUp key) = Ignore <$ quiverKeyUp quiver key
     handler (ts, _) rect (EvFocus pt) = Ignore <$ setCursor ts rect pt
-    handler _ _ EvBlur = Ignore <$ resetQuiver quiver
     handler _ _ _ = return Ignore
 
     mouseCase :: (Maybe (Script TownEffect ()) -> a)

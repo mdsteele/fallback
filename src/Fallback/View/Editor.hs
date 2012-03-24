@@ -44,7 +44,6 @@ import Fallback.Utility (ceilDiv)
 import Fallback.View.Base
 import Fallback.View.Camera (paintTerrainFullyExplored)
 import Fallback.View.Hover
-import Fallback.View.Quiver
 import Fallback.View.Sidebar (newMinimapView)
 import Fallback.View.Widget (makeLabel, newScrollZone)
 
@@ -100,11 +99,7 @@ newEditorView resources = do
 newEditorMapView :: Resources -> HoverSink (Maybe Position)
                  -> Draw z (View EditorState EditorAction)
 newEditorMapView resources sink = do
-  quiver <- newQuiver
   dragRef <- newDrawRef False
-  keyARef <- newDrawRef False
-  keyERef <- newDrawRef False
-  keyFRef <- newDrawRef False
   let
 
     paint state = do
@@ -113,14 +108,14 @@ newEditorMapView resources sink = do
 
     handler _ _ EvTick =
       maybe Ignore (Action . ScrollMap . (`pMul` 8) . dirDelta) <$>
-      quiverDirection quiver
+      getArrowKeysDirection
     handler state rect (EvMouseMotion pt _) = do
       writeHoverSink sink $ positionAt state rect pt
       drag <- readDrawRef dragRef
       if drag then paintAt state rect pt else return Ignore
     handler state rect (EvMouseDown pt) = do
-      eyedropper <- readDrawRef keyERef
-      fill <- readDrawRef keyFRef
+      eyedropper <- getKeyState KeyE
+      fill <- getKeyState KeyF
       (if eyedropper
        then return $
             maybe Ignore (Action . PickTile . tmapGet (esTerrain state)) $
@@ -130,33 +125,21 @@ newEditorMapView resources sink = do
             positionAt state rect pt
        else writeDrawRef dragRef True >> paintAt state rect pt)
     handler _ _ (EvMouseUp _) = Ignore <$ writeDrawRef dragRef False
-    handler _ _ (EvKeyDown KeyA _ _) = Suppress <$ writeDrawRef keyARef True
-    handler _ _ (EvKeyDown KeyE _ _) = Suppress <$ writeDrawRef keyERef True
-    handler _ _ (EvKeyDown KeyF _ _) = Suppress <$ writeDrawRef keyFRef True
     handler _ _ (EvKeyDown KeyO [KeyModCmd] _) = return (Action DoLoad)
     handler _ _ (EvKeyDown KeyS [KeyModCmd] _) = return (Action DoSave)
     handler _ _ (EvKeyDown KeyZ [KeyModCmd] _) = return (Action DoUndo)
     handler _ _ (EvKeyDown KeyZ [KeyModCmd, KeyModShift] _) =
       return (Action DoRedo)
-    handler _ _ (EvKeyDown key _ _) = Ignore <$ quiverKeyDown quiver key
-    handler _ _ (EvKeyUp KeyA) = Ignore <$ writeDrawRef keyARef False
-    handler _ _ (EvKeyUp KeyE) = Ignore <$ writeDrawRef keyERef False
-    handler _ _ (EvKeyUp KeyF) = Ignore <$ writeDrawRef keyFRef False
-    handler _ _ (EvKeyUp key) = Ignore <$ quiverKeyUp quiver key
     handler state rect (EvFocus pt) = do
       writeHoverSink sink $ positionAt state rect pt
       return Ignore
     handler _ _ EvBlur = do
-      resetQuiver quiver
       writeDrawRef dragRef False
-      writeDrawRef keyARef False
-      writeDrawRef keyERef False
-      writeDrawRef keyFRef False
       return Ignore
     handler _ _ _ = return Ignore
 
     paintAt state rect pt = do
-      auto <- readDrawRef keyARef
+      auto <- getKeyState KeyA
       let action = if auto then AutoPaintAt else PaintAt
       return $ maybe Ignore (Action . action) $ positionAt state rect pt
     positionAt state rect pt =
