@@ -28,7 +28,7 @@ import Fallback.State.Tags (MonsterSpellTag(..), MonsterTag(..))
 -------------------------------------------------------------------------------
 
 getMonsterType :: MonsterTag -> MonsterType
-getMonsterType Wolf = monsterType
+getMonsterType Wolf = baseMonsterType
   { mtAttacks = [MonsterAttack
       { maAppearance = ClawAttack,
         maCriticalChance = 0.1,
@@ -43,7 +43,7 @@ getMonsterType Wolf = monsterType
     mtMaxHealth = 50,
     mtName = "Wolf",
     mtSpeed = 2 }
-getMonsterType DemonWolf = monsterType
+getMonsterType DemonWolf = baseMonsterType
   { mtAttacks = [MonsterAttack
       { maAppearance = ClawAttack,
         maCriticalChance = 0.15,
@@ -68,7 +68,7 @@ getMonsterType DemonWolf = monsterType
     mtSize = SizeWide,
     mtSpeed = 2,
     mtSpells = [FireSpray] }
-getMonsterType Ghoul = monsterType
+getMonsterType Ghoul = baseMonsterType
   { mtAttacks = [MonsterAttack
       { maAppearance = BiteAttack,
         maCriticalChance = 0.2,
@@ -84,7 +84,7 @@ getMonsterType Ghoul = monsterType
     mtMaxHealth = 80,
     mtName = "Ghoul",
     mtSpeed = 1.2 }
-getMonsterType Zombie = monsterType
+getMonsterType Zombie = baseMonsterType
   { mtAttacks = [MonsterAttack
       { maAppearance = BluntAttack,
         maCriticalChance = 0.05,
@@ -128,8 +128,8 @@ getMonsterType _ = MonsterType -- FIXME
 
 -------------------------------------------------------------------------------
 
-monsterType :: MonsterType
-monsterType = MonsterType
+baseMonsterType :: MonsterType
+baseMonsterType = MonsterType
   { mtAttacks = [],
     mtCanFly = False,
     mtExperienceValue = 0,
@@ -146,7 +146,7 @@ monsterType = MonsterType
     mtWalksFast = False }
 
 townsperson :: MonsterType
-townsperson = monsterType
+townsperson = baseMonsterType
   { mtExperienceValue = 100,
     mtImageRow = 10,
     mtMaxHealth = 40,

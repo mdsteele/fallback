@@ -165,7 +165,7 @@ wdSubDesc :: WeaponData -> String
 wdSubDesc wd = attackDesc ++ bonusesSubDesc (wdBonuses wd) ++ featsDesc ++
                usableSubDesc (wdUsableBy wd) where
   attackDesc = "Attack (" ++ rangeDesc ++ "):\n" ++ indent damageLine ++
-               concatMap (indent . effectLine) (wdEffects wd)
+               concatMap (indent . effectLine) (wdEffects wd) ++ damageModsDesc
   damageLine = let (lo, hi) = wdDamageRange wd
                in show (lo * wdDamageBonus wd) ++ "-" ++
                   show (hi * wdDamageBonus wd) ++ " " ++
@@ -190,6 +190,15 @@ wdSubDesc wd = attackDesc ++ bonusesSubDesc (wdBonuses wd) ++ featsDesc ++
   effectLine (InflictPoison x) = "Poisons target" ++ effectNum x
   effectLine _ = "FIXME some effect\n"
   effectNum x = " (effect " ++ show (round (100 * x) :: Int) ++ ")\n"
+  damageModsDesc = concatMap damageModDesc $
+                   [(wdVsDaemonic, "daemonic"), (wdVsUndead, "undead")]
+  damageModDesc (fn, name) =
+    case fn wd of
+      ZeroDamage -> indent $ "Cannot damage " ++ name ++ " creatures\n"
+      NormalDamage -> ""
+      DoubleDamage ->
+        indent $ "Double damage against " ++ name ++ " creatures\n"
+      InstantKill -> indent $ "Instant death to " ++ name ++ " creatures\n"
 
 adSubDesc :: ArmorData -> String
 adSubDesc ad = bonusesSubDesc (adBonuses ad) ++ usableSubDesc (adUsableBy ad)
@@ -281,125 +290,105 @@ data WeaponData = WeaponData
     wdFeats :: [FeatTag],
     wdRange :: AttackRange,
     wdUsableBy :: TotalMap CharacterClass Bool,
+    wdVsDaemonic :: DamageModifier,
     wdVsUndead :: DamageModifier }
 
+data DamageModifier = ZeroDamage | NormalDamage | DoubleDamage | InstantKill
+
 getWeaponData :: WeaponItemTag -> WeaponData
-getWeaponData Sunrod = WeaponData
+getWeaponData Sunrod = baseWeaponData
   { wdAppearance = WandAttack,
-    wdBonuses = nullBonuses,
     wdDamageBonus = 40,
     wdDamageRange = (1, 6),
-    wdEffects = [],
     wdElement = FireAttack,
     wdFeats = [Offering, SolarFlare, Energize],
     wdRange = Ranged 6,
-    wdUsableBy = usableByAll,
     wdVsUndead = InstantKill }
-getWeaponData Starspear = WeaponData
+getWeaponData Starspear = baseWeaponData
   { wdAppearance = BladeAttack,
-    wdBonuses = sumBonuses [Armor +% 20, Intellect += 10],
+    wdBonuses = sumBonuses [Armor +% 30, Intellect += 10],
     wdDamageBonus = 5,
     wdDamageRange = (1, 8),
-    wdEffects = [],
     wdElement = PhysicalAttack,
     wdFeats = [StarShield, Zodiac, Imprison],
     wdRange = Melee,
-    wdUsableBy = usableByAll,
-    wdVsUndead = NormalDamage }
-getWeaponData Moonbow = WeaponData
+    wdVsDaemonic = DoubleDamage }
+getWeaponData Moonbow = baseWeaponData
   { wdAppearance = BowAttack,
     wdBonuses = (Agility += 10),
     wdDamageBonus = 10,
     wdDamageRange = (1, 7),
     wdEffects = [ExtraIceDamage 0.5],
-    wdElement = PhysicalAttack,
     wdFeats = [TidalForce, Eclipse, LunarBeam],
-    wdRange = Ranged 5,
-    wdUsableBy = usableByAll,
-    wdVsUndead = NormalDamage }
-getWeaponData Lifeblade = WeaponData
+    wdRange = Ranged 5 }
+getWeaponData Lifeblade = baseWeaponData
   { wdAppearance = BladeAttack,
     wdBonuses = (Strength += 10),
     wdDamageBonus = 6,
     wdDamageRange = (1, 10),
-    wdEffects = [],
-    wdElement = PhysicalAttack,
     wdFeats = [PulseOfLife, Avatar, AllCreation],
     wdRange = Melee,
-    wdUsableBy = usableByAll,
     wdVsUndead = DoubleDamage }
-getWeaponData Dagger = WeaponData
+getWeaponData Dagger = baseWeaponData
   { wdAppearance = BladeAttack,
-    wdBonuses = nullBonuses,
     wdDamageBonus = 1,
     wdDamageRange = (1, 4),
-    wdEffects = [],
-    wdElement = PhysicalAttack,
     wdFeats = [Concentrate, Glow, Radiate], -- FIXME
-    wdRange = Melee,
-    wdUsableBy = usableByAll,
-    wdVsUndead = NormalDamage }
-getWeaponData ThrowingStar = WeaponData
+    wdRange = Melee }
+getWeaponData ThrowingStar = baseWeaponData
   { wdAppearance = ThrownAttack,
-    wdBonuses = nullBonuses,
     wdDamageBonus = 2,
     wdDamageRange = (1, 4),
-    wdEffects = [],
-    wdElement = PhysicalAttack,
     wdFeats = [Pierce],
     wdRange = Ranged 4,
-    wdUsableBy = roguesOnly,
-    wdVsUndead = NormalDamage }
-getWeaponData RazorStar = WeaponData
+    wdUsableBy = roguesOnly }
+getWeaponData RazorStar = baseWeaponData
   { wdAppearance = ThrownAttack,
-    wdBonuses = nullBonuses,
     wdDamageBonus = 3,
     wdDamageRange = (1, 5),
-    wdEffects = [],
     wdElement = PhysicalAttack,
     wdFeats = [Pierce],
     wdRange = Ranged 5,
-    wdUsableBy = roguesOnly,
-    wdVsUndead = NormalDamage }
-getWeaponData NeutronStar = WeaponData
+    wdUsableBy = roguesOnly }
+getWeaponData NeutronStar = baseWeaponData
   { wdAppearance = ThrownAttack,
-    wdBonuses = nullBonuses,
     wdDamageBonus = 5,
     wdDamageRange = (1, 5),
     wdEffects = [InflictCurse 0.03],
-    wdElement = PhysicalAttack,
     wdFeats = [Pierce, NeutronBomb],
     wdRange = Ranged 5,
-    wdUsableBy = roguesOnly,
-    wdVsUndead = NormalDamage }
-getWeaponData Shortbow = WeaponData
+    wdUsableBy = roguesOnly }
+getWeaponData Shortbow = baseWeaponData
   { wdAppearance = BowAttack,
-    wdBonuses = nullBonuses,
     wdDamageBonus = 2,
     wdDamageRange = (1, 4),
-    wdEffects = [],
-    wdElement = PhysicalAttack,
     wdFeats = [Amplify, Resonate], -- FIXME
     wdRange = Ranged 4,
-    wdUsableBy = archersOnly,
-    wdVsUndead = NormalDamage }
+    wdUsableBy = archersOnly }
 getWeaponData _ = unarmedWeaponData -- FIXME
 
 -- | 'WeaponData' for unarmed attacks.
 unarmedWeaponData :: WeaponData
-unarmedWeaponData = WeaponData
+unarmedWeaponData = baseWeaponData
   { wdAppearance = BluntAttack,
-    wdBonuses = nullBonuses,
     wdDamageBonus = 1,
     wdDamageRange = (1, 3),
+    wdFeats = [Concentrate],
+    wdRange = Melee }
+
+baseWeaponData :: WeaponData
+baseWeaponData = WeaponData
+  { wdAppearance = BladeAttack,
+    wdBonuses = nullBonuses,
+    wdDamageBonus = 0,
+    wdDamageRange = (1, 1),
     wdEffects = [],
     wdElement = PhysicalAttack,
-    wdFeats = [Concentrate],
+    wdFeats = [],
     wdRange = Melee,
-    wdUsableBy = makeTotalMap (const True),
+    wdUsableBy = usableByAll,
+    wdVsDaemonic = NormalDamage,
     wdVsUndead = NormalDamage }
-
-data DamageModifier = ZeroDamage | NormalDamage | DoubleDamage | InstantKill
 
 -------------------------------------------------------------------------------
 
@@ -416,7 +405,7 @@ getArmorData _ = ArmorData -- FIXME
 
 getAccessoryData :: AccessoryItemTag -> ArmorData
 getAccessoryData GroundedAmulet = ArmorData
-  { adBonuses = sumBonuses [ResistStun +% 15],
+  { adBonuses = sumBonuses [ResistEnergy +% 15],
     adUsableBy = usableByAll }
 getAccessoryData TitanFists = ArmorData
   { adBonuses = sumBonuses [Strength += 10, Armor +% 8],
