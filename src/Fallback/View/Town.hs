@@ -66,7 +66,7 @@ data TownAction = TownSidebar SidebarAction
                 | TownTargetCharacter CharacterNumber
                 | TownCancelTargeting
 
-newTownView :: Resources -> Draw z (View TownState TownAction)
+newTownView :: (MonadDraw m) => Resources -> m (View TownState TownAction)
 newTownView resources = newCursorView resources $ \cursorSink -> do
   let mapRect _ (w, h) = Rect sidebarWidth 0 (w - sidebarWidth) h
   let sidebarRect _ (_, h) = Rect 0 0 sidebarWidth h
@@ -104,8 +104,8 @@ newTownView resources = newCursorView resources $ \cursorSink -> do
        (newMaybeView upgradeFn =<< fmap TownUpgrade <$>
         newUpgradeView resources cursorSink)])]
 
-newTownMapView :: Resources -> HoverSink Cursor
-               -> Draw z (View TownState TownAction)
+newTownMapView :: (MonadDraw m) => Resources -> HoverSink Cursor
+               -> m (View TownState TownAction)
 newTownMapView resources cursorSink = do
   let
 
@@ -188,7 +188,7 @@ newTownMapView resources cursorSink = do
          flip3 maybe devFn' (search (acsDevices acs)) $
          dirFn $ ipointDir $ pt `pSub` rectCenter rect
 
-    setCursor :: TownState -> IRect -> IPoint -> Draw z ()
+    setCursor :: (MonadDraw m) => TownState -> IRect -> IPoint -> m ()
     setCursor ts rect pt =
       when (rectContains rect pt) $ writeHoverSink cursorSink $
       mouseCase (const TalkCursor) (const HandCursor) WalkCursor ts rect pt

@@ -71,8 +71,8 @@ upsSkillPointsSpent ups =
 
 -------------------------------------------------------------------------------
 
-newUpgradeView :: Resources -> HoverSink Cursor
-               -> Draw z (View UpgradeState UpgradeAction)
+newUpgradeView :: (MonadDraw m) => Resources -> HoverSink Cursor
+               -> m (View UpgradeState UpgradeAction)
 newUpgradeView resources _cursorSink = do
   let headingFont = rsrcFont resources FontGeorgiaBold11
   let infoFont = rsrcFont resources FontGeorgia11
@@ -115,8 +115,9 @@ newUpgradeView resources _cursorSink = do
         newSimpleTextButton resources "Done" [KeyReturn] CommitUpgrades)]),
     (newStatInfoView resources upgradeRef)]
 
-newStatWidget :: Resources -> HoverSink (Maybe (Either Stat AbilityNumber))
-              -> Stat -> Draw z (View UpgradeState UpgradeAction)
+newStatWidget :: (MonadDraw m) => Resources
+              -> HoverSink (Maybe (Either Stat AbilityNumber))
+              -> Stat -> m (View UpgradeState UpgradeAction)
 newStatWidget resources upgradeSink stat = do
   let infoFont = rsrcFont resources FontGeorgia11
   let str = case stat of
@@ -143,8 +144,8 @@ newStatWidget resources upgradeSink stat = do
     (newMaybeView plusFn =<< newPlusButton resources (IncreaseStat stat)
                                            (LocTopleft $ Point 120 0))]
 
-newAbilityWidget :: Resources -> AbilityNumber
-                 -> Draw z (View UpgradeState UpgradeAction)
+newAbilityWidget :: (MonadDraw m) => Resources -> AbilityNumber
+                 -> m (View UpgradeState UpgradeAction)
 newAbilityWidget resources abilNum = do
   let paintIcon ups = do
         let party = upsParty ups
@@ -182,8 +183,8 @@ newAbilityWidget resources abilNum = do
     (newMaybeView plusFn =<< newPlusButton resources (IncreaseSkill abilNum)
                                            (LocBottomright $ Point 40 40))]
 
-newStatInfoView :: Resources -> HoverRef (Maybe (Either Stat AbilityNumber))
-                -> Draw z (View a b)
+newStatInfoView :: (MonadDraw m) => Resources
+                -> HoverRef (Maybe (Either Stat AbilityNumber)) -> m (View a b)
 newStatInfoView resources upgradeRef = do
   let inputFn _ = do
         mbUpgrade <- readHoverRef upgradeRef
@@ -249,13 +250,15 @@ newUpgradeInfoView resources upgradeRef = do
 
 -------------------------------------------------------------------------------
 
-newPlusButton :: Resources -> b -> LocSpec Int -> Draw z (View a b)
+newPlusButton :: (MonadDraw m) => Resources -> b -> LocSpec Int -> m (View a b)
 newPlusButton = newPlusMinusButton 0
 
-newMinusButton :: Resources -> b -> LocSpec Int -> Draw z (View a b)
+newMinusButton :: (MonadDraw m) => Resources -> b -> LocSpec Int
+               -> m (View a b)
 newMinusButton = newPlusMinusButton 1
 
-newPlusMinusButton :: Int -> Resources -> b -> LocSpec Int -> Draw z (View a b)
+newPlusMinusButton :: (MonadDraw m) => Int -> Resources -> b -> LocSpec Int
+                   -> m (View a b)
 newPlusMinusButton col resources value loc =
   subView_ (locRect loc (16, 16)) <$>
   newButton paintFn (const ReadyButton) [] value

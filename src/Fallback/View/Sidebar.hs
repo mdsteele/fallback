@@ -93,7 +93,8 @@ data SidebarAction = EnterCheatCode
                    | ToggleInventory
                    | TryToggleCombat
 
-newSidebarView :: Resources -> Draw z (View SidebarState SidebarAction)
+newSidebarView :: (MonadDraw m) => Resources
+               -> m (View SidebarState SidebarAction)
 newSidebarView resources = do
   bgSprite <- loadSprite "gui/sidebar-background.png"
   buttonIcons <- loadVStrip "gui/sidebar-buttons.png" 5
@@ -176,7 +177,7 @@ newQuestionWindowView _resources _cursorSink = do
 -------------------------------------------------------------------------------
 -- Minimap view:
 
-newMinimapView :: Draw z (View (IRect, Minimap) Position)
+newMinimapView :: (MonadDraw m) => m (View (IRect, Minimap) Position)
 newMinimapView = do
   let
     paint (camera, minimap) = do
@@ -213,8 +214,8 @@ newMinimapView = do
 -------------------------------------------------------------------------------
 -- Character view:
 
-newCharacterView :: Resources -> CharacterNumber
-                 -> Draw z (View SidebarState SidebarAction)
+newCharacterView :: (MonadDraw m) => Resources -> CharacterNumber
+                 -> m (View SidebarState SidebarAction)
 newCharacterView resources charNum = do
   let getCharacter state = partyGetCharacter (ssParty state) charNum
   let nameTopleft = Point 4 4 :: IPoint
@@ -239,8 +240,8 @@ newCharacterView resources charNum = do
     (newMaybeView ssCombatState =<< subView_ (Rect 60 53 52 15) <$>
      newTimeBarView charNum)]
 
-newCharacterViewBackground :: CharacterNumber
-                           -> Draw z (View SidebarState SidebarAction)
+newCharacterViewBackground :: (MonadDraw m) => CharacterNumber
+                           -> m (View SidebarState SidebarAction)
 newCharacterViewBackground charNum = do
   let
     paint (state, mbMousePt) = do
@@ -263,7 +264,7 @@ newCharacterViewBackground charNum = do
 
   newMouseView $ View paint handler
 
-newHealthBarView :: Draw z (View (Party, Character) b)
+newHealthBarView :: (MonadDraw m) => m (View (Party, Character) b)
 newHealthBarView = do
   paintDigits <- newDigitPaint
   let
@@ -277,7 +278,7 @@ newHealthBarView = do
       paintDigits (chrHealth char) $ LocCenter $ rectCenter rect
   return (inertView paint)
 
-newManaBarView :: Draw z (View (Party, Character) b)
+newManaBarView :: (MonadDraw m) => m (View (Party, Character) b)
 newManaBarView = do
   paintDigits <- newDigitPaint
   let
@@ -321,7 +322,7 @@ newManaBarView = do
       paintDigits (chrMana char) $ LocCenter $ rectCenter rect
   return (inertView paint)
 
-newAdrenalineBarView :: Draw z (View Character b)
+newAdrenalineBarView :: (MonadDraw m) => m (View Character b)
 newAdrenalineBarView = do
   paintDigits <- newDigitPaint
   let
@@ -335,7 +336,7 @@ newAdrenalineBarView = do
       paintDigits (chrAdrenaline char) $ LocCenter $ rectCenter rect
   return (inertView paint)
 
-newTimeBarView :: CharacterNumber -> Draw z (View CombatState b)
+newTimeBarView :: (MonadDraw m) => CharacterNumber -> m (View CombatState b)
 newTimeBarView charNum = do
   paintDigits <- newDigitPaint
   let
@@ -364,7 +365,8 @@ newTimeBarView charNum = do
 
   return (inertView paint)
 
-newStatusEffectsView :: Resources -> Draw z (View (StatusEffects, Int) b)
+newStatusEffectsView :: (MonadDraw m) => Resources
+                     -> m (View (StatusEffects, Int) b)
 newStatusEffectsView resources = do
   let
     paint (se, health) = do

@@ -85,7 +85,8 @@ tickEditorState es = es { esClock = clockInc (esClock es) }
 
 -------------------------------------------------------------------------------
 
-newEditorView :: Resources -> Draw z (View EditorState EditorAction)
+newEditorView :: (MonadDraw m) => Resources
+              -> m (View EditorState EditorAction)
 newEditorView resources = do
   ref <- newHoverRef Nothing
   let mapRect _ (w, h) = Rect sidebarWidth 0 (w - sidebarWidth) h
@@ -96,8 +97,8 @@ newEditorView resources = do
 
 -------------------------------------------------------------------------------
 
-newEditorMapView :: Resources -> HoverSink (Maybe Position)
-                 -> Draw z (View EditorState EditorAction)
+newEditorMapView :: (MonadDraw m) => Resources -> HoverSink (Maybe Position)
+                 -> m (View EditorState EditorAction)
 newEditorMapView resources sink = do
   dragRef <- newDrawRef False
   let
@@ -151,8 +152,8 @@ newEditorMapView resources sink = do
 
 -------------------------------------------------------------------------------
 
-newEditorSidebarView :: Resources -> HoverRef (Maybe Position)
-                     -> Draw z (View EditorState EditorAction)
+newEditorSidebarView :: (MonadDraw m) => Resources -> HoverRef (Maybe Position)
+                     -> m (View EditorState EditorAction)
 newEditorSidebarView resources ref = do
   bgSprite <- loadSprite "gui/sidebar-background.png"
   let font = rsrcFont resources FontGeorgia10
@@ -172,7 +173,8 @@ newEditorSidebarView resources ref = do
      (newMaybeView (fmap show) $ makeLabel font blackColor $ \(_, h) ->
         LocBottomleft $ Point 2 (h - 2)))]
 
-newEditorPaletteView :: Resources -> Draw z (View EditorState EditorAction)
+newEditorPaletteView :: (MonadDraw m) => Resources
+                     -> m (View EditorState EditorAction)
 newEditorPaletteView resources = do
   let
 

@@ -349,7 +349,7 @@ paintTargetingRegion tint1 cameraTopleft positions = do
 
 -------------------------------------------------------------------------------
 
-newFadeToBlackView :: Draw z (View Double a)
+newFadeToBlackView :: (MonadDraw m) => m (View Double a)
 newFadeToBlackView = do
   let
     paint opacity = do

@@ -42,14 +42,14 @@ data SaveGameAction = CancelSaveGame | DoSaveGame String
 
 -------------------------------------------------------------------------------
 
-newSaveGameView :: Resources -> View c d -> c -> Sprite -> String
-                -> [SavedGameSummary] -> Draw z (View () SaveGameAction)
+newSaveGameView :: (MonadDraw m) => Resources -> View c d -> c -> Sprite
+                -> String -> [SavedGameSummary] -> m (View () SaveGameAction)
 newSaveGameView resources bgView bgInput screenshot location summaries = do
   dialog <- newSaveGameDialog resources screenshot location summaries
   newDialogView bgView bgInput dialog $ Rect 120 25 400 440
 
-newSaveGameDialog :: Resources -> Sprite -> String -> [SavedGameSummary]
-                  -> Draw z (View () SaveGameAction)
+newSaveGameDialog :: (MonadDraw m) => Resources -> Sprite -> String
+                  -> [SavedGameSummary] -> m (View () SaveGameAction)
 newSaveGameDialog resources screenshot location summaries = do
   let upperBound = length summaries - 1
   stateRef <- newDrawRef $ InternalState
@@ -112,7 +112,8 @@ data InternalState = InternalState
 data InternalAction = ScrollSummaries Int
                     | SetSaveName String
 
-newSaveSummaryView :: Resources -> Draw z (View InternalState InternalAction)
+newSaveSummaryView :: (MonadDraw m) => Resources
+                   -> m (View InternalState InternalAction)
 newSaveSummaryView resources = do
   let locFont = rsrcFont resources FontGeorgiaBold12
   let
@@ -127,8 +128,8 @@ newSaveSummaryView resources = do
      viewMap nsSaveName SetSaveName <$>
      newTextBox resources (const $ return True))]
 
-newSummariesListView :: Resources -> Int
-                     -> Draw z (View InternalState InternalAction)
+newSummariesListView :: (MonadDraw m) => Resources -> Int
+                     -> m (View InternalState InternalAction)
 newSummariesListView resources upperBound = do
   let spacing = 3
   let itemRect offset _ (w, h) =
@@ -139,8 +140,8 @@ newSummariesListView resources upperBound = do
         subView (itemRect offset) <$> newSummaryItemView resources offset
   compoundView <$> mapM newItem [0 .. min upperBound (numEntriesVisible - 1)]
 
-newSummaryItemView :: Resources -> Int
-                   -> Draw z (View InternalState InternalAction)
+newSummaryItemView :: (MonadDraw m) => Resources -> Int
+                   -> m (View InternalState InternalAction)
 newSummaryItemView resources offset = do
   let nameFont = rsrcFont resources FontGeorgiaBold12
   let infoFont = rsrcFont resources FontGeorgia12

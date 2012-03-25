@@ -40,13 +40,13 @@ data HoverRef a = HoverRef
   { hovCurrent :: DrawRef a,
     hovOpen :: DrawRef Bool }
 
-newHoverRef :: a -> Draw z (HoverRef a)
+newHoverRef :: (MonadDraw m) => a -> m (HoverRef a)
 newHoverRef value = HoverRef <$> newDrawRef value <*> newDrawRef True
 
-reopenHoverRef :: HoverRef a -> Draw z ()
+reopenHoverRef :: (MonadDraw m) => HoverRef a -> m ()
 reopenHoverRef hov = writeDrawRef (hovOpen hov) True
 
-readHoverRef :: HoverRef a -> Draw z a
+readHoverRef :: (MonadDraw m) => HoverRef a -> m a
 readHoverRef = readDrawRef . hovCurrent
 
 newtype HoverSink a = HoverSink (HoverRef a)
@@ -54,7 +54,7 @@ newtype HoverSink a = HoverSink (HoverRef a)
 hoverSink :: HoverRef a -> HoverSink a
 hoverSink = HoverSink
 
-writeHoverSink :: HoverSink a -> a -> Draw z ()
+writeHoverSink :: (MonadDraw m) => HoverSink a -> a -> m ()
 writeHoverSink (HoverSink hov) value = do
   open <- readDrawRef (hovOpen hov)
   when open $ do
@@ -139,8 +139,8 @@ paintCursor resources cursor mousePt =
           blitTopleft (rsrcCursorsStrip resources ! index)
                       (mousePt `pSub` offset)
 
-newCursorView :: Resources -> (HoverSink Cursor -> Draw z (View a b))
-              -> Draw z (View a b)
+newCursorView :: (MonadDraw m) => Resources
+              -> (HoverSink Cursor -> m (View a b)) -> m (View a b)
 newCursorView resources fn = do
   hov <- newHoverRef DefaultCursor
   View paint handler <- fn (hoverSink hov)

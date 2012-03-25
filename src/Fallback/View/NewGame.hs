@@ -65,12 +65,13 @@ initialNewGameSpec = NewGameSpec
 
 -------------------------------------------------------------------------------
 
-newNewGameView :: Resources -> View c d -> c -> Draw z (View () NewGameAction)
+newNewGameView :: (MonadDraw m) => Resources -> View c d -> c
+               -> m (View () NewGameAction)
 newNewGameView resources bgView bgInput = do
   dialog <- newNewGameDialog resources
   newDialogView bgView bgInput dialog $ Rect 25 90 590 340 -- 120 90 400 340
 
-newNewGameDialog :: Resources -> Draw z (View () NewGameAction)
+newNewGameDialog :: (MonadDraw m) => Resources -> m (View () NewGameAction)
 newNewGameDialog resources = do
   stateRef <- newDrawRef (InternalState initialNewGameSpec minBound)
   let handleAction action = do
@@ -129,8 +130,8 @@ data InternalAction = SelectCharacter CharacterNumber
                     | ChangeAppearance CharacterAppearance
                     | SetDifficulty Difficulty
 
-newCharacterRadio :: Resources -> CharacterNumber
-                  -> Draw z (View InternalState InternalAction)
+newCharacterRadio :: (MonadDraw m) => Resources -> CharacterNumber
+                  -> m (View InternalState InternalAction)
 newCharacterRadio resources charNum = do
   let nameFont = rsrcFont resources FontChancery18
   let classFont = rsrcFont resources FontGeorgiaBold10
@@ -155,7 +156,8 @@ newCharacterRadio resources charNum = do
     handler _ _ _ = return Ignore
   return $ View paint handler
 
-newEditCharView :: Resources -> Draw z (View InternalState InternalAction)
+newEditCharView :: (MonadDraw m) => Resources
+                -> m (View InternalState InternalAction)
 newEditCharView resources = do
   let paintBackground state = do
         (w, h) <- canvasSize
@@ -187,8 +189,8 @@ newEditCharView resources = do
      newDynamicTextWrapView resources),
     (compoundView <$> zipWithM newAppRadio [minBound .. maxBound] [0 ..])]
 
-newClassRadio :: Resources -> CharacterClass
-              -> Draw z (View InternalState InternalAction)
+newClassRadio :: (MonadDraw m) => Resources -> CharacterClass
+              -> m (View InternalState InternalAction)
 newClassRadio resources cls = do
   let font1 = rsrcFont resources FontGeorgia14
   let font2 = rsrcFont resources FontGeorgiaBold14
@@ -208,8 +210,8 @@ newClassRadio resources cls = do
     handler _ _ _ = return Ignore
   return $ View paint handler
 
-newAppearanceRadio :: Resources -> CharacterAppearance
-                   -> Draw z (View InternalState InternalAction)
+newAppearanceRadio :: (MonadDraw m) => Resources -> CharacterAppearance
+                   -> m (View InternalState InternalAction)
 newAppearanceRadio resources appear = do
   let
     paint state = do
@@ -226,7 +228,8 @@ newAppearanceRadio resources appear = do
     handler _ _ _ = return Ignore
   return $ View paint handler
 
-newDifficultyView :: Resources -> Draw z (View InternalState InternalAction)
+newDifficultyView :: (MonadDraw m) => Resources
+                  -> m (View InternalState InternalAction)
 newDifficultyView resources = do
   let font = rsrcFont resources FontGeorgiaBold14
   let paintBackground _ = do
@@ -244,8 +247,8 @@ newDifficultyView resources = do
      vmap (difficultyDescription . ngsDifficulty . insSpec) <$>
      newDynamicTextWrapView resources)]
 
-newDifficultyRadio :: Resources -> Difficulty
-                   -> Draw z (View InternalState InternalAction)
+newDifficultyRadio :: (MonadDraw m) => Resources -> Difficulty
+                   -> m (View InternalState InternalAction)
 newDifficultyRadio resources diff = do
   let font1 = rsrcFont resources FontGeorgia11
   let font2 = rsrcFont resources FontGeorgiaBold12

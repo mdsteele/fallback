@@ -29,8 +29,8 @@ import Fallback.Utility (fmod)
 
 -------------------------------------------------------------------------------
 
-newBackgroundPaint :: String -> Int -> Int -> Int -> Int -> Int -> Int
-                   -> Draw z (Paint ())
+newBackgroundPaint :: (MonadDraw m) => String -> Int -> Int -> Int -> Int
+                   -> Int -> Int -> m (Paint ())
 newBackgroundPaint filename ox oy mh mv sh sv = do
   let load = loadSubSprite filename . (`rectPlus` Point ox oy)
   topleft <- load $ Rect 0 0 mh mv
@@ -70,7 +70,7 @@ drawBevelRect tint b rect = withSubCanvas rect $ do
 
 -------------------------------------------------------------------------------
 
-newDigitPaint :: Draw z (Int -> LocSpec Int -> Paint ())
+newDigitPaint :: (MonadDraw m) => m (Int -> LocSpec Int -> Paint ())
 newDigitPaint = do
   digits <- loadVStrip "small-digits.png" 10
   let paint num loc =
@@ -122,7 +122,7 @@ drawThickLineChain _ _ _ = return ()
 
 -------------------------------------------------------------------------------
 
-getArrowKeysDirection :: Draw z (Maybe Direction)
+getArrowKeysDirection :: (MonadDraw m) => m (Maybe Direction)
 getArrowKeysDirection = do
   up <- getKeyState KeyUpArrow
   dn <- getKeyState KeyDownArrow

@@ -45,7 +45,8 @@ data RegionAction = SelectAreaNode AreaTag
                   | TravelToSelectedArea
                   | ShowMenu
 
-newRegionView :: Resources -> String -> Draw z (View RegionState RegionAction)
+newRegionView :: (MonadDraw m) => Resources -> String
+              -> m (View RegionState RegionAction)
 newRegionView resources bgPath = do
   compoundViewM
     [ newRegionMapView bgPath
@@ -54,7 +55,8 @@ newRegionView resources bgPath = do
     , subView_ (Rect 500 436 120 24) <$>
       newSimpleTextButton resources "Travel" [KeyReturn] TravelToSelectedArea]
 
-newRegionMapView :: String -> Draw z (View RegionState RegionAction)
+newRegionMapView :: (MonadDraw m) => String
+                 -> m (View RegionState RegionAction)
 newRegionMapView bgPath = do
   clearedNodeSprite <- loadSubSprite "gui/area-nodes.png" $ Rect 0 0 14 12
   unclearedNodeSprite <- loadSubSprite "gui/area-nodes.png" $ Rect 14 0 14 12

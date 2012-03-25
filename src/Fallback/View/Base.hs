@@ -39,7 +39,7 @@ import Fallback.Utility (flip3, flip4)
 
 data View a b = View
   { viewPaint :: a -> Paint (),
-    viewHandler :: a -> IRect -> Event -> Draw () (Action b) }
+    viewHandler :: a -> IRect -> Event -> Draw (Action b) }
 
 instance Functor (View a) where
   fmap fn (View paint handler) = View paint handler' where
@@ -96,9 +96,9 @@ vmap fn (View paint handler) = View paint' handler' where
   handler' input rect event = handler (fn input) rect event
 
 -- | A variant of 'vmap' that allows a monadic action.
-vmapM :: (a -> Draw () c) -> View c b -> View a b
+vmapM :: (a -> Draw c) -> View c b -> View a b
 vmapM fn (View paint handler) = View paint' handler' where
-  paint' input = paintDraw (fn input) >>= paint
+  paint' input = runDraw (fn input) >>= paint
   handler' input rect event = do
     input' <- fn input
     handler input' rect event
@@ -110,10 +110,10 @@ viewMap f1 f2 (View paint handler) = View paint' handler' where
   handler' input rect event = (f2 <$>) <$> handler (f1 input) rect event
 
 -- | A variant of 'viewMap' that allows monadic actions.
-viewMapM :: (a -> Draw () c) -> (d -> Draw () (Action b)) -> View c d
+viewMapM :: (a -> Draw c) -> (d -> Draw (Action b)) -> View c d
          -> View a b
 viewMapM f1 f2 (View paint handler) = View paint' handler' where
-  paint' input = paintDraw (f1 input) >>= paint
+  paint' input = runDraw (f1 input) >>= paint
   handler' input rect event = do
     input' <- f1 input
     action <- handler input' rect event
@@ -160,12 +160,12 @@ subView_ = subView . const . const
 --   handler' input rect event =
 --     maybe (return Ignore) (flip3 handler rect event) (fn input)
 
-newMaybeView :: (a -> Maybe c) -> View c b -> Draw z (View a b)
+newMaybeView :: (MonadDraw m) => (a -> Maybe c) -> View c b -> m (View a b)
 newMaybeView fn (View paint handler) = do
   visibleRef <- newDrawRef False
   let
     paint' input =
-      maybe (return ()) paint =<< paintDraw . transform input =<< canvasRect
+      maybe (return ()) paint =<< runDraw . transform input =<< canvasRect
     handler' input rect event =
       maybe (return Ignore) (flip3 handler rect event) =<< transform input rect
     transform (input, mbMousePos) rect = do
@@ -182,7 +182,8 @@ newMaybeView fn (View paint handler) = do
           return (Just input')
   newMouseView (View paint' handler')
 
-newEitherView :: (a -> Either c d) -> View c b -> View d b -> Draw z (View a b)
+newEitherView :: (MonadDraw m) => (a -> Either c d) -> View c b -> View d b
+              -> m (View a b)
 newEitherView fn v1 v2 = do
   v1' <- newMaybeView (\a -> case fn a of Left c -> Just c
                                           Right _ -> Nothing) v1
@@ -190,7 +191,7 @@ newEitherView fn v1 v2 = do
                                           Right d -> Just d) v2
   return $ compoundView [v1', v2']
 
-newMouseView :: View (a, Maybe IPoint) b -> Draw z (View a b)
+newMouseView :: (MonadDraw m) => View (a, Maybe IPoint) b -> m (View a b)
 newMouseView (View paint handler) = do
   mouseRef <- newDrawRef Nothing
   let
@@ -206,7 +207,7 @@ newMouseView (View paint handler) = do
       return result
   return (View paint' handler')
 
-newHoverOnlyView :: View a b -> Draw z (View a b)
+newHoverOnlyView :: (MonadDraw m) => View a b -> m (View a b)
 newHoverOnlyView (View paint handler) = do
   visibleRef <- newDrawRef False
   let

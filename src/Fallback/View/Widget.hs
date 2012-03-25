@@ -59,20 +59,21 @@ makeLabel_ font color loc = inertView $ drawText font color loc
 
 -------------------------------------------------------------------------------
 
-newStaticTextWrapColorPaint :: Resources -> Int -> String
-                            -> Draw z (Int, Color -> Paint ())
+newStaticTextWrapColorPaint :: (MonadDraw m) => Resources -> Int -> String
+                            -> m (Int, Color -> Paint ())
 newStaticTextWrapColorPaint resources width string = do
   let textLines = wrapText resources width string
   let spacing = 14
   let paint color = drawTextLines color spacing textLines
   return (spacing * length textLines, paint)
 
-newStaticTextWrapView :: Resources -> Int -> String -> Draw z (Int, View a b)
+newStaticTextWrapView :: (MonadDraw m) => Resources -> Int -> String
+                      -> m (Int, View a b)
 newStaticTextWrapView resources width string =
   (second (inertView . (. const blackColor))) <$>
   newStaticTextWrapColorPaint resources width string
 
-newDynamicTextWrapView :: Resources -> Draw z (View String b)
+newDynamicTextWrapView :: (MonadDraw m) => Resources -> m (View String b)
 newDynamicTextWrapView resources = do
   cacheRef <- newDrawRef (0, "", [])
   let paint text = do
@@ -86,7 +87,7 @@ newDynamicTextWrapView resources = do
         drawTextLines blackColor 14 textLines
   return $ inertView paint
 
-newTooltipView :: Resources -> Draw z (View String b)
+newTooltipView :: (MonadDraw m) => Resources -> m (View String b)
 newTooltipView resources = do
   let margin = 7
   cacheRef <- newDrawRef (0, "", [])
@@ -124,8 +125,8 @@ data ButtonStatus = ReadyButton | DisabledButton | DepressedButton
 enabledIf :: Bool -> ButtonStatus
 enabledIf b = if b then ReadyButton else DisabledButton
 
-newButton :: (a -> ButtonState -> Paint ()) -> (a -> ButtonStatus) -> [Key]
-          -> b -> Draw z (View a b)
+newButton :: (MonadDraw m) => (a -> ButtonState -> Paint ())
+          -> (a -> ButtonStatus) -> [Key] -> b -> m (View a b)
 newButton paintFn statusFn keys value = do
   state <- newDrawRef (False, False, False)
   let
@@ -168,8 +169,8 @@ newButton paintFn statusFn keys value = do
 
   return (View paint handler)
 
-newStandardButton :: (a -> ButtonState -> Paint ()) -> (a -> ButtonStatus)
-                  -> [Key] -> b -> Draw z (View a b)
+newStandardButton :: (MonadDraw m) => (a -> ButtonState -> Paint ())
+                  -> (a -> ButtonStatus) -> [Key] -> b -> m (View a b)
 newStandardButton paintFn statusFn keys value = do
   paintUp <- newBackgroundPaint "gui/blank-button.png" 0  0 3 3 57 34
   paintHv <- newBackgroundPaint "gui/blank-button.png" 0 40 3 3 57 34
@@ -184,8 +185,8 @@ newStandardButton paintFn statusFn keys value = do
         withSubCanvas (Rect x y (w - 2) (h - 2)) $ paintFn input bs
   newButton paintFn' statusFn keys value
 
-newTextButton :: Resources -> [Key] -> a
-              -> Draw z (View (String, ButtonStatus) a)
+newTextButton :: (MonadDraw m) => Resources -> [Key] -> a
+              -> m (View (String, ButtonStatus) a)
 newTextButton resources keys value = do
   let font = rsrcFont resources FontChancery14
   let paintFn (text, _) bs = do
@@ -198,12 +199,13 @@ newTextButton resources keys value = do
         drawText font color (LocCenter $ rectCenter rect) text
   newStandardButton paintFn snd keys value
 
-newSimpleTextButton :: Resources -> String -> [Key] -> b -> Draw z (View a b)
+newSimpleTextButton :: (MonadDraw m) => Resources -> String -> [Key] -> b
+                    -> m (View a b)
 newSimpleTextButton resources text keys value =
   vmap (const (text, ReadyButton)) <$> newTextButton resources keys value
 
-newFlashingTextButton :: Resources -> String -> [Key] -> b
-                      -> Draw z (View Clock b)
+newFlashingTextButton :: (MonadDraw m) => Resources -> String -> [Key] -> b
+                      -> m (View Clock b)
 newFlashingTextButton resources text keys value = do
   let font = rsrcFont resources FontChancery14
   let paintFn clock bs = do
@@ -217,7 +219,8 @@ newFlashingTextButton resources text keys value = do
         drawText font color (LocCenter $ rectCenter rect) text
   newStandardButton paintFn (const ReadyButton) keys value
 
-newIconButton :: [Key] -> a -> Draw z (View (Sprite, ButtonStatus) a)
+newIconButton :: (MonadDraw m) => [Key] -> a
+              -> m (View (Sprite, ButtonStatus) a)
 newIconButton keys value = do
   let paintFn (icon, _) bs = do
         let tint = case bs of
@@ -229,23 +232,10 @@ newIconButton keys value = do
         blitLocTinted tint icon $ LocCenter $ rectCenter rect
   newStandardButton paintFn snd keys value
 
--- newPlusButton :: Resources -> b -> LocSpec Int -> Draw z (View a b)
--- newPlusButton resources value loc =
---   subView_ (locRect loc (12, 12)) <$>
---   newButton paintFn (const ReadyButton) [] value
---   where
---     paintFn _ buttonState = do
---       let row = case buttonState of
---                   ButtonUp -> 0
---                   ButtonHover -> 1
---                   ButtonDown -> 2
---                   ButtonDisabled -> 3
---       blitStretch ((rsrcSheetEquipButtons resources) ! (row, 0)) =<< canvasRect
-
 -------------------------------------------------------------------------------
 
-newTextBox :: Resources -> (String -> Draw () Bool)
-           -> Draw z (View String String)
+newTextBox :: (MonadDraw m) => Resources -> (String -> Draw Bool)
+           -> m (View String String)
 newTextBox resources testFn = do
   let font = rsrcFont resources FontGeorgiaBold16
   activeRef <- newDrawRef True
@@ -298,7 +288,7 @@ newTextBox resources testFn = do
 
 -- | Create a new scroll bar view.  The view inputs are (minimum value, maximum
 -- value, per-page, current page top), while the output is the new page top.
-newScrollBar :: Draw z (View (Int, Int, Int, Int) Int)
+newScrollBar :: (MonadDraw m) => m (View (Int, Int, Int, Int) Int)
 newScrollBar = do
   sheet <- loadSheet "gui/scroll-bar.png" (3, 4)
   stateRef <- newDrawRef (Nothing, False)
@@ -381,7 +371,7 @@ newScrollBar = do
 
   return $ View paint handler
 
-newScrollZone :: Draw z (View (Int, Int, Int, Int) Int)
+newScrollZone :: (MonadDraw m) => m (View (Int, Int, Int, Int) Int)
 newScrollZone = do
   let barWidth = 10
   scrollBar <- newScrollBar

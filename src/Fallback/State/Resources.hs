@@ -76,22 +76,22 @@ data Resources = Resources
 
 newResources :: IO Resources
 newResources = do
-  abilityIcons <- runDraw $ loadSheet "abilities.png" (10, 10)
-  charSheet <- runDraw $ loadSheet "characters.png" (24, 4)
-  cursors <- runDraw $ loadVStrip "gui/cursors.png" 20
-  itemIcons <- runDraw $ loadSheet "items.png" (8, 8)
-  sheetEquipButtons <- runDraw $ loadSheet "gui/equip-buttons.png" (4, 3)
+  abilityIcons <- loadSheet "abilities.png" (10, 10)
+  charSheet <- loadSheet "characters.png" (24, 4)
+  cursors <- loadVStrip "gui/cursors.png" 20
+  itemIcons <- loadSheet "items.png" (8, 8)
+  sheetEquipButtons <- loadSheet "gui/equip-buttons.png" (4, 3)
   fonts <- makeTotalMapA (uncurry loadFont . fontSpec)
-  monsterImages <- runDraw $ makeTotalMapA loadMonsterImages
-  paintDigits <- runDraw $ newDigitPaint
-  projStrip <- runDraw $ loadVStrip "doodads/projectiles.png" 5
-  spritesSheet <- runDraw $ loadSheet "doodads/sprites.png" (2, 8)
+  monsterImages <- makeTotalMapA loadMonsterImages
+  paintDigits <- newDigitPaint
+  projStrip <- loadVStrip "doodads/projectiles.png" 5
+  spritesSheet <- loadSheet "doodads/sprites.png" (2, 8)
   sounds <- makeTotalMapA (loadSound . soundPath)
   statusDecorations <- loadStatusDecorations
-  statusIcons <- runDraw $ loadVStrip "gui/status-icons.png" 16
-  strips <- makeTotalMapA (runDraw . uncurry loadVStrip . stripSpec)
-  terrainSheet <- runDraw $ loadSheet "terrain.png" (50, 12)
-  terrainOverlaySheet <- runDraw $ loadSheet "terrain-overlays.png" (6, 8)
+  statusIcons <- loadVStrip "gui/status-icons.png" 16
+  strips <- makeTotalMapA (uncurry loadVStrip . stripSpec)
+  terrainSheet <- loadSheet "terrain.png" (50, 12)
+  terrainOverlaySheet <- loadSheet "terrain-overlays.png" (6, 8)
   tileset <- loadTileset
   return Resources
     { rsrcAbilityIcons = abilityIcons,
@@ -115,7 +115,7 @@ newResources = do
       rsrcTerrainOverlaySheet = terrainOverlaySheet,
       rsrcTileset = tileset }
 
-loadMonsterImages :: CreatureSize -> Draw () (Array Int CreatureImages)
+loadMonsterImages :: CreatureSize -> IO (Array Int CreatureImages)
 loadMonsterImages size =
   case size of
     SizeSmall -> load "monsters/small.png" 20

@@ -30,7 +30,8 @@ import Fallback.View.Widget (newSimpleTextButton, newStaticTextWrapView)
 
 -------------------------------------------------------------------------------
 
-newNarrateView :: Resources -> View a b -> a -> String -> Draw z (View () ())
+newNarrateView :: (MonadDraw m) => Resources -> View a b -> a -> String
+               -> m (View () ())
 newNarrateView resources bgView bgInput text = do
   let margin = 20
       textW = 512

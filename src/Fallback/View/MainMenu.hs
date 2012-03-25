@@ -36,7 +36,7 @@ data MainMenuAction = NewGame | LoadGame | QuitGame | EditTerrain
 
 -------------------------------------------------------------------------------
 
-newMainMenuView :: Resources -> Draw z (View () MainMenuAction)
+newMainMenuView :: (MonadDraw m) => Resources -> m (View () MainMenuAction)
 newMainMenuView resources = do
   compoundViewM [
     newBackgroundView,
@@ -51,7 +51,7 @@ newMainMenuView resources = do
 
 -------------------------------------------------------------------------------
 
-newBackgroundView :: Draw z (View a b)
+newBackgroundView :: (MonadDraw m) => m (View a b)
 newBackgroundView = do
 --   bgSprite <- loadSprite "tileset_indoors.png"
 --   return $ inertView $ const $ blitStretch bgSprite (Rect 0 0 (16 * 28) (16 * 36) :: IRect)

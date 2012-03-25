@@ -62,7 +62,8 @@ data CombatAction = CombatSidebar SidebarAction
                   | CombatTargetCharacter CharacterNumber
                   | CombatEndTargeting
 
-newCombatView :: Resources -> Draw z (View CombatState CombatAction)
+newCombatView :: (MonadDraw m) => Resources
+              -> m (View CombatState CombatAction)
 newCombatView resources = newCursorView resources $ \cursorSink -> do
   let mapRect _ (w, h) = Rect sidebarWidth 0 (w - sidebarWidth) h
   let sidebarRect _ (_, h) = Rect 0 0 sidebarWidth h
@@ -96,7 +97,8 @@ newCombatView resources = newCursorView resources $ \cursorSink -> do
        (newMaybeView abilitiesFn =<< fmap CombatAbilities <$>
         newAbilitiesView resources cursorSink)])]
 
-newCombatMapView :: Resources -> Draw z (View CombatState CombatAction)
+newCombatMapView :: (MonadDraw m) => Resources
+                 -> m (View CombatState CombatAction)
 newCombatMapView resources = do
   let
     paint (cs, mbMousePt) = do

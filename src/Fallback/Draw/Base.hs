@@ -17,21 +17,21 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
-{-# LANGUAGE EmptyDataDecls, ForeignFunctionInterface #-}
+{-# LANGUAGE ForeignFunctionInterface, GeneralizedNewtypeDeriving #-}
 
 module Fallback.Draw.Base
   (-- * Setting up the screen
    initializeScreen,
    -- * The Draw monad
-   Draw, runDraw, paintDraw, debugDraw,
+   Draw, MonadDraw(..), debugDraw,
+   -- * The Paint monad
+   Paint, paintScreen,
+   canvasWidth, canvasHeight, canvasSize, canvasRect,
+   withSubCanvas,
    -- * Reference cells
    DrawRef, newDrawRef, readDrawRef, writeDrawRef, modifyDrawRef,
    -- * Keyboard/mouse input
    getKeyState, withInputsSuppressed,
-   -- * The Paint monad
-   Paint, paintScreen,
-   Canvas, canvasWidth, canvasHeight, canvasSize, canvasRect,
-   withSubCanvas,
    -- * Textures
    Texture, loadTexture,
    -- * Sprites
@@ -55,7 +55,7 @@ module Fallback.Draw.Base
    newMinimap, alterMinimap, blitMinimap, minimapScale)
 where
 
-import Control.Applicative ((<$>), (<*>), Applicative, pure)
+import Control.Applicative ((<$>), (<*), Applicative)
 import Control.Arrow ((&&&), (***))
 import Control.Monad ((<=<), forM_, when)
 import Data.Array ((!), Array, bounds, listArray, range)
@@ -152,40 +152,28 @@ type Sheet = Array (Int, Int) Sprite
 -------------------------------------------------------------------------------
 -- The Draw monad:
 
-newtype Draw a b = Draw { fromDraw :: IO b }
+newtype Draw a = Draw { fromDraw :: IO a }
+  deriving (Applicative, Functor, Monad)
 
-instance Applicative (Draw a) where
-  pure = Draw . pure
-  (Draw f) <*> (Draw g) = Draw (f <*> g)
+class (Applicative m, Monad m) => MonadDraw m where
+  runDraw :: Draw a -> m a
 
-instance Functor (Draw a) where
-  fmap fn m = Draw (fmap fn (fromDraw m))
+instance MonadDraw Draw where runDraw = id
+instance MonadDraw IO where runDraw = fromDraw
 
-instance Monad (Draw a) where
-  return = Draw . return
-  draw >>= fn = Draw $ fromDraw draw >>= (fromDraw . fn)
-  fail = Draw . fail
-
-runDraw :: Draw () a -> IO a
-runDraw = fromDraw
-
-paintDraw :: Draw () a -> Paint a
-paintDraw = Draw . fromDraw
-
-debugDraw :: String -> Draw a ()
-debugDraw = Draw . putStrLn
+debugDraw :: (MonadDraw m) => String -> m ()
+debugDraw = drawIO . putStrLn
 
 -------------------------------------------------------------------------------
 -- The Paint monad:
 
-data Canvas
-
-type Paint a = Draw Canvas a
+newtype Paint a = Paint { fromPaint :: IO a }
+  deriving (Applicative, Functor, Monad, MonadDraw)
 
 paintScreen :: Paint () -> IO ()
-paintScreen draw = do
+paintScreen paint = do
   GL.clear [GL.ColorBuffer]
-  fromDraw draw
+  fromPaint paint
   GL.flush -- Are the flush and finish at all necessary?  I'm not sure.
   GL.finish
   SDL.glSwapBuffers
@@ -197,7 +185,7 @@ canvasHeight :: Paint Int
 canvasHeight = fmap snd canvasSize
 
 canvasSize :: Paint (Int, Int)
-canvasSize = Draw $ do
+canvasSize = Paint $ do
   scissor <- GL.get GL.scissor
   return $ case scissor of
     Nothing -> (screenWidth, screenHeight)
@@ -213,33 +201,30 @@ canvasRect = do
 
 newtype DrawRef a = DrawRef (IORef a)
 
-newDrawRef :: a -> Draw z (DrawRef a)
-newDrawRef = Draw . fmap DrawRef . newIORef
+newDrawRef :: (MonadDraw m) => a -> m (DrawRef a)
+newDrawRef = drawIO . fmap DrawRef . newIORef
 
-readDrawRef :: DrawRef a -> Draw z a
-readDrawRef (DrawRef ref) = Draw (readIORef ref)
+readDrawRef :: (MonadDraw m) => DrawRef a -> m a
+readDrawRef (DrawRef ref) = drawIO (readIORef ref)
 
-writeDrawRef :: DrawRef a -> a -> Draw z ()
-writeDrawRef (DrawRef ref) value = Draw (writeIORef ref value)
+writeDrawRef :: (MonadDraw m) => DrawRef a -> a -> m ()
+writeDrawRef (DrawRef ref) value = drawIO (writeIORef ref value)
 
-modifyDrawRef :: DrawRef a -> (a -> a) -> Draw z ()
-modifyDrawRef (DrawRef ref) fn = Draw (modifyIORef ref fn)
+modifyDrawRef :: (MonadDraw m) => DrawRef a -> (a -> a) -> m ()
+modifyDrawRef (DrawRef ref) fn = drawIO (modifyIORef ref fn)
 
 -------------------------------------------------------------------------------
 -- Keyboard/mouse input:
 
-getKeyState :: Key -> Draw z Bool
-getKeyState key = Draw $ do
+getKeyState :: (MonadDraw m) => Key -> m Bool
+getKeyState key = drawIO $ do
   suppressed <- readIORef inputsSuppressed
   if suppressed then return False else getKeyStateIO key
 
-withInputsSuppressed :: Draw z a -> Draw z a
-withInputsSuppressed action = Draw $ do
-  old <- readIORef inputsSuppressed
-  writeIORef inputsSuppressed True
-  result <- fromDraw action
-  writeIORef inputsSuppressed old
-  return result
+withInputsSuppressed :: (MonadDraw m) => m a -> m a
+withInputsSuppressed action = do
+  s <- drawIO (readIORef inputsSuppressed <* writeIORef inputsSuppressed True)
+  action <* drawIO (writeIORef inputsSuppressed s)
 
 {-# NOINLINE inputsSuppressed #-} -- needed for unsafePerformIO
 inputsSuppressed :: IORef Bool
@@ -286,7 +271,7 @@ blitStretch :: (Axis a) => Sprite -> Rect a -> Paint ()
 blitStretch = blitStretchTinted whiteTint
 
 blitStretchTinted :: (Axis a) => Tint -> Sprite -> Rect a -> Paint ()
-blitStretchTinted tint sprite rect = Draw $ do
+blitStretchTinted tint sprite rect = Paint $ do
   withTexture (spriteTexture sprite) $ do
     setTint tint
     GL.renderPrimitive GL.Quads $ do
@@ -308,7 +293,7 @@ blitRotate = blitRotateTinted whiteTint
 blitRotateTinted :: (Axis a) => Tint {-^tint-} -> Sprite {-^sprite-}
                  -> Point a {-^center-} -> Double {-^ angle (in radians) -}
                  -> Paint ()
-blitRotateTinted tint sprite (Point cx cy) radians = Draw $ do
+blitRotateTinted tint sprite (Point cx cy) radians = Paint $ do
   withTexture (spriteTexture sprite) $ do
     setTint tint
     GL.preservingMatrix $ do
@@ -350,11 +335,11 @@ blitRepeatTinted tint sprite (Point ox oy) rect = withSubCanvas rect $ do
 -- | Draw an antialiased line onto the canvas.
 drawLine :: (Axis a) => Tint {-^color-} -> Point a {-^start-}
          -> Point a {-^end-} -> Paint ()
-drawLine tint start end = Draw $ do
+drawLine tint start end = Paint $ do
   drawPrimitive GL.Lines tint $ pointVertex' start >> pointVertex' end
 
 drawRect :: (Axis a) => Tint -> Rect a -> Paint ()
-drawRect tint (Rect x y w h) = Draw $ do
+drawRect tint (Rect x y w h) = Paint $ do
   drawPrimitive GL.LineLoop tint $ do
     axisVertex' x y
     axisVertex' (x + w - 1) y
@@ -363,7 +348,7 @@ drawRect tint (Rect x y w h) = Draw $ do
 
 -- | Tint a subrectangle of the canvas uniformly.
 tintRect :: (Axis a) => Tint -> Rect a -> Paint ()
-tintRect tint (Rect x y w h) = Draw $ do
+tintRect tint (Rect x y w h) = Paint $ do
   drawPrimitive GL.Quads tint $ do
     axisVertex x y
     axisVertex (x + w) y
@@ -420,25 +405,25 @@ tintCanvas tint = canvasRect >>= tintRect tint
 --     pointVertex' point3
 
 drawLineChain :: (Axis a) => Tint -> [Point a] -> Paint ()
-drawLineChain tint points = Draw $ do
+drawLineChain tint points = Paint $ do
   drawPrimitive GL.LineStrip tint $ mapM_ pointVertex' points
 
 drawPolygon :: (Axis a) => Tint -> [Point a] -> Paint ()
-drawPolygon tint points = Draw $ do
+drawPolygon tint points = Paint $ do
   drawPrimitive GL.LineLoop tint $ mapM_ pointVertex' points
 
 tintPolygon :: (Axis a) => Tint -> [Point a] -> Paint ()
-tintPolygon tint points = Draw $ do
+tintPolygon tint points = Paint $ do
   drawPrimitive GL.Polygon tint $ mapM_ pointVertex' points
 
 gradientPolygon :: (Axis a) => [(Tint, Point a)] -> Paint ()
-gradientPolygon pointTints = Draw $ do
+gradientPolygon pointTints = Paint $ do
   GL.textureBinding GL.Texture2D $= Nothing
   let doVertex (tint, point) = setTint tint >> pointVertex point
   GL.renderPrimitive GL.Polygon $ mapM_ doVertex pointTints
 
 tintRing :: (Axis a) => Tint -> a -> Point a -> a -> a -> Paint ()
-tintRing tint thickness (Point cx cy) hRad vRad = Draw $ do
+tintRing tint thickness (Point cx cy) hRad vRad = Paint $ do
   GL.preservingMatrix $ do
     GL.translate $ GL.Vector3 (toGLdouble cx) (toGLdouble cy) 0
     drawPrimitive GL.TriangleStrip tint $ do
@@ -457,7 +442,7 @@ tintRing tint thickness (Point cx cy) hRad vRad = Draw $ do
 -- Miscellaneous canvas functions:
 
 withSubCanvas :: IRect -> Paint a -> Paint a
-withSubCanvas rect draw = Draw $ GL.preservingMatrix $ do
+withSubCanvas rect paint = Paint $ GL.preservingMatrix $ do
   GL.translate $ GL.Vector3 (toGLdouble $ rectX rect)
                             (toGLdouble $ rectY rect) 0
   oldScissor <- GL.get GL.scissor
@@ -470,7 +455,7 @@ withSubCanvas rect draw = Draw $ GL.preservingMatrix $ do
       (GL.Position (fromIntegral $ rectX rect')
                    (fromIntegral $ screenHeight - rectY rect' - rectH rect'),
        GL.Size (fromIntegral $ rectW rect') (fromIntegral $ rectH rect'))
-  result <- fromDraw draw
+  result <- fromPaint paint
   GL.scissor $= oldScissor
   return result
 
@@ -483,7 +468,7 @@ newtype Font = Font SDLt.Font
 -- | Draw text with the given font and color onto the screen at the specified
 -- location.
 drawText :: (Axis a) => Font -> Color -> LocSpec a -> String -> Paint ()
-drawText font color spec string = Draw $ do
+drawText font color spec string = Paint $ do
   surface <- renderText' font color string
   blitSurface 1 surface spec
 
@@ -549,7 +534,7 @@ alterMinimap (Minimap texture) pixels = withTexture texture $ do
 
 -- | Draw the minimap to the screen.
 blitMinimap :: (Axis a) => Minimap -> LocSpec a -> Paint ()
-blitMinimap mm@(Minimap texture) loc = Draw $ withTexture texture $ do
+blitMinimap mm@(Minimap texture) loc = Paint $ withTexture texture $ do
   setTint whiteTint
   GL.renderPrimitive GL.Quads $ do
     let (w, h) = minimapBlitSize mm
@@ -579,14 +564,14 @@ loadFont name size = do
   path <- getResourcePath "fonts" name
   fmap Font $ SDLt.openFont path size
 
-loadSprite :: String -> Draw z Sprite
-loadSprite name = Draw $ makeSprite <$> loadTexture name
+loadSprite :: (MonadDraw m) => String -> m Sprite
+loadSprite name = drawIO (makeSprite <$> loadTexture name)
 
-loadSubSprite :: String -> IRect -> Draw z Sprite
-loadSubSprite name rect = Draw $ makeSubSprite rect <$> loadTexture name
+loadSubSprite :: (MonadDraw m) => String -> IRect -> m Sprite
+loadSubSprite name rect = drawIO (makeSubSprite rect <$> loadTexture name)
 
-loadVStrip :: String -> Int -> Draw z Strip
-loadVStrip name size = Draw $ do
+loadVStrip :: (MonadDraw m) => String -> Int -> m Strip
+loadVStrip name size = drawIO $ do
   texture <- loadTexture name
   let (height, extra) = textureHeight texture `divMod` size
   when (extra /= 0) $ fail ("bad vstrip size " ++ show size ++ " for " ++ name)
@@ -594,8 +579,8 @@ loadVStrip name size = Draw $ do
   let slice n = makeSubSprite (Rect 0 (n * height) width height) texture
   return $ listArray (0, size - 1) $ map slice [0 .. size - 1]
 
-loadSheet :: FilePath -> (Int, Int) -> Draw z Sheet
-loadSheet name (rows, cols) = Draw $ do
+loadSheet :: (MonadDraw m) => FilePath -> (Int, Int) -> m Sheet
+loadSheet name (rows, cols) = drawIO $ do
   texture <- loadTexture name
   let (height, extraH) = textureHeight texture `divMod` rows
   let (width, extraW) = textureWidth texture `divMod` cols
@@ -722,5 +707,8 @@ toGLdouble = toFloating
 
 toGLint :: Int -> GL.GLint
 toGLint = fromIntegral
+
+drawIO :: (MonadDraw m) => IO a -> m a
+drawIO = runDraw . Draw
 
 -------------------------------------------------------------------------------

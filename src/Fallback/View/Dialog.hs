@@ -37,7 +37,8 @@ import Fallback.View.Widget
 
 -------------------------------------------------------------------------------
 
-newDialogView :: View c d -> c -> View a b -> IRect -> Draw z (View a b)
+newDialogView :: (MonadDraw m) => View c d -> c -> View a b -> IRect
+              -> m (View a b)
 newDialogView bgView bgInput fgView targetRect = do
   rectRef <- newDrawRef targetRect
   --rectRef <- let Point x y = rectCenter targetRect in newDrawRef (Rect x y 0 0)
@@ -70,8 +71,9 @@ newDialogView bgView bgInput fgView targetRect = do
 
 -------------------------------------------------------------------------------
 
-newHorizontalDialogView :: Resources -> String -> [(String, [Key], b)]
-                        -> View c d -> c -> Draw z (View a b)
+newHorizontalDialogView :: (MonadDraw m) => Resources -> String
+                        -> [(String, [Key], b)] -> View c d -> c
+                        -> m (View a b)
 newHorizontalDialogView resources text buttonSpecs bgView bgInput = do
   let width = 320
       margin = 16
@@ -97,8 +99,9 @@ newHorizontalDialogView resources text buttonSpecs bgView bgInput = do
 
 -------------------------------------------------------------------------------
 
-newTextEntryDialogView :: Resources -> String -> String -> (String -> Bool)
-                       -> View c d -> c -> Draw z (View a (Maybe String))
+newTextEntryDialogView :: (MonadDraw m) => Resources -> String -> String
+                       -> (String -> Bool) -> View c d -> c
+                       -> m (View a (Maybe String))
 newTextEntryDialogView resources text initValue testFn bgView bgInput = do
   let width = 320
       margin = 16
@@ -130,7 +133,7 @@ newTextEntryDialogView resources text initValue testFn bgView bgInput = do
 
 -------------------------------------------------------------------------------
 
-newDialogBackgroundView :: Draw z (View a b)
+newDialogBackgroundView :: (MonadDraw m) => m (View a b)
 newDialogBackgroundView = wallView . const <$>
   newBackgroundPaint "gui/dialog-background.png" 0 0 8 8 64 64
 
