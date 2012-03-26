@@ -107,14 +107,16 @@ newEditorMapView resources sink = do
       paintTerrainFullyExplored resources (esCameraTopleft state)
                                 (esTerrain state) (esClock state)
 
-    handler _ _ EvTick =
+    handler _ EvTick =
       maybe Ignore (Action . ScrollMap . (`pMul` 8) . dirDelta) <$>
       getArrowKeysDirection
-    handler state rect (EvMouseMotion pt _) = do
+    handler state (EvMouseMotion pt _) = do
+      rect <- canvasRect
       writeHoverSink sink $ positionAt state rect pt
       drag <- readDrawRef dragRef
       if drag then paintAt state rect pt else return Ignore
-    handler state rect (EvMouseDown pt) = do
+    handler state (EvMouseDown pt) = do
+      rect <- canvasRect
       eyedropper <- getKeyState KeyE
       fill <- getKeyState KeyF
       (if eyedropper
@@ -125,19 +127,20 @@ newEditorMapView resources sink = do
        then return $ maybe Ignore (Action . FloodFill) $
             positionAt state rect pt
        else writeDrawRef dragRef True >> paintAt state rect pt)
-    handler _ _ (EvMouseUp _) = Ignore <$ writeDrawRef dragRef False
-    handler _ _ (EvKeyDown KeyO [KeyModCmd] _) = return (Action DoLoad)
-    handler _ _ (EvKeyDown KeyS [KeyModCmd] _) = return (Action DoSave)
-    handler _ _ (EvKeyDown KeyZ [KeyModCmd] _) = return (Action DoUndo)
-    handler _ _ (EvKeyDown KeyZ [KeyModCmd, KeyModShift] _) =
+    handler _ (EvMouseUp _) = Ignore <$ writeDrawRef dragRef False
+    handler _ (EvKeyDown KeyO [KeyModCmd] _) = return (Action DoLoad)
+    handler _ (EvKeyDown KeyS [KeyModCmd] _) = return (Action DoSave)
+    handler _ (EvKeyDown KeyZ [KeyModCmd] _) = return (Action DoUndo)
+    handler _ (EvKeyDown KeyZ [KeyModCmd, KeyModShift] _) =
       return (Action DoRedo)
-    handler state rect (EvFocus pt) = do
+    handler state (EvFocus pt) = do
+      rect <- canvasRect
       writeHoverSink sink $ positionAt state rect pt
       return Ignore
-    handler _ _ EvBlur = do
+    handler _ EvBlur = do
       writeDrawRef dragRef False
       return Ignore
-    handler _ _ _ = return Ignore
+    handler _ _ = return Ignore
 
     paintAt state rect pt = do
       auto <- getKeyState KeyA
@@ -194,11 +197,12 @@ newEditorPaletteView resources = do
               drawRect (Tint 255 0 255 255) rect
       canvasSize >>= (mapM_ paintTile . rectsAndTiles state)
 
-    handler state rect (EvMouseDown pt) =
+    handler state (EvMouseDown pt) = do
+      rect <- canvasRect
       let hit rAndT = rectContains (fst rAndT) (pt `pSub` rectTopleft rect)
-      in return $ maybe Ignore (Action . PickTile . snd) $ find hit $
-         rectsAndTiles state $ rectSize rect
-    handler _ _ _ = return Ignore
+      return $ maybe Ignore (Action . PickTile . snd) $ find hit $
+        rectsAndTiles state $ rectSize rect
+    handler _ _ = return Ignore
 
     rectsAndTiles state (width, height) =
       let gap = 2

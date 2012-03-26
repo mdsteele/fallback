@@ -22,8 +22,7 @@ module Fallback.Mode.SaveGame (newSaveGameMode) where
 import Control.Applicative ((<$>))
 import Control.Monad (when)
 
-import Fallback.Constants (screenRect)
-import Fallback.Draw (Sprite, paintScreen, runDraw)
+import Fallback.Draw (Sprite, handleScreen, paintScreen)
 import Fallback.Event
 import Fallback.Mode.Base
 import Fallback.Mode.Dialog
@@ -41,12 +40,12 @@ newSaveGameMode resources onSave screenshot savedGame
                 prevMode bgView bgInput = do
   view <- do
     summaries <- loadSavedGameSummaries
-    runDraw $ newSaveGameView resources bgView bgInput screenshot
-                              (savedGameLocation savedGame) summaries
+    newSaveGameView resources bgView bgInput screenshot
+                    (savedGameLocation savedGame) summaries
   let mode EvQuit =
         ChangeMode <$> newQuitWithoutSavingMode resources mode view ()
       mode event = do
-        action <- runDraw $ viewHandler view () screenRect event
+        action <- handleScreen $ viewHandler view () event
         when (event == EvTick) $ paintScreen (viewPaint view ())
         case fromAction action of
           Nothing -> return SameMode

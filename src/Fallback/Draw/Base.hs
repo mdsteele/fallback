@@ -24,10 +24,11 @@ module Fallback.Draw.Base
    initializeScreen,
    -- * The Draw monad
    Draw, MonadDraw(..), debugDraw,
+   -- * The Handler monad
+   Handler, MonadHandler(..), handleScreen,
+   canvasWidth, canvasHeight, canvasSize, canvasRect,
    -- * The Paint monad
    Paint, paintScreen,
-   canvasWidth, canvasHeight, canvasSize, canvasRect,
-   withSubCanvas,
    -- * Reference cells
    DrawRef, newDrawRef, readDrawRef, writeDrawRef, modifyDrawRef,
    -- * Keyboard/mouse input
@@ -165,36 +166,93 @@ debugDraw :: (MonadDraw m) => String -> m ()
 debugDraw = drawIO . putStrLn
 
 -------------------------------------------------------------------------------
+-- The Handler monad:
+
+newtype Handler a = Handler { fromHandler :: IO a }
+  deriving (Applicative, Functor, Monad, MonadDraw)
+
+class (MonadDraw m) => MonadHandler m where
+  runHandler :: Handler a -> m a
+  withSubCanvas :: IRect -> m a -> m a
+
+instance MonadHandler Handler where
+  runHandler = id
+  withSubCanvas subRect action = Handler $ do
+    oldRect <- readIORef canvasRectRef
+    let newRect = subRect `rectPlus` rectTopleft oldRect
+    writeIORef canvasRectRef newRect
+    fromHandler action <* writeIORef canvasRectRef oldRect
+
+handleScreen :: Handler a -> IO a
+handleScreen action = withAbsoluteCanvas screenRect (fromHandler action)
+
+canvasWidth :: (MonadHandler m) => m Int
+canvasWidth = handlerIO (rectW <$> readIORef canvasRectRef)
+
+canvasHeight :: (MonadHandler m) => m Int
+canvasHeight = handlerIO (rectH <$> readIORef canvasRectRef)
+
+canvasSize :: (MonadHandler m) => m (Int, Int)
+canvasSize = handlerIO (rectSize <$> readIORef canvasRectRef)
+
+canvasRect :: (MonadHandler m) => m IRect
+canvasRect = do
+  (width, height) <- canvasSize
+  return $ Rect 0 0 width height
+
+{-# NOINLINE canvasRectRef #-} -- needed for unsafePerformIO
+canvasRectRef :: IORef IRect
+canvasRectRef = unsafePerformIO (newIORef screenRect)
+
+withAbsoluteCanvas :: IRect -> IO a -> IO a
+withAbsoluteCanvas newRect action = do
+  oldRect <- readIORef canvasRectRef
+  writeIORef canvasRectRef newRect
+  action <* writeIORef canvasRectRef oldRect
+
+-------------------------------------------------------------------------------
 -- The Paint monad:
 
 newtype Paint a = Paint { fromPaint :: IO a }
   deriving (Applicative, Functor, Monad, MonadDraw)
 
+instance MonadHandler Paint where
+  runHandler = Paint . fromHandler
+  withSubCanvas = paintWithSubCanvas
+
+paintWithSubCanvas :: IRect -> Paint a -> Paint a
+paintWithSubCanvas subRect paint = Paint $ GL.preservingMatrix $ do
+  let fromScissor (GL.Position x y, GL.Size w h) =
+        Rect (fromIntegral x) (screenHeight - fromIntegral y - fromIntegral h)
+             (fromIntegral w) (fromIntegral h)
+  let toScissor (Rect x y w h) =
+        (GL.Position (toGLint x) (toGLint (screenHeight - y - h)),
+         GL.Size (toGLint w) (toGLint h))
+  -- Change the canvas rect:
+  oldRect <- readIORef canvasRectRef
+  let newRect = subRect `rectPlus` rectTopleft oldRect
+  writeIORef canvasRectRef newRect
+  -- Change the GL coordinates and scissor:
+  GL.translate $ GL.Vector3 (toGLdouble $ rectX subRect)
+                            (toGLdouble $ rectY subRect) 0
+  oldScissor <- GL.get GL.scissor
+  let oldScissorRect = maybe screenRect fromScissor oldScissor
+  let newScissorRect = oldScissorRect `rectIntersection` newRect
+  GL.scissor $= Just (toScissor newScissorRect)
+  -- Perform the inner paint:
+  result <- fromPaint paint
+  -- Reset to previous state before returning:
+  GL.scissor $= oldScissor
+  writeIORef canvasRectRef oldRect
+  return result
+
 paintScreen :: Paint () -> IO ()
 paintScreen paint = do
   GL.clear [GL.ColorBuffer]
-  fromPaint paint
+  withAbsoluteCanvas screenRect (fromPaint paint)
   GL.flush -- Are the flush and finish at all necessary?  I'm not sure.
   GL.finish
   SDL.glSwapBuffers
-
-canvasWidth :: Paint Int
-canvasWidth = fmap fst canvasSize
-
-canvasHeight :: Paint Int
-canvasHeight = fmap snd canvasSize
-
-canvasSize :: Paint (Int, Int)
-canvasSize = Paint $ do
-  scissor <- GL.get GL.scissor
-  return $ case scissor of
-    Nothing -> (screenWidth, screenHeight)
-    Just (_, GL.Size w h) -> (fromIntegral w, fromIntegral h)
-
-canvasRect :: Paint IRect
-canvasRect = do
-  (width, height) <- canvasSize
-  return $ Rect 0 0 width height
 
 -------------------------------------------------------------------------------
 -- Reference cells:
@@ -437,27 +495,6 @@ tintRing tint thickness (Point cx cy) hRad vRad = Paint $ do
         GL.vertex $ GL.Vertex3 (ohr * cos theta') (ovr * sin theta') 0
       GL.vertex $ GL.Vertex3 (ihr * cos 0) (ivr * sin 0) 0
       GL.vertex $ GL.Vertex3 (ohr * cos step) (ovr * sin step) 0
-
--------------------------------------------------------------------------------
--- Miscellaneous canvas functions:
-
-withSubCanvas :: IRect -> Paint a -> Paint a
-withSubCanvas rect paint = Paint $ GL.preservingMatrix $ do
-  GL.translate $ GL.Vector3 (toGLdouble $ rectX rect)
-                            (toGLdouble $ rectY rect) 0
-  oldScissor <- GL.get GL.scissor
-  let fromScissor (GL.Position x y, GL.Size w h) =
-        Rect (fromIntegral x) (screenHeight - fromIntegral y - fromIntegral h)
-             (fromIntegral w) (fromIntegral h)
-  let oldRect = maybe screenRect fromScissor oldScissor
-  let rect' = oldRect `rectIntersection` (rect `rectPlus` rectTopleft oldRect)
-  GL.scissor $= Just
-      (GL.Position (fromIntegral $ rectX rect')
-                   (fromIntegral $ screenHeight - rectY rect' - rectH rect'),
-       GL.Size (fromIntegral $ rectW rect') (fromIntegral $ rectH rect'))
-  result <- fromPaint paint
-  GL.scissor $= oldScissor
-  return result
 
 -------------------------------------------------------------------------------
 -- Fonts and text:
@@ -710,5 +747,8 @@ toGLint = fromIntegral
 
 drawIO :: (MonadDraw m) => IO a -> m a
 drawIO = runDraw . Draw
+
+handlerIO :: (MonadHandler m) => IO a -> m a
+handlerIO = runHandler . Handler
 
 -------------------------------------------------------------------------------

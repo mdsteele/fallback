@@ -132,28 +132,30 @@ newTownMapView resources cursorSink = do
         _ -> return ()
       maybeM (acsMessage acs) (paintMessage resources)
 
-    handler _ _ EvTick =
+    handler _ EvTick =
       maybe Ignore (Action . TownMove) <$> getArrowKeysDirection
-    handler (ts, _) rect (EvMouseMotion pt _) = Ignore <$ setCursor ts rect pt
-    handler (ts, _) rect (EvMouseDown pt) =
-      if not (rectContains rect pt) then return Ignore else do
-        setCursor ts rect pt
+    handler (ts, _) (EvMouseMotion pt _) = Ignore <$ setCursor ts pt
+    handler (ts, _) (EvMouseDown pt) = do
+      whenWithinCanvas pt $ do
+        setCursor ts pt
         case tsPhase ts of
           WalkingPhase -> do
+            rect <- canvasRect
             let townScript = maybe Suppress (Action . TownScript)
             return $ mouseCase townScript townScript (Action . TownMove)
                                ts rect pt
           ChooseAbilityPhase -> return Suppress
           InventoryPhase _ -> return Suppress
           UpgradePhase _ _ -> return Suppress
-          TargetingPhase _ -> return $ Action $ TownTargetPosition pos
+          TargetingPhase _ ->
+            return $ Action $ TownTargetPosition $
+            pointPosition (pt `pAdd` (camTopleft $ arsCamera ts))
           ScriptPhase _ -> return Suppress
-      where pos = pointPosition (pt `pAdd` (camTopleft $ arsCamera ts))
-    handler (ts, _) _ (EvKeyDown KeyEscape _ _) = do
+    handler (ts, _) (EvKeyDown KeyEscape _ _) = do
       case tsPhase ts of
         TargetingPhase _ -> return (Action TownCancelTargeting)
         _ -> return Ignore
-    handler (ts, _) _ (EvKeyDown key _ _) = do
+    handler (ts, _) (EvKeyDown key _ _) = do
       case keyCharacterNumber key of
         Nothing -> return Ignore
         Just charNum -> return $
@@ -164,8 +166,8 @@ newTownMapView resources cursorSink = do
                    Action $ TownTargetCharacter charNum
                  _ -> Suppress) :: Action TownAction
             _ -> Ignore
-    handler (ts, _) rect (EvFocus pt) = Ignore <$ setCursor ts rect pt
-    handler _ _ _ = return Ignore
+    handler (ts, _) (EvFocus pt) = Ignore <$ setCursor ts pt
+    handler _ _ = return Ignore
 
     mouseCase :: (Maybe (Script TownEffect ()) -> a)
               -> (Maybe (Script TownEffect ()) -> a)
@@ -188,10 +190,12 @@ newTownMapView resources cursorSink = do
          flip3 maybe devFn' (search (acsDevices acs)) $
          dirFn $ ipointDir $ pt `pSub` rectCenter rect
 
-    setCursor :: (MonadDraw m) => TownState -> IRect -> IPoint -> m ()
-    setCursor ts rect pt =
-      when (rectContains rect pt) $ writeHoverSink cursorSink $
-      mouseCase (const TalkCursor) (const HandCursor) WalkCursor ts rect pt
+    setCursor :: (MonadHandler m) => TownState -> IPoint -> m ()
+    setCursor ts pt = do
+      rect <- canvasRect
+      when (rectContains rect pt) $ do
+        writeHoverSink cursorSink $
+          mouseCase (const TalkCursor) (const HandCursor) WalkCursor ts rect pt
 
   newMouseView $ View paint handler
 

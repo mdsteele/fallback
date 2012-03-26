@@ -98,9 +98,9 @@ newSidebarView :: (MonadDraw m) => Resources
 newSidebarView resources = do
   bgSprite <- loadSprite "gui/sidebar-background.png"
   buttonIcons <- loadVStrip "gui/sidebar-buttons.png" 5
-  let cheatHandler _ _ (EvKeyDown KeyD [KeyModShift] _) =
+  let cheatHandler _ (EvKeyDown KeyD [KeyModShift] _) =
         return (Action EnterCheatCode)
-      cheatHandler _ _ _ = return Ignore
+      cheatHandler _ _ = return Ignore
   let charRect i = Rect 1 (96 + 85 * i) (sidebarWidth - 6) 84
   let makeButton xIndex iconFn keys value =
         subView_ (Rect (2 + 29 * xIndex) 440 29 36) .
@@ -189,13 +189,14 @@ newMinimapView = do
       blitMinimap minimap $ LocTopleft $ Point offsetX offsetY
       drawRect (Tint 255 255 255 192) (Rect mincamX mincamY mincamW mincamH)
 
-    handler (camera, minimap) rect (EvMouseDown pt) =
-      if not (rectContains rect pt) then return Ignore else
-        let (_, _, offsetX, offsetY) = getOffset camera minimap (rectSize rect)
-            x = (pointX pt - rectX rect - offsetX) `div` minimapScale
-            y = (pointY pt - rectY rect - offsetY) `div` minimapScale
-        in return $ Action $ Point x y
-    handler _ _ _ = return Ignore
+    handler (camera, minimap) (EvMouseDown pt) = do
+      whenWithinCanvas pt $ do
+        (w, h) <- canvasSize
+        let (_, _, offsetX, offsetY) = getOffset camera minimap (w, h)
+        let x = (pointX pt - w - offsetX) `div` minimapScale
+        let y = (pointY pt - h - offsetY) `div` minimapScale
+        return $ Action $ Point x y
+    handler _ _ = return Ignore
 
     getOffset camera minimap (viewW, viewH) =
       let (mapW, mapH) = minimapBlitSize minimap
@@ -254,13 +255,12 @@ newCharacterViewBackground charNum = do
         drawRect (Tint 128 0 0 128) $ adjustRect1 1 rect
         tintRect (Tint 255 255 255 96) $ adjustRect1 2 rect
 
-    handler _ rect (EvMouseDown pt) =
-      return $ if rectContains rect pt
-               then Action (MakeCharacterActive charNum) else Ignore
-    handler _ _ (EvKeyDown key _ _) =
+    handler _ (EvMouseDown pt) = do
+      whenWithinCanvas pt $ return $ Action (MakeCharacterActive charNum)
+    handler _ (EvKeyDown key _ _) = do
       return $ if key == characterKey charNum
                then Action (MakeCharacterActive charNum) else Ignore
-    handler _ _ _ = return Ignore
+    handler _ _ = return Ignore
 
   newMouseView $ View paint handler
 

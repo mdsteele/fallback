@@ -82,8 +82,9 @@ hoverView sink value (View paint handler) =
 
 hoverView' :: HoverSink c -> (a -> Maybe c) -> View a b -> View a b
 hoverView' sink valueFn (View paint handler) =
-  let handler' input rect event = do
-        result <- handler input rect event
+  let handler' input event = do
+        result <- handler input event
+        rect <- canvasRect
         let check pt = when (rectContains rect pt) $
                        maybeM (valueFn input) (writeHoverSink sink)
         case event of
@@ -97,7 +98,7 @@ hoverView' sink valueFn (View paint handler) =
 
 hoverJunction :: HoverRef c -> View a b -> View a b
 hoverJunction ref (View paint handler) = View paint handler' where
-  handler' input rect event = reopenHoverRef ref >> handler input rect event
+  handler' input event = reopenHoverRef ref >> handler input event
 
 -------------------------------------------------------------------------------
 
@@ -149,9 +150,9 @@ newCursorView resources fn = do
       cursor <- readHoverRef hov
       paint input
       maybeM mbMousePt (paintCursor resources cursor)
-    handler' (input, _) rect event = do
+    handler' (input, _) event = do
       reopenHoverRef hov
-      handler input rect event
+      handler input event
   newMouseView (View paint' handler')
 
 -------------------------------------------------------------------------------

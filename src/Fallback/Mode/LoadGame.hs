@@ -22,8 +22,7 @@ module Fallback.Mode.LoadGame (newLoadGameMode) where
 import Control.Applicative ((<$>))
 import Control.Monad (when)
 
-import Fallback.Constants (screenRect)
-import Fallback.Draw (paintScreen, runDraw)
+import Fallback.Draw (handleScreen, paintScreen)
 import Fallback.Event
 import Fallback.Mode.Base
 import Fallback.Mode.Dialog
@@ -37,13 +36,12 @@ import Fallback.View.LoadGame
 
 newLoadGameMode :: Resources -> Modes -> Mode -> View a b -> a -> IO Mode
 newLoadGameMode resources modes prevMode bgView bgInput = do
-  view <- runDraw . newLoadGameView resources bgView bgInput =<<
-          loadSavedGameSummaries
+  view <- newLoadGameView resources bgView bgInput =<< loadSavedGameSummaries
   let
     mode EvQuit =
       ChangeMode <$> newQuitWithoutSavingMode resources mode view ()
     mode event = do
-      action <- runDraw $ viewHandler view () screenRect event
+      action <- handleScreen $ viewHandler view () event
       when (event == EvTick) $ paintScreen (viewPaint view ())
       case fromAction action of
         Nothing -> return SameMode

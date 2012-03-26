@@ -150,10 +150,9 @@ newCharacterRadio resources charNum = do
                      then blackTint else Tint 0 0 0 40)
                     [Point w 0, Point 5 0, Point 0 5,
                      Point 0 (h - 6), Point 5 (h - 1), Point w (h - 1)]
-    handler _ rect (EvMouseDown pt) =
-      if not (rectContains rect pt) then return Ignore
-      else return $ Action $ SelectCharacter charNum
-    handler _ _ _ = return Ignore
+    handler _ (EvMouseDown pt) = do
+      whenWithinCanvas pt $ return $ Action $ SelectCharacter charNum
+    handler _ _ = return Ignore
   return $ View paint handler
 
 newEditCharView :: (MonadDraw m) => Resources
@@ -204,10 +203,9 @@ newClassRadio resources cls = do
                (LocCenter $ rectCenter rect) (className cls)
       drawBevelRect (if selected then Tint 192 32 32 255 else Tint 0 0 0 40)
                     3 rect
-    handler _ rect (EvMouseDown pt) =
-      if not (rectContains rect pt) then return Ignore else
-        return $ Action $ ChangeClass cls
-    handler _ _ _ = return Ignore
+    handler _ (EvMouseDown pt) = do
+      whenWithinCanvas pt $ return $ Action $ ChangeClass cls
+    handler _ _ = return Ignore
   return $ View paint handler
 
 newAppearanceRadio :: (MonadDraw m) => Resources -> CharacterAppearance
@@ -222,10 +220,9 @@ newAppearanceRadio resources appear = do
       blitLoc sprite $ LocCenter $ rectCenter rect
       drawBevelRect (if ncsAppearance ncs == appear
                      then Tint 192 32 32 255 else Tint 0 0 0 40) 5 rect
-    handler _ rect (EvMouseDown pt) =
-      if not (rectContains rect pt) then return Ignore else
-        return $ Action $ ChangeAppearance appear
-    handler _ _ _ = return Ignore
+    handler _ (EvMouseDown pt) =
+      whenWithinCanvas pt $ return $ Action $ ChangeAppearance appear
+    handler _ _ = return Ignore
   return $ View paint handler
 
 newDifficultyView :: (MonadDraw m) => Resources
@@ -261,10 +258,9 @@ newDifficultyRadio resources diff = do
                (LocCenter $ rectCenter rect) (difficultyName diff)
       drawBevelRect (if selected then Tint 192 32 32 255 else Tint 0 0 0 40)
                     3 rect
-    handler _ rect (EvMouseDown pt) =
-      if not (rectContains rect pt) then return Ignore else
-        return $ Action $ SetDifficulty diff
-    handler _ _ _ = return Ignore
+    handler _ (EvMouseDown pt) = do
+      whenWithinCanvas pt $ return $ Action $ SetDifficulty diff
+    handler _ _ = return Ignore
   return $ View paint handler
 
 -------------------------------------------------------------------------------

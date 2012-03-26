@@ -22,8 +22,7 @@ module Fallback.Mode.MainMenu (newMainMenuMode) where
 import Control.Applicative ((<$>))
 import Control.Monad (when)
 
-import Fallback.Constants (screenRect)
-import Fallback.Draw (paintScreen, runDraw)
+import Fallback.Draw (handleScreen, paintScreen)
 import Fallback.Event
 import Fallback.Mode.Base
 import Fallback.Mode.Editor (newEditorMode)
@@ -37,10 +36,10 @@ import Fallback.View.MainMenu (MainMenuAction(..), newMainMenuView)
 
 newMainMenuMode :: Resources -> Modes -> IO Mode
 newMainMenuMode resources modes = do
-  view <- runDraw (newMainMenuView resources)
+  view <- newMainMenuView resources
   let mode EvQuit = return DoQuit
       mode event = do
-        action <- runDraw $ viewHandler view () screenRect event
+        action <- handleScreen $ viewHandler view () event
         when (event == EvTick) $ paintScreen (viewPaint view ())
         case fromAction action of
           Nothing -> return SameMode

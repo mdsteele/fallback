@@ -26,10 +26,9 @@ import qualified Data.IntMap as IntMap (fromList)
 import qualified Data.Map as Map (empty)
 import qualified Data.Set as Set (empty)
 
-import Fallback.Constants (screenRect)
 import Fallback.Control.Error (IOEO, onlyIO)
 import Fallback.Data.TotalMap (makeTotalMap)
-import Fallback.Draw (paintScreen, runDraw)
+import Fallback.Draw (handleScreen, paintScreen)
 import Fallback.Event
 import Fallback.Mode.Base
 import Fallback.Mode.Dialog (newHorizontalDialogMode, newQuitWithoutSavingMode)
@@ -50,11 +49,11 @@ import Fallback.View.NewGame
 
 newNewGameMode :: Resources -> Modes -> Mode -> View a b -> a -> IO Mode
 newNewGameMode resources modes prevMode bgView bgInput = do
-  view <- runDraw $ newNewGameView resources bgView bgInput
+  view <- newNewGameView resources bgView bgInput
   let mode EvQuit = do
         ChangeMode <$> newQuitWithoutSavingMode resources mode view ()
       mode event = do
-        action <- runDraw $ viewHandler view () screenRect event
+        action <- handleScreen $ viewHandler view () event
         when (event == EvTick) $ paintScreen (viewPaint view ())
         case fromAction action of
           Nothing -> return SameMode

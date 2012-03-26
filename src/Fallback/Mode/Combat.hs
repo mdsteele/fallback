@@ -33,11 +33,11 @@ import qualified Data.Set as Set
 
 import Fallback.Constants
   (baseFramesPerActionPoint, baseMomentsPerFrame, combatCameraOffset,
-   maxActionPoints, momentsPerActionPoint, screenRect)
+   maxActionPoints, momentsPerActionPoint)
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Data.TotalMap (TotalMap, makeTotalMap, tmAlter, tmGet)
-import Fallback.Draw (paintScreen, runDraw)
+import Fallback.Draw (handleScreen, paintScreen)
 import Fallback.Event
 import Fallback.Mode.Base
 import Fallback.Mode.Dialog (newQuitWithoutSavingMode)
@@ -72,7 +72,7 @@ import Fallback.View.Sidebar (SidebarAction(..))
 
 newCombatMode :: Resources -> Modes -> CombatState -> IO Mode
 newCombatMode resources modes initState = do
-  view <- runDraw (newCombatView resources)
+  view <- newCombatView resources
   stateRef <- newIORef =<< updateCombatVisibility initState
   let
 
@@ -87,7 +87,7 @@ newCombatMode resources modes initState = do
         (cs', mbInt) <- readIORef stateRef >>= doTick
         mbInt <$ writeIORef stateRef cs'
       cs <- readIORef stateRef
-      action <- runDraw $ viewHandler view cs screenRect event
+      action <- handleScreen $ viewHandler view cs event
       when (event == EvTick) $ paintScreen (viewPaint view cs)
       case mbInterrupt of
         Just (DoActivateCharacter charNum) ->

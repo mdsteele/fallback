@@ -162,10 +162,10 @@ newSummaryItemView resources offset = do
                       then Tint 64 128 64 255 else Tint 64 64 64 128
       drawBevelRect tint 3 rect
 
-    handler (ns, _) rect (EvMouseDown pt) =
-      if not (rectContains rect pt) then return Ignore else
+    handler (ns, _) (EvMouseDown pt) = do
+      whenWithinCanvas pt $ do
         return $ Action $ SetSaveName $ sgsName $ getSummary ns
-    handler _ _ _ = return Ignore
+    handler _ _ = return Ignore
 
     getSummary ns = nsSummaries ns ! (nsScrollTop ns + offset)
 

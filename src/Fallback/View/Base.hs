@@ -23,7 +23,9 @@ module Fallback.View.Base
    -- * View combinators
    f2map, vmap, vmapM, viewMap, viewMapM,
    compoundView, compoundViewM, subView, subView_,
-   newMaybeView, newEitherView, newMouseView, newHoverOnlyView)
+   newMaybeView, newEitherView, newMouseView, newHoverOnlyView,
+   -- * Utility functions
+   whenWithinCanvas)
 where
 
 import Control.Applicative ((<$>))
@@ -32,18 +34,18 @@ import Control.Monad (liftM, unless, when)
 import Fallback.Data.Point
 import Fallback.Draw
 import Fallback.Event (Event(..))
-import Fallback.Utility (flip3, flip4)
+import Fallback.Utility (flip3)
 
 -------------------------------------------------------------------------------
 -- The View type:
 
 data View a b = View
   { viewPaint :: a -> Paint (),
-    viewHandler :: a -> IRect -> Event -> Draw (Action b) }
+    viewHandler :: a -> Event -> Handler (Action b) }
 
 instance Functor (View a) where
   fmap fn (View paint handler) = View paint handler' where
-    handler' input rect event = (fn <$>) <$> handler input rect event
+    handler' input event = (fn <$>) <$> handler input event
 
 -- | A view that never paints anything and ignores all events.
 nullView :: View a b
@@ -52,16 +54,17 @@ nullView = inertView $ const $ return ()
 -- | Given a paint function, create a view which ignores all inputs to its
 -- handler.
 inertView :: (a -> Paint ()) -> View a b
-inertView paintFn = View paintFn $ const $ const $ const $ return Ignore
+inertView paintFn = View paintFn $ const $ const $ return Ignore
 
 -- | Given a paint function, create a view which ignores all inputs to its
 -- handler, except that it suppresses mouse clicks within its rect (thus
 -- preventing them from reaching views \"behind\" this one).
 wallView :: (a -> Paint ()) -> View a b
 wallView paintFn = View paintFn handler where
-  handler _ rect (EvMouseDown pt) =
+  handler _ (EvMouseDown pt) = do
+    rect <- canvasRect
     return $ if rectContains rect pt then Suppress else Ignore
-  handler _ _ _ = return Ignore
+  handler _ _ = return Ignore
 
 -------------------------------------------------------------------------------
 -- The Action type:
@@ -85,7 +88,7 @@ fromAction _ = Nothing
 -- view.
 f2map :: (a -> b -> c) -> View a b -> View a c
 f2map fn (View paint handler) = View paint handler' where
-  handler' input rect event = (fn input <$>) <$> handler input rect event
+  handler' input event = (fn input <$>) <$> handler input event
 
 -- | Like 'fmap' for views, but rather than transforming the output value of
 -- the original view to that of the resulting view, it transforms the input
@@ -93,34 +96,34 @@ f2map fn (View paint handler) = View paint handler' where
 vmap :: (a -> c) -> View c b -> View a b
 vmap fn (View paint handler) = View paint' handler' where
   paint' = paint . fn
-  handler' input rect event = handler (fn input) rect event
+  handler' input event = handler (fn input) event
 
 -- | A variant of 'vmap' that allows a monadic action.
 vmapM :: (a -> Draw c) -> View c b -> View a b
 vmapM fn (View paint handler) = View paint' handler' where
   paint' input = runDraw (fn input) >>= paint
-  handler' input rect event = do
-    input' <- fn input
-    handler input' rect event
+  handler' input event = do
+    input' <- runDraw (fn input)
+    handler input' event
 
 -- | A combination of 'vmap' and 'fmap'.
 viewMap :: (a -> c) -> (d -> b) -> View c d -> View a b
 viewMap f1 f2 (View paint handler) = View paint' handler' where
   paint' = paint . f1
-  handler' input rect event = (f2 <$>) <$> handler (f1 input) rect event
+  handler' input event = (f2 <$>) <$> handler (f1 input) event
 
 -- | A variant of 'viewMap' that allows monadic actions.
 viewMapM :: (a -> Draw c) -> (d -> Draw (Action b)) -> View c d
          -> View a b
 viewMapM f1 f2 (View paint handler) = View paint' handler' where
   paint' input = runDraw (f1 input) >>= paint
-  handler' input rect event = do
-    input' <- f1 input
-    action <- handler input' rect event
+  handler' input event = do
+    input' <- runDraw (f1 input)
+    action <- handler input' event
     case action of
       Ignore -> return Ignore
       Suppress -> return Suppress
-      Action value -> f2 value
+      Action value -> runDraw (f2 value)
 
 -- | Layer multiple views on top of one another.  The first view in the list
 -- will be the rearmost view; the last view in the list will be the frontmost.
@@ -129,11 +132,11 @@ viewMapM f1 f2 (View paint handler) = View paint' handler' where
 compoundView :: [View a b] -> View a b
 compoundView views = View paintFn handlerFn where
   paintFn input = mapM_ (flip viewPaint input) views
-  handlerFn input rect event = do
+  handlerFn input event = do
     let firstAction [] = Ignore
         firstAction (Ignore : xs) = firstAction xs
         firstAction (x : _) = x
-    firstAction <$> mapM (flip4 viewHandler input rect event) (reverse views)
+    firstAction <$> mapM (flip3 viewHandler input event) (reverse views)
 
 compoundViewM :: (Monad m) => [m (View a b)] -> m (View a b)
 compoundViewM = liftM compoundView . sequence
@@ -142,9 +145,11 @@ subView :: (a -> (Int, Int) -> IRect) -> View a b -> View a b
 subView rectFn view = View paintFn handlerFn where
   paintFn input = do size <- canvasSize
                      withSubCanvas (rectFn input size) (viewPaint view input)
-  handlerFn input rect event =
-    viewHandler view input (rectFn input (rectSize rect)) $
-    translateEvent rect event
+  handlerFn input event = do
+    size <- canvasSize
+    let subRect = rectFn input size
+    withSubCanvas subRect $ do
+      viewHandler view input $ translateEvent subRect event
 
 subView_ :: IRect -> View a b -> View a b
 subView_ = subView . const . const
@@ -165,10 +170,10 @@ newMaybeView fn (View paint handler) = do
   visibleRef <- newDrawRef False
   let
     paint' input =
-      maybe (return ()) paint =<< runDraw . transform input =<< canvasRect
-    handler' input rect event =
-      maybe (return Ignore) (flip3 handler rect event) =<< transform input rect
-    transform (input, mbMousePos) rect = do
+      maybe (return ()) paint =<< runHandler (transform input)
+    handler' input event =
+      maybe (return Ignore) (flip handler event) =<< transform input
+    transform (input, mbMousePos) = do
       case fn input of
         Nothing -> do
           writeDrawRef visibleRef False
@@ -176,8 +181,7 @@ newMaybeView fn (View paint handler) = do
         Just input' -> do
           visible <- readDrawRef visibleRef
           unless visible $ do
-            _ <- handler input' rect $
-                 maybe EvBlur (EvFocus . (rectTopleft rect `pAdd`)) mbMousePos
+            _ <- handler input' $ maybe EvBlur EvFocus mbMousePos
             writeDrawRef visibleRef True
           return (Just input')
   newMouseView (View paint' handler')
@@ -196,10 +200,10 @@ newMouseView (View paint handler) = do
   mouseRef <- newDrawRef Nothing
   let
     paint' input = paint . (,) input =<< readDrawRef mouseRef
-    handler' input rect event = do
+    handler' input event = do
       mousePt <- readDrawRef mouseRef
-      result <- handler (input, mousePt) rect event
-      case translateEvent rect event of
+      result <- handler (input, mousePt) event
+      case event of
         EvBlur -> writeDrawRef mouseRef Nothing
         EvFocus pt -> writeDrawRef mouseRef (Just pt)
         EvMouseMotion pt _ -> writeDrawRef mouseRef (Just pt)
@@ -214,18 +218,26 @@ newHoverOnlyView (View paint handler) = do
     paint' (input, mbMousePos) = do
       rect <- canvasRect
       when (hover rect mbMousePos) $ paint input
-    handler' (input, mbMousePos) rect event =
-      if hover (makeRect pZero $ rectSize rect) mbMousePos then do
+    handler' (input, mbMousePos) event = do
+      rect <- canvasRect
+      if hover rect mbMousePos then do
         writeDrawRef visibleRef True
-        handler input rect event
-      else do
+        handler input event
+       else do
         visible <- readDrawRef visibleRef
         when visible $ do
-          _ <- handler input rect EvBlur
+          _ <- handler input EvBlur
           writeDrawRef visibleRef False
         return Ignore
     hover rect = maybe False (rectContains rect)
   newMouseView (View paint' handler')
+
+-------------------------------------------------------------------------------
+
+whenWithinCanvas :: IPoint -> Handler (Action a) -> Handler (Action a)
+whenWithinCanvas pt action = do
+  rect <- canvasRect
+  if rectContains rect pt then action else return Ignore
 
 -------------------------------------------------------------------------------
 -- Private utility functions:
@@ -240,6 +252,6 @@ translateEvent rect event =
     EvScrollDownwards pt -> EvScrollDownwards (translate pt)
     EvScrollUpwards pt -> EvScrollUpwards (translate pt)
     _ -> event
-  where translate = (flip pSub) (rectTopleft rect)
+  where translate pt = pt `pSub` rectTopleft rect
 
 -------------------------------------------------------------------------------

@@ -39,35 +39,14 @@ import Fallback.View.Widget
 
 newDialogView :: (MonadDraw m) => View c d -> c -> View a b -> IRect
               -> m (View a b)
-newDialogView bgView bgInput fgView targetRect = do
-  rectRef <- newDrawRef targetRect
-  --rectRef <- let Point x y = rectCenter targetRect in newDrawRef (Rect x y 0 0)
+newDialogView bgView bgInput fgView subRect = do
+  let paintBackground _ = do
+        withInputsSuppressed $ viewPaint bgView bgInput
+        tintCanvas (Tint 0 0 0 64)
   midView <- newDialogBackgroundView
-  let
-
-    paint input = do
-      viewPaint bgView bgInput
-      tintCanvas (Tint 0 0 0 64)
-      subrect <- readDrawRef rectRef
-      withSubCanvas subrect $ do
-        viewPaint midView ()
-        when (subrect == targetRect) $ viewPaint fgView input
-
-    handler input rect event = do
-      when (event == EvTick) $ do
-        _ <- viewHandler bgView bgInput rect event
-        subrect <- readDrawRef rectRef
-        when (subrect /= targetRect) $ do
-          let Rect x y w h = subrect
-              r = 2 + (rectW targetRect - w) `div` 8
-              s = 10
-          writeDrawRef rectRef (targetRect `rectIntersection`
-                                Rect (x - r) (y - s) (w + 2 * r) (h + 2 * s))
-      subrect <- readDrawRef rectRef
-      if subrect /= targetRect then return Ignore else
-        viewHandler fgView input targetRect event
-
-  return $ View paint handler
+  return $ compoundView $ [
+    (inertView paintBackground),
+    (subView_ subRect $ compoundView [midView, fgView])]
 
 -------------------------------------------------------------------------------
 

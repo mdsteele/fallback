@@ -32,14 +32,14 @@ import qualified Data.Set as Set
 
 import Fallback.Constants
   (baseFramesPerActionPoint, combatArenaCols, combatArenaRows,
-   momentsPerActionPoint, screenRect)
+   momentsPerActionPoint)
 import Fallback.Control.Script
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
   (Point(Point), Position, half, makeRect, plusDir, pSqDist, pSub)
 import qualified Fallback.Data.SparseMap as SM
 import Fallback.Data.TotalMap (tmGet, unfoldTotalMap)
-import Fallback.Draw (paintScreen, runDraw)
+import Fallback.Draw (handleScreen, paintScreen)
 import Fallback.Event
 import Fallback.Mode.Base
 import Fallback.Mode.Dialog (newTextEntryDialogMode)
@@ -79,7 +79,7 @@ import Fallback.View.Upgrade (UpgradeAction(..))
 
 newTownMode :: Resources -> Modes -> TownState -> IO Mode
 newTownMode resources modes initState = do
-  view <- runDraw $ newTownView resources
+  view <- newTownView resources
   stateRef <- newIORef initState
   let
 
@@ -92,7 +92,7 @@ newTownMode resources modes initState = do
         (ts', mbInt) <- readIORef stateRef >>= doTick
         mbInt <$ writeIORef stateRef ts'
       ts <- readIORef stateRef
-      action <- runDraw $ viewHandler view ts screenRect event
+      action <- handleScreen $ viewHandler view ts event
       when (event == EvTick) $ paintScreen (viewPaint view ts)
       case mbInterrupt of
         Just (DoExit area) -> do

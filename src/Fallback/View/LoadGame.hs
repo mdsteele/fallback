@@ -161,10 +161,9 @@ newSummaryItemView resources offset = do
                       then Tint 64 128 64 255 else Tint 64 64 64 128
       drawBevelRect tint 3 rect
 
-    handler (ns, _) rect (EvMouseDown pt) =
-      if not (rectContains rect pt) then return Ignore else
-        return $ Action $ SelectSummary $ getIndex ns
-    handler _ _ _ = return Ignore
+    handler (ns, _) (EvMouseDown pt) = do
+      whenWithinCanvas pt $ return $ Action $ SelectSummary $ getIndex ns
+    handler _ _ = return Ignore
 
     getIndex ns = nsScrollTop ns + offset
 

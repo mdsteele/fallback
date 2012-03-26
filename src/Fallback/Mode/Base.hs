@@ -24,8 +24,7 @@ where
 import Control.Monad (unless)
 import Data.IORef
 
-import Fallback.Constants (screenRect)
-import Fallback.Draw (runDraw)
+import Fallback.Draw (handleScreen)
 import Fallback.Event (Event(EvBlur, EvFocus), getAbsoluteMousePosition)
 import Fallback.State.Combat (CombatState)
 import Fallback.State.Region (RegionState)
@@ -57,13 +56,13 @@ focusBlurMode getInput view mode = do
     unless isActive $ do
       input <- getInput
       pt <- getAbsoluteMousePosition
-      _ <- runDraw $ viewHandler view input screenRect (EvFocus pt)
+      _ <- handleScreen $ viewHandler view input (EvFocus pt)
       writeIORef activeRef True
     result <- mode event
     case result of
       ChangeMode _ -> do
         input <- getInput
-        _ <- runDraw $ viewHandler view input screenRect EvBlur
+        _ <- handleScreen $ viewHandler view input EvBlur
         writeIORef activeRef False
       _ -> return ()
     return result

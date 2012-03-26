@@ -131,11 +131,11 @@ newCombatMapView resources = do
         _ -> return ()
       maybeM (acsMessage acs) (paintMessage resources)
 
-    handler _ _ EvTick =
+    handler _ EvTick =
       maybe Ignore (Action . CombatMove) <$> getArrowKeysDirection
-    handler (cs, _) rect (EvMouseDown pt) = do
-      if not (rectContains rect pt) then return Ignore else do
-      let pt' = pt `pSub` rectTopleft rect `pAdd` (camTopleft $ arsCamera cs)
+    handler (cs, _) (EvMouseDown pt) = do
+      whenWithinCanvas pt $ do
+      let pt' = pt `pAdd` (camTopleft $ arsCamera cs)
       let pos = pointPosition pt'
       case csPhase cs of
         WaitingPhase ->
@@ -160,7 +160,7 @@ newCombatMapView resources = do
         InventoryPhase _ _ -> return Suppress
         TargetingPhase _ -> return $ Action $ CombatTargetPosition pos
         ExecutionPhase _ -> return Suppress
-    handler (cs, _) _ (EvKeyDown key _ _) = do
+    handler (cs, _) (EvKeyDown key _ _) = do
       case key of
         KeySpace -> do
           case csPhase cs of
@@ -179,7 +179,7 @@ newCombatMapView resources = do
                   return $ Action $ CombatTargetCharacter charNum
                 _ -> return Ignore
             Nothing -> return Ignore
-    handler _ _ _ = return Ignore
+    handler _ _ = return Ignore
 
   newMouseView $ View paint handler
 

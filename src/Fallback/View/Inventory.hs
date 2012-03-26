@@ -156,10 +156,9 @@ newItemSlotWidget resources _cursorSink itemSink = do
         let sprite = rsrcItemIcon resources $ itemIconCoords tag
         blitLoc sprite $ LocCenter $ rectCenter rect
 
-    handler (idx, _) rect (EvMouseDown pt) = do
-      if not (rectContains rect pt) then return Ignore else
-        return $ Action $ ExchangeItem $ PartyItemSlot idx
-    handler _ _ _ = return Ignore
+    handler (idx, _) (EvMouseDown pt) = do
+      whenWithinCanvas pt $ return $ Action $ ExchangeItem $ PartyItemSlot idx
+    handler _ _ = return Ignore
 
   button <- do
     let
@@ -276,10 +275,10 @@ newEquipmentSlotWidget resources _cursorSink itemSink tint fromEqp toItemTag
         let sprite = rsrcItemIcon resources $ itemIconCoords $ toItemTag tag
         blitLoc sprite $ LocCenter $ rectCenter rect
 
-    handler ivs rect (EvMouseDown pt) = do
-      if not (rectContains rect pt) then return Ignore else
+    handler ivs (EvMouseDown pt) = do
+      whenWithinCanvas pt $ do
         return $ Action $ ExchangeItem $ toSlot $ ivsActiveCharacter ivs
-    handler _ _ _ = return Ignore
+    handler _ _ = return Ignore
 
     hoverFn = Just . fmap toItemTag . fromEqp . chrEquipment . ivsGetCharacter
 

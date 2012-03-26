@@ -27,7 +27,7 @@ import Data.IORef
 import qualified Data.Set as Set
 
 import Fallback.Constants (screenRect)
-import Fallback.Draw (paintScreen, runDraw, takeScreenshot)
+import Fallback.Draw (paintScreen, handleScreen, takeScreenshot)
 import Fallback.Event
 import Fallback.Mode.Base
 import Fallback.Mode.Error (popupIfErrors)
@@ -54,8 +54,7 @@ newRegionMode resources modes initState = do
       partyFoundAreas (rsParty initState) } }
   view <- do
     state <- readIORef stateRef
-    runDraw $ newRegionView resources $
-      regionBackground (rsParty state) (rsRegion state)
+    newRegionView resources $ regionBackground (rsParty state) (rsRegion state)
   let
 
     mode EvQuit = return DoQuit
@@ -71,7 +70,7 @@ newRegionMode resources modes initState = do
     mode event = do
       when (event == EvTick) $ modifyIORef stateRef tickRegionState
       state <- readIORef stateRef
-      action <- runDraw $ viewHandler view state screenRect event
+      action <- handleScreen $ viewHandler view state event
       when (event == EvTick) $ paintScreen (viewPaint view state)
       case fromAction action of
         Nothing -> return SameMode

@@ -141,7 +141,8 @@ newButton paintFn statusFn keys value = do
           DisabledButton -> ButtonDisabled
           DepressedButton -> ButtonDown
 
-    handler input rect event = do
+    handler input event = do
+      rect <- canvasRect
       (kp, mp, mh) <- readDrawRef state
       case event of
         EvKeyDown key [] _ ->
@@ -254,13 +255,13 @@ newTextBox resources testFn = do
         let x = margin + textRenderWidth font (take cursor text)
         drawLine (Tint 0 128 128 128) (Point x 2) (Point x (height - 2))
 
-    handler _ _ (EvKeyDown KeyLeftArrow _ _) = do
+    handler _ (EvKeyDown KeyLeftArrow _ _) = do
       readDrawRef cursorRef >>= writeDrawRef cursorRef . max 0 . subtract 1
       return Suppress
-    handler t _ (EvKeyDown KeyRightArrow _ _) = do
+    handler t (EvKeyDown KeyRightArrow _ _) = do
       readDrawRef cursorRef >>= writeDrawRef cursorRef . min (length t) . (+1)
       return Suppress
-    handler text _ (EvKeyDown _ _ char) = do
+    handler text (EvKeyDown _ _ char) = do
       active <- readDrawRef activeRef
       if not active || char < ' ' || char > '\DEL' then return Ignore else do
         cursor <- readDrawRef cursorRef
@@ -268,10 +269,11 @@ newTextBox resources testFn = do
               if char == '\DEL'
               then (cursor - 1, take (cursor - 1) text ++ drop cursor text)
               else (cursor + 1, take cursor text ++ [char] ++ drop cursor text)
-        acceptable <- testFn text'
+        acceptable <- runDraw (testFn text')
         if not acceptable then return Suppress else
           Action text' <$ writeDrawRef cursorRef cursor'
-    handler text rect (EvMouseDown pt) = do
+    handler text (EvMouseDown pt) = do
+      rect <- canvasRect
       let hit = rectContains rect pt
       writeDrawRef activeRef hit
       if not hit then return Ignore else do
@@ -279,8 +281,8 @@ newTextBox resources testFn = do
           map (abs . subtract (pointX pt - rectX rect - margin) .
                textRenderWidth font) $ inits text
         return Suppress
-    handler _ _ EvBlur = Ignore <$ writeDrawRef activeRef False
-    handler _ _ _ = return Ignore
+    handler _ EvBlur = Ignore <$ writeDrawRef activeRef False
+    handler _ _ = return Ignore
 
   return $ View paint handler
 
@@ -317,7 +319,8 @@ newScrollBar = do
         Rect 0 pieceHeight width (height - 2 * pieceHeight)
       blitLocTinted tint (sheet ! (2, 3)) $ LocBottomleft $ Point 0 height
 
-    handler input@(minVal, maxVal, perPage, _) rect (EvMouseMotion pt _) = do
+    handler input@(minVal, maxVal, perPage, _) (EvMouseMotion pt _) = do
+      rect <- canvasRect
       grab <- fst <$> readDrawRef stateRef
       writeDrawRef stateRef (grab, rectContains (knobRect input rect) pt)
       case grab of
@@ -328,31 +331,35 @@ newScrollBar = do
                    (rectH rect - rectH (knobRect input rect))
           return $ Action $ max minVal $
             min (maxVal - perPage) (startValue + dv)
-    handler input@(minVal, maxVal, perPage, curVal) rect (EvMouseDown pt) =
+    handler input@(minVal, maxVal, perPage, curVal) (EvMouseDown pt) = do
+      rect <- canvasRect
       let knob = knobRect input rect
-      in if rectContains knob pt
-         then Ignore <$ writeDrawRef stateRef (Just (curVal, pointY pt), True)
-         else if not (rectContains rect pt)
-              then return Ignore
-              else return $ Action $
-                   if pointY pt < rectY knob
-                   then max minVal $ curVal - perPage
-                   else min (maxVal - perPage) (curVal + perPage)
-    handler input rect (EvMouseUp pt) = do
+      if rectContains knob pt then do
+        Ignore <$ writeDrawRef stateRef (Just (curVal, pointY pt), True)
+       else do
+        return $ if not (rectContains rect pt) then Ignore
+                 else Action $ if pointY pt < rectY knob
+                               then max minVal $ curVal - perPage
+                               else min (maxVal - perPage) (curVal + perPage)
+    handler input (EvMouseUp pt) = do
+      rect <- canvasRect
       writeDrawRef stateRef (Nothing, rectContains (knobRect input rect) pt)
       return Ignore
-    handler (_, maxValue, perPage, curValue) rect (EvScrollDownwards pt) =
-      if rectContains rect pt && curValue < maxValue - perPage
-      then return (Action (curValue + 1)) else return Ignore
-    handler (minValue, _, _, curValue) rect (EvScrollUpwards pt) =
-      if rectContains rect pt && curValue > minValue
-      then return (Action (curValue - 1)) else return Ignore
-    handler input rect (EvFocus pt) = do
+    handler (_, maxValue, perPage, curValue) (EvScrollDownwards pt) = do
+      rect <- canvasRect
+      return $ if rectContains rect pt && curValue < maxValue - perPage
+               then Action (curValue + 1) else Ignore
+    handler (minValue, _, _, curValue) (EvScrollUpwards pt) = do
+      rect <- canvasRect
+      return $ if rectContains rect pt && curValue > minValue
+               then Action (curValue - 1) else Ignore
+    handler input (EvFocus pt) = do
+      rect <- canvasRect
       when (rectContains (knobRect input rect) pt) $ do
         writeDrawRef stateRef (Nothing, True)
       return Ignore
-    handler _ _ EvBlur = Ignore <$ writeDrawRef stateRef (Nothing, False)
-    handler _ _ _ = return Ignore
+    handler _ EvBlur = Ignore <$ writeDrawRef stateRef (Nothing, False)
+    handler _ _ = return Ignore
 
     isDisabled (minValue, maxValue, perPage, _) =
       perPage >= maxValue - minValue
@@ -375,13 +382,12 @@ newScrollZone :: (MonadDraw m) => m (View (Int, Int, Int, Int) Int)
 newScrollZone = do
   let barWidth = 10
   scrollBar <- newScrollBar
-  let handler (_, maxValue, perPage, curValue) rect (EvScrollDownwards pt) =
-        if not (rectContains rect pt) then return Ignore
-        else return $ Action $ min (maxValue - perPage) $ curValue + 1
-      handler (minValue, _, _, curValue) rect (EvScrollUpwards pt) =
-        if not (rectContains rect pt) then return Ignore
-        else return $ Action $ max minValue $ curValue - 1
-      handler _ _ _ = return Ignore
+  let handler (_, maxValue, perPage, curValue) (EvScrollDownwards pt) = do
+        whenWithinCanvas pt $ do
+          return $ Action $ min (maxValue - perPage) $ curValue + 1
+      handler (minValue, _, _, curValue) (EvScrollUpwards pt) = do
+        whenWithinCanvas pt $ return $ Action $ max minValue $ curValue - 1
+      handler _ _ = return Ignore
   return $ compoundView [
     (subView (\_ (w, h) -> Rect (w - barWidth) 0 barWidth h) $ scrollBar),
     (View (const $ return ()) handler)]
