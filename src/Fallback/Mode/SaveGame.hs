@@ -54,6 +54,6 @@ newSaveGameMode resources onSave screenshot savedGame
             popupIfErrors resources view () (return mode)
                           (saveGame name screenshot savedGame) $ \summary -> do
               onSave summary
-  focusBlurMode (return ()) view mode
+  return mode
 
 -------------------------------------------------------------------------------

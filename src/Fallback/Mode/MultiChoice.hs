@@ -44,6 +44,6 @@ newMultiChoiceMode resources bgView bgInput text choices cancel nextMode = do
         case fromAction action of
           Nothing -> return SameMode
           Just value -> ChangeMode <$> nextMode value
-  focusBlurMode (return ()) view mode
+  return mode
 
 -------------------------------------------------------------------------------

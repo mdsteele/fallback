@@ -50,6 +50,6 @@ newGameOverMode resources modes = do
             ChangeMode <$> newLoadGameMode resources modes mode view clock
           Just ReturnToMainMenu -> ChangeMode <$> newMainMenuMode' modes
           Just QuitGame -> return DoQuit
-  focusBlurMode (readIORef clockRef) view mode
+  return mode
 
 -------------------------------------------------------------------------------

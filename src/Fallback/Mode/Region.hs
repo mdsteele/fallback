@@ -89,7 +89,7 @@ newRegionMode resources modes initState = do
             ChangeMode <$> newTownMode' modes ts
         Just ShowMenu -> return SameMode -- FIXME
 
-  focusBlurMode (readIORef stateRef) view mode
+  return mode
 
 -------------------------------------------------------------------------------
 

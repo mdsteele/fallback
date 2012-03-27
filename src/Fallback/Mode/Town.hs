@@ -446,9 +446,7 @@ newTownMode resources modes initState = do
     ignore :: IO NextMode
     ignore = return SameMode
 
-  -- FIXME: Bug!  When we "return mode" in various places above, we will no
-  -- longer be returning the focusBlurMode.
-  focusBlurMode (readIORef stateRef) view mode
+  return mode
 
 -------------------------------------------------------------------------------
 

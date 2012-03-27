@@ -282,7 +282,6 @@ newTextBox resources testFn = do
           map (abs . subtract (pointX pt - rectX rect - margin) .
                textRenderWidth font) $ inits text
         return Suppress
-    handler _ EvBlur = Ignore <$ writeDrawRef activeRef False
     handler _ _ = return Ignore
 
   return $ View paint handler
@@ -361,7 +360,6 @@ newScrollBar = do
       rect <- canvasRect
       return $ if rectContains rect pt && curValue > minValue
                then Action (curValue - 1) else Ignore
-    handler _ EvBlur = Ignore <$ writeDrawRef stateRef Nothing
     handler _ _ = return Ignore
 
     isDisabled (minValue, maxValue, perPage, _) =

@@ -39,7 +39,6 @@ data Event = EvTick
            | EvMouseUp !IPoint              -- ^ location
            | EvScrollDownwards !IPoint      -- ^ location
            | EvScrollUpwards !IPoint        -- ^ location
-           | EvBlur
   deriving (Eq, Show)
 
 data KeyMod = KeyModCmd | KeyModShift

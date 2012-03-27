@@ -49,6 +49,6 @@ newMainMenuMode resources modes = do
             ChangeMode <$> newLoadGameMode resources modes mode view ()
           Just QuitGame -> return DoQuit
           Just EditTerrain -> ChangeMode <$> newEditorMode resources
-  focusBlurMode (return ()) view mode
+  return mode
 
 -------------------------------------------------------------------------------

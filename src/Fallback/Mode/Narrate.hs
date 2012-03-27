@@ -43,6 +43,6 @@ newNarrateMode resources bgView bgInput text nextMode = do
         case fromAction action of
           Nothing -> return SameMode
           Just () -> ChangeMode <$> nextMode
-  focusBlurMode (return ()) view mode
+  return mode
 
 -------------------------------------------------------------------------------

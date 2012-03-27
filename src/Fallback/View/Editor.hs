@@ -24,7 +24,7 @@ where
 
 import Control.Applicative ((<$), (<$>))
 import Control.Arrow ((&&&))
-import Control.Monad (when)
+import Control.Monad (unless, when)
 import Data.Array (Array, bounds, range)
 import Data.List (find)
 
@@ -112,6 +112,8 @@ newEditorMapView resources sink = do
       maybeM mbMousePt $ \pt -> do
         rect <- canvasRect
         writeHoverSink sink $ positionAt state rect pt
+      mouseHeld <- getMouseButtonState
+      unless mouseHeld $ writeDrawRef dragRef False
       maybe Ignore (Action . ScrollMap . (`pMul` 8) . dirDelta) <$>
         getArrowKeysDirection
     handler state (EvMouseMotion pt _) = do
@@ -137,9 +139,6 @@ newEditorMapView resources sink = do
     handler _ (EvKeyDown KeyZ [KeyModCmd] _) = return (Action DoUndo)
     handler _ (EvKeyDown KeyZ [KeyModCmd, KeyModShift] _) =
       return (Action DoRedo)
-    handler _ EvBlur = do
-      writeDrawRef dragRef False
-      return Ignore
     handler _ _ = return Ignore
 
     paintAt state rect pt = do

@@ -40,7 +40,7 @@ newHorizontalDialogMode resources text buttonSpecs nextMode bgView bgInput = do
         action <- handleScreen $ viewHandler view () event
         when (event == EvTick) $ paintScreen (viewPaint view ())
         maybe (return SameMode) nextMode (fromAction action)
-  focusBlurMode (return ()) view mode
+  return mode
 
 newTextEntryDialogMode :: Resources -> String -> String -> (String -> Bool)
                        -> IO Mode -> (String -> IO Mode) -> View a b -> a
@@ -56,7 +56,7 @@ newTextEntryDialogMode resources text initValue testFn
           Nothing -> return SameMode
           Just Nothing -> ChangeMode <$> onCancel
           Just (Just string) -> ChangeMode <$> onOk string
-  focusBlurMode (return ()) view mode
+  return mode
 
 newQuitWithoutSavingMode :: Resources -> Mode -> View a b -> a -> IO Mode
 newQuitWithoutSavingMode resources prevMode bgView bgInput =

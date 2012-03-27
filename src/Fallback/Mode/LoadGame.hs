@@ -52,6 +52,6 @@ newLoadGameMode resources modes prevMode bgView bgInput = do
             case saved of
               SavedRegionState rs -> ChangeMode <$> newRegionMode' modes rs
               SavedTownState ts -> ChangeMode <$> newTownMode' modes ts
-  focusBlurMode (return ()) view mode
+  return mode
 
 -------------------------------------------------------------------------------

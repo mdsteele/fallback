@@ -455,7 +455,7 @@ newCombatMode resources modes initState = do
     ignore :: IO NextMode
     ignore = return SameMode
 
-  focusBlurMode (readIORef stateRef) view mode
+  return mode
 
 -------------------------------------------------------------------------------
 

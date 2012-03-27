@@ -29,7 +29,7 @@ module Fallback.View.Base
 where
 
 import Control.Applicative ((<$>))
-import Control.Monad (liftM, unless, when)
+import Control.Monad (liftM, when)
 
 import Fallback.Data.Point
 import Fallback.Draw
@@ -167,23 +167,10 @@ subView_ = subView . const . const
 
 newMaybeView :: (MonadDraw m) => (a -> Maybe c) -> View c b -> m (View a b)
 newMaybeView fn (View paint handler) = do
-  visibleRef <- newDrawRef False
   let
-    paint' input =
-      maybe (return ()) paint =<< runHandler (transform input)
+    paint' input = maybe (return ()) paint (fn input)
     handler' input event =
-      maybe (return Ignore) (flip handler event) =<< transform input
-    transform input = do
-      case fn input of
-        Nothing -> do
-          writeDrawRef visibleRef False
-          return Nothing
-        Just input' -> do
-          visible <- readDrawRef visibleRef
-          unless visible $ do
-            _ <- handler input' EvBlur
-            writeDrawRef visibleRef True
-          return (Just input')
+      maybe (return Ignore) (flip handler event) (fn input)
   return (View paint' handler')
 
 newEitherView :: (MonadDraw m) => (a -> Either c d) -> View c b -> View d b
@@ -197,22 +184,13 @@ newEitherView fn v1 v2 = do
 
 newHoverOnlyView :: (MonadDraw m) => View a b -> m (View a b)
 newHoverOnlyView (View paint handler) = do
-  visibleRef <- newDrawRef False
   let
     paint' input = do
       hover <- isMouseWithinCanvas
       when hover $ paint input
     handler' input event = do
       hover <- isMouseWithinCanvas
-      if hover then do
-        writeDrawRef visibleRef True
-        handler input event
-       else do
-        visible <- readDrawRef visibleRef
-        when visible $ do
-          _ <- handler input EvBlur
-          writeDrawRef visibleRef False
-        return Ignore
+      if hover then handler input event else return Ignore
   return (View paint' handler')
 
 -------------------------------------------------------------------------------

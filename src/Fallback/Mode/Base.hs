@@ -18,17 +18,13 @@
 ============================================================================ -}
 
 module Fallback.Mode.Base
-  (Mode, NextMode(..), Modes(..), focusBlurMode)
+  (Mode, NextMode(..), Modes(..))
 where
 
-import Data.IORef
-
-import Fallback.Draw (handleScreen)
-import Fallback.Event (Event(EvBlur))
+import Fallback.Event (Event)
 import Fallback.State.Combat (CombatState)
 import Fallback.State.Region (RegionState)
 import Fallback.State.Town (TownState)
-import Fallback.View (View, viewHandler)
 
 -------------------------------------------------------------------------------
 
@@ -44,21 +40,5 @@ data Modes = Modes
     newMainMenuMode' :: IO Mode,
     newRegionMode' :: RegionState -> IO Mode,
     newTownMode' :: TownState -> IO Mode }
-
--------------------------------------------------------------------------------
-
-focusBlurMode :: IO a -> View a b -> Mode -> IO Mode
-focusBlurMode getInput view mode = do
-  activeRef <- newIORef False
-  return $ \event -> do
-    writeIORef activeRef True
-    result <- mode event
-    case result of
-      ChangeMode _ -> do
-        input <- getInput
-        _ <- handleScreen $ viewHandler view input EvBlur
-        writeIORef activeRef False
-      _ -> return ()
-    return result
 
 -------------------------------------------------------------------------------
