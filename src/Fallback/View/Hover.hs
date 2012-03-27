@@ -32,7 +32,7 @@ import Fallback.Draw
 import Fallback.Event (Event(..))
 import Fallback.State.Resources (Resources, rsrcCursorsStrip)
 import Fallback.Utility (maybeM)
-import Fallback.View.Base (View(View), newMouseView)
+import Fallback.View.Base (View(View))
 
 -------------------------------------------------------------------------------
 
@@ -65,20 +65,6 @@ writeHoverSink (HoverSink hov) value = do
 
 hoverView :: HoverSink c -> c -> View a b -> View a b
 hoverView sink value view = hoverView' sink (const $ Just value) view
-{-
-hoverView sink value (View paint handler) =
-  let handler' input rect event = do
-        result <- handler input rect event
-        let check pt = when (rectContains rect pt) (writeHoverSink sink value)
-        case event of
-          EvMouseMotion pt _ -> check pt
-          EvMouseDown pt -> check pt
-          EvMouseUp pt -> check pt
-          EvFocus pt -> check pt
-          _ -> return ()
-        return result
-  in View paint handler'
--}
 
 hoverView' :: HoverSink c -> (a -> Maybe c) -> View a b -> View a b
 hoverView' sink valueFn (View paint handler) =
@@ -88,6 +74,9 @@ hoverView' sink valueFn (View paint handler) =
         let check pt = when (rectContains rect pt) $
                        maybeM (valueFn input) (writeHoverSink sink)
         case event of
+          EvTick -> do
+            mbPt <- getRelativeMousePos
+            maybeM mbPt check
           EvMouseMotion pt _ -> check pt
           EvMouseDown pt -> check pt
           EvMouseUp pt -> check pt
@@ -146,13 +135,14 @@ newCursorView resources fn = do
   hov <- newHoverRef DefaultCursor
   View paint handler <- fn (hoverSink hov)
   let
-    paint' (input, mbMousePt) = do
+    paint' input = do
       cursor <- readHoverRef hov
       paint input
+      mbMousePt <- getRelativeMousePos
       maybeM mbMousePt (paintCursor resources cursor)
-    handler' (input, _) event = do
+    handler' input event = do
       reopenHoverRef hov
       handler input event
-  newMouseView (View paint' handler')
+  return (View paint' handler')
 
 -------------------------------------------------------------------------------

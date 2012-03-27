@@ -32,7 +32,7 @@ module Fallback.Draw.Base
    -- * Reference cells
    DrawRef, newDrawRef, readDrawRef, writeDrawRef, modifyDrawRef,
    -- * Keyboard/mouse input
-   getKeyState, withInputsSuppressed,
+   getKeyState, getMouseButtonState, getRelativeMousePos, withInputsSuppressed,
    -- * Textures
    Texture, loadTexture,
    -- * Sprites
@@ -77,7 +77,7 @@ import Fallback.Constants (screenHeight, screenRect, screenWidth)
 import Fallback.Data.Color (Color(Color), Tint(Tint), whiteTint)
 import Fallback.Data.Point
 import Fallback.Draw.Texture
-import Fallback.Event (Key, getKeyStateIO)
+import Fallback.Event (Key, getKeyStateIO, getMouseButtonStateIO)
 import Fallback.Resource (getResourcePath)
 import Fallback.Utility (ceilDiv, flip3)
 
@@ -274,15 +274,30 @@ modifyDrawRef (DrawRef ref) fn = drawIO (modifyIORef ref fn)
 -------------------------------------------------------------------------------
 -- Keyboard/mouse input:
 
-getKeyState :: (MonadDraw m) => Key -> m Bool
-getKeyState key = drawIO $ do
+getKeyState :: (MonadHandler m) => Key -> m Bool
+getKeyState key = handlerIO $ do
   suppressed <- readIORef inputsSuppressed
   if suppressed then return False else getKeyStateIO key
 
-withInputsSuppressed :: (MonadDraw m) => m a -> m a
+getMouseButtonState :: (MonadHandler m) => m Bool
+getMouseButtonState = handlerIO $ do
+  suppressed <- readIORef inputsSuppressed
+  if suppressed then return False else getMouseButtonStateIO
+
+getRelativeMousePos :: (MonadHandler m) => m (Maybe IPoint)
+getRelativeMousePos = handlerIO $ do
+  suppressed <- readIORef inputsSuppressed
+  if suppressed then return Nothing else do
+  (absoluteMouseX, absoluteMouseY, _) <- SDL.getMouseState
+  rect <- readIORef canvasRectRef
+  return $ Just $ Point (absoluteMouseX - rectX rect)
+                        (absoluteMouseY - rectY rect)
+
+withInputsSuppressed :: (MonadHandler m) => m a -> m a
 withInputsSuppressed action = do
-  s <- drawIO (readIORef inputsSuppressed <* writeIORef inputsSuppressed True)
-  action <* drawIO (writeIORef inputsSuppressed s)
+  suppressed <- handlerIO (readIORef inputsSuppressed <*
+                           writeIORef inputsSuppressed True)
+  action <* handlerIO (writeIORef inputsSuppressed suppressed)
 
 {-# NOINLINE inputsSuppressed #-} -- needed for unsafePerformIO
 inputsSuppressed :: IORef Bool

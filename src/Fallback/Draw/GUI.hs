@@ -19,6 +19,7 @@
 
 module Fallback.Draw.GUI where
 
+import Control.Applicative ((<$>))
 import Control.Monad (zipWithM_)
 
 import Fallback.Data.Color (Tint, tintAlpha)
@@ -122,7 +123,7 @@ drawThickLineChain _ _ _ = return ()
 
 -------------------------------------------------------------------------------
 
-getArrowKeysDirection :: (MonadDraw m) => m (Maybe Direction)
+getArrowKeysDirection :: (MonadHandler m) => m (Maybe Direction)
 getArrowKeysDirection = do
   up <- getKeyState KeyUpArrow
   dn <- getKeyState KeyDownArrow
@@ -138,5 +139,10 @@ getArrowKeysDirection = do
     ( True, False, False,  True) -> Just DirNE
     ( True, False,  True, False) -> Just DirNW
     _ -> Nothing
+
+isMouseWithinCanvas :: (MonadHandler m) => m Bool
+isMouseWithinCanvas = do
+  rect <- canvasRect
+  maybe False (rectContains rect) <$> getRelativeMousePos
 
 -------------------------------------------------------------------------------

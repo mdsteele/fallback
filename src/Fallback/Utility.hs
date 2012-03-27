@@ -25,7 +25,7 @@ module Fallback.Utility
    -- * List functions
    firstJust, groupKey, minimumKey, maximumKey, nubKey, sortKey,
    -- * Function combinators
-   flip3, flip4, maybeM, untilM, whenM,
+   flip3, flip4, anyM, maybeM, untilM, whenM,
    -- * IO
    delayFinalizers)
 where
@@ -116,6 +116,12 @@ flip3 f b c a = f a b c
 -- | of to the second position.
 flip4 :: (a -> b -> c -> d -> e) -> b -> c -> d -> a -> e
 flip4 f b c d a = f a b c d
+
+anyM :: (Monad m) => (a -> m Bool) -> [a] -> m Bool
+anyM _ [] = return False
+anyM fn (x : xs) = do
+  bool <- fn x
+  if bool then return True else anyM fn xs
 
 -- | Performs an action on the value if present, otherwise does nothing.
 maybeM :: (Monad m) => Maybe a -> (a -> m ()) -> m ()

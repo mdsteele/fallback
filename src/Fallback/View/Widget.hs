@@ -33,7 +33,7 @@ where
 
 import Control.Applicative ((<$), (<$>))
 import Control.Arrow (second)
-import Control.Monad (when, zipWithM_)
+import Control.Monad (unless, when, zipWithM_)
 import Data.List (inits)
 import Data.Maybe (isJust)
 
@@ -44,6 +44,7 @@ import Fallback.Draw
 import Fallback.Event
 import Fallback.State.Resources (FontTag(..), Resources, rsrcFont)
 import Fallback.State.Text (TextLine, paintTextLine, wrapText)
+import Fallback.Utility (anyM)
 import Fallback.View.Base
 
 -------------------------------------------------------------------------------
@@ -128,11 +129,12 @@ enabledIf b = if b then ReadyButton else DisabledButton
 newButton :: (MonadDraw m) => (a -> ButtonState -> Paint ())
           -> (a -> ButtonStatus) -> [Key] -> b -> m (View a b)
 newButton paintFn statusFn keys value = do
-  state <- newDrawRef (False, False, False)
+  state <- newDrawRef (False, False)
   let
 
     paint input = do
-      (keyPress, mousePress, mouseHover) <- readDrawRef state
+      (keyPress, mousePress) <- readDrawRef state
+      mouseHover <- isMouseWithinCanvas
       paintFn input $
         case statusFn input of
           ReadyButton ->
@@ -142,30 +144,29 @@ newButton paintFn statusFn keys value = do
           DepressedButton -> ButtonDown
 
     handler input event = do
-      rect <- canvasRect
-      (kp, mp, mh) <- readDrawRef state
+      (kp, mp) <- readDrawRef state
       case event of
+        EvTick -> do
+          kp' <- if kp then anyM getKeyState keys else return False
+          mp' <- if mp then getMouseButtonState else return False
+          writeDrawRef state (kp', mp')
+          return Ignore
         EvKeyDown key [] _ ->
           if key `notElem` keys then return Ignore
-          else Suppress <$ writeDrawRef state (True, mp, mh)
+          else Suppress <$ writeDrawRef state (True, mp)
         EvKeyUp key ->
           if not (kp && key `elem` keys) then return Ignore else do
-            writeDrawRef state (False, mp, mh)
-            return $ if not (mp && mh) && statusFn input == ReadyButton
+            writeDrawRef state (False, mp)
+            mouseHeld <- if mp then isMouseWithinCanvas else return False
+            return $ if not mouseHeld && statusFn input == ReadyButton
                      then Action value else Ignore
-        EvMouseMotion pt _ ->
-          Ignore <$ writeDrawRef state (kp, mp, rectContains rect pt)
         EvMouseDown pt ->
-          if not (rectContains rect pt) then return Ignore
-          else Suppress <$ writeDrawRef state (kp, True, mh)
-        EvMouseUp _ -> if not mp then return Ignore else do
-          writeDrawRef state (kp, False, mh)
-          return $ if mh && not kp && statusFn input == ReadyButton
-                   then Action value else Ignore
-        EvFocus pt ->
-          Ignore <$ writeDrawRef state (False, False, rectContains rect pt)
-        EvBlur ->
-          Ignore <$ writeDrawRef state (False, False, False)
+          whenWithinCanvas pt $ Suppress <$ writeDrawRef state (kp, True)
+        EvMouseUp pt -> if not mp then return Ignore else do
+          writeDrawRef state (kp, False)
+          whenWithinCanvas pt $ do
+            return $ if not kp && statusFn input == ReadyButton
+                     then Action value else Ignore
         _ -> return Ignore
 
   return (View paint handler)
@@ -293,7 +294,7 @@ newTextBox resources testFn = do
 newScrollBar :: (MonadDraw m) => m (View (Int, Int, Int, Int) Int)
 newScrollBar = do
   sheet <- loadSheet "gui/scroll-bar.png" (3, 4)
-  stateRef <- newDrawRef (Nothing, False)
+  stateRef <- newDrawRef Nothing
   let
 
     (width, pieceHeight) = spriteSize $ sheet ! (0, 0)
@@ -301,9 +302,12 @@ newScrollBar = do
     paint input =
       if isDisabled input then paintBackground (Tint 255 255 255 128) else do
         paintBackground whiteTint
-        (grab, hover) <- readDrawRef stateRef
-        let col = if isJust grab then 2 else if hover then 1 else 0
         rect <- knobRect input <$> canvasRect
+        col <- do
+          grabbed <- isJust <$> readDrawRef stateRef
+          if grabbed then return 2 else do
+            hover <- maybe False (rectContains rect) <$> getRelativeMousePos
+            return $ if hover then 1 else 0
         blitLoc (sheet ! (0, col)) $ LocTopleft $ Point 0 (rectY rect)
         when (rectH rect > 2 * pieceHeight) $ do
           blitRepeat (sheet ! (1, col)) pZero $
@@ -319,10 +323,15 @@ newScrollBar = do
         Rect 0 pieceHeight width (height - 2 * pieceHeight)
       blitLocTinted tint (sheet ! (2, 3)) $ LocBottomleft $ Point 0 height
 
+    handler _ EvTick = do
+      grabbed <- isJust <$> readDrawRef stateRef
+      when grabbed $ do
+        mouseHeld <- getMouseButtonState
+        unless mouseHeld $ writeDrawRef stateRef Nothing
+      return Ignore
     handler input@(minVal, maxVal, perPage, _) (EvMouseMotion pt _) = do
       rect <- canvasRect
-      grab <- fst <$> readDrawRef stateRef
-      writeDrawRef stateRef (grab, rectContains (knobRect input rect) pt)
+      grab <- readDrawRef stateRef
       case grab of
         Nothing -> return Ignore
         Just (startValue, startY) -> do
@@ -335,15 +344,14 @@ newScrollBar = do
       rect <- canvasRect
       let knob = knobRect input rect
       if rectContains knob pt then do
-        Ignore <$ writeDrawRef stateRef (Just (curVal, pointY pt), True)
+        Ignore <$ writeDrawRef stateRef (Just (curVal, pointY pt))
        else do
         return $ if not (rectContains rect pt) then Ignore
                  else Action $ if pointY pt < rectY knob
                                then max minVal $ curVal - perPage
                                else min (maxVal - perPage) (curVal + perPage)
-    handler input (EvMouseUp pt) = do
-      rect <- canvasRect
-      writeDrawRef stateRef (Nothing, rectContains (knobRect input rect) pt)
+    handler _ (EvMouseUp _) = do
+      writeDrawRef stateRef Nothing
       return Ignore
     handler (_, maxValue, perPage, curValue) (EvScrollDownwards pt) = do
       rect <- canvasRect
@@ -353,12 +361,7 @@ newScrollBar = do
       rect <- canvasRect
       return $ if rectContains rect pt && curValue > minValue
                then Action (curValue - 1) else Ignore
-    handler input (EvFocus pt) = do
-      rect <- canvasRect
-      when (rectContains (knobRect input rect) pt) $ do
-        writeDrawRef stateRef (Nothing, True)
-      return Ignore
-    handler _ EvBlur = Ignore <$ writeDrawRef stateRef (Nothing, False)
+    handler _ EvBlur = Ignore <$ writeDrawRef stateRef Nothing
     handler _ _ = return Ignore
 
     isDisabled (minValue, maxValue, perPage, _) =

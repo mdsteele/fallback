@@ -23,7 +23,7 @@ module Fallback.View.Dialog
 where
 
 import Control.Applicative ((<$), (<$>))
-import Control.Monad (when, zipWithM)
+import Control.Monad (zipWithM)
 
 import Fallback.Constants (screenHeight, screenWidth)
 import Fallback.Data.Color (Tint(Tint))
@@ -40,12 +40,15 @@ import Fallback.View.Widget
 newDialogView :: (MonadDraw m) => View c d -> c -> View a b -> IRect
               -> m (View a b)
 newDialogView bgView bgInput fgView subRect = do
-  let paintBackground _ = do
+  let bgPaint _ = do
         withInputsSuppressed $ viewPaint bgView bgInput
         tintCanvas (Tint 0 0 0 64)
+      bgHandler _ EvTick =
+        Ignore <$ withInputsSuppressed (viewHandler bgView bgInput EvTick)
+      bgHandler _ _ = return Ignore
   midView <- newDialogBackgroundView
   return $ compoundView $ [
-    (inertView paintBackground),
+    (View bgPaint bgHandler),
     (subView_ subRect $ compoundView [midView, fgView])]
 
 -------------------------------------------------------------------------------
