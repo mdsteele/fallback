@@ -18,7 +18,8 @@
 ============================================================================ -}
 
 module Fallback.Scenario.Abilities
-  (getAbility, abilityFullDescription, abilityIconCoords, abilityMinPartyLevel)
+  (getAbility, abilityDescription, abilityFullDescription, abilityIconCoords,
+   abilityMinPartyLevel)
 where
 
 import Control.Applicative ((<$>))

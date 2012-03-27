@@ -35,6 +35,11 @@ data AbilityNumber = Ability0 | Ability1 | Ability2 | Ability3 | Ability4
 data AbilityLevel = Level1 | Level2 | Level3
   deriving (Bounded, Enum, Eq, Ix, Ord, Read, Show)
 
+abilityLevelNumber :: AbilityLevel -> Int
+abilityLevelNumber Level1 = 1
+abilityLevelNumber Level2 = 2
+abilityLevelNumber Level3 = 3
+
 nextAbilityLevel :: Maybe AbilityLevel -> AbilityLevel
 nextAbilityLevel Nothing = Level1
 nextAbilityLevel (Just Level1) = Level2
