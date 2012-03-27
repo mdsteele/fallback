@@ -30,7 +30,7 @@ import qualified Data.Set as Set
 import Data.Traversable (for)
 import System.Random (Random, randomRIO)
 
-import Fallback.Constants (combatArenaCols, combatArenaRows, secondsPerFrame)
+import Fallback.Constants (secondsPerFrame)
 import Fallback.Control.Script (Script)
 import Fallback.Data.Clock (Clock, clockInc)
 import qualified Fallback.Data.Grid as Grid
@@ -82,7 +82,9 @@ updateMinimap acs visible = do
 -------------------------------------------------------------------------------
 
 class (HasProgress a) => AreaState a where
-  arsArenaTopleft :: a -> Position
+  -- | The boundaries of movement.  In town mode, this is the whole map; in
+  -- combat mode, it is the combat arena.
+  arsBoundaryRect :: a -> PRect
 
   -- | Return the position of a particular character.  In town mode, this will
   -- be the party position, regardless of which character was asked for.  In
@@ -108,10 +110,6 @@ class (HasProgress a) => AreaState a where
   arsVisibleForCharacter :: CharacterNumber -> a -> Set.Set Position
 
 -------------------------------------------------------------------------------
-
-arsArenaRect :: (AreaState a) => a -> IRect
-arsArenaRect ars = let Point x y = arsArenaTopleft ars
-                   in Rect x y combatArenaCols combatArenaRows
 
 arsCamera :: (AreaState a) => a -> Camera
 arsCamera = acsCamera . arsCommon
@@ -156,7 +154,9 @@ arsTerrain = acsTerrain . arsCommon
 
 arsTerrainOpenness :: (AreaState a) => Position -> a -> TerrainOpenness
 arsTerrainOpenness pos ars =
-  ttOpenness $ terrainGetTile pos $ acsTerrain $ arsCommon ars
+  let openness = ttOpenness $ terrainGetTile pos $ acsTerrain $ arsCommon ars
+  in if rectContains (arsBoundaryRect ars) pos then openness
+     else solidifyOpenness openness
 
 arsVisibleForParty :: (AreaState a) => a -> Set.Set Position
 arsVisibleForParty = acsVisible . arsCommon
@@ -224,7 +224,7 @@ arsBeamPositions :: (AreaState a) => a -> Position {-^start-}
 arsBeamPositions ars start thru =
   let delta = thru `pSub` start
   in if delta == pZero then [start] else
-       let arena = arsArenaRect ars
+       let arena = arsBoundaryRect ars
            blocked pos = not (rectContains arena pos) || arsIsOpaque ars pos
            takeThru _ [] = []
            takeThru p (x : xs) = if p x then [x] else x : takeThru p xs

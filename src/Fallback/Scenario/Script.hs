@@ -127,7 +127,7 @@ import Fallback.State.Status
 import Fallback.State.Tags
   (AbilityTag(Recuperation), AreaTag, ItemTag(..), MonsterTag, WeaponItemTag)
 import Fallback.State.Terrain
-  (TerrainTile, positionCenter, prectRect, terrainMap, terrainSize, tmapGet)
+  (TerrainTile, positionCenter, prectRect, terrainMap, tmapGet)
 import Fallback.State.Tileset (TileTag, tilesetGet)
 import Fallback.Utility
   (ceilDiv, flip3, flip4, groupKey, maybeM, sortKey, square)
@@ -1122,9 +1122,7 @@ addBasicEnemyMonster :: (FromAreaEffect f) => Position -> MonsterTag
                      -> Maybe (Var Bool) -> MonsterTownAI -> Script f ()
 addBasicEnemyMonster nearPos tag mbDeadVar townAi = do
   let mtype = getMonsterType tag
-  within <- emitAreaEffect $ EffIfCombat
-    (areaGet arsArenaRect)
-    (areaGet (makeRect pZero . terrainSize . arsTerrain))
+  within <- areaGet arsBoundaryRect
   -- TODO Allow for non-SizeSmall monsters
   spot <- areaGet $ \ars ->
     if not $ arsIsBlockedForParty ars nearPos then nearPos
@@ -1211,7 +1209,7 @@ summonAllyMonster :: (FromAreaEffect f) => Position -> MonsterTag
                   -> Script f ()
 summonAllyMonster startPos tag = do
   let mtype = getMonsterType tag
-  arena <- areaGet arsArenaRect
+  arena <- areaGet arsBoundaryRect
   -- TODO Allow for non-SizeSmall monsters
   spot <- areaGet (flip4 arsFindOpenSpot startPos arena Set.empty)
   _ <- tryAddMonster spot Monster

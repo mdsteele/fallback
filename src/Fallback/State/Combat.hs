@@ -26,8 +26,8 @@ import Data.List (find)
 import qualified Data.Set as Set
 
 import Fallback.Constants
-  (baseMomentsPerFrame, maxActionPoints, momentsPerActionPoint,
-   sightRangeSquared)
+  (baseMomentsPerFrame, combatArenaCols, combatArenaRows, maxActionPoints,
+   momentsPerActionPoint, sightRangeSquared)
 import Fallback.Control.Script (Script)
 import qualified Fallback.Data.Grid as Grid (Grid)
 import Fallback.Data.Point
@@ -69,7 +69,8 @@ data CombatState = CombatState
     csTriggers :: [Trigger CombatState CombatEffect] }
 
 instance AreaState CombatState where
-  arsArenaTopleft = csArenaTopleft
+  arsBoundaryRect cs =
+    makeRect (csArenaTopleft cs) (combatArenaCols, combatArenaRows)
   arsCharacterPosition charNum = ccsPosition . tmGet charNum . csCharStates
   arsCharacterAtPosition pos cs =
     let present charNum = arsCharacterPosition charNum cs == pos &&

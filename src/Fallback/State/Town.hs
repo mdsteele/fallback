@@ -51,8 +51,7 @@ data TownState = TownState
     tsTriggersReady :: [Trigger TownState TownEffect] }
 
 instance AreaState TownState where
-  arsArenaTopleft ts = tsPartyPosition ts `pSub`
-                       Point (half combatArenaCols) (half combatArenaRows)
+  arsBoundaryRect ts = makeRect pZero $ terrainSize $ arsTerrain ts
   arsCharacterPosition _ = tsPartyPosition
   arsCharacterAtPosition pos ts = if pos /= tsPartyPosition ts then Nothing
                                   else Just (tsActiveCharacter ts)

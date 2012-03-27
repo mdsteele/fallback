@@ -257,4 +257,14 @@ cannotFlyOver t = t == TerrainSolid || t == TerrainWindow
 cannotWalkOn :: TerrainOpenness -> Bool
 cannotWalkOn t = t /= TerrainOpen && t /= TerrainSmoke
 
+-- | Change a 'TerrainOpenness' to one with the same visibility properties, but
+-- that cannot be walked through (or flown over).  Essentially, everything
+-- becomes either 'TerrainWindow' or 'TerrainSolid'.
+solidifyOpenness :: TerrainOpenness -> TerrainOpenness
+solidifyOpenness TerrainHover = TerrainWindow
+solidifyOpenness TerrainOpen = TerrainWindow
+solidifyOpenness TerrainSmoke = TerrainSolid
+solidifyOpenness TerrainSolid = TerrainSolid
+solidifyOpenness TerrainWindow = TerrainWindow
+
 -------------------------------------------------------------------------------
