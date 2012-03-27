@@ -23,7 +23,7 @@ module Fallback.View.Base
    -- * View combinators
    f2map, vmap, vmapM, viewMap, viewMapM,
    compoundView, compoundViewM, subView, subView_,
-   newMaybeView, newEitherView, newMouseView, newHoverOnlyView,
+   newMaybeView, newEitherView, newHoverOnlyView,
    -- * Utility functions
    whenWithinCanvas)
 where
@@ -173,7 +173,7 @@ newMaybeView fn (View paint handler) = do
       maybe (return ()) paint =<< runHandler (transform input)
     handler' input event =
       maybe (return Ignore) (flip handler event) =<< transform input
-    transform (input, mbMousePos) = do
+    transform input = do
       case fn input of
         Nothing -> do
           writeDrawRef visibleRef False
@@ -181,10 +181,11 @@ newMaybeView fn (View paint handler) = do
         Just input' -> do
           visible <- readDrawRef visibleRef
           unless visible $ do
+            mbMousePos <- getRelativeMousePos
             _ <- handler input' $ maybe EvBlur EvFocus mbMousePos
             writeDrawRef visibleRef True
           return (Just input')
-  newMouseView (View paint' handler')
+  return (View paint' handler')
 
 newEitherView :: (MonadDraw m) => (a -> Either c d) -> View c b -> View d b
               -> m (View a b)
@@ -195,32 +196,16 @@ newEitherView fn v1 v2 = do
                                           Right d -> Just d) v2
   return $ compoundView [v1', v2']
 
-newMouseView :: (MonadDraw m) => View (a, Maybe IPoint) b -> m (View a b)
-newMouseView (View paint handler) = do
-  mouseRef <- newDrawRef Nothing
-  let
-    paint' input = paint . (,) input =<< readDrawRef mouseRef
-    handler' input event = do
-      mousePt <- readDrawRef mouseRef
-      result <- handler (input, mousePt) event
-      case event of
-        EvBlur -> writeDrawRef mouseRef Nothing
-        EvFocus pt -> writeDrawRef mouseRef (Just pt)
-        EvMouseMotion pt _ -> writeDrawRef mouseRef (Just pt)
-        _ -> return ()
-      return result
-  return (View paint' handler')
-
 newHoverOnlyView :: (MonadDraw m) => View a b -> m (View a b)
 newHoverOnlyView (View paint handler) = do
   visibleRef <- newDrawRef False
   let
-    paint' (input, mbMousePos) = do
-      rect <- canvasRect
-      when (hover rect mbMousePos) $ paint input
-    handler' (input, mbMousePos) event = do
-      rect <- canvasRect
-      if hover rect mbMousePos then do
+    paint' input = do
+      hover <- isMouseWithinCanvas
+      when hover $ paint input
+    handler' input event = do
+      hover <- isMouseWithinCanvas
+      if hover then do
         writeDrawRef visibleRef True
         handler input event
        else do
@@ -229,8 +214,7 @@ newHoverOnlyView (View paint handler) = do
           _ <- handler input EvBlur
           writeDrawRef visibleRef False
         return Ignore
-    hover rect = maybe False (rectContains rect)
-  newMouseView (View paint' handler')
+  return (View paint' handler')
 
 -------------------------------------------------------------------------------
 

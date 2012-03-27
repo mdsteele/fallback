@@ -147,7 +147,7 @@ newSummaryItemView resources offset = do
   let infoFont = rsrcFont resources FontGeorgia12
   let
 
-    paint (ns, mbPt) = do
+    paint ns = do
       rect <- canvasRect
       let sgs = nsSummaries ns ! getIndex ns
       drawText nameFont blackColor (LocTopleft (Point 6 5 :: IPoint))
@@ -156,17 +156,19 @@ newSummaryItemView resources offset = do
                (sgsLocation sgs)
       drawText infoFont blackColor (LocTopright (Point (rectW rect - 6) 22))
                (sgsTimeSaved sgs)
-      let tint = if getIndex ns == nsSelectedIndex ns then Tint 0 192 0 255
-                 else if maybe False (rectContains rect) mbPt
-                      then Tint 64 128 64 255 else Tint 64 64 64 128
+      tint <- if getIndex ns == nsSelectedIndex ns
+              then return (Tint 0 192 0 255) else do
+        mbMousePt <- getRelativeMousePos
+        return $ if maybe False (rectContains rect) mbMousePt
+                 then Tint 64 128 64 255 else Tint 64 64 64 128
       drawBevelRect tint 3 rect
 
-    handler (ns, _) (EvMouseDown pt) = do
+    handler ns (EvMouseDown pt) = do
       whenWithinCanvas pt $ return $ Action $ SelectSummary $ getIndex ns
     handler _ _ = return Ignore
 
     getIndex ns = nsScrollTop ns + offset
 
-  newMouseView $ View paint handler
+  return $ View paint handler
 
 -------------------------------------------------------------------------------

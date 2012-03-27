@@ -245,12 +245,13 @@ newCharacterViewBackground :: (MonadDraw m) => CharacterNumber
                            -> m (View SidebarState SidebarAction)
 newCharacterViewBackground charNum = do
   let
-    paint (state, mbMousePt) = do
+    paint state = do
       let active = ssActiveCharacter state == Just charNum
       rect <- canvasRect
-      let hover = maybe False (rectContains rect) mbMousePt
-      drawRect (if active then Tint 128 0 0 192 else
-                  if hover then Tint 128 0 0 128 else Tint 0 0 0 128) rect
+      tint <- if active then return (Tint 128 0 0 192) else do
+        hover <- maybe False (rectContains rect) <$> getRelativeMousePos
+        return $ if hover then Tint 128 0 0 128 else Tint 0 0 0 128
+      drawRect tint rect
       when active $ do
         drawRect (Tint 128 0 0 128) $ adjustRect1 1 rect
         tintRect (Tint 255 255 255 96) $ adjustRect1 2 rect
@@ -262,7 +263,7 @@ newCharacterViewBackground charNum = do
                then Action (MakeCharacterActive charNum) else Ignore
     handler _ _ = return Ignore
 
-  newMouseView $ View paint handler
+  return $ View paint handler
 
 newHealthBarView :: (MonadDraw m) => m (View (Party, Character) b)
 newHealthBarView = do

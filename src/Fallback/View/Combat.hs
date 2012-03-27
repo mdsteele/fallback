@@ -101,7 +101,7 @@ newCombatMapView :: (MonadDraw m) => Resources
                  -> m (View CombatState CombatAction)
 newCombatMapView resources = do
   let
-    paint (cs, mbMousePt) = do
+    paint cs = do
       let acs = csCommon cs
       let cameraTopleft = camTopleft (acsCamera acs)
       paintTerrain acs
@@ -125,6 +125,7 @@ newCombatMapView resources = do
         CommandPhase cc -> paintRange cc
         TargetingPhase (CombatTargeting { ctCommander = cc,
                                           ctTargeting = targeting }) -> do
+          mbMousePt <- getRelativeMousePos
           paintTargeting cameraTopleft mbMousePt cs
                          (ccCharacterNumber cc) targeting
         ExecutionPhase ce -> maybeM (ceCommander ce) paintRange
@@ -133,7 +134,7 @@ newCombatMapView resources = do
 
     handler _ EvTick =
       maybe Ignore (Action . CombatMove) <$> getArrowKeysDirection
-    handler (cs, _) (EvMouseDown pt) = do
+    handler cs (EvMouseDown pt) = do
       whenWithinCanvas pt $ do
       let pt' = pt `pAdd` (camTopleft $ arsCamera cs)
       let pos = pointPosition pt'
@@ -160,7 +161,7 @@ newCombatMapView resources = do
         InventoryPhase _ _ -> return Suppress
         TargetingPhase _ -> return $ Action $ CombatTargetPosition pos
         ExecutionPhase _ -> return Suppress
-    handler (cs, _) (EvKeyDown key _ _) = do
+    handler cs (EvKeyDown key _ _) = do
       case key of
         KeySpace -> do
           case csPhase cs of
@@ -181,7 +182,7 @@ newCombatMapView resources = do
             Nothing -> return Ignore
     handler _ _ = return Ignore
 
-  newMouseView $ View paint handler
+  return $ View paint handler
 
 -------------------------------------------------------------------------------
 
