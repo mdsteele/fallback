@@ -74,8 +74,7 @@ eventLoop state = SDL.pollEvent >>= handleEvent where
        nextMode state nxt
   handleEvent (SDL.GotFocus focus) =
     if SDL.InputFocus `notElem` focus then ignore else do
-      pt <- getAbsoluteMousePosition
-      passToMode' (state { engineClockOn = True }) (EvFocus pt)
+      eventLoop (state { engineClockOn = True })
   handleEvent (SDL.LostFocus focus) =
     if SDL.InputFocus `notElem` focus then ignore else do
       passToMode' (state { engineClockOn = False }) EvBlur

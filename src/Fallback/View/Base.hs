@@ -181,8 +181,7 @@ newMaybeView fn (View paint handler) = do
         Just input' -> do
           visible <- readDrawRef visibleRef
           unless visible $ do
-            mbMousePos <- getRelativeMousePos
-            _ <- handler input' $ maybe EvBlur EvFocus mbMousePos
+            _ <- handler input' EvBlur
             writeDrawRef visibleRef True
           return (Just input')
   return (View paint' handler')
@@ -229,7 +228,6 @@ whenWithinCanvas pt action = do
 translateEvent :: IRect -> Event -> Event
 translateEvent rect event =
   case event of
-    EvFocus pt -> EvFocus (translate pt)
     EvMouseMotion pt rel -> EvMouseMotion (translate pt) rel
     EvMouseUp pt -> EvMouseUp (translate pt)
     EvMouseDown pt -> EvMouseDown (translate pt)

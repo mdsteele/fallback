@@ -80,7 +80,6 @@ hoverView' sink valueFn (View paint handler) =
           EvMouseMotion pt _ -> check pt
           EvMouseDown pt -> check pt
           EvMouseUp pt -> check pt
-          EvFocus pt -> check pt
           _ -> return ()
         return result
   in View paint handler'

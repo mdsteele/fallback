@@ -169,7 +169,6 @@ newTownMapView resources cursorSink = do
                    Action $ TownTargetCharacter charNum
                  _ -> Suppress) :: Action TownAction
             _ -> Ignore
-    handler ts (EvFocus pt) = Ignore <$ setCursor ts pt
     handler _ _ = return Ignore
 
     mouseCase :: (Maybe (Script TownEffect ()) -> a)

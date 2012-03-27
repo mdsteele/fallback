@@ -40,7 +40,7 @@ import Fallback.State.Resources
    rsrcTerrainSprite)
 import Fallback.State.Terrain
 import Fallback.State.Tileset
-import Fallback.Utility (ceilDiv)
+import Fallback.Utility (ceilDiv, maybeM)
 import Fallback.View.Base
 import Fallback.View.Camera (paintTerrainFullyExplored)
 import Fallback.View.Hover
@@ -107,9 +107,13 @@ newEditorMapView resources sink = do
       paintTerrainFullyExplored resources (esCameraTopleft state)
                                 (esTerrain state) (esClock state)
 
-    handler _ EvTick =
+    handler state EvTick = do
+      mbMousePt <- getRelativeMousePos
+      maybeM mbMousePt $ \pt -> do
+        rect <- canvasRect
+        writeHoverSink sink $ positionAt state rect pt
       maybe Ignore (Action . ScrollMap . (`pMul` 8) . dirDelta) <$>
-      getArrowKeysDirection
+        getArrowKeysDirection
     handler state (EvMouseMotion pt _) = do
       rect <- canvasRect
       writeHoverSink sink $ positionAt state rect pt
@@ -133,10 +137,6 @@ newEditorMapView resources sink = do
     handler _ (EvKeyDown KeyZ [KeyModCmd] _) = return (Action DoUndo)
     handler _ (EvKeyDown KeyZ [KeyModCmd, KeyModShift] _) =
       return (Action DoRedo)
-    handler state (EvFocus pt) = do
-      rect <- canvasRect
-      writeHoverSink sink $ positionAt state rect pt
-      return Ignore
     handler _ EvBlur = do
       writeDrawRef dragRef False
       return Ignore

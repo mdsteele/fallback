@@ -32,7 +32,8 @@ module Fallback.Draw.Base
    -- * Reference cells
    DrawRef, newDrawRef, readDrawRef, writeDrawRef, modifyDrawRef,
    -- * Keyboard/mouse input
-   getKeyState, getMouseButtonState, getRelativeMousePos, withInputsSuppressed,
+   getKeyState, getMouseButtonState, getRelativeMousePos,
+   withInputsSuppressed, areInputsSuppressed,
    -- * Textures
    Texture, loadTexture,
    -- * Sprites
@@ -298,6 +299,9 @@ withInputsSuppressed action = do
   suppressed <- handlerIO (readIORef inputsSuppressed <*
                            writeIORef inputsSuppressed True)
   action <* handlerIO (writeIORef inputsSuppressed suppressed)
+
+areInputsSuppressed :: (MonadHandler m) => m Bool
+areInputsSuppressed = handlerIO $ readIORef inputsSuppressed
 
 {-# NOINLINE inputsSuppressed #-} -- needed for unsafePerformIO
 inputsSuppressed :: IORef Bool
