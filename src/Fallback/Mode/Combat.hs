@@ -351,8 +351,8 @@ newCombatMode resources modes initState = do
       let charNum = ccCharacterNumber cc
       let char = arsGetCharacter charNum cs
       fromMaybe ignore $ do
-        level <- tmGet abilNum (chrAbilities char)
-        case getAbility (chrClass char) abilNum level of
+        abilRank <- tmGet abilNum (chrAbilities char)
+        case getAbility (chrClass char) abilNum abilRank of
           ActiveAbility originalCost effect -> do
             let cost = modifyCost costMod originalCost
             guard $ partyCanAffordCastingCost charNum cost $ arsParty cs

@@ -51,14 +51,14 @@ import Fallback.Utility (flip3)
 -------------------------------------------------------------------------------
 
 -- TODO: Change function signature to take AbilityTag
-getAbility :: CharacterClass -> AbilityNumber -> AbilityLevel -> Ability
-getAbility characterClass abilityNumber level =
+getAbility :: CharacterClass -> AbilityNumber -> AbilityRank -> Ability
+getAbility characterClass abilityNumber rank =
   case tag of
     Bash ->
       meta (FocusCost 1) MeleeOnly SingleTarget $
       \caster power endPos -> do
-        let stun = power * leveled 0.4 0.7 0.9
-        let effects = (if level >= Level3 then (InflictDaze 0.5 :) else id)
+        let stun = power * ranked 0.4 0.7 0.9
+        let effects = (if rank >= Rank3 then (InflictDaze 0.5 :) else id)
                       [InflictStun stun]
         attackWithExtraEffects caster endPos effects
     Valiance -> PassiveAbility
@@ -66,7 +66,7 @@ getAbility characterClass abilityNumber level =
       general (FocusCost 1) AutoTarget $ \caster power () -> do
         intBonus <- getIntellectBonus caster
         randMult <- getRandomR 0.9 1.1
-        let healAmount = round (randMult * intBonus * power * leveled 20 35 55)
+        let healAmount = round (randMult * intBonus * power * ranked 20 35 55)
         playSound SndHeal
         pos <- areaGet (arsCharacterPosition caster)
         addBoomDoodadAtPosition HealBoom 4 pos
@@ -75,13 +75,13 @@ getAbility characterClass abilityNumber level =
     Shieldbreaker ->
       meta (FocusCost 1) MeleeOnly SingleTarget $
       \caster power endPos -> do
-        let weakness = power * leveled 0.4 0.7 0.9
+        let weakness = power * ranked 0.4 0.7 0.9
         attackWithExtraEffects caster endPos [InflictWeakness weakness]
     Parry -> PassiveAbility
     Spellshatter ->
       meta (FocusCost 1) MeleeOnly SingleTarget $
       \caster power endPos -> do
-        let effect = power * leveled 0.4 0.7 0.9
+        let effect = power * ranked 0.4 0.7 0.9
         attackWithExtraEffects caster endPos [ReduceBuffs effect,
                                               InflictCurse effect]
     Riposte -> PassiveAbility
@@ -92,7 +92,7 @@ getAbility characterClass abilityNumber level =
         let wd = chrEquippedWeaponData char
         characterWeaponInitialAnimation caster endPos wd
         damage <- characterWeaponBaseDamage char wd
-        let damage' = damage * power * leveled 1.5 1.75 2.0
+        let damage' = damage * power * ranked 1.5 1.75 2.0
         characterWeaponHit wd endPos True damage'
     FinalBlow -> PassiveAbility
     QuickAttack ->
@@ -106,7 +106,7 @@ getAbility characterClass abilityNumber level =
       combat (mix AquaVitae AquaVitae) AutoTarget $
       \caster _power () -> do
         startPos <- areaGet (arsCharacterPosition caster)
-        -- TODO Add other possible monster tags; at higher levels, give better
+        -- TODO Add other possible monster tags; at higher ranks, give better
         --      monster choices.  Incorporate power somehow.
         mtag <- getRandomElem $ [Wolf]
         playSound SndSummon
@@ -115,13 +115,13 @@ getAbility characterClass abilityNumber level =
       meta (mix Naphtha Naphtha) RangedOnly SingleTarget $
       \caster power endPos -> do
         char <- areaGet (arsGetCharacter caster)
-        let extra = power * leveled 0.4 0.7 0.9
+        let extra = power * ranked 0.4 0.7 0.9
         let wd = chrEquippedWeaponData char
         let wd' = wd { wdEffects = ExtraFireDamage extra : wdEffects wd }
         characterWeaponInitialAnimation caster endPos wd'
         (critical, damage) <- characterWeaponChooseCritical char =<<
                               characterWeaponBaseDamage char wd'
-        when (level >= Level3) $ do
+        when (rank >= Rank3) $ do
           setFields (FireWall $ power * 8) [endPos]
         characterWeaponHit wd' endPos critical damage
     Recuperation -> PassiveAbility
@@ -129,7 +129,7 @@ getAbility characterClass abilityNumber level =
       meta (mix Limestone Limestone) RangedOnly SingleTarget $
       \caster power endPos -> do
         char <- areaGet (arsGetCharacter caster)
-        let effects = leveled
+        let effects = ranked
               [InflictPoison (0.3 * power)]
               [InflictPoison (0.4 * power), ExtraAcidDamage (0.3 * power)]
               [InflictPoison (0.6 * power), ExtraAcidDamage (0.4 * power)]
@@ -147,13 +147,13 @@ getAbility characterClass abilityNumber level =
         startPos <- areaGet (arsCharacterPosition caster)
         intBonus <- getIntellectBonus caster
         randMult <- getRandomR 0.9 1.1
-        let damage = leveled 10 20 35 * power * intBonus * randMult
+        let damage = ranked 10 20 35 * power * intBonus * randMult
         addBallisticDoodad FireProj startPos endPos 300.0 >>= wait
         playSound SndFireDamage
         addBoomDoodadAtPosition FireBoom 3 endPos >> wait 8
         dealDamage [(HitPosition endPos, FireDamage, damage)] >> wait 16
     Conflagration ->
-      combat (mix Naphtha Limestone) (aoeTarget 4 $ ofRadius $ leveled 1 2 2) $
+      combat (mix Naphtha Limestone) (aoeTarget 4 $ ofRadius $ ranked 1 2 2) $
       \caster power (endPos, targets) -> do
         characterBeginOffensiveAction caster endPos
         startPos <- areaGet (arsCharacterPosition caster)
@@ -163,13 +163,13 @@ getAbility characterClass abilityNumber level =
           let f = if t <= 0.6 then t * 0.9 / 0.6
                   else 0.9 + 0.1 * sin ((t - 0.6) / 0.4 * pi / 2)
           in (Tint 255 0 0 (floor ((1 - f) * 240)),
-              8.0, f * leveled 58 88 88, f * leveled 74 110 110)
+              8.0, f * ranked 58 88 88, f * ranked 74 110 110)
         wait 16
         intBonus <- getIntellectBonus caster
         randMult <- getRandomR 0.9 1.1
-        when (level >= Level3) $ do
+        when (rank >= Rank3) $ do
           return () -- FIXME initial burst of damage
-        let damagePerSecond = (leveled 8 12 16) * power * intBonus * randMult
+        let damagePerSecond = (ranked 8 12 16) * power * intBonus * randMult
         setFields (FireWall damagePerSecond) targets
         wait 8
     ArmorAura ->
@@ -180,7 +180,7 @@ getAbility characterClass abilityNumber level =
         concurrent_ hitTargets $ \hitTarget -> do
           randMult <- getRandomR 0.9 1.1
           -- TODO: add doodad, maybe wait a bit before applying status
-          let armor = randMult * power * intBonus * leveled 0.2 0.4 0.6
+          let armor = randMult * power * intBonus * ranked 0.2 0.4 0.6
           alterStatus hitTarget (seApplyArmor armor)
     Drain ->
       combat (mix Brimstone Limestone) (aoeTarget 5 4) $
@@ -195,7 +195,7 @@ getAbility characterClass abilityNumber level =
         intBonus <- getIntellectBonus caster
         hits <- forM targets $ \target -> do
           randMult <- getRandomR 0.9 1.1
-          let damage = leveled 20 30 40 * power * intBonus * randMult
+          let damage = ranked 20 30 40 * power * intBonus * randMult
           return (HitPosition target, FireDamage, damage)
         also_ (addBallisticDoodad FireProj startPos endPos 100.0 >>= wait) $ do
           replicateM_ 2 $ do
@@ -210,7 +210,7 @@ getAbility characterClass abilityNumber level =
       general (ManaCost 4) (AllyTarget $ ofRadius 8) $ \caster power eith -> do
         intBonus <- getIntellectBonus caster
         randMult <- getRandomR 0.9 1.1
-        let healAmount = round (randMult * intBonus * power * leveled 20 35 55)
+        let healAmount = round (randMult * intBonus * power * ranked 20 35 55)
         playSound SndHeal
         case eith of
           Left pos -> do
@@ -221,12 +221,12 @@ getAbility characterClass abilityNumber level =
             addBoomDoodadAtPosition HealBoom 4 pos
             healCharacter charNum healAmount
     Disruption ->
-      combat (ManaCost 6) (MultiTarget (ofRadius 4) (leveled 1 3 3)) $
+      combat (ManaCost 6) (MultiTarget (ofRadius 4) (ranked 1 3 3)) $
       \caster power targets -> do
         characterBeginOffensiveAction caster (head targets)
         startPos <- areaGet (arsCharacterPosition caster)
         intBonus <- getIntellectBonus caster
-        let baseDamage = intBonus * power * leveled 20 20 35
+        let baseDamage = intBonus * power * ranked 20 20 35
         forM_ targets $ \target -> do
           addBoomDoodadAtPosition DarkBoom 3 target
           addLightningDoodad (Tint 255 64 255 192) startPos target
@@ -239,7 +239,7 @@ getAbility characterClass abilityNumber level =
             Just (Right monstEntry) -> do
               let mtype = monstType $ Grid.geValue monstEntry
               dmg <- if not (mtIsUndead mtype ||
-                             level >= Level3 && mtIsDaemonic mtype)
+                             rank >= Rank3 && mtIsDaemonic mtype)
                      then return 0 else (baseDamage *) <$> getRandomR 0.9 1.1
               return $ Just (HitMonster (Grid.geKey monstEntry),
                              MagicDamage, dmg)
@@ -249,7 +249,7 @@ getAbility characterClass abilityNumber level =
     GroupHeal ->
       general (ManaCost 20) AutoTarget $ \caster power () -> do
         intBonus <- getIntellectBonus caster
-        let baseHealAmount = intBonus * power * leveled 20 35 55
+        let baseHealAmount = intBonus * power * ranked 20 35 55
         targets <- do
           -- TODO consider using getAllAllyTargets here instead
           characters <- getAllConsciousCharacters
@@ -281,7 +281,7 @@ getAbility characterClass abilityNumber level =
         addBeamDoodad (Tint 255 255 96 192) startPt endPt 20
         addBoomDoodadAtPoint LightBoom 3 (fmap round endPt)
         intBonus <- getIntellectBonus caster
-        let baseDamage = intBonus * power * leveled 20 28 40
+        let baseDamage = intBonus * power * ranked 20 28 40
         spots <- fmap catMaybes $ forM targets $ \target -> do
           mbOccupant <- areaGet (arsOccupant target)
           return ((,) target <$> mbOccupant)
@@ -296,7 +296,7 @@ getAbility characterClass abilityNumber level =
               let hitTarget = HitMonster (Grid.geKey monstEntry)
               let mtype = monstType $ Grid.geValue monstEntry
               let dealExtraDamage =
-                    mtIsUndead mtype || level >= Level2 && mtIsDaemonic mtype
+                    mtIsUndead mtype || rank >= Rank2 && mtIsDaemonic mtype
               return $ (hitTarget, FireDamage, damage) :
                        (if dealExtraDamage
                         then [(hitTarget, MagicDamage, damage * 0.7)] else [])
@@ -308,20 +308,20 @@ getAbility characterClass abilityNumber level =
         startPos <- areaGet (arsCharacterPosition caster)
         intBonus <- getIntellectBonus caster
         randMult <- getRandomR 0.9 1.1
-        let damage = randMult * intBonus * power * leveled 12 24 36
-        replicateM_ (leveled 1 2 3) $ do
+        let damage = randMult * intBonus * power * ranked 12 24 36
+        replicateM_ (ranked 1 2 3) $ do
           addLightningDoodad (Tint 64 64 255 192) startPos endPos
         addBoomDoodadAtPosition EnergyBoom 3 endPos >> wait 12
         dealDamage [(HitPosition endPos, EnergyDamage, damage)] >> wait 12
     IceBolts ->
-      combat (ManaCost 5) (MultiTarget (ofRadius 4) (leveled 2 3 4)) $
+      combat (ManaCost 5) (MultiTarget (ofRadius 4) (ranked 2 3 4)) $
       \caster power targets -> do
         characterBeginOffensiveAction caster (head targets)
         startPos <- areaGet (arsCharacterPosition caster)
         intBonus <- getIntellectBonus caster
         concurrent_ targets $ \endPos -> do
           randMult <- getRandomR 0.9 1.1
-          let damage = randMult * intBonus * power * leveled 12 16 20
+          let damage = randMult * intBonus * power * ranked 12 16 20
           addBallisticDoodad IceProj startPos endPos 300.0 >>= wait
           addBoomDoodadAtPosition IceBoom 3 endPos >> wait 12
           dealDamage [(HitPosition endPos, ColdDamage, damage)] >> wait 12
@@ -334,9 +334,9 @@ getAbility characterClass abilityNumber level =
         addBallisticDoodad AcidProj startPos center 300.0 >>= wait
         let hit target = do
               randMult <- getRandomR 0.9 1.1
-              let damage = randMult * intBonus * power * leveled 16 20 20
+              let damage = randMult * intBonus * power * ranked 16 20 20
               addBoomDoodadAtPosition AcidBoom 3 target >> wait 12
-              when (level >= Level3) $ do
+              when (rank >= Rank3) $ do
                 let poison = randMult * intBonus * power * 20
                 inflictPoison (HitPosition target) poison
               dealDamage [(HitPosition target, AcidDamage, damage)]
@@ -348,12 +348,12 @@ getAbility characterClass abilityNumber level =
             hit target
     Invisibility ->
       combat (ManaCost 5) (AllyTarget 6) $ \_caster _power eith -> do
-        let invis = if level >= Level2 then MediumInvisibility
+        let invis = if rank >= Rank2 then MediumInvisibility
                     else MinorInvisibility
         let hitTarget = either HitPosition HitCharacter eith
         playSound SndIllusion
         grantInvisibility hitTarget invis
-        when (level >= Level3) $ do
+        when (rank >= Rank3) $ do
           return () -- FIXME grantBlessing hitTarget (power * whatever)
     Freeze ->
       combat (ManaCost 1) (aoeTarget 4 1) $
@@ -361,7 +361,7 @@ getAbility characterClass abilityNumber level =
         characterBeginOffensiveAction caster endPos
         intBonus <- getIntellectBonus caster
         randMult <- getRandomR 0.9 1.1
-        let damage = power * intBonus * randMult * leveled 10 20 30
+        let damage = power * intBonus * randMult * ranked 10 20 30
         forM_ targets $ \target -> do
           addBoomDoodadAtPosition IceBoom 3 target
         setFields (IceWall $ power * 8) targets
@@ -387,9 +387,9 @@ getAbility characterClass abilityNumber level =
         concurrent_ (Set.elems targets) $ \target -> do
           addBallisticDoodad AcidProj startPos target 200.0 >>= wait
           randMult <- getRandomR 0.9 1.1
-          let damage = randMult * intBonus * power * leveled 25 30 40
+          let damage = randMult * intBonus * power * ranked 25 30 40
           addBoomDoodadAtPosition AcidBoom 3 target >> wait 12
-          -- FIXME at level 3, also do some poison damage
+          -- FIXME at rank 3, also do some poison damage
           dealDamage [(HitPosition target, AcidDamage, damage)]
           wait 12
     Luminaire ->
@@ -413,7 +413,7 @@ getAbility characterClass abilityNumber level =
         concurrent_ (zip (sort targets) [0..]) $ \(target, n) -> do
           wait n
           randMult <- getRandomR 0.9 1.1
-          let damage = randMult * intBonus * power * leveled 30 45 70
+          let damage = randMult * intBonus * power * ranked 30 45 70
           addBoomDoodadAtPosition EnergyBoom 3 target
           wait 12
           dealDamage [(HitPosition target, EnergyDamage, damage)]
@@ -421,8 +421,8 @@ getAbility characterClass abilityNumber level =
     _ -> PassiveAbility
   where
     tag = classAbility characterClass abilityNumber
-    leveled v1 v2 v3 =
-      case level of { Level1 -> v1; Level2 -> v2; Level3 -> v3 }
+    ranked v1 v2 v3 =
+      case rank of { Rank1 -> v1; Rank2 -> v2; Rank3 -> v3 }
     mix i1 i2 = IngredientCost $ makeTotalMap $
                 \i -> (if i == i1 then 1 else 0) + (if i == i2 then 1 else 0)
     combat cost tkind sfn = ActiveAbility cost $ CombatAbility tkind sfn
@@ -432,13 +432,13 @@ getAbility characterClass abilityNumber level =
 
 -------------------------------------------------------------------------------
 
-abilityFullDescription :: AbilityTag -> AbilityLevel -> String
-abilityFullDescription abilTag level =
-  "{b}" ++ abilityName abilTag ++ "{_}  >  Level " ++ levelNum ++ "  >  " ++
-  costString ++ "\n" ++ abilityDescription abilTag where
-    levelNum = case level of { Level1 -> "1"; Level2 -> "2"; Level3 -> "3" }
+abilityFullDescription :: AbilityTag -> AbilityRank -> String
+abilityFullDescription abilTag abilRank =
+  "{b}" ++ abilityName abilTag ++ "{_}  >  Rank " ++
+  show (abilityRankNumber abilRank) ++ "  >  " ++ costString ++ "\n" ++
+  abilityDescription abilTag where
     costString =
-      case getAbility characterClass abilNum level of
+      case getAbility characterClass abilNum abilRank of
         PassiveAbility -> "Passive ability"
         ActiveAbility cost _ ->
           case cost of
@@ -465,222 +465,222 @@ abilityFullDescription abilTag level =
 abilityDescription :: AbilityTag -> String
 abilityDescription Bash =
   "Make a melee weapon attack, stunning the target.\n\
-  \At level 2, stuns the target more heavily.\n\
-  \At level 3, may also daze the target."
+  \At rank 2, stuns the target more heavily.\n\
+  \At rank 3, may also daze the target."
 abilityDescription Valiance =
   "Permanently increases the rate at which you gain adrenaline by 5%.\n\
-  \At level 2, the increase rises to 10%.\n\
-  \At level 3, the increase rises to 20%."
+  \At rank 2, the increase rises to 10%.\n\
+  \At rank 3, the increase rises to 20%."
 abilityDescription SecondWind =
   "Heal yourself of some damage.\n\
-  \At level 2, requires only three action points instead of four.\n\
-  \At level 3, requires only two action points."
+  \At rank 2, requires only three action points instead of four.\n\
+  \At rank 3, requires only two action points."
 abilityDescription Hardiness =
   "Permanently increases your armor by 3%.\n\
-  \At level 2, the increase rises to 6%.\n\
-  \At level 3, the increase rises to 10%."
+  \At rank 2, the increase rises to 6%.\n\
+  \At rank 3, the increase rises to 10%."
 abilityDescription Shieldbreaker =
   "Make a melee weapon attack, impairing the enemy's defenses so that future\
   \ attacks will deal more damage.\n\
-  \At level 2, reduces the target's defenses more.\n\
-  \At level 3, this attack will be unmitigated by the target's armor."
+  \At rank 2, reduces the target's defenses more.\n\
+  \At rank 3, this attack will be unmitigated by the target's armor."
 abilityDescription Parry =
   "Permanently gives you a 3% chance to avoid any melee attack.\n\
-  \At level 2, your chance of parrying rises to 6%.\n\
-  \At level 3, your chance of parrying rises to 10%."
+  \At rank 2, your chance of parrying rises to 6%.\n\
+  \At rank 3, your chance of parrying rises to 10%."
 abilityDescription Spellshatter =
   "Make a melee weapon attack, reducing any and all beneficial status effects\
   \ currently affecting the target.\n\
-  \At level 2, also curses the target.\n\
-  \At level 3, FIXME."
+  \At rank 2, also curses the target.\n\
+  \At rank 3, FIXME."
 abilityDescription Riposte =
   "Permanently gives you a 5% chance to counterattack every time you are\
   \ attacked in melee.\n\
-  \At level 2, your chance of counterattacking rises to 10%.\n\
-  \At level 3, your chance of counterattacking rises to 20%."
+  \At rank 2, your chance of counterattacking rises to 10%.\n\
+  \At rank 3, your chance of counterattacking rises to 20%."
 abilityDescription Critical =
   "Make a single weapon attack, dealing 1.5x damage.\n\
-  \At level 2, deals 1.75x damage.\n\
-  \At level 3, deals 2x damage."
+  \At rank 2, deals 1.75x damage.\n\
+  \At rank 3, deals 2x damage."
 abilityDescription FinalBlow =
   "Any time an enemy would barely survive your melee attack, the attack will\
   \ deal up to 15% more damage in order to leave the enemy dead.\n\
-  \At level 2, a final blow can deal up to 30% extra damage.\n\
-  \At level 3, a final blow can deal up to 50% extra damage."
+  \At rank 2, a final blow can deal up to 30% extra damage.\n\
+  \At rank 3, a final blow can deal up to 50% extra damage."
 abilityDescription QuickAttack =
   "Make a weapon attack, using only three action points instead of four.\n\
-  \At level 2, requires only two action points.\n\
-  \At level 3, requires only one action point."
+  \At rank 2, requires only two action points.\n\
+  \At rank 3, requires only one action point."
 abilityDescription Dodge =
   "Permanently gives you a 10% chance to avoid any ranged attack.\n\
-  \At level 2, your chance of dodging rises to 20%.\n\
-  \At level 3, your chance of dodging rises to 40%."
+  \At rank 2, your chance of dodging rises to 20%.\n\
+  \At rank 3, your chance of dodging rises to 40%."
 abilityDescription Vanish =
   "Become invisible until you attack or are attacked.  Only adjacent enemies\
   \ can see you, but they cannot counterattack if you move away.\n\
-  \At level 2, you stay invisible even if you are attacked.\n\
-  \At level 3, even adjacent enemies cannot see you."
+  \At rank 2, you stay invisible even if you are attacked.\n\
+  \At rank 3, even adjacent enemies cannot see you."
 abilityDescription Immunity =
   "Permanently increases your poison/acid resistance by 10%.\n\
-  \At level 2, the increase rises to 20%.\n\
-  \At level 3, the increase rises to 40%."
+  \At rank 2, the increase rises to 20%.\n\
+  \At rank 3, the increase rises to 40%."
 abilityDescription Stability =
   "Permanently increases your stun resistance by 10%.\n\
-  \At level 2, the increase rises to 20%.\n\
-  \At level 3, the increase rises to 40%."
+  \At rank 2, the increase rises to 20%.\n\
+  \At rank 3, the increase rises to 40%."
 abilityDescription Illusion =
   "Creates an illusory copy of yourself, to distract enemies from attacking\
   \ the real you.\n\
-  \At level 2, creates two illusions.\n\
-  \At level 3, creates three illusions."
+  \At rank 2, creates two illusions.\n\
+  \At rank 3, creates three illusions."
 abilityDescription Subsume =
   "Make a melee weapon attack, stealing the enemy's health and healing\
   \ yourself by one quarter the amount of damage you inflict.\n\
-  \At level 2, steals fully half the amount of damage you inflict.\n\
-  \At level 3, steals {i}all{_} of the damage you inflict."
+  \At rank 2, steals fully half the amount of damage you inflict.\n\
+  \At rank 3, steals {i}all{_} of the damage you inflict."
 abilityDescription Alacrity =
   "Permanently increases the rate at which your time-bar fills by 5%.\n\
-  \At level 2, the increase rises to 10%.\n\
-  \At level 3, the increase rises to 20%."
+  \At rank 2, the increase rises to 10%.\n\
+  \At rank 3, the increase rises to 20%."
 abilityDescription BeastCall =
   "Summons a wild animal to fight at your side.\n\
-  \At level 2, summons a stronger animal.\n\
-  \At level 3, summons {i}two{_} animals."
+  \At rank 2, summons a stronger animal.\n\
+  \At rank 3, summons {i}two{_} animals."
 abilityDescription FireShot =
   "Adds additional fire damage to your next ranged weapon attack.\n\
-  \At level 2, adds more damage.\n\
-  \At level 3, also sets the target on fire."
+  \At rank 2, adds more damage.\n\
+  \At rank 3, also sets the target on fire."
 abilityDescription Entangle =
   "Entangles a single target, causing them to walk slower for a short time.\n\
-  \At level 2, entangles a whole area.\n\
-  \At level 3, also deals a small amount of physical damage."
+  \At rank 2, entangles a whole area.\n\
+  \At rank 3, also deals a small amount of physical damage."
 abilityDescription Recuperation =
   "Permanently increases the benefit you receive from restorative spells and\
   \ potions by 10%.\n\
-  \At level 2, the increase rises to 20%.\n\
-  \At level 3, the increase rises to 40%."
+  \At rank 2, the increase rises to 20%.\n\
+  \At rank 3, the increase rises to 40%."
 abilityDescription PoisonShot =
   "Poisons the target of your next ranged weapon attack.\n\
-  \At level 2, also deals additional acid damage.\n\
-  \At level 3, deals even more damage."
+  \At rank 2, also deals additional acid damage.\n\
+  \At rank 3, deals even more damage."
 abilityDescription Charm =
   "Confuses a single enemy, so that it will sometimes attack its own allies.\n\
-  \At level 2, charms the target, so that it always attacks its allies.\n\
-  \At level 3, if the target resists being charmed, it takes damage."
+  \At rank 2, charms the target, so that it always attacks its allies.\n\
+  \At rank 3, if the target resists being charmed, it takes damage."
 abilityDescription EagleEye =
   "Permanently doubles your chance to hit with a ranged attack.\n\
-  \At level 2, also increases your ranged attack damage by 15%.\n\
-  \At level 3, also increases the maximum range of all your ranged attacks."
+  \At rank 2, also increases your ranged attack damage by 15%.\n\
+  \At rank 3, also increases the maximum range of all your ranged attacks."
 abilityDescription CurseShot =
   "Curses the target of your next ranged weapon attack.\n\
-  \At level 2, also slows the target.\n\
-  \At level 3, also lowers the target's defense."
+  \At rank 2, also slows the target.\n\
+  \At rank 3, also lowers the target's defense."
 abilityDescription Summon =
   "Brings a single, powerful creature into existence to fight at your side.\n\
-  \At level 2, summons a more powerful kind of creature.\n\
-  \At level 3, summons a truly deadly creature."
+  \At rank 2, summons a more powerful kind of creature.\n\
+  \At rank 3, summons a truly deadly creature."
 abilityDescription FrostShot =
   "Your next ranged weapon attack deals extra cold damage to a small area.\n\
-  \At level 2, also covers the area in ice.\n\
-  \At level 3, also stuns everything in the area."
+  \At rank 2, also covers the area in ice.\n\
+  \At rank 3, also stuns everything in the area."
 abilityDescription Cure = "Restores some health for one target.\n\
-  \At level 2, heals more damage, and also reduces poison.\n\
-  \At level 3, heals even more damage."
+  \At rank 2, heals more damage, and also reduces poison.\n\
+  \At rank 3, heals even more damage."
 abilityDescription Conflagration =
   "Sets an area on fire, continuously damaging those within.\n\
-  \At level 2, affects a larger area.\n\
-  \At level 3, also deals an initial burst of damage to the area."
+  \At rank 2, affects a larger area.\n\
+  \At rank 3, also deals an initial burst of damage to the area."
 abilityDescription PoisonGas =
   "Fills an area with a cloud of poisonous gas, continuously poisoning those\
   \ within.\n\
-  \At level 2, the gas is even more poisonous.\n\
-  \At level 3, the range of the spell is increased."
+  \At rank 2, the gas is even more poisonous.\n\
+  \At rank 3, the range of the spell is increased."
 abilityDescription Drain =
   "Drains the health of all creatures in an area, and distributes the stolen\
   \ health among all allies.\n\
-  \At level 2, drains more health to give to allies.\n\
-  \At level 3, also drains helpful status effects, giving them instead to\
+  \At rank 2, drains more health to give to allies.\n\
+  \At rank 3, also drains helpful status effects, giving them instead to\
   \ allies."
 abilityDescription Detonate =
   "Causes an explosion, dealing fire damage to an area.\n\
-  \At level 2, the explosion deals more damage.\n\
-  \At level 3, the explosion deals even more damage."
+  \At rank 2, the explosion deals more damage.\n\
+  \At rank 3, the explosion deals even more damage."
 abilityDescription AdrenalineRush =
   "Instantly increases adrenaline for you and all adjacent allies.\n\
-  \At level 2, adds more adrenaline.\n\
-  \At level 3, affects all allies, nearby or not."
+  \At rank 2, adds more adrenaline.\n\
+  \At rank 3, affects all allies, nearby or not."
 abilityDescription Rainbow =
   "Grants a random beneficial status effect to every ally.\n\
-  \At level 2, also inflicts a random harmful status effect on every enemy.\n\
-  \At level 3, grants/inflicts {i}two{_} status effects on every ally/enemy."
+  \At rank 2, also inflicts a random harmful status effect on every enemy.\n\
+  \At rank 3, grants/inflicts {i}two{_} status effects on every ally/enemy."
 abilityDescription Healing = "Restores some health for one target.\n\
-  \At level 2, heals more damage.\n\
-  \At level 3, heals even more damage."
+  \At rank 2, heals more damage.\n\
+  \At rank 3, heals even more damage."
 abilityDescription Disruption = "Deals major damage to an undead target.\n\
-  \At level 2, hits up to three targets.\n\
-  \At level 3, also damages daemonic targets."
+  \At rank 2, hits up to three targets.\n\
+  \At rank 3, also damages daemonic targets."
 abilityDescription Hinder =
   "Slows several targets, causing them to take turns less often.\n\
-  \At level 2, also ensnares the targets, causing them to walk slower.\n\
-  \At level 3, also has a chance to daze the targets."
+  \At rank 2, also ensnares the targets, causing them to walk slower.\n\
+  \At rank 3, also has a chance to daze the targets."
 abilityDescription Clarity =
   "Permanently increases your mental resistance by 20%.\n\
-  \At level 2, the increase rises to 40%.\n\
-  \At level 3, the increase rises to 70%."
+  \At rank 2, the increase rises to 40%.\n\
+  \At rank 3, the increase rises to 70%."
 abilityDescription Revive =
   "Revives a party member from unconsciousness during combat, restoring a\
   \ small portion of their health.\n\
-  \At level 2, restores more of the target's health.\n\
-  \At level 3, also restores some of the target's mana/focus."
+  \At rank 2, restores more of the target's health.\n\
+  \At rank 3, also restores some of the target's mana/focus."
 abilityDescription GroupHeal = "Restores some health for all allies.\n\
-  \At level 2, heals more damage.\n\
-  \At level 3, heals even more damage."
+  \At rank 2, heals more damage.\n\
+  \At rank 3, heals even more damage."
 abilityDescription LucentShield =
   "Shields a single ally from magical damage for a short time.\n\
-  \At level 2, the effect lasts longer.\n\
-  \At level 3, all allies are shielded."
+  \At rank 2, the effect lasts longer.\n\
+  \At rank 3, all allies are shielded."
 abilityDescription Sunbeam =
   "Shoots an intense beam of heat and light, searing everything in its path. \
   \ Deals additional disruption damage to undead enemies.\n\
-  \At level 2, deals more damage, and disrupts daemonic enemies as well.\n\
-  \At level 3, deals massive damage."
+  \At rank 2, deals more damage, and disrupts daemonic enemies as well.\n\
+  \At rank 3, deals massive damage."
 abilityDescription Shock = "Strikes a single target with energy damage.\n\
-  \At level 2, also slows the target.\n\
-  \At level 3, also curses the target."
+  \At rank 2, also slows the target.\n\
+  \At rank 3, also curses the target."
 abilityDescription IceBolts = "Deals cold damage to multiple targets.\n\
-  \At level 2, hits up to three targets.\n\
-  \At level 3, hits up to four targets."
+  \At rank 2, hits up to three targets.\n\
+  \At rank 3, hits up to four targets."
 abilityDescription Vitriol = "Splashes a small area with damaging acid.\n\
-  \At level 2, deals more damage.\n\
-  \At level 3, also poisons the targets."
+  \At rank 2, deals more damage.\n\
+  \At rank 3, also poisons the targets."
 abilityDescription Invisibility =
   "Turn one ally invisible until she attacks or is attacked.  Only adjacent\
   \ enemies can see her, but they cannot counterattack if she moves away.\n\
-  \At level 2, the target stays invisible even if attacked.\n\
-  \At level 3, also blesses the target."
+  \At rank 2, the target stays invisible even if attacked.\n\
+  \At rank 3, also blesses the target."
 abilityDescription Lightning =
   "Strikes a target with energy damage and then forks to hit two other, nearby\
   \ targets.\n\
-  \At level 2, forks a second time, hitting more targets.\n\
-  \At level 3, forks a third time, hitting even more targets."
+  \At rank 2, forks a second time, hitting more targets.\n\
+  \At rank 3, forks a third time, hitting even more targets."
 abilityDescription Hasten =
   "Hastens a single ally, so that they take turns more often.\n\
-  \At level 2, the effect lasts longer.\n\
-  \At level 3, hastens the caster as well as the target."
+  \At rank 2, the effect lasts longer.\n\
+  \At rank 3, hastens the caster as well as the target."
 abilityDescription Freeze =
   "Deals cold damage to a small area, and covers it in ice.\n\
-  \At level 2, deals more damage.\n\
-  \At level 3, deals even more damage and also slows the targets."
+  \At rank 2, deals more damage.\n\
+  \At rank 3, deals even more damage and also slows the targets."
 abilityDescription Disjunction =
   "Purges fields and reduces status effects from an area.\n\
-  \At level 2, harmful status effects on enemies will remain.\n\
-  \At level 3, helpful status effects on allies will also remain."
+  \At rank 2, harmful status effects on enemies will remain.\n\
+  \At rank 3, helpful status effects on allies will also remain."
 abilityDescription AcidRain = "Sprays all nearby enemies with damaging acid.\n\
-  \At level 2, deals more damage.\n\
-  \At level 3, also poisons the targets."
+  \At rank 2, deals more damage.\n\
+  \At rank 3, also poisons the targets."
 abilityDescription Luminaire = "Deals major energy damage to a wide area.\n\
-  \At level 2, deals even more damage.\n\
-  \At level 3, deals massive damage."
+  \At rank 2, deals even more damage.\n\
+  \At rank 3, deals massive damage."
 abilityDescription _ = "FIXME abilityDescription"
 
 -------------------------------------------------------------------------------
@@ -688,8 +688,8 @@ abilityDescription _ = "FIXME abilityDescription"
 abilityIconCoords :: AbilityTag -> (Int, Int)
 abilityIconCoords = (fromEnum *** fromEnum) . abilityClassAndNumber
 
-abilityMinPartyLevel :: AbilityTag -> AbilityLevel -> Int
-abilityMinPartyLevel abilTag level = leveled $
+abilityMinPartyLevel :: AbilityTag -> AbilityRank -> Int
+abilityMinPartyLevel abilTag abilRank = ranked $
   case abilTag of
     -- Alchemist abilities:
     Fireball -> (1, 2, 10)
@@ -726,7 +726,7 @@ abilityMinPartyLevel abilTag level = leveled $
     Luminaire -> (15, 25, 30)
     _ -> (1, 1, 1) -- TODO
   where
-    leveled (a, b, c) = case level of { Level1 -> a; Level2 -> b; Level3 -> c }
+    ranked (a, b, c) = case abilRank of { Rank1 -> a; Rank2 -> b; Rank3 -> c }
 
 -------------------------------------------------------------------------------
 -- Private functions:

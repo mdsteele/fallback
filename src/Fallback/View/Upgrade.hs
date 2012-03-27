@@ -154,11 +154,11 @@ newAbilityWidget resources upgradeSink abilNum = do
         let party = upsParty ups
         let char = partyGetCharacter party (upsActiveCharacter ups)
         let abilTag = classAbility (chrClass char) abilNum
-        let mbLevel = tmGet abilNum $ chrAbilities char
+        let mbRank = tmGet abilNum $ chrAbilities char
         let available =
-              mbLevel /= Just maxBound &&
+              mbRank /= Just maxBound &&
               partyLevel party >=
-              abilityMinPartyLevel abilTag (nextAbilityLevel mbLevel)
+              abilityMinPartyLevel abilTag (nextAbilityRank mbRank)
         let tint = if available then whiteTint else Tint 255 255 255 64
         let icon = rsrcAbilityIcon resources (abilityIconCoords abilTag)
         center <- rectCenter <$> canvasRect
@@ -169,11 +169,11 @@ newAbilityWidget resources upgradeSink abilNum = do
             char = partyGetCharacter party charNum
             abilTag = classAbility (chrClass char) abilNum
             spentOn n = SM.get (charNum, n) (upsSpentSkills ups)
-            curLevel = abilityLevelPlus (tmGet abilNum $ chrAbilities char)
+            curRank = abilityRankPlus (tmGet abilNum $ chrAbilities char)
                                         (spentOn abilNum)
-        in if curLevel /= Just maxBound &&
+        in if curRank /= Just maxBound &&
               partyLevel party >=
-              abilityMinPartyLevel abilTag (nextAbilityLevel curLevel) &&
+              abilityMinPartyLevel abilTag (nextAbilityRank curRank) &&
               chrSkillPoints char > sum (map spentOn [minBound .. maxBound])
            then Just () else Nothing
   let minusFn ups =
@@ -210,9 +210,9 @@ newAbilityInfoView resources upgradeRef = do
             let char = upsGetCharacter ups
             let abilTag = classAbility (chrClass char) abilNum
             let spentOn n = SM.get (charNum, n) (upsSpentSkills ups)
-            let curLevel = abilityLevelPlus (tmGet abilNum $ chrAbilities char)
+            let curRank = abilityRankPlus (tmGet abilNum $ chrAbilities char)
                                             (spentOn abilNum)
-            return $ Just $ abilityUpgradeDescription abilTag curLevel $
+            return $ Just $ abilityUpgradeDescription abilTag curRank $
                      partyLevel $ upsParty ups
           _ -> return Nothing
   let rectFn _ (w, _) = Rect 50 0 (w - 100) 300
@@ -245,19 +245,19 @@ newPlusMinusButton col resources value loc =
 
 -------------------------------------------------------------------------------
 
-abilityUpgradeDescription :: AbilityTag -> Maybe AbilityLevel -> Int -> String
-abilityUpgradeDescription  abilTag abilLevel level =
+abilityUpgradeDescription :: AbilityTag -> Maybe AbilityRank -> Int -> String
+abilityUpgradeDescription  abilTag abilRank level =
   "{b}" ++ abilityName abilTag ++ "{_}  (" ++ status ++ ")\n" ++
   abilityDescription abilTag
   where
-    status = if abilLevel < Just Level3 && level < requiredLevel
-             then "level " ++ show (abilityLevelNumber nextLevel) ++
-                  " requires party level " ++ show requiredLevel
-             else case abilLevel of
+    status = if abilRank < Just maxBound && level < requiredLevel
+             then "rank " ++ show (abilityRankNumber nextRank) ++
+                  " requires level " ++ show requiredLevel
+             else case abilRank of
                     Nothing -> "not yet learned"
-                    Just lev -> "currently at level " ++
-                                show (abilityLevelNumber lev)
-    nextLevel = nextAbilityLevel abilLevel
-    requiredLevel = abilityMinPartyLevel abilTag nextLevel
+                    Just rank ->
+                      "currently at rank " ++ show (abilityRankNumber rank)
+    nextRank = nextAbilityRank abilRank
+    requiredLevel = abilityMinPartyLevel abilTag nextRank
 
 -------------------------------------------------------------------------------

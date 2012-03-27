@@ -83,7 +83,7 @@ newGameTownState resources spec = do
 
 initCharacter :: NewCharacterSpec -> Character
 initCharacter spec = Character
-  { chrAbilities = makeTotalMap initLevel,
+  { chrAbilities = makeTotalMap initRank,
     chrAdrenaline = 0,
     chrAppearance = ncsAppearance spec,
     chrBaseStats = makeTotalMap startingStat,
@@ -106,8 +106,8 @@ initCharacter spec = Character
         AlchemistClass -> Quarterstaff
         ClericClass -> Dagger
         MagusClass -> Dagger
-    initLevel Ability0 = Just Level1
-    initLevel _ = Nothing
+    initRank Ability0 = Just Rank1
+    initRank _ = Nothing
     startingStat stat =
       case (cls, stat) of
         (WarriorClass, Strength) -> 27

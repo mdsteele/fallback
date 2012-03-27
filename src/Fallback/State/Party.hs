@@ -147,7 +147,7 @@ partySpendUpgrades st sk party = party' where
                    chrStatPoints = assert (statPoints' >= 0) $ statPoints' }
     skillDelta abilNum = SM.get (charNum, abilNum) sk
     statDelta stat = SM.get (charNum, stat) st
-    abilities' = abilityLevelPlus <$> chrAbilities char <*>
+    abilities' = abilityRankPlus <$> chrAbilities char <*>
                  makeTotalMap skillDelta
     baseStats' = (+) <$> chrBaseStats char <*> makeTotalMap statDelta
     skillPoints' = chrSkillPoints char -
@@ -299,7 +299,7 @@ partyTryToggleEquipped slot party =
 -------------------------------------------------------------------------------
 
 data Character = Character
-  { chrAbilities :: TotalMap AbilityNumber (Maybe AbilityLevel),
+  { chrAbilities :: TotalMap AbilityNumber (Maybe AbilityRank),
     chrAdrenaline :: Int,
     chrAppearance :: CharacterAppearance,
     chrBaseStats :: Stats,
@@ -313,19 +313,19 @@ data Character = Character
     chrStatus :: StatusEffects }
   deriving (Read, Show)
 
-chrAbilityLevel :: AbilityTag -> Character -> Maybe AbilityLevel
-chrAbilityLevel tag char =
+chrAbilityRank :: AbilityTag -> Character -> Maybe AbilityRank
+chrAbilityRank tag char =
   let (cls, num) = abilityClassAndNumber tag
   in if cls /= chrClass char then Nothing else tmGet num $ chrAbilities char
 
 chrAbilityMultiplier :: AbilityTag -> Double -> Double -> Double -> Character
                      -> Double
 chrAbilityMultiplier tag m1 m2 m3 char =
-  case chrAbilityLevel tag char of
+  case chrAbilityRank tag char of
     Nothing -> 1
-    Just Level1 -> m1
-    Just Level2 -> m2
-    Just Level3 -> m3
+    Just Rank1 -> m1
+    Just Rank2 -> m2
+    Just Rank3 -> m3
 
 chrAlterStatus :: (StatusEffects -> StatusEffects) -> Character -> Character
 chrAlterStatus fn char = char { chrStatus = fn (chrStatus char) }
@@ -355,7 +355,7 @@ chrEquippedWeaponData char =
   case wdRange wd of
     Melee -> wd
     Ranged n ->
-      if chrAbilityLevel EagleEye char < Just Level3 then wd
+      if chrAbilityRank EagleEye char < Just Rank3 then wd
       else wd { wdRange = Ranged (n + 1) }
   where wd = maybe unarmedWeaponData getWeaponData $
              eqpWeapon $ chrEquipment char

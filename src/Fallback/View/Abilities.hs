@@ -141,16 +141,16 @@ newAbilitiesView resources cursorSink = do
 -------------------------------------------------------------------------------
 
 newAbilityWidget :: (MonadDraw m) => Resources
-                 -> HoverSink (Maybe (AbilityTag, AbilityLevel))
+                 -> HoverSink (Maybe (AbilityTag, AbilityRank))
                  -> AbilityNumber -> m (View AbilitiesState AbilitiesAction)
 newAbilityWidget resources abilitySink abilNum = do
   let maybeFn as = do
         let char = abilsGetCharacter as
-        level <- tmGet abilNum $ chrAbilities char
+        abilRank <- tmGet abilNum $ chrAbilities char
         let abilTag = classAbility (chrClass char) abilNum
-        Just ((as, char), (abilTag, level))
-  let eitherFn ((as, char), (abilTag, level)) =
-        case getAbility (chrClass char) abilNum level of
+        Just ((as, char), (abilTag, abilRank))
+  let eitherFn ((as, char), (abilTag, abilRank)) =
+        case getAbility (chrClass char) abilNum abilRank of
           ActiveAbility cost eff ->
             Left (abilTag, canUseActiveAbility as cost eff)
           PassiveAbility -> Right abilTag
@@ -178,7 +178,7 @@ newPassiveAbilityWidget resources = do
 -------------------------------------------------------------------------------
 
 newAbilityInfoView :: (MonadDraw m) => Resources
-                   -> HoverRef (Maybe (AbilityTag, AbilityLevel))
+                   -> HoverRef (Maybe (AbilityTag, AbilityRank))
                    -> m (View a b)
 newAbilityInfoView resources abilRef = do
   cache <- newDrawRef Nothing

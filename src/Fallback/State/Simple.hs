@@ -32,24 +32,24 @@ data AbilityNumber = Ability0 | Ability1 | Ability2 | Ability3 | Ability4
                    | Ability5 | Ability6 | Ability7 | Ability8 | Ability9
   deriving (Bounded, Enum, Eq, Ix, Ord)
 
-data AbilityLevel = Level1 | Level2 | Level3
+data AbilityRank = Rank1 | Rank2 | Rank3
   deriving (Bounded, Enum, Eq, Ix, Ord, Read, Show)
 
-abilityLevelNumber :: AbilityLevel -> Int
-abilityLevelNumber Level1 = 1
-abilityLevelNumber Level2 = 2
-abilityLevelNumber Level3 = 3
+abilityRankNumber :: AbilityRank -> Int
+abilityRankNumber Rank1 = 1
+abilityRankNumber Rank2 = 2
+abilityRankNumber Rank3 = 3
 
-nextAbilityLevel :: Maybe AbilityLevel -> AbilityLevel
-nextAbilityLevel Nothing = Level1
-nextAbilityLevel (Just Level1) = Level2
-nextAbilityLevel (Just Level2) = Level3
-nextAbilityLevel (Just Level3) = Level3
+nextAbilityRank :: Maybe AbilityRank -> AbilityRank
+nextAbilityRank Nothing = Rank1
+nextAbilityRank (Just Rank1) = Rank2
+nextAbilityRank (Just Rank2) = Rank3
+nextAbilityRank (Just Rank3) = Rank3
 
-abilityLevelPlus :: Maybe AbilityLevel -> Int -> Maybe AbilityLevel
-abilityLevelPlus mbLevel n =
-  if n <= 0 || mbLevel == Just maxBound then mbLevel
-  else abilityLevelPlus (Just $ nextAbilityLevel mbLevel) (n - 1)
+abilityRankPlus :: Maybe AbilityRank -> Int -> Maybe AbilityRank
+abilityRankPlus mbRank n =
+  if n <= 0 || mbRank == Just maxBound then mbRank
+  else abilityRankPlus (Just $ nextAbilityRank mbRank) (n - 1)
 
 data CastingCost = AdrenalineCost Int
                  | FocusCost Int

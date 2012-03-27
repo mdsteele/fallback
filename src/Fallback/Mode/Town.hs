@@ -172,37 +172,6 @@ newTownMode resources modes initState = do
           case tsPhase ts of
             WalkingPhase -> tryToManuallyStartCombat ts
             _ -> ignore
---         Just (TownSidebar (UseAbility abilNum)) -> do
---           let party = tsParty ts
---           let charNum = tsActiveCharacter ts
---           let char = partyGetCharacter party charNum
---           (SameMode <$) $ fromMaybe (return ()) $ do
---             guard $ case tsPhase ts of
---                       { ChooseAbilityPhase -> True; _ -> False }
---             level <- tmGet abilNum (chrAbilities char)
---             let ability = getAbility (chrClass char) abilNum level
---             case abKind ability of
---               ActiveAbility cost effect -> do
---                 guard (partyCanAffordCastingCost charNum cost party)
---                 case effect of
---                   GeneralAbility target sfn -> Just $ writeIORef stateRef $
---                     case target of
---                       AllyTarget r -> setTargeting (TargetingAlly r)
---                       AreaTarget r f -> setTargeting (TargetingArea r f)
---                       AutoTarget -> ts { tsPhase = ScriptPhase $ sfn' () }
---                       MultiTarget r n -> setTargeting (TargetingMulti r n [])
---                       SingleTarget r -> setTargeting (TargetingSingle r)
---                     where
---                       sfn' = mapEffect EffTownArea . sfn charNum 1
---                       setTargeting targeting =
---                         ts { tsPhase = TargetingPhase $
---                           TownTargeting cost sfn' targeting }
---                   _ -> Nothing
---               PassiveAbility -> Nothing
---         Just (TownSidebar (UseCombatFeat _)) -> do
---           -- TODO: We should probably allow meta-abilities in town mode.
---           ignore
-
 --         Just (TownInteract entry) -> do
 --           case tsPhase ts of
 --             WalkingPhase -> do
@@ -225,8 +194,8 @@ newTownMode resources modes initState = do
                   let charNum = tsActiveCharacter ts
                   let char = partyGetCharacter party charNum
                   fromMaybe ignore $ do
-                    level <- tmGet abilNum (chrAbilities char)
-                    case getAbility (chrClass char) abilNum level of
+                    abilRank <- tmGet abilNum (chrAbilities char)
+                    case getAbility (chrClass char) abilNum abilRank of
                       ActiveAbility cost effect -> do
                         guard (partyCanAffordCastingCost charNum cost party)
                         case effect of
