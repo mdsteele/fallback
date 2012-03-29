@@ -23,8 +23,7 @@ module Fallback.State.Town where
 
 import qualified Data.Set as Set
 
-import Fallback.Constants
-  (cameraCenterOffset, combatArenaCols, combatArenaRows, sightRangeSquared)
+import Fallback.Constants (cameraCenterOffset, sightRangeSquared)
 import Fallback.Control.Script (Script)
 import Fallback.Data.Point
 import qualified Fallback.Data.SparseMap as SM

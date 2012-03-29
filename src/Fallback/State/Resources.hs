@@ -198,13 +198,14 @@ spriteCoords MineCartFullVertSprite = (0, 3)
 rsrcSprite :: Resources -> SpriteTag -> Sprite
 rsrcSprite rsrc tag = tmGet tag $ rsrcSprites rsrc
 
-data StripTag = SrpFireAura | SrpIceAura
+data StripTag = SrpBarrierAura | SrpFireAura | SrpIceAura
               | AcidBoom | DarkBoom | EnergyBoom | FireBoom | HealBoom
               | IceBoom | LightBoom | SunBoom
               | SlashLeft | SlashRight
   deriving (Bounded, Eq, Ix, Ord)
 
 stripSpec :: StripTag -> (String, Int)
+stripSpec SrpBarrierAura = ("doodads/aura-barrier.png", 4)
 stripSpec SrpFireAura = ("doodads/aura-fire.png", 4)
 stripSpec SrpIceAura = ("doodads/aura-ice.png", 4)
 stripSpec AcidBoom = ("doodads/boom-acid.png", 8)

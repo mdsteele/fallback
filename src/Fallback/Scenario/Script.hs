@@ -89,7 +89,7 @@ module Fallback.Scenario.Script
    inflictAllPeriodicDamage,
 
    -- * Targeting
-   aoeTarget, beamTarget, splashTarget)
+   aoeTarget, beamTarget, splashTarget, wallTarget)
 where
 
 import Control.Applicative ((<$), (<$>))
@@ -102,7 +102,7 @@ import qualified Data.Array.ST as STArray
 import qualified Data.Foldable as Fold
 import Data.List (foldl1')
 import qualified Data.Map as Map
-import Data.Maybe (catMaybes, isNothing)
+import Data.Maybe (catMaybes, isJust, isNothing)
 import qualified Data.Set as Set (empty)
 import System.Random (Random)
 
@@ -1318,6 +1318,30 @@ splashTarget maxRange = AreaTarget (ofRadius maxRange) fn where
       let dir = ipointDir (target `pSub` origin)
       in [target, target `plusDir` pred dir, target `plusDir` dir,
           target `plusDir` succ dir]
+
+wallTarget :: Int -> Int -> TargetKind (Position, [Position])
+wallTarget maxRange radius = AreaTarget (ofRadius maxRange) fn where
+  fn ars origin target =
+    if origin == target || blocked target then [] else
+      let (d1, d2, d3, d4) =
+            if isCardinal dir
+            then (pred $ pred dir, pred $ pred dir,
+                  succ $ succ dir, succ $ succ dir)
+            else (pred dir, pred $ pred $ pred dir,
+                  succ dir, succ $ succ $ succ dir)
+      in target : wing d1 d2 target radius ++ wing d3 d4 target radius
+    where
+      dir = ipointDir (target `pSub` origin)
+      blocked pos =
+        isJust (arsOccupant pos ars) ||
+        case arsTerrainOpenness pos ars of
+          TerrainOpen -> False
+          TerrainHover -> False
+          _ -> True
+      wing dir1 dir2 start n =
+        if n <= 0 then [] else
+          let pos = start `plusDir` (if n `mod` 2 == 1 then dir1 else dir2)
+          in if blocked pos then [] else pos : wing dir1 dir2 pos (n - 1)
 
 -------------------------------------------------------------------------------
 -- Private:

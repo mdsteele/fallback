@@ -309,9 +309,11 @@ newTownMode resources modes initState = do
                case targeting of
                  TargetingAlly rng ->
                    if cannotHit rng then ignore else execute (sfn $ Left pos)
-                 TargetingArea rng areaFn ->
-                   if cannotHit rng then ignore else
-                     execute $ sfn (pos, areaFn ts originPos pos)
+                 TargetingArea rng areaFn -> do
+                   if cannotHit rng then ignore else do
+                   let targets = areaFn ts originPos pos
+                   if null targets then ignore else do
+                   execute $ sfn (pos, targets)
                  TargetingMulti rng n ps ->
                    if pos `elem` ps then switch (delete pos ps) else
                      if cannotHit rng then ignore else

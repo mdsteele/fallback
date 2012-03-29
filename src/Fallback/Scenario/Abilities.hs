@@ -29,6 +29,7 @@ import Data.List (delete, intercalate, sort)
 import Data.Maybe (catMaybes)
 import qualified Data.Set as Set
 
+import Fallback.Constants (baseFramesPerActionPoint)
 import Fallback.Data.Color (Tint(Tint))
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
@@ -182,6 +183,16 @@ getAbility characterClass abilityNumber rank =
           -- TODO: add doodad, maybe wait a bit before applying status
           let armor = randMult * power * intBonus * ranked 0.2 0.4 0.6
           alterStatus hitTarget (seApplyArmor armor)
+    Barrier ->
+      general (mix Mandrake Naphtha) (wallTarget 5 $ ranked 1 2 3) $
+      \caster power (_, targets) -> do
+        intBonus <- getIntellectBonus caster
+        let baseDuration = intBonus * power * ranked 3 4 5 *
+                           fromIntegral baseFramesPerActionPoint
+        -- TODO sound, and maybe doodad
+        forM_ targets $ \target -> do
+          duration <- round . (baseDuration *) <$> getRandomR 0.9 1.1
+          setFields (BarrierWall duration) [target]
     Drain ->
       combat (mix Brimstone Limestone) (aoeTarget 5 4) $
       \caster _power (endPos, _targets) -> do

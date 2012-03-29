@@ -112,6 +112,8 @@ paintFields resources cameraTopleft visible clock =
     paintField (pos, field) =
       if Set.notMember pos visible then return () else
         case field of
+          BarrierWall _ ->
+            blit $ rsrcStrip resources SrpBarrierAura ! clockMod 4 6 clock
           FireWall _ ->
             blit $ rsrcStrip resources SrpFireAura ! clockMod 4 3 clock
           IceWall _ ->
@@ -283,9 +285,10 @@ paintTargeting cameraTopleft mbMousePt ars charNum targeting = do
     TargetingArea sqdist areaFn -> do
       let targetable = getRegion sqdist
       paintRegion targetable
-      whenMouse $ \targetPos ->
-        if targetPos `Set.notMember` targetable then paintX targetPos else
-          mapM_ paintTile (areaFn ars originPos targetPos)
+      whenMouse $ \targetPos -> do
+        if targetPos `Set.notMember` targetable then paintX targetPos else do
+          let targets = areaFn ars originPos targetPos
+          if null targets then paintX targetPos else mapM_ paintTile targets
     TargetingMulti sqdist _ targets -> do
       let targetable = getRegion sqdist
       paintRegion targetable

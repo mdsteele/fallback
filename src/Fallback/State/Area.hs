@@ -154,15 +154,18 @@ arsTerrain = acsTerrain . arsCommon
 
 arsTerrainOpenness :: (AreaState a) => Position -> a -> TerrainOpenness
 arsTerrainOpenness pos ars =
-  let openness = ttOpenness $ terrainGetTile pos $ acsTerrain $ arsCommon ars
-  in if rectContains (arsBoundaryRect ars) pos then openness
-     else solidifyOpenness openness
+  case Map.lookup pos $ arsFields ars of
+    Just (BarrierWall _) -> TerrainSolid
+    Just (SmokeScreen _) -> smokifyOpenness openness
+    _ -> if rectContains (arsBoundaryRect ars) pos then openness
+         else solidifyOpenness openness
+  where openness = ttOpenness $ terrainGetTile pos $ acsTerrain $ arsCommon ars
 
 arsVisibleForParty :: (AreaState a) => a -> Set.Set Position
 arsVisibleForParty = acsVisible . arsCommon
 
 arsIsOpaque :: (AreaState a) => a -> Position -> Bool
-arsIsOpaque ars pos = not $ canSeeThrough $ arsTerrainOpenness pos ars
+arsIsOpaque ars pos = cannotSeeThrough $ arsTerrainOpenness pos ars
 
 -- | Determine if the given monster cannot occupy the given position (for large
 -- monsters, this position corresponds to the top-left position of the
@@ -359,7 +362,7 @@ decayFields frames fields = fmap (Map.mapMaybe id) $ for fields $ \field -> do
     FireWall _ -> decay 180
     IceWall _ -> decay 240
     PoisonCloud _ -> decay 150
-    SmokeScreen _ -> decay 150
+    SmokeScreen halflife -> decay halflife
     Webbing _ -> return (Just field)
 
 -------------------------------------------------------------------------------
@@ -494,8 +497,9 @@ executeAreaCommonEffect eff ars = do
     EffAddDoodad dood -> do
       change acs { acsDoodads = addDoodad dood (acsDoodads acs) }
     EffAlterFields fn ps -> do
-      -- TODO update visibility, for the sake of smokescreen
-      change acs { acsFields = foldr (Map.alter fn) (acsFields acs) ps }
+      let fields' = foldr (Map.alter fn) (acsFields acs) ps
+      ars' <- arsUpdateVisibility $ set acs { acsFields = fields' }
+      return ((), ars')
     EffAreaGet fn -> return (fn ars, ars)
     EffMessage text -> change acs { acsMessage = Just (makeMessage text) }
     EffTryAddDevice pos device -> do

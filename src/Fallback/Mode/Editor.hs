@@ -308,6 +308,7 @@ floodFill start tile tmap =
                (Set.insert pos visited)
       startId = ttId (tmapGet tmap start)
       filled = Set.toList $ fill [start] Set.empty
+      cardinalDirections = filter isCardinal allDirections
   in (tmapSet filled tile tmap, filled)
 
 newEditorState :: Resources -> IO EditorState

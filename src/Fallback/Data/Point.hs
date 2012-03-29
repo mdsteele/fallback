@@ -31,8 +31,7 @@ module Fallback.Data.Point
    -- * LocSpec type
    LocSpec(..), locTopleft, locRect,
    -- * Direction type
-   Direction(..), allDirections, cardinalDirections, ipointDir, dirDelta,
-   plusDir,
+   Direction(..), allDirections, isCardinal, ipointDir, dirDelta, plusDir,
    -- * Position type
    Position, PRect, adjacent, bresenhamPositions, prectPositions,
    SqDist, ofRadius, rangeTouchesRect)
@@ -244,11 +243,21 @@ instance Random Direction where
         (i, g') = randomR (lo', lo' + (fromEnum hi - lo') `mod` 8) g
     in (toEnum i, g')
 
+-- | A list of all 'Direction' values, with the four cardinal directions
+-- appearing before the other four directions.
 allDirections :: [Direction]
 allDirections = [DirE, DirS, DirW, DirN, DirSE, DirSW, DirNW, DirNE]
 
-cardinalDirections :: [Direction]
-cardinalDirections = [DirE, DirS, DirW, DirN]
+-- | Return 'True' if the direction is east, south, west, or north.
+isCardinal :: Direction -> Bool
+isCardinal DirE = True
+isCardinal DirSE = False
+isCardinal DirS = True
+isCardinal DirSW = False
+isCardinal DirW = True
+isCardinal DirNW = False
+isCardinal DirN = True
+isCardinal DirNE = False
 
 ipointDir :: IPoint -> Direction
 ipointDir = toEnum . (`mod` 8) . (`div` 2) . (+1) . floor . (* (8 / pi)) .
