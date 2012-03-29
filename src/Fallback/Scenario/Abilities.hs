@@ -102,6 +102,13 @@ getAbility characterClass abilityNumber rank =
         return () -- FIXME
     Dodge -> PassiveAbility
     Immunity -> PassiveAbility
+    Smokescreen ->
+      general (FocusCost 1) (aoeTarget 5 $ ofRadius $ ranked 1 2 2) $
+      \_caster power (_endPos, targets) -> do
+        let halflife = power * ranked 3 4 5 *
+                       fromIntegral baseFramesPerActionPoint
+        -- TODO sound/doodad
+        setFields (SmokeScreen halflife) targets
     Alacrity -> PassiveAbility
     BeastCall ->
       combat (mix AquaVitae AquaVitae) AutoTarget $
@@ -170,9 +177,16 @@ getAbility characterClass abilityNumber rank =
         randMult <- getRandomR 0.9 1.1
         when (rank >= Rank3) $ do
           return () -- FIXME initial burst of damage
-        let damagePerSecond = (ranked 8 12 16) * power * intBonus * randMult
-        setFields (FireWall damagePerSecond) targets
+        let damagePerRound = (ranked 8 12 16) * power * intBonus * randMult
+        setFields (FireWall damagePerRound) targets
         wait 8
+    PoisonGas ->
+      combat (mix Potash AquaVitae) (aoeTarget (ranked 3 3 5) $ ofRadius 1) $
+      \caster power (_endPos, targets) -> do
+        intBonus <- getIntellectBonus caster
+        randMult <- getRandomR 0.9 1.1
+        let damagePerRound = (ranked 16 28 36) * power * intBonus * randMult
+        setFields (PoisonCloud damagePerRound) targets
     ArmorAura ->
       combat (mix DryIce Limestone) AutoTarget $ \caster power () -> do
         intBonus <- getIntellectBonus caster

@@ -112,14 +112,15 @@ paintFields resources cameraTopleft visible clock =
     paintField (pos, field) =
       if Set.notMember pos visible then return () else
         case field of
-          BarrierWall _ ->
-            blit $ rsrcStrip resources SrpBarrierAura ! clockMod 4 6 clock
-          FireWall _ ->
-            blit $ rsrcStrip resources SrpFireAura ! clockMod 4 3 clock
-          IceWall _ ->
-            blit $ rsrcStrip resources SrpIceAura ! clockMod 4 5 clock
-          _ -> return () -- FIXME
-      where blit s = blitStretch s $ positionRect pos `rectMinus` cameraTopleft
+          BarrierWall _ -> blit SrpBarrierAura $ clockMod 4 6 clock
+          FireWall _ -> blit SrpFireAura $ clockMod 4 3 clock
+          IceWall _ -> blit SrpIceAura $ clockMod 4 5 clock
+          PoisonCloud _ -> blit SrpGasAura $ clockMod 4 5 clock
+          SmokeScreen _ -> blit SrpSmokeAura $ clockMod 4 8 clock
+          Webbing _ -> return () -- FIXME
+      where
+        blit tag idx = blitStretch (rsrcStrip resources tag ! idx) $
+                       positionRect pos `rectMinus` cameraTopleft
 
 -- | Paint monsters, given the topleft position of the camera, a set of visible
 -- tile locations, a list of party member positions (used to determine if the
