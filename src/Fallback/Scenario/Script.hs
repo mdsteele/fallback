@@ -18,9 +18,15 @@
 ============================================================================ -}
 
 module Fallback.Scenario.Script
-  (module Fallback.Scenario.Script.Base)
+  (module Fallback.Control.Script,
+   module Fallback.Scenario.Script.Base,
+   module Fallback.Scenario.Script.Doodad,
+   module Fallback.Scenario.Script.Other)
 where
 
+import Fallback.Control.Script
 import Fallback.Scenario.Script.Base
+import Fallback.Scenario.Script.Doodad
+import Fallback.Scenario.Script.Other
 
 -------------------------------------------------------------------------------
