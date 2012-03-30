@@ -67,11 +67,9 @@ getAbility characterClass abilityNumber rank =
       general (FocusCost 1) AutoTarget $ \caster power () -> do
         intBonus <- getIntellectBonus caster
         randMult <- getRandomR 0.9 1.1
-        let healAmount = round (randMult * intBonus * power * ranked 20 35 55)
+        let healAmount = randMult * intBonus * power * ranked 20 35 55
         playSound SndHeal
-        pos <- areaGet (arsCharacterPosition caster)
-        addBoomDoodadAtPosition HealBoom 4 pos
-        healCharacter caster healAmount
+        healDamage [(HitCharacter caster, healAmount)]
     Hardiness -> PassiveAbility
     Shieldbreaker ->
       meta (FocusCost 1) MeleeOnly SingleTarget $
@@ -298,16 +296,11 @@ getAbility characterClass abilityNumber rank =
       general (ManaCost 4) (AllyTarget $ ofRadius 8) $ \caster power eith -> do
         intBonus <- getIntellectBonus caster
         randMult <- getRandomR 0.9 1.1
-        let healAmount = round (randMult * intBonus * power * ranked 20 35 55)
+        let healAmount = randMult * intBonus * power * ranked 20 35 55
         playSound SndHeal
         case eith of
-          Left pos -> do
-            addBoomDoodadAtPosition HealBoom 4 pos
-            return () -- FIXME heal at location
-          Right charNum -> do
-            pos <- areaGet (arsCharacterPosition charNum)
-            addBoomDoodadAtPosition HealBoom 4 pos
-            healCharacter charNum healAmount
+          Left pos -> healDamage [(HitPosition pos, healAmount)]
+          Right charNum -> healDamage [(HitCharacter charNum, healAmount)]
     Disruption ->
       combat (ManaCost 6) (MultiTarget (ofRadius 4) (ranked 1 3 3)) $
       \caster power targets -> do
@@ -338,24 +331,11 @@ getAbility characterClass abilityNumber rank =
       general (ManaCost 20) AutoTarget $ \caster power () -> do
         intBonus <- getIntellectBonus caster
         let baseHealAmount = intBonus * power * ranked 20 35 55
-        targets <- do
-          -- TODO consider using getAllAllyTargets here instead
-          characters <- getAllConsciousCharacters
-          allies <- getAllAllyMonsters
-          randomPermutation (map Left characters ++ map Right allies)
+        targets <- randomPermutation =<< getAllAllyTargets
         playSound SndHeal
         forM_ targets $ \target -> do
           randMult <- getRandomR 0.9 1.1
-          let healAmount = round (randMult * baseHealAmount)
-          case target of
-            Left charNum -> do
-              pos <- areaGet (arsCharacterPosition charNum)
-              addBoomDoodadAtPosition HealBoom 4 pos
-              healCharacter charNum healAmount
-            Right monstEntry -> do
-              mapM_ (addBoomDoodadAtPosition HealBoom 4) $ prectPositions $
-                Grid.geRect monstEntry
-              healMonster (Grid.geKey monstEntry) healAmount
+          healDamage [(target, randMult * baseHealAmount)]
           wait 1
     Sunbeam ->
       combat (ManaCost 1) beamTarget $ \caster power (endPos, targets) -> do

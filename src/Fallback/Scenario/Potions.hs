@@ -22,13 +22,14 @@ module Fallback.Scenario.Potions (runPotionAction) where
 import Fallback.Scenario.Script
 import Fallback.State.Area (AreaEffect)
 import Fallback.State.Item (PotionAction(..))
+import Fallback.State.Resources (SoundTag(..))
 import Fallback.State.Simple
 
 -------------------------------------------------------------------------------
 
 runPotionAction :: PotionAction -> CharacterNumber -> Script AreaEffect ()
 runPotionAction (HealAction amount) charNum = do
-  -- TODO doodad/sound
-  healCharacter charNum amount
+  playSound SndHeal
+  healDamage [(HitCharacter charNum, fromIntegral amount)]
 
 -------------------------------------------------------------------------------

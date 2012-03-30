@@ -18,47 +18,49 @@
 ============================================================================ -}
 
 module Fallback.Scenario.Script.Other
-  (-- ** Actions
-   -- *** Movement
+  (-- * Actions
+   -- ** Movement
    getPartyPosition, setPartyPosition, partyWalkTo, charWalkTo, teleport,
    exitTo, walkMonster, setMonsterTownAI,
-   -- *** Attacks
+   -- ** Attacks
    characterBeginOffensiveAction, characterWeaponAttack,
    characterWeaponInitialAnimation, characterWeaponBaseDamage,
    characterWeaponChooseCritical, characterWeaponHit,
    monsterBeginOffensiveAction, monsterPerformAttack,
 
-   -- ** Effects
-   -- *** Damage
-   dealDamage,
-   -- *** Healing/restoration
-   healCharacter, healMonster, alterCharacterMana, restoreManaToFull,
-   addToCharacterAdrenaline,
-   -- *** Status effects
+   -- * Effects
+   -- ** Damage
+   dealDamage, healDamage,
+   -- ** Mana/adrenaline
+   alterCharacterMana, restoreManaToFull, alterAdrenaline,
+   -- ** Status effects
    alterStatus, grantInvisibility, inflictPoison,
-   -- *** Other
+   -- ** Other
    grantExperience, removeFields, setFields,
    getTerrainTile, resetTerrain, setTerrain,
 
-   -- ** Animation
-   -- *** Camera motion
+   -- * Animation
+   -- ** Camera motion
    shakeCamera,
-   -- *** Creature animation
+   -- ** Creature animation
    faceCharacterToward, faceMonsterToward, facePartyToward,
    setCharacterAnim, setMonsterAnim, setPartyAnim,
    getMonsterHeadPos,
 
-   -- ** UI
-   -- *** Messages and conversation
+   -- * UI
    setMessage, narrate,
    forcedChoice, maybeChoice, multiChoice,
    ConvChoice(..), forcedConversationLoop,
 
-   -- ** Other
+   -- * Objects
+   -- ** Devices
+   addDevice_, removeDevice, replaceDevice,
+   -- ** Monsters
+   addBasicEnemyMonster, summonAllyMonster, tryAddMonster,
+   -- ** Items
+   grantAndEquipWeapon,
 
-   addBasicEnemyMonster, addDevice_, grantAndEquipWeapon, removeDevice,
-   replaceDevice, summonAllyMonster, tryAddMonster,
-
+   -- * Other
    inflictAllPeriodicDamage,
 
    -- * Targeting
@@ -68,12 +70,12 @@ where
 import Control.Applicative ((<$), (<$>))
 import Control.Arrow (right, second)
 import Control.Exception (assert)
-import Control.Monad (foldM, forM, replicateM, unless, when)
+import Control.Monad (foldM, forM, forM_, replicateM, unless, when)
 import Data.Array (range)
 import qualified Data.Foldable as Fold
 import Data.List (foldl1')
 import qualified Data.Map as Map
-import Data.Maybe (catMaybes, isJust, isNothing)
+import Data.Maybe (catMaybes, fromMaybe, isJust, isNothing)
 import qualified Data.Set as Set (empty)
 
 import Fallback.Constants
@@ -411,7 +413,7 @@ dealRawDamageToCharacter gentle charNum damage stun = do
     alterCharacterStatus charNum seWakeFromDaze
     party <- areaGet arsParty
     let maxHealth = chrMaxHealth party $ partyGetCharacter party charNum
-    addToCharacterAdrenaline (adrenalineForDamage damage maxHealth) charNum
+    alterAdrenaline charNum (+ adrenalineForDamage damage maxHealth)
   -- Do stun (if in combat):
   when (stun > 0) $ whenCombat $ do
     moments <- emitEffect $ EffGetCharMoments charNum
@@ -427,7 +429,7 @@ dealRawDamageToCharacter gentle charNum damage stun = do
   -- If we're in combat, the character can die:
   whenCombat $ when (health' <= 0) $ do
     alterCharacterMana charNum (const 0)
-    addToCharacterAdrenaline (negate maxAdrenaline) charNum
+    alterAdrenaline charNum (const 0)
     alterCharacterStatus charNum (const initStatusEffects)
     resources <- areaGet arsResources
     let images = rsrcCharacterImages resources (chrClass char)
@@ -481,31 +483,47 @@ adrenalineForDamage damage maxHealth =
   2 * fromIntegral damage / (fromIntegral maxHealth :: Double)
 
 -------------------------------------------------------------------------------
--- Healing/restoration:
+-- Healing:
 
--- TODO: make a single healDamage method that takes a list of HitTargets and
---   deals with doodads, etc.
+healDamage :: (FromAreaEffect f) => [(HitTarget, Double)] -> Script f ()
+healDamage hits = do
+  heals <- flip3 foldM Map.empty hits $ \totals (hitTarget, amount) -> do
+    mbOccupant <- getHitTargetOccupant hitTarget
+    return $ case mbOccupant of
+               Nothing -> totals
+               Just occupant ->
+                 Map.alter (Just . (amount +) . fromMaybe 0)
+                           (right Grid.geKey occupant) totals
+  forM_ (Map.assocs heals) $ \(occupant, amount) -> do
+    either healCharacter healMonster occupant amount
 
-healCharacter :: (FromAreaEffect f) => CharacterNumber -> Int -> Script f ()
+healCharacter :: (FromAreaEffect f) => CharacterNumber -> Double -> Script f ()
 healCharacter charNum baseAmount = do
   multiplier <- chrAbilityMultiplier Recuperation 1.1 1.2 1.4 <$>
                 areaGet (arsGetCharacter charNum)
-  let amount = round (multiplier * fromIntegral baseAmount)
-  pos <- areaGet (arsCharacterPosition charNum)
-  addNumberDoodadAtPosition amount pos
+  let amount = max 0 $ round (multiplier * baseAmount)
   party <- areaGet arsParty
   emitAreaEffect $ EffAlterCharacter charNum $ \char ->
     char { chrHealth = min (chrMaxHealth party char)
                            (chrHealth char + amount) }
+  pos <- areaGet (arsCharacterPosition charNum)
+  addBoomDoodadAtPosition HealBoom 4 pos
+  addNumberDoodadAtPosition amount pos
 
-healMonster :: (FromAreaEffect f) => Grid.Key Monster -> Int -> Script f ()
-healMonster key amount = withMonsterEntry key $ \entry -> do
+healMonster :: (FromAreaEffect f) => Grid.Key Monster -> Double -> Script f ()
+healMonster key baseAmount = withMonsterEntry key $ \entry -> do
   let monst = Grid.geValue entry
+  let amount = max 0 $ round baseAmount
   let health' = min (monstHealth monst + amount)
                     (mtMaxHealth $ monstType monst)
   let monst' = monst { monstHealth = health' }
   emitAreaEffect $ EffReplaceMonster key (Just monst')
-  addNumberDoodadAtPoint amount $ rectCenter $ prectRect $ Grid.geRect entry
+  let prect = Grid.geRect entry
+  forM_ (prectPositions prect) $ addBoomDoodadAtPosition HealBoom 4
+  addNumberDoodadAtPoint amount $ rectCenter $ prectRect prect
+
+-------------------------------------------------------------------------------
+-- Mana/adrenaline:
 
 alterCharacterMana :: (FromAreaEffect f) => CharacterNumber -> (Int -> Int)
                    -> Script f ()
@@ -520,12 +538,11 @@ restoreManaToFull charNum = do
   emitAreaEffect $ EffAlterCharacter charNum $ \char ->
     char { chrMana = chrMaxMana party char }
 
-addToCharacterAdrenaline :: (FromAreaEffect f) => Int -> CharacterNumber
-                         -> Script f ()
-addToCharacterAdrenaline delta charNum =
-  emitAreaEffect $ EffAlterCharacter charNum $ \char ->
-    char { chrAdrenaline = max 0 $ min maxAdrenaline $
-                           chrAdrenaline char + delta }
+alterAdrenaline :: (FromAreaEffect f) => CharacterNumber -> (Int -> Int)
+                -> Script f ()
+alterAdrenaline charNum fn =
+  emitAreaEffect $ EffAlterCharacter charNum $ \c ->
+    c { chrAdrenaline = max 0 $ min maxAdrenaline $ fn (chrAdrenaline c) }
 
 -------------------------------------------------------------------------------
 -- Status effects:

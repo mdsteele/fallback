@@ -19,9 +19,9 @@
 
 module Fallback.Scenario.Feats (getFeat) where
 
-import Control.Monad (forM_)
-import Data.List (delete)
+import Control.Monad (forM_, unless)
 
+import Fallback.Constants (maxAdrenaline)
 import qualified Fallback.Data.Grid as Grid (geKey)
 import Fallback.Data.Point
 import Fallback.Scenario.Script
@@ -61,9 +61,10 @@ getFeat Energize = CombatFeat
     cfEffect = StandardFeat AutoTarget $ \caster () -> do
       -- TODO add doodads
       playSound SndHeal
-      mapM_ restoreManaToFull [minBound .. maxBound]
-      mapM_ (addToCharacterAdrenaline 100) $
-        delete caster [minBound .. maxBound] }
+      forM_ [minBound .. maxBound] $ \charNum -> do
+        restoreManaToFull charNum
+        unless (charNum == caster) $ do
+          alterAdrenaline charNum (const maxAdrenaline) }
 getFeat StarShield = CombatFeat
   { cfName = "Star Shield",
     cfDescription = "Put a powerful shield around all allies",

@@ -52,7 +52,7 @@ import Fallback.Scenario.Areas (enterPartyIntoArea)
 import Fallback.Scenario.MonsterAI (monsterTownStep)
 import Fallback.Scenario.Potions (runPotionAction)
 import Fallback.Scenario.Script
-  (addToCharacterAdrenaline, alsoWith, concurrentAny, grantExperience,
+  (alsoWith, alterAdrenaline, concurrentAny, grantExperience,
    inflictAllPeriodicDamage, partyWalkTo, setMessage, teleport)
 import Fallback.Sound (playSound)
 import Fallback.State.Action
@@ -280,7 +280,7 @@ newTownMode resources modes initState = do
               fields' <- decayFields baseFramesPerActionPoint (acsFields acs)
               let script = do
                     forM_ [minBound .. maxBound] $ \charNum -> do
-                      addToCharacterAdrenaline (negate 1) charNum
+                      alterAdrenaline charNum (subtract 1)
                     startCombat <-
                       alsoWith (flip const) (partyWalkTo pos') $
                       concurrentAny (Grid.entries $ acsMonsters acs) $
