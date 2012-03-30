@@ -29,7 +29,7 @@ module Fallback.Scenario.Script
    whenCombat, unlessCombat, whenDifficulty,
 
    -- ** Query
-   areaGet, lookupMonsterEntry,
+   areaGet, lookupMonsterEntry, withMonsterEntry,
    -- *** Group retrieval
    getAllConsciousCharacters, getAllAllyMonsters, getAllEnemyMonsters,
    getAllAllyTargets,
@@ -70,6 +70,8 @@ module Fallback.Scenario.Script
    addBoomDoodadAtPosition, addDeathDoodad, addLightningDoodad,
    addLightWallDoodad, addNumberDoodadAtPoint, addNumberDoodadAtPosition,
    addShockwaveDoodad, doExplosionDoodad,
+   addExtendingHookshotDoodad, addExtendedHookshotDoodad,
+   addRetractingHookshotDoodad,
 
    -- ** UI
    -- *** Messages and conversation
@@ -1028,6 +1030,54 @@ addShockwaveDoodad limit center fn = do
   emitAreaEffect $ EffAddDoodad $ Doodad { doodadCountdown = limit,
                                            doodadHeight = MidDood,
                                            doodadPaint = paint }
+
+addExtendingHookshotDoodad :: (FromAreaEffect f) => Position -> Position
+                           -> Script f Int
+addExtendingHookshotDoodad startPos endPos = do
+  let limit = round (3 * pDist (fromIntegral <$> startPos)
+                               (fromIntegral <$> endPos) :: Double)
+  let paint factor cameraTopleft = do
+        let startPt = positionCenter startPos `pSub` cameraTopleft
+        let endPt = positionCenter endPos `pSub` cameraTopleft
+        let delta = fromIntegral <$> (endPt `pSub` startPt)
+        let midPt = round <$> ((fromIntegral <$> startPt) `pAdd`
+                               delta `pMul` factor)
+        drawLine (Tint 128 64 0 255) startPt midPt
+        let Point x y = midPt
+        tintRect (Tint 128 128 128 255) (Rect (x - 2) (y - 2) 5 5)
+  addContinuousDoodad MidDood limit paint
+  return limit
+
+addExtendedHookshotDoodad :: (FromAreaEffect f) => Int -> Position -> Position
+                          -> Script f ()
+addExtendedHookshotDoodad limit startPos endPos = do
+  let paint _ cameraTopleft = do
+        let startPt = positionCenter startPos `pSub` cameraTopleft
+        let endPt = positionCenter endPos `pSub` cameraTopleft
+        drawLine (Tint 128 64 0 255) startPt endPt
+  addContinuousDoodad MidDood limit paint
+
+addRetractingHookshotDoodad :: (FromAreaEffect f) => Position -> Position
+                            -> Script f ()
+addRetractingHookshotDoodad startPos endPos = do
+  let limit = round (2 * pDist (fromIntegral <$> startPos)
+                               (fromIntegral <$> endPos) :: Double)
+  let paint factor cameraTopleft = do
+        let startPt = fromIntegral <$> (positionCenter startPos `pSub`
+                                        cameraTopleft)
+        let endPt = fromIntegral <$> (positionCenter endPos `pSub`
+                                      cameraTopleft)
+        let delta = startPt `pSub` endPt
+        let midPt = endPt `pAdd` delta `pMul` factor
+        let dist = pDist startPt midPt
+        let theta = pAtan2 (midPt `pSub` startPt)
+        let perp = pPolar 1 (theta + pi / 2)
+        let amplFn r = 0.25 * dist * factor * sin (r * 2 * pi)
+        let pointFn r = startPt `pAdd` pPolar (r * dist) theta `pAdd`
+                        perp `pMul` amplFn r
+        let alpha = floor (255 * (1 - factor))
+        drawLineChain (Tint 128 64 0 alpha) $ map pointFn [0, 0.01 .. 1]
+  addContinuousDoodad MidDood limit paint
 
 doExplosionDoodad :: (FromAreaEffect f) => StripTag -> DPoint -> Script f ()
 doExplosionDoodad tag (Point cx cy) = do

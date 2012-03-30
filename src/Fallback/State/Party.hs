@@ -420,9 +420,7 @@ chrResistances char =
       baseResist ResistMental =
         0.9966 ^^ tmGet Intellect stats *
         chrAbilityMultiplier Clarity 0.8 0.6 0.3 char
-      baseResist ResistStun =
-        0.9966 ^^ tmGet Agility stats *
-        chrAbilityMultiplier Stability 0.9 0.8 0.6 char
+      baseResist ResistStun = 0.9966 ^^ tmGet Agility stats
   in (*) <$> makeTotalMap baseResist <*> bonusResistances (chrBonuses char)
 
 -- | Get the specified resistance value for a character (including item

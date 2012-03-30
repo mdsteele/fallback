@@ -109,17 +109,17 @@ areaRegion InnerLab = Emitsuibom
 
 -------------------------------------------------------------------------------
 
-data AbilityTag = AcidRain | AdrenalineRush | Alacrity | ArmorAura | Barrier
-                | Bash | BeastCall | Blessing | Charm | Clarity | Conflagration
-                | Critical | Cure | CurseShot | Detonate | Disjunction
-                | Disruption | Dodge | Drain | EagleEye | Entangle | FinalBlow
-                | FireShot | Fireball | Freeze | FrostShot | GroupHeal
-                | Hardiness | Hasten | Healing | Hinder | IceBolts | Illusion
-                | Immunity | Invisibility | Lightning | LucentShield
-                | Luminaire | Parry | PoisonGas | PoisonShot | QuickAttack
-                | Rainbow | Recuperation | Resistance | Restore | Revive
-                | Riposte | SecondWind | Shieldbreaker | Shock | Smokescreen
-                | Spellshatter | Stability | Subsume | Summon | Sunbeam
+data AbilityTag = AcidRain | AdrenalineRush | Alacrity | ArmorAura | Backstab
+                | Barrier | Bash | BeastCall | Blessing | Charm | Clarity
+                | Conflagration | Critical | Cure | CurseShot | Detonate
+                | Disjunction | Disruption | Dodge | Drain | EagleEye
+                | Entangle | FinalBlow | FireShot | Fireball | Freeze
+                | FrostShot | GroupHeal | Hardiness | Hasten | Healing
+                | Hinder | IceBolts | Illusion | Immunity | Invisibility
+                | Lightning | LucentShield | Luminaire | Parry | PoisonGas
+                | PoisonShot | QuickAttack | Rainbow | Recuperation | Restore
+                | Revive | Riposte | RopeDart | SecondWind | Shieldbreaker
+                | Shock | SmokeBomb | Spellshatter | Subsume | Summon | Sunbeam
                 | Valiance | Vanish | Vitriol
   deriving (Bounded, Enum, Eq, Ix, Ord, Show)
 
@@ -139,7 +139,9 @@ abilityName LucentShield = "Lucent Shield"
 abilityName PoisonGas = "Poison Gas"
 abilityName PoisonShot = "Poison Shot"
 abilityName QuickAttack = "Quick Attack"
+abilityName RopeDart = "Rope Dart"
 abilityName SecondWind = "Second Wind"
+abilityName SmokeBomb = "Smoke Bomb"
 abilityName tag = show tag
 
 abilityBijection :: Bij.Bijection (CharacterClass, AbilityNumber) AbilityTag
@@ -156,14 +158,14 @@ abilityBijection = Bij.make $ \tag ->
     (WarriorClass, Ability8) -> Critical
     (WarriorClass, Ability9) -> FinalBlow
     (RogueClass, Ability0) -> QuickAttack
-    (RogueClass, Ability1) -> Dodge
+    (RogueClass, Ability1) -> Backstab
     (RogueClass, Ability2) -> Vanish
-    (RogueClass, Ability3) -> Immunity
-    (RogueClass, Ability4) -> Smokescreen
-    (RogueClass, Ability5) -> Stability
-    (RogueClass, Ability6) -> Illusion
-    (RogueClass, Ability7) -> Resistance
-    (RogueClass, Ability8) -> Subsume
+    (RogueClass, Ability3) -> SmokeBomb
+    (RogueClass, Ability4) -> Immunity
+    (RogueClass, Ability5) -> RopeDart
+    (RogueClass, Ability6) -> Dodge
+    (RogueClass, Ability7) -> Subsume
+    (RogueClass, Ability8) -> Illusion
     (RogueClass, Ability9) -> Alacrity
     (HunterClass, Ability0) -> BeastCall
     (HunterClass, Ability1) -> FireShot

@@ -24,9 +24,9 @@ where
 
 import Control.Applicative ((<$>))
 import Control.Arrow ((***))
-import Control.Monad (foldM, forM, forM_, replicateM_, when)
-import Data.List (delete, intercalate, sort)
-import Data.Maybe (catMaybes)
+import Control.Monad (foldM, forM, forM_, replicateM_, unless, when)
+import Data.List (delete, find, intercalate, sort)
+import Data.Maybe (catMaybes, fromMaybe, isJust)
 import qualified Data.Set as Set
 
 import Fallback.Constants (baseFramesPerActionPoint)
@@ -37,8 +37,8 @@ import Fallback.Data.TotalMap (makeTotalMap, tmAssocs)
 import Fallback.Scenario.Script
 import Fallback.State.Action
 import Fallback.State.Area
-import Fallback.State.Creature (mtIsDaemonic, mtIsUndead)
-import Fallback.State.Item (WeaponData(..))
+import Fallback.State.Creature (CreatureAnim(..), mtIsDaemonic, mtIsUndead)
+import Fallback.State.Item (WeaponData(..), unarmedWeaponData)
 import Fallback.State.Party
 import Fallback.State.Resources (ProjTag(..), SoundTag(..), StripTag(..))
 import Fallback.State.Simple
@@ -47,7 +47,7 @@ import Fallback.State.Tags
   (AbilityTag(..), MonsterTag(..), abilityClassAndNumber, abilityName,
    classAbility)
 import Fallback.State.Terrain (positionCenter)
-import Fallback.Utility (flip3)
+import Fallback.Utility (flip3, maybeM)
 
 -------------------------------------------------------------------------------
 
@@ -100,15 +100,76 @@ getAbility characterClass abilityNumber rank =
       meta (FocusCost 1) MeleeOrRanged SingleTarget $
       \_ _ _ -> do
         return () -- FIXME
-    Dodge -> PassiveAbility
-    Immunity -> PassiveAbility
-    Smokescreen ->
-      general (FocusCost 1) (aoeTarget 5 $ ofRadius $ ranked 1 2 2) $
-      \_caster power (_endPos, targets) -> do
+    Backstab -> PassiveAbility
+    SmokeBomb ->
+      general (FocusCost 1) (aoeTarget 5 $ ofRadius $ ranked 1 2 3) $
+      \caster power (endPos, targets) -> do
+        whenCombat $ characterBeginOffensiveAction caster endPos
         let halflife = power * ranked 3 4 5 *
                        fromIntegral baseFramesPerActionPoint
         -- TODO sound/doodad
         setFields (SmokeScreen halflife) targets
+    Immunity -> PassiveAbility
+    RopeDart ->
+      combat (FocusCost 1) (SingleTarget $ ofRadius 5) $
+      \caster power endPos -> do
+        characterBeginOffensiveAction caster endPos
+        startPos <- areaGet (arsCharacterPosition caster)
+        playSound SndThrow
+        addExtendingHookshotDoodad startPos endPos >>= wait
+        mbOccupant <- areaGet (arsOccupant endPos)
+        case mbOccupant of
+          Nothing -> playSound =<< getRandomElem [SndMiss1, SndMiss2]
+          Just (Left charNum) -> do
+            isBlocked <- areaGet $ \ars pos ->
+              arsIsBlockedForParty ars pos ||
+              isJust (arsCharacterAtPosition pos ars)
+            let newPos = fromMaybe endPos $ find (not . isBlocked) $
+                         bresenhamPositions startPos endPos
+            addExtendedHookshotDoodad 16 startPos endPos
+            playSound SndHit2
+            wait 16
+            addRetractingHookshotDoodad startPos endPos
+            unless (newPos == endPos) $ do
+              let time = round (2 * pDist (fromIntegral <$> endPos)
+                                          (fromIntegral <$> newPos) :: Double)
+              emitEffect $ EffSetCharPosition charNum newPos
+              emitEffect $ EffSetCharAnim charNum $ WalkAnim time time endPos
+              wait time
+          Just (Right monstEntry) -> do
+            let key = Grid.geKey monstEntry
+            let isAlly = monstIsAlly $ Grid.geValue monstEntry
+            let monstPos = rectTopleft (Grid.geRect monstEntry)
+            isBlocked <- areaGet (arsIsBlockedForMonster monstEntry)
+            let newPos = fromMaybe monstPos $ find (not . isBlocked) $
+                         map ((monstPos `pSub` endPos) `pAdd`) $
+                         bresenhamPositions startPos endPos
+            addExtendedHookshotDoodad 16 startPos endPos
+            if isAlly then playSound SndHit2 >> wait 16 else do
+              char <- areaGet (arsGetCharacter caster)
+              let wd = unarmedWeaponData
+                         { wdDamageBonus = 10,
+                           wdEffects = if rank < Rank2 then []
+                                       else [InflictStun 1] }
+              damage <- characterWeaponBaseDamage char wd
+              characterWeaponHit wd endPos True (power * damage)
+            addRetractingHookshotDoodad startPos endPos
+            unless (newPos == monstPos) $ withMonsterEntry key $ \entry' -> do
+              let time = round (2 * pDist (fromIntegral <$> monstPos)
+                                          (fromIntegral <$> newPos) :: Double)
+              ok <- emitAreaEffect $ EffTryMoveMonster key $ makeRect newPos $
+                    rectSize $ Grid.geRect entry'
+              unless ok $ fail "RopeDart: monster failed to move"
+              emitAreaEffect $ EffReplaceMonster key $
+                Just (Grid.geValue entry')
+                  { monstAnim = WalkAnim time time monstPos }
+              wait time
+            unless (isAlly || rank < Rank3) $ do
+              withMonsterEntry key $ \entry' -> do
+                maybeM (find ((rangeSqDist Melee >=) . pSqDist startPos) $
+                        prectPositions $ Grid.geRect entry') $ \_hitPos -> do
+                  return () -- FIXME slash monster at hitPos
+    Dodge -> PassiveAbility
     Alacrity -> PassiveAbility
     BeastCall ->
       combat (mix AquaVitae AquaVitae) AutoTarget $
@@ -182,7 +243,8 @@ getAbility characterClass abilityNumber rank =
         wait 8
     PoisonGas ->
       combat (mix Potash AquaVitae) (aoeTarget (ranked 3 3 5) $ ofRadius 1) $
-      \caster power (_endPos, targets) -> do
+      \caster power (endPos, targets) -> do
+        characterBeginOffensiveAction caster endPos
         intBonus <- getIntellectBonus caster
         randMult <- getRandomR 0.9 1.1
         let damagePerRound = (ranked 16 28 36) * power * intBonus * randMult
@@ -199,7 +261,8 @@ getAbility characterClass abilityNumber rank =
           alterStatus hitTarget (seApplyArmor armor)
     Barrier ->
       general (mix Mandrake Naphtha) (wallTarget 5 $ ranked 1 2 3) $
-      \caster power (_, targets) -> do
+      \caster power (endPos, targets) -> do
+        whenCombat $ characterBeginOffensiveAction caster endPos
         intBonus <- getIntellectBonus caster
         let baseDuration = intBonus * power * ranked 3 4 5 *
                            fromIntegral baseFramesPerActionPoint
@@ -536,33 +599,44 @@ abilityDescription QuickAttack =
   "Make a weapon attack, using only three action points instead of four.\n\
   \At rank 2, requires only two action points.\n\
   \At rank 3, requires only one action point."
-abilityDescription Dodge =
-  "Permanently gives you a 10% chance to avoid any ranged attack.\n\
-  \At rank 2, your chance of dodging rises to 20%.\n\
-  \At rank 3, your chance of dodging rises to 40%."
+abilityDescription Backstab =
+  "All your melee attacks get a 15% damage bonus whenever another ally is\
+  \ adjacent to your target.\n\
+  \At rank 2, you also get a 25% damage bonus when you're invisible.\n\
+  \At rank 3, you also get a 20% damage bonus when you're standing in smoke."
 abilityDescription Vanish =
   "Become invisible until you attack or are attacked.  Only adjacent enemies\
   \ can see you, but they cannot counterattack if you move away.\n\
   \At rank 2, you stay invisible even if you are attacked.\n\
   \At rank 3, even adjacent enemies cannot see you."
+abilityDescription SmokeBomb =
+  "Create a cloud of opaque smoke, blocking line-of-sight for spells and\
+  \ ranged attacks.\n\
+  \At rank 2, creates a larger and longer-lasting cloud of smoke.\n\
+  \At rank 3, creates a huge cloud of smoke."
 abilityDescription Immunity =
   "Permanently increases your poison/acid resistance by 10%.\n\
   \At rank 2, the increase rises to 20%.\n\
   \At rank 3, the increase rises to 40%."
-abilityDescription Stability =
-  "Permanently increases your stun resistance by 10%.\n\
-  \At rank 2, the increase rises to 20%.\n\
-  \At rank 3, the increase rises to 40%."
-abilityDescription Illusion =
-  "Creates an illusory copy of yourself, to distract enemies from attacking\
-  \ the real you.\n\
-  \At rank 2, creates two illusions.\n\
-  \At rank 3, creates three illusions."
+abilityDescription RopeDart =
+  "Hook onto a distant enemy, damaging them and pulling them towards you. \
+  \ When used on an ally, pulls them towards you without harming them.\n\
+  \At rank 2, also heavily stuns the enemy.\n\
+  \At rank 3, you slash the enemy with your weapon after reeling them in."
+abilityDescription Dodge =
+  "Permanently gives you a 10% chance to avoid any ranged attack.\n\
+  \At rank 2, your chance of dodging rises to 20%.\n\
+  \At rank 3, your chance of dodging rises to 40%."
 abilityDescription Subsume =
   "Make a melee weapon attack, stealing the enemy's health and healing\
   \ yourself by one quarter the amount of damage you inflict.\n\
   \At rank 2, steals fully half the amount of damage you inflict.\n\
   \At rank 3, steals {i}all{_} of the damage you inflict."
+abilityDescription Illusion =
+  "Creates an illusory copy of yourself, to distract enemies from attacking\
+  \ the real you.\n\
+  \At rank 2, creates two illusions.\n\
+  \At rank 3, creates three illusions."
 abilityDescription Alacrity =
   "Permanently increases the rate at which your time-bar fills by 5%.\n\
   \At rank 2, the increase rises to 10%.\n\
