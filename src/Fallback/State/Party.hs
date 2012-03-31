@@ -92,9 +92,9 @@ partyCanAffordCastingCost :: CharacterNumber -> CastingCost -> Party -> Bool
 partyCanAffordCastingCost charNum cost party =
   case cost of
     AdrenalineCost adren -> adren <= chrAdrenaline char
-    FocusCost focus -> focus <= chrMana char
+    FocusCost focus -> focus <= chrMojo char
     IngredientCost ing -> Fold.and $ (<=) <$> ing <*> partyIngredients party
-    ManaCost mana -> mana <= chrMana char
+    ManaCost mana -> mana <= chrMojo char
     NoCost -> True
   where char = partyGetCharacter party charNum
 
@@ -105,13 +105,13 @@ partyDeductCastingCost charNum cost party =
       let fn char = char { chrAdrenaline = max 0 $ chrAdrenaline char - adren }
       in partyAlterCharacter charNum fn party
     FocusCost focus ->
-      let fn char = char { chrMana = max 0 $ chrMana char - focus }
+      let fn char = char { chrMojo = max 0 $ chrMojo char - focus }
       in partyAlterCharacter charNum fn party
     IngredientCost ing ->
       party { partyIngredients = (max 0 .) . subtract <$> ing <*>
                                  partyIngredients party }
     ManaCost mana ->
-      let fn char = char { chrMana = max 0 $ chrMana char - mana }
+      let fn char = char { chrMojo = max 0 $ chrMojo char - mana }
       in partyAlterCharacter charNum fn party
     NoCost -> party
 
@@ -306,7 +306,7 @@ data Character = Character
     chrClass :: CharacterClass,
     chrEquipment :: Equipment,
     chrHealth :: Int,
-    chrMana :: Int,
+    chrMojo :: Int,
     chrName :: String,
     chrSkillPoints :: Int,
     chrStatPoints :: Int,
@@ -378,8 +378,9 @@ chrMaxHealth :: Party -> Character -> Int
 chrMaxHealth party char =
   100 + ((15 + partyLevel party) * chrGetStat Strength char) `div` 10
 
-chrMaxMana :: Party -> Character -> Int
-chrMaxMana party char =
+-- | Determine a character's maximum mojo (that is, mana or focus).
+chrMaxMojo :: Party -> Character -> Int
+chrMaxMojo party char =
   case chrClass char of
     WarriorClass -> maxFocus
     RogueClass -> maxFocus

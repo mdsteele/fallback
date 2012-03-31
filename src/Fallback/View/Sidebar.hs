@@ -237,7 +237,7 @@ newCharacterView resources charNum = do
         newStatusEffectsView resources)]),
     (vmap (ssParty &&& getCharacter) <$> compoundViewM [
        (subView_ (Rect 4 19 80 15) <$> newHealthBarView),
-       (subView_ (Rect 4 36 80 15) <$> newManaBarView)]),
+       (subView_ (Rect 4 36 80 15) <$> newMojoBarView)]),
     (newMaybeView ssCombatState =<< subView_ (Rect 60 53 52 15) <$>
      newTimeBarView charNum)]
 
@@ -279,8 +279,8 @@ newHealthBarView = do
       paintDigits (chrHealth char) $ LocCenter $ rectCenter rect
   return (inertView paint)
 
-newManaBarView :: (MonadDraw m) => m (View (Party, Character) b)
-newManaBarView = do
+newMojoBarView :: (MonadDraw m) => m (View (Party, Character) b)
+newMojoBarView = do
   paintDigits <- newDigitPaint
   let
     paint (party, char) =
@@ -295,7 +295,7 @@ newManaBarView = do
       height <- canvasHeight
       let paintFocusPip index = tintRect (Tint 0 0 255 255)
                                          (Rect (6 * index) 0 5 height)
-      mapM_ paintFocusPip [0 .. chrMana char - 1]
+      mapM_ paintFocusPip [0 .. chrMojo char - 1]
     paintIngredients party = do
       let ingredients = partyIngredients party
       let paintIngredient ingredient index = do
@@ -315,12 +315,12 @@ newManaBarView = do
       zipWithM_ paintIngredient [minBound .. maxBound] [0 ..]
     paintMana party char = do
       rect <- canvasRect
-      let fr = fromIntegral (chrMana char) /
-               fromIntegral (chrMaxMana party char)
+      let fr = fromIntegral (chrMojo char) /
+               fromIntegral (chrMaxMojo party char)
       tintRect (Tint 0 0 255 255) (Rect 0 0 (fr * fromIntegral (rectW rect))
                                         (fromIntegral (rectH rect) :: Double))
       drawRect (Tint 0 0 128 255) rect
-      paintDigits (chrMana char) $ LocCenter $ rectCenter rect
+      paintDigits (chrMojo char) $ LocCenter $ rectCenter rect
   return (inertView paint)
 
 newAdrenalineBarView :: (MonadDraw m) => m (View Character b)

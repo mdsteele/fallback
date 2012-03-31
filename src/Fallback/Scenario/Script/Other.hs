@@ -31,10 +31,10 @@ module Fallback.Scenario.Script.Other
    -- * Effects
    -- ** Damage
    dealDamage, dealDamageTotal, healDamage,
-   -- ** Mana/adrenaline
-   alterCharacterMana, restoreManaToFull, alterAdrenaline,
+   -- ** Mojo/adrenaline
+   alterMana, alterCharacterMojo, restoreMojoToFull, alterAdrenaline,
    -- ** Status effects
-   alterStatus, grantInvisibility, inflictPoison,
+   alterStatus, grantInvisibility, inflictPoison, inflictStun,
    -- ** Other
    grantExperience, removeFields, setFields,
    getTerrainTile, resetTerrain, setTerrain,
@@ -347,6 +347,8 @@ attackHit appearance element effects target critical damage = do
   let hitTarget = HitPosition target
   extraHits <- flip3 foldM [] effects $ \hits effect -> do
     case effect of
+      DrainMana mult ->
+        hits <$ alterMana hitTarget (subtract $ round $ mult * damage)
       ExtraAcidDamage mult -> do
         return ((hitTarget, AcidDamage, mult * damage) : hits)
       ExtraEnergyDamage mult -> do
@@ -355,9 +357,8 @@ attackHit appearance element effects target critical damage = do
         return ((hitTarget, FireDamage, mult * damage) : hits)
       ExtraIceDamage mult -> do
         return ((hitTarget, ColdDamage, mult * damage) : hits)
-      InflictPoison mult -> do
-        inflictPoison hitTarget (mult * damage)
-        return hits
+      InflictPoison mult -> hits <$ inflictPoison hitTarget (mult * damage)
+      InflictStun mult -> hits <$ inflictStun hitTarget (mult * damage)
       _ -> return hits -- FIXME
   let damageElement =
         case element of
@@ -441,7 +442,7 @@ dealRawDamageToCharacter gentle charNum damage stun = do
     addNumberDoodadAtPosition damage pos
   -- If we're in combat, the character can die:
   whenCombat $ when (health' <= 0) $ do
-    alterCharacterMana charNum (const 0)
+    alterCharacterMojo charNum (const 0)
     alterAdrenaline charNum (const 0)
     alterCharacterStatus charNum (const initStatusEffects)
     resources <- areaGet arsResources
@@ -539,20 +540,32 @@ healMonster key baseAmount = withMonsterEntry key $ \entry -> do
   addNumberDoodadAtPoint amount $ rectCenter $ prectRect prect
 
 -------------------------------------------------------------------------------
--- Mana/adrenaline:
+-- Mojo/adrenaline:
 
-alterCharacterMana :: (FromAreaEffect f) => CharacterNumber -> (Int -> Int)
+alterMana :: (FromAreaEffect f) => HitTarget -> (Int -> Int) -> Script f ()
+alterMana hitTarget fn = do
+  mbOccupant <- getHitTargetOccupant hitTarget
+  case mbOccupant of
+    Just (Left charNum) -> do
+      char <- areaGet (arsGetCharacter charNum)
+      case chrClass char of
+        ClericClass -> alterCharacterMojo charNum fn
+        MagusClass -> alterCharacterMojo charNum fn
+        _ -> return ()
+    _ -> return ()
+
+alterCharacterMojo :: (FromAreaEffect f) => CharacterNumber -> (Int -> Int)
                    -> Script f ()
-alterCharacterMana charNum fn = do
+alterCharacterMojo charNum fn = do
   party <- areaGet arsParty
   emitAreaEffect $ EffAlterCharacter charNum $ \char ->
-    char { chrMana = max 0 $ min (chrMaxMana party char) $ fn (chrMana char) }
+    char { chrMojo = max 0 $ min (chrMaxMojo party char) $ fn (chrMojo char) }
 
-restoreManaToFull :: (FromAreaEffect f) => CharacterNumber -> Script f ()
-restoreManaToFull charNum = do
+restoreMojoToFull :: (FromAreaEffect f) => CharacterNumber -> Script f ()
+restoreMojoToFull charNum = do
   party <- areaGet arsParty
   emitAreaEffect $ EffAlterCharacter charNum $ \char ->
-    char { chrMana = chrMaxMana party char }
+    char { chrMojo = chrMaxMojo party char }
 
 alterAdrenaline :: (FromAreaEffect f) => CharacterNumber -> (Int -> Int)
                 -> Script f ()
@@ -620,6 +633,27 @@ inflictPoison hitTarget basePoison = do
       let poison = round $ (basePoison *) $ tmGet ResistChemical $
                    mtResistances $ monstType $ Grid.geValue monstEntry
       alterMonsterStatus (Grid.geKey monstEntry) $ seAlterPoison (poison +)
+    Nothing -> return ()
+
+-- | Inflicts stun (measured in action points) onto the target, taking
+-- resistances into account.
+inflictStun :: HitTarget -> Double -> Script CombatEffect ()
+inflictStun hitTarget stun = do
+  mbOccupant <- getHitTargetOccupant hitTarget
+  case mbOccupant of
+    Just (Left charNum) -> do
+      char <- areaGet (arsGetCharacter charNum)
+      let stun' = max 0 (stun * chrGetResistance ResistStun char)
+      moments <- emitEffect $ EffGetCharMoments charNum
+      emitEffect $ EffSetCharMoments charNum $
+        max 0 (moments - round (stun' * fromIntegral momentsPerActionPoint))
+    Just (Right monstEntry) -> do
+      let monst = Grid.geValue monstEntry
+      let stun' = max 0 $ (stun *) $ tmGet ResistStun $ mtResistances $
+                  monstType monst
+      emitAreaEffect $ EffReplaceMonster (Grid.geKey monstEntry) $ Just monst
+        { monstMoments = monstMoments monst -
+                         round (stun' * fromIntegral momentsPerActionPoint) }
     Nothing -> return ()
 
 -------------------------------------------------------------------------------

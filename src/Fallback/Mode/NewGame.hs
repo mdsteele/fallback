@@ -91,7 +91,7 @@ initCharacter spec = Character
     chrEquipment = Equipment { eqpWeapon = Just weapon, eqpArmor = Nothing,
                                eqpAccessory = Nothing },
     chrHealth = 0,
-    chrMana = 0,
+    chrMojo = 0,
     chrName = ncsName spec,
     chrSkillPoints = 0,
     chrStatPoints = 0,
@@ -150,7 +150,7 @@ newParty spec = do
           partyLevel = 1,
           partyProgress = initialProgress }
   let healChar char = char { chrHealth = chrMaxHealth party char,
-                             chrMana = chrMaxMana party char }
+                             chrMojo = chrMaxMojo party char }
   return party { partyCharacters = fmap healChar (partyCharacters party) }
   where
     ingredientStartQuantity AquaVitae = 20

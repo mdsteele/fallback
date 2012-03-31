@@ -99,7 +99,7 @@ newTownMode resources modes initState = do
           let party = arsParty ts
           let restore char = char { chrAdrenaline = 0,
                                     chrHealth = chrMaxHealth party char,
-                                    chrMana = chrMaxMana party char }
+                                    chrMojo = chrMaxMojo party char }
           let party' = party { partyCharacters =
                                  restore <$> partyCharacters party }
           ChangeMode <$> newRegionMode' modes RegionState

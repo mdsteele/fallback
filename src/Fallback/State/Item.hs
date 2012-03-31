@@ -188,6 +188,7 @@ wdSubDesc wd = attackDesc ++ bonusesSubDesc (wdBonuses wd) ++ featsDesc ++
   effectLine (ExtraIceDamage p) = showSignedPercent p ++ " ice damage\n"
   effectLine (InflictCurse x) = "Curses target" ++ effectNum x
   effectLine (InflictPoison x) = "Poisons target" ++ effectNum x
+  effectLine (InflictStun x) = "Stuns target" ++ effectNum (x * 100)
   effectLine _ = "FIXME some effect\n"
   effectNum x = " (effect " ++ show (round (100 * x) :: Int) ++ ")\n"
   damageModsDesc = concatMap damageModDesc $

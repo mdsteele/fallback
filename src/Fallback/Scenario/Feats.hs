@@ -62,7 +62,7 @@ getFeat Energize = CombatFeat
       -- TODO add doodads
       playSound SndHeal
       forM_ [minBound .. maxBound] $ \charNum -> do
-        restoreManaToFull charNum
+        restoreMojoToFull charNum
         unless (charNum == caster) $ do
           alterAdrenaline charNum (const maxAdrenaline) }
 getFeat StarShield = CombatFeat

@@ -101,7 +101,7 @@ data AttackEffect = DrainMana Double -- mana drained per base damage
                   | InflictDaze Double
                   | InflictPoison Double -- poison per base damage
                   | InflictSlow Double
-                  | InflictStun Double
+                  | InflictStun Double -- AP stun per base damage
                   | InflictWeakness Double
                   | ReduceBuffs Double
 
