@@ -264,15 +264,28 @@ getAbility characterClass abilityNumber rank =
         intBonus <- getIntellectBonus caster
         let baseDuration = intBonus * power * ranked 3 4 5 *
                            fromIntegral baseFramesPerActionPoint
-        -- TODO sound, and maybe doodad
+        playSound SndBarrier
         forM_ targets $ \target -> do
           duration <- round . (baseDuration *) <$> getRandomR 0.9 1.1
           setFields (BarrierWall duration) [target]
     Drain ->
       combat (mix Brimstone Limestone) (aoeTarget 5 4) $
-      \caster _power (endPos, _targets) -> do
+      \caster power (endPos, targets) -> do
         characterBeginOffensiveAction caster endPos
-        -- TODO write rest of Drain spell
+        -- TODO sound/doodad
+        intBonus <- getIntellectBonus caster
+        let baseDamage = ranked 10 20 30 * power * intBonus
+        hits <- forM targets $ \target -> do
+          damage <- (baseDamage *) <$> getRandomR 0.8 1.2
+          return (HitPosition target, MagicDamage, damage)
+        totalDamage <- dealDamageTotal hits
+        -- TODO at rank 3, also drain status buffs
+        wait 16
+        allyTargets <- getAllAllyTargets
+        let healAmount = fromIntegral totalDamage /
+                         fromIntegral (length allyTargets)
+        healDamage $ map (flip (,) healAmount) $ allyTargets
+        wait 24
     Detonate ->
       combat (mix Brimstone Potash) (aoeTarget 4 $ ofRadius 1) $
       \caster power (endPos, targets) -> do
@@ -346,6 +359,7 @@ getAbility characterClass abilityNumber rank =
                     (positionCenter endPos `pSub` startPt) `pMul`
                     (fromIntegral (length targets) /
                      fromIntegral (length (takeWhile (/= endPos) targets) + 1))
+        playSound SndSunbeam
         addBeamDoodad (Tint 255 255 96 192) startPt endPt 20
         addBoomDoodadAtPoint LightBoom 3 (fmap round endPt)
         intBonus <- getIntellectBonus caster
@@ -377,6 +391,7 @@ getAbility characterClass abilityNumber rank =
         intBonus <- getIntellectBonus caster
         randMult <- getRandomR 0.9 1.1
         let damage = randMult * intBonus * power * ranked 12 24 36
+        playSound SndLightning
         replicateM_ (ranked 1 2 3) $ do
           addLightningDoodad (Tint 64 64 255 192) startPos endPos
         addBoomDoodadAtPosition EnergyBoom 3 endPos >> wait 12
@@ -430,6 +445,7 @@ getAbility characterClass abilityNumber rank =
         intBonus <- getIntellectBonus caster
         randMult <- getRandomR 0.9 1.1
         let damage = power * intBonus * randMult * ranked 10 20 30
+        playSound SndFreeze
         forM_ targets $ \target -> do
           addBoomDoodadAtPosition IceBoom 3 target
         setFields (IceWall $ power * 8) targets
@@ -478,6 +494,7 @@ getAbility characterClass abilityNumber rank =
         addLightWallDoodad True  tint duration height p3 p4
         addLightWallDoodad True  tint duration height p4 p1
         wait 6
+        playSound SndLuminaire
         concurrent_ (zip (sort targets) [0..]) $ \(target, n) -> do
           wait n
           randMult <- getRandomR 0.9 1.1

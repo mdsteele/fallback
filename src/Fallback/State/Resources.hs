@@ -257,26 +257,27 @@ rsrcFont rsrc tag = tmGet tag $ rsrcFonts rsrc
 -- Sounds:
 
 data SoundTag = SndArrow
-              | SndBite | SndBlessing | SndBreath
+              | SndBarrier | SndBite | SndBlessing | SndBreath
               | SndBoomBig | SndBoomSmall
               | SndChemicalDamage | SndClaw
               | SndCombatEnd | SndCombatStart
               | SndDie1 | SndDie2
               | SndDoorOpen | SndDoorShut
-              | SndFireDamage
+              | SndFireDamage | SndFreeze
               | SndHeal
               | SndHit1 | SndHit2 | SndHit3 | SndHit4
               | SndHurtFemale | SndHurtMale
               | SndIllusion
-              | SndLevelUp | SndLever
+              | SndLevelUp | SndLever | SndLightning | SndLuminaire
               | SndMineCartStop | SndMineCartTurn
               | SndMiss1 | SndMiss2
-              | SndShielding | SndSummon
+              | SndShielding | SndSummon | SndSunbeam
               | SndThrow
   deriving (Bounded, Eq, Ix, Ord)
 
 soundPath :: SoundTag -> String
 soundPath SndArrow = "arrow-shoot-12.wav"
+soundPath SndBarrier = "barrier-cfxr.wav"
 soundPath SndBite = "bite-87.wav"
 soundPath SndBlessing = "blessing-4.wav"
 soundPath SndBreath = "breath-44.wav"
@@ -291,6 +292,7 @@ soundPath SndDie2 = "die2-32.wav"
 soundPath SndDoorOpen = "door-open-58.wav"
 soundPath SndDoorShut = "door-shut-59.wav"
 soundPath SndFireDamage = "fire-damage-73.wav"
+soundPath SndFreeze = "freeze-75.wav"
 soundPath SndHeal = "heal-68.wav"
 soundPath SndHit1 = "hit1-70.wav"
 soundPath SndHit2 = "hit2-72.wav"
@@ -301,12 +303,15 @@ soundPath SndHurtMale = "hurt-male-29.wav"
 soundPath SndIllusion = "illusion-52.wav"
 soundPath SndLevelUp = "level-up-16.wav"
 soundPath SndLever = "lever-94.wav"
+soundPath SndLightning = "lightning-43.wav"
+soundPath SndLuminaire = "luminaire-53.wav"
 soundPath SndMineCartStop = "minecart-stop-cfxr.wav"
 soundPath SndMineCartTurn = "minecart-turn-cfxr.wav"
 soundPath SndMiss1 = "miss1-2.wav"
 soundPath SndMiss2 = "miss2-19.wav"
 soundPath SndShielding = "shielding-51.wav"
 soundPath SndSummon = "summon-61.wav"
+soundPath SndSunbeam = "sunbeam-25.wav"
 soundPath SndThrow = "throw-14.wav"
 
 rsrcSound :: Resources -> SoundTag -> Sound

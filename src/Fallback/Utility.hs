@@ -25,13 +25,13 @@ module Fallback.Utility
    -- * List functions
    firstJust, groupKey, minimumKey, maximumKey, nubKey, sortKey,
    -- * Function combinators
-   flip3, flip4, anyM, maybeM, untilM, whenM,
+   flip3, flip4, anyM, maybeM, sumM, untilM, whenM,
    -- * IO
    delayFinalizers)
 where
 
 import Control.Arrow ((&&&))
-import Control.Monad (msum, when)
+import Control.Monad (foldM, msum, when)
 import Data.Function (on)
 import Data.List (groupBy, maximumBy, minimumBy, nubBy, sortBy)
 import Data.Ord (comparing)
@@ -117,6 +117,9 @@ flip3 f b c a = f a b c
 flip4 :: (a -> b -> c -> d -> e) -> b -> c -> d -> a -> e
 flip4 f b c d a = f a b c d
 
+-- | Perform the monadic actions one at a time; as soon as one returns 'True',
+-- return 'True' without executing the rest.  If all of the actions return
+-- 'False', then return 'False'.
 anyM :: (Monad m) => (a -> m Bool) -> [a] -> m Bool
 anyM _ [] = return False
 anyM fn (x : xs) = do
@@ -126,6 +129,11 @@ anyM fn (x : xs) = do
 -- | Performs an action on the value if present, otherwise does nothing.
 maybeM :: (Monad m) => Maybe a -> (a -> m ()) -> m ()
 maybeM = flip $ maybe $ return ()
+
+-- | Equivalent to (but more efficient than) @((liftM sum .) . mapM)@.
+sumM :: (Monad m, Num b) => (a -> m b) -> [a] -> m b
+sumM fn = foldM fn' 0 where
+  fn' total item = do { value <- fn item; return $! total + value }
 
 untilM :: (Monad m) => a -> (a -> Bool) -> (a -> a) -> (a -> m ()) -> m ()
 untilM value done update action =

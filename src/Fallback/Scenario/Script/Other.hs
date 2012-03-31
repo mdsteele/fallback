@@ -30,7 +30,7 @@ module Fallback.Scenario.Script.Other
 
    -- * Effects
    -- ** Damage
-   dealDamage, healDamage,
+   dealDamage, dealDamageTotal, healDamage,
    -- ** Mana/adrenaline
    alterCharacterMana, restoreManaToFull, alterAdrenaline,
    -- ** Status effects
@@ -102,7 +102,7 @@ import Fallback.State.Tags
 import Fallback.State.Terrain (TerrainTile, prectRect, terrainMap, tmapGet)
 import Fallback.State.Tileset (TileTag, tilesetGet)
 import Fallback.Utility
-  (ceilDiv, flip3, flip4, groupKey, maybeM, sortKey, square)
+  (ceilDiv, flip3, flip4, groupKey, maybeM, sortKey, square, sumM)
 
 -------------------------------------------------------------------------------
 -- Query:
@@ -359,8 +359,14 @@ attackHit appearance element effects target critical damage = do
         inflictPoison hitTarget (mult * damage)
         return hits
       _ -> return hits -- FIXME
-  -- FIXME change main hit damage element based on attack element
-  dealDamage ((hitTarget, PhysicalDamage, damage) : extraHits)
+  let damageElement =
+        case element of
+          AcidAttack -> AcidDamage
+          EnergyAttack -> EnergyDamage
+          FireAttack -> FireDamage
+          IceAttack -> ColdDamage
+          PhysicalAttack -> PhysicalDamage
+  dealDamage ((hitTarget, damageElement, damage) : extraHits)
   wait 16
 
 -------------------------------------------------------------------------------
@@ -368,11 +374,17 @@ attackHit appearance element effects target critical damage = do
 
 dealDamage :: (FromAreaEffect f) => [(HitTarget, DamageType, Double)]
            -> Script f ()
-dealDamage = dealDamage' False
+dealDamage hits = dealDamageTotal hits >> return ()
 
-dealDamage' :: (FromAreaEffect f) => Bool
-            -> [(HitTarget, DamageType, Double)] -> Script f ()
-dealDamage' gentle hits = do
+-- | Like 'dealDamage', but return the total damage done to all targets (after
+-- resistances).
+dealDamageTotal :: (FromAreaEffect f) => [(HitTarget, DamageType, Double)]
+                -> Script f Int
+dealDamageTotal = dealDamageGeneral False
+
+dealDamageGeneral :: (FromAreaEffect f) => Bool
+                  -> [(HitTarget, DamageType, Double)] -> Script f Int
+dealDamageGeneral gentle hits = do
   let convert (hitTarget, dmgType, damage) = do
         mbOccupant <- getHitTargetOccupant hitTarget
         return $ case mbOccupant of
@@ -397,13 +409,13 @@ dealDamage' gentle hits = do
           Left charNum -> dealRawDamageToCharacter gentle charNum damage stun
           Right monstEntry ->
             dealRawDamageToMonster gentle (Grid.geKey monstEntry) damage stun
-  mapM_ inflict . map (foldl1' combine) . groupKey keyFn . sortKey keyFn =<<
+  sumM inflict . map (foldl1' combine) . groupKey keyFn . sortKey keyFn =<<
     (mapM resist . catMaybes =<< mapM convert hits)
 
 -- | Inflict damage and stun on a character, ignoring armor and resistances.
 -- Stun is measured in action points.
 dealRawDamageToCharacter :: (FromAreaEffect f) => Bool -> CharacterNumber
-                         -> Int -> Double -> Script f ()
+                         -> Int -> Double -> Script f Int
 dealRawDamageToCharacter gentle charNum damage stun = do
   pos <- areaGet (arsCharacterPosition charNum)
   char <- areaGet (arsGetCharacter charNum)
@@ -425,7 +437,8 @@ dealRawDamageToCharacter gentle charNum damage stun = do
   emitAreaEffect $ EffAlterCharacter charNum $ \c -> c { chrHealth = health' }
   emitAreaEffect $ EffIfCombat (setCharacterAnim charNum $ HurtAnim 12)
                                (setPartyAnim $ HurtAnim 12)
-  addNumberDoodadAtPosition damage pos
+  unless (gentle && damage == 0) $ do
+    addNumberDoodadAtPosition damage pos
   -- If we're in combat, the character can die:
   whenCombat $ when (health' <= 0) $ do
     alterCharacterMana charNum (const 0)
@@ -441,11 +454,12 @@ dealRawDamageToCharacter gentle charNum damage stun = do
     -- If all characters are now dead, it's game over:
     alive <- areaGet (Fold.any chrIsConscious . partyCharacters . arsParty)
     unless alive $ emitAreaEffect EffGameOver
+  return damage
 
 -- | Inflict damage and stun on a monster, ignoring armor and resistances.
 -- Stun is measured in action points.  The monster must exist.
 dealRawDamageToMonster :: (FromAreaEffect f) => Bool -> Grid.Key Monster
-                       -> Int -> Double -> Script f ()
+                       -> Int -> Double -> Script f Int
 dealRawDamageToMonster gentle key damage stun = do
   entry <- demandMonsterEntry key
   let monst = Grid.geValue entry
@@ -464,7 +478,8 @@ dealRawDamageToMonster gentle key damage stun = do
                                 monstAnim = HurtAnim 12, monstHealth = health',
                                 monstMoments = moments' }
   emitAreaEffect $ EffReplaceMonster key mbMonst'
-  addNumberDoodadAtPoint damage $ rectCenter $ prectRect $ Grid.geRect entry
+  unless (gentle && damage == 0) $ do
+    addNumberDoodadAtPoint damage $ rectCenter $ prectRect $ Grid.geRect entry
   -- If the monster is now dead, add a death doodad, set the monster's
   -- "dead" var (if any) to True, and grant experience if it's an enemy.
   when (isNothing mbMonst') $ do
@@ -476,6 +491,7 @@ dealRawDamageToMonster gentle key damage stun = do
     maybeM (monstDeadVar monst) (emitAreaEffect . flip EffSetVar True)
     unless (monstIsAlly monst) $ do
       grantExperience $ mtExperienceValue $ monstType monst
+  return damage
 
 adrenalineForDamage :: Int -> Int -> Int
 adrenalineForDamage damage maxHealth =
@@ -876,7 +892,8 @@ inflictAllPeriodicDamage = do
         subtract damage
       return $ Just (HitMonster (Grid.geKey monstEntry), RawDamage,
                      fromIntegral damage)
-  dealDamage' True (fieldDamages ++ charPoisonDamages ++ monstPoisonDamages)
+  dealDamageGeneral True (fieldDamages ++ charPoisonDamages ++
+                          monstPoisonDamages) >> return ()
 
 -------------------------------------------------------------------------------
 -- Targeting:
