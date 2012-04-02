@@ -21,6 +21,10 @@ module Fallback.Scenario.Monsters
   (getMonsterType)
 where
 
+import Control.Applicative (liftA2)
+import Data.List (foldl')
+
+import Fallback.Data.TotalMap (tmSet)
 import Fallback.State.Creature
 import Fallback.State.Simple
 import Fallback.State.Tags (MonsterSpellTag(..), MonsterTag(..))
@@ -28,6 +32,64 @@ import Fallback.State.Tags (MonsterSpellTag(..), MonsterTag(..))
 -------------------------------------------------------------------------------
 
 getMonsterType :: MonsterTag -> MonsterType
+getMonsterType Revenant = baseMonsterType
+  { mtAttacks = [MonsterAttack
+      { maAppearance = BladeAttack,
+        maCriticalChance = 0.05,
+        maDamageCount = 10,
+        maDamageRange = (1, 10),
+        maElement = PhysicalAttack,
+        maEffects = [],
+        maRange = Melee }],
+    mtExperienceValue = 100,
+    mtImageRow = 0,
+    mtIsUndead = True,
+    mtMaxHealth = 200,
+    mtName = "Revenant",
+    mtResistances = (ResistStun =% 30),
+    mtSize = SizeSmall,
+    mtSpeed = 1.5,
+    mtWalksFast = True }
+getMonsterType Revenantor = baseMonsterType
+  { mtAttacks = map attack [EnergyAttack, FireAttack, IceAttack, AcidAttack],
+    mtExperienceValue = 100,
+    mtImageRow = 1,
+    mtIsUndead = True,
+    mtMaxHealth = 150,
+    mtName = "Revenantor",
+    mtResistances = resistances [ResistMental =% 40, ResistStun =% 15],
+    mtSize = SizeSmall,
+    mtSpeed = 1.5,
+    -- TODO spells
+    mtWalksFast = True }
+  where
+    attack element = MonsterAttack
+      { maAppearance = WandAttack,
+        maCriticalChance = 0.1,
+        maDamageCount = 10,
+        maDamageRange = (1, 10),
+        maElement = element,
+        maEffects = [],
+        maRange = Ranged 3 }
+getMonsterType MasterRevenant = baseMonsterType
+  { mtAttacks = [MonsterAttack
+      { maAppearance = ClawAttack,
+        maCriticalChance = 0.5,
+        maDamageCount = 20,
+        maDamageRange = (1, 20),
+        maElement = PhysicalAttack,
+        maEffects = [],
+        maRange = Melee }],
+    mtExperienceValue = 100,
+    mtImageRow = 0,
+    mtIsUndead = True,
+    mtMaxHealth = 5000,
+    mtName = "Od",
+    mtResistances = resistances [ResistMental =% 100, ResistStun =% 50],
+    mtSize = SizeTall,
+    mtSpeed = 2.0,
+    -- TODO spells
+    mtWalksFast = True }
 getMonsterType Wolf = baseMonsterType
   { mtAttacks = [MonsterAttack
       { maAppearance = ClawAttack,
@@ -151,5 +213,11 @@ townsperson = baseMonsterType
     mtImageRow = 10,
     mtMaxHealth = 40,
     mtName = "Townsperson" }
+
+(=%) :: Resistance -> Double -> Resistances
+(=%) resist n = tmSet resist ((100 - n) / 100) nullResistances
+
+resistances :: [Resistances] -> Resistances
+resistances = foldl' (liftA2 (*)) nullResistances
 
 -------------------------------------------------------------------------------
