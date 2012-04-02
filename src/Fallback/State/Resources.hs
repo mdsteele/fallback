@@ -76,22 +76,22 @@ data Resources = Resources
 
 newResources :: IO Resources
 newResources = do
-  abilityIcons <- runDraw $ loadSheet "abilities.png" (10, 10)
-  charSheet <- runDraw $ loadSheet "characters.png" (24, 4)
-  cursors <- runDraw $ loadVStrip "gui/cursors.png" 20
-  itemIcons <- runDraw $ loadSheet "items.png" (8, 8)
-  sheetEquipButtons <- runDraw $ loadSheet "gui/equip-buttons.png" (4, 3)
+  abilityIcons <- loadSheet "abilities.png" (10, 10)
+  charSheet <- loadSheet "characters.png" (24, 4)
+  cursors <- loadVStrip "gui/cursors.png" 20
+  itemIcons <- loadSheet "items.png" (8, 8)
+  sheetEquipButtons <- loadSheet "gui/equip-buttons.png" (4, 3)
   fonts <- makeTotalMapA (uncurry loadFont . fontSpec)
-  monsterImages <- runDraw $ makeTotalMapA loadMonsterImages
-  paintDigits <- runDraw $ newDigitPaint
-  projStrip <- runDraw $ loadVStrip "doodads/projectiles.png" 5
-  spritesSheet <- runDraw $ loadSheet "doodads/sprites.png" (2, 8)
+  monsterImages <- makeTotalMapA loadMonsterImages
+  paintDigits <- newDigitPaint
+  projStrip <- loadVStrip "doodads/projectiles.png" 5
+  spritesSheet <- loadSheet "doodads/sprites.png" (2, 8)
   sounds <- makeTotalMapA (loadSound . soundPath)
   statusDecorations <- loadStatusDecorations
-  statusIcons <- runDraw $ loadVStrip "gui/status-icons.png" 16
-  strips <- makeTotalMapA (runDraw . uncurry loadVStrip . stripSpec)
-  terrainSheet <- runDraw $ loadSheet "terrain.png" (50, 12)
-  terrainOverlaySheet <- runDraw $ loadSheet "terrain-overlays.png" (6, 8)
+  statusIcons <- loadVStrip "gui/status-icons.png" 16
+  strips <- makeTotalMapA (uncurry loadVStrip . stripSpec)
+  terrainSheet <- loadSheet "terrain.png" (50, 12)
+  terrainOverlaySheet <- loadSheet "terrain-overlays.png" (6, 8)
   tileset <- loadTileset
   return Resources
     { rsrcAbilityIcons = abilityIcons,
@@ -115,7 +115,7 @@ newResources = do
       rsrcTerrainOverlaySheet = terrainOverlaySheet,
       rsrcTileset = tileset }
 
-loadMonsterImages :: CreatureSize -> Draw () (Array Int CreatureImages)
+loadMonsterImages :: CreatureSize -> IO (Array Int CreatureImages)
 loadMonsterImages size =
   case size of
     SizeSmall -> load "monsters/small.png" 20
@@ -198,15 +198,19 @@ spriteCoords MineCartFullVertSprite = (0, 3)
 rsrcSprite :: Resources -> SpriteTag -> Sprite
 rsrcSprite rsrc tag = tmGet tag $ rsrcSprites rsrc
 
-data StripTag = SrpFireAura | SrpIceAura
+data StripTag = SrpBarrierAura | SrpFireAura | SrpGasAura | SrpIceAura
+              | SrpSmokeAura
               | AcidBoom | DarkBoom | EnergyBoom | FireBoom | HealBoom
               | IceBoom | LightBoom | SunBoom
               | SlashLeft | SlashRight
   deriving (Bounded, Eq, Ix, Ord)
 
 stripSpec :: StripTag -> (String, Int)
+stripSpec SrpBarrierAura = ("doodads/aura-barrier.png", 4)
 stripSpec SrpFireAura = ("doodads/aura-fire.png", 4)
+stripSpec SrpGasAura = ("doodads/aura-gas.png", 4)
 stripSpec SrpIceAura = ("doodads/aura-ice.png", 4)
+stripSpec SrpSmokeAura = ("doodads/aura-smoke.png", 4)
 stripSpec AcidBoom = ("doodads/boom-acid.png", 8)
 stripSpec DarkBoom = ("doodads/boom-dark.png", 8)
 stripSpec EnergyBoom = ("doodads/boom-energy.png", 8)
@@ -253,26 +257,27 @@ rsrcFont rsrc tag = tmGet tag $ rsrcFonts rsrc
 -- Sounds:
 
 data SoundTag = SndArrow
-              | SndBite | SndBlessing | SndBreath
+              | SndBarrier | SndBite | SndBlessing | SndBreath
               | SndBoomBig | SndBoomSmall
               | SndChemicalDamage | SndClaw
               | SndCombatEnd | SndCombatStart
               | SndDie1 | SndDie2
               | SndDoorOpen | SndDoorShut
-              | SndFireDamage
+              | SndFireDamage | SndFreeze
               | SndHeal
               | SndHit1 | SndHit2 | SndHit3 | SndHit4
               | SndHurtFemale | SndHurtMale
               | SndIllusion
-              | SndLevelUp | SndLever
+              | SndLevelUp | SndLever | SndLightning | SndLuminaire
               | SndMineCartStop | SndMineCartTurn
               | SndMiss1 | SndMiss2
-              | SndShielding | SndSummon
+              | SndShielding | SndSummon | SndSunbeam
               | SndThrow
   deriving (Bounded, Eq, Ix, Ord)
 
 soundPath :: SoundTag -> String
 soundPath SndArrow = "arrow-shoot-12.wav"
+soundPath SndBarrier = "barrier-cfxr.wav"
 soundPath SndBite = "bite-87.wav"
 soundPath SndBlessing = "blessing-4.wav"
 soundPath SndBreath = "breath-44.wav"
@@ -287,6 +292,7 @@ soundPath SndDie2 = "die2-32.wav"
 soundPath SndDoorOpen = "door-open-58.wav"
 soundPath SndDoorShut = "door-shut-59.wav"
 soundPath SndFireDamage = "fire-damage-73.wav"
+soundPath SndFreeze = "freeze-75.wav"
 soundPath SndHeal = "heal-68.wav"
 soundPath SndHit1 = "hit1-70.wav"
 soundPath SndHit2 = "hit2-72.wav"
@@ -297,12 +303,15 @@ soundPath SndHurtMale = "hurt-male-29.wav"
 soundPath SndIllusion = "illusion-52.wav"
 soundPath SndLevelUp = "level-up-16.wav"
 soundPath SndLever = "lever-94.wav"
+soundPath SndLightning = "lightning-43.wav"
+soundPath SndLuminaire = "luminaire-53.wav"
 soundPath SndMineCartStop = "minecart-stop-cfxr.wav"
 soundPath SndMineCartTurn = "minecart-turn-cfxr.wav"
 soundPath SndMiss1 = "miss1-2.wav"
 soundPath SndMiss2 = "miss2-19.wav"
 soundPath SndShielding = "shielding-51.wav"
 soundPath SndSummon = "summon-61.wav"
+soundPath SndSunbeam = "sunbeam-25.wav"
 soundPath SndThrow = "throw-14.wav"
 
 rsrcSound :: Resources -> SoundTag -> Sound

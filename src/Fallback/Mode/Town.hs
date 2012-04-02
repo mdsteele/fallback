@@ -25,25 +25,25 @@ where
 
 import Control.Applicative ((<$), (<$>))
 import Control.Monad (forM_, guard, when)
-import Data.List (delete, intercalate, partition)
+import Data.List (delete, partition)
 import Data.Maybe (fromMaybe, isNothing, isJust)
 import Data.IORef
 import qualified Data.Set as Set
 
 import Fallback.Constants
   (baseFramesPerActionPoint, combatArenaCols, combatArenaRows,
-   momentsPerActionPoint, screenRect)
-import Fallback.Control.Error (runEO, runIOEO)
+   momentsPerActionPoint)
 import Fallback.Control.Script
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
   (Point(Point), Position, half, makeRect, plusDir, pSqDist, pSub)
 import qualified Fallback.Data.SparseMap as SM
 import Fallback.Data.TotalMap (tmGet, unfoldTotalMap)
-import Fallback.Draw (paintScreen, runDraw)
+import Fallback.Draw (handleScreen, paintScreen)
 import Fallback.Event
 import Fallback.Mode.Base
 import Fallback.Mode.Dialog (newTextEntryDialogMode)
+import Fallback.Mode.Error (popupIfErrors)
 import Fallback.Mode.LoadGame (newLoadGameMode)
 import Fallback.Mode.MultiChoice (newMultiChoiceMode)
 import Fallback.Mode.Narrate (newNarrateMode)
@@ -52,7 +52,7 @@ import Fallback.Scenario.Areas (enterPartyIntoArea)
 import Fallback.Scenario.MonsterAI (monsterTownStep)
 import Fallback.Scenario.Potions (runPotionAction)
 import Fallback.Scenario.Script
-  (addToCharacterAdrenaline, alsoWith, concurrentAny, grantExperience,
+  (alsoWith, alterAdrenaline, concurrentAny, grantExperience,
    inflictAllPeriodicDamage, partyWalkTo, setMessage, teleport)
 import Fallback.Sound (playSound)
 import Fallback.State.Action
@@ -79,7 +79,7 @@ import Fallback.View.Upgrade (UpgradeAction(..))
 
 newTownMode :: Resources -> Modes -> TownState -> IO Mode
 newTownMode resources modes initState = do
-  view <- runDraw $ newTownView resources
+  view <- newTownView resources
   stateRef <- newIORef initState
   let
 
@@ -92,14 +92,14 @@ newTownMode resources modes initState = do
         (ts', mbInt) <- readIORef stateRef >>= doTick
         mbInt <$ writeIORef stateRef ts'
       ts <- readIORef stateRef
-      action <- runDraw $ viewHandler view ts screenRect event
+      action <- handleScreen $ viewHandler view ts event
       when (event == EvTick) $ paintScreen (viewPaint view ts)
       case mbInterrupt of
         Just (DoExit area) -> do
           let party = arsParty ts
           let restore char = char { chrAdrenaline = 0,
                                     chrHealth = chrMaxHealth party char,
-                                    chrMana = chrMaxMana party char }
+                                    chrMojo = chrMaxMojo party char }
           let party' = party { partyCharacters =
                                  restore <$> partyCharacters party }
           ChangeMode <$> newRegionMode' modes RegionState
@@ -121,14 +121,11 @@ newTownMode resources modes initState = do
             return mode
         Just DoStartCombat -> doStartCombat ts
         Just (DoTeleport tag pos) -> do
-          eo <- runIOEO $ enterPartyIntoArea resources (arsParty ts) tag pos
-          case runEO eo of
-            Left errors -> do
-              ChangeMode <$> newNarrateMode resources view ts
-                               (intercalate "\n\n" errors) (return mode)
-            Right ts' -> do
-              writeIORef stateRef ts'
-              handleAction action
+          popupIfErrors resources view ts (return mode)
+                        (enterPartyIntoArea resources (arsParty ts) tag pos) $
+                        \ts' -> do
+            writeIORef stateRef ts'
+            handleAction action
         Just (DoWait script) -> do
           writeIORef stateRef $
             (tickTownAnimations ts) { tsPhase = ScriptPhase script }
@@ -175,37 +172,6 @@ newTownMode resources modes initState = do
           case tsPhase ts of
             WalkingPhase -> tryToManuallyStartCombat ts
             _ -> ignore
---         Just (TownSidebar (UseAbility abilNum)) -> do
---           let party = tsParty ts
---           let charNum = tsActiveCharacter ts
---           let char = partyGetCharacter party charNum
---           (SameMode <$) $ fromMaybe (return ()) $ do
---             guard $ case tsPhase ts of
---                       { ChooseAbilityPhase -> True; _ -> False }
---             level <- tmGet abilNum (chrAbilities char)
---             let ability = getAbility (chrClass char) abilNum level
---             case abKind ability of
---               ActiveAbility cost effect -> do
---                 guard (partyCanAffordCastingCost charNum cost party)
---                 case effect of
---                   GeneralAbility target sfn -> Just $ writeIORef stateRef $
---                     case target of
---                       AllyTarget r -> setTargeting (TargetingAlly r)
---                       AreaTarget r f -> setTargeting (TargetingArea r f)
---                       AutoTarget -> ts { tsPhase = ScriptPhase $ sfn' () }
---                       MultiTarget r n -> setTargeting (TargetingMulti r n [])
---                       SingleTarget r -> setTargeting (TargetingSingle r)
---                     where
---                       sfn' = mapEffect EffTownArea . sfn charNum 1
---                       setTargeting targeting =
---                         ts { tsPhase = TargetingPhase $
---                           TownTargeting cost sfn' targeting }
---                   _ -> Nothing
---               PassiveAbility -> Nothing
---         Just (TownSidebar (UseCombatFeat _)) -> do
---           -- TODO: We should probably allow meta-abilities in town mode.
---           ignore
-
 --         Just (TownInteract entry) -> do
 --           case tsPhase ts of
 --             WalkingPhase -> do
@@ -228,8 +194,8 @@ newTownMode resources modes initState = do
                   let charNum = tsActiveCharacter ts
                   let char = partyGetCharacter party charNum
                   fromMaybe ignore $ do
-                    level <- tmGet abilNum (chrAbilities char)
-                    case getAbility (chrClass char) abilNum level of
+                    abilRank <- tmGet abilNum (chrAbilities char)
+                    case getAbility (chrClass char) abilNum abilRank of
                       ActiveAbility cost effect -> do
                         guard (partyCanAffordCastingCost charNum cost party)
                         case effect of
@@ -314,7 +280,7 @@ newTownMode resources modes initState = do
               fields' <- decayFields baseFramesPerActionPoint (acsFields acs)
               let script = do
                     forM_ [minBound .. maxBound] $ \charNum -> do
-                      addToCharacterAdrenaline (negate 1) charNum
+                      alterAdrenaline charNum (subtract 1)
                     startCombat <-
                       alsoWith (flip const) (partyWalkTo pos') $
                       concurrentAny (Grid.entries $ acsMonsters acs) $
@@ -343,9 +309,11 @@ newTownMode resources modes initState = do
                case targeting of
                  TargetingAlly rng ->
                    if cannotHit rng then ignore else execute (sfn $ Left pos)
-                 TargetingArea rng areaFn ->
-                   if cannotHit rng then ignore else
-                     execute $ sfn (pos, areaFn ts originPos pos)
+                 TargetingArea rng areaFn -> do
+                   if cannotHit rng then ignore else do
+                   let targets = areaFn ts originPos pos
+                   if null targets then ignore else do
+                   execute $ sfn (pos, targets)
                  TargetingMulti rng n ps ->
                    if pos `elem` ps then switch (delete pos ps) else
                      if cannotHit rng then ignore else
@@ -449,7 +417,7 @@ newTownMode resources modes initState = do
     ignore :: IO NextMode
     ignore = return SameMode
 
-  focusBlurMode (readIORef stateRef) view mode
+  return mode
 
 -------------------------------------------------------------------------------
 

@@ -38,7 +38,7 @@ import Text.Read
 import Fallback.Control.Error (IOEO, onlyIO)
 import Fallback.Data.Clock (initClock)
 import Fallback.Data.Point (Position)
-import Fallback.Draw (Sprite, loadSprite, runDraw)
+import Fallback.Draw (Sprite, loadSprite)
 import Fallback.Scenario.Triggers
   (getAreaDevice, getAreaTriggers, scenarioTriggers)
 import Fallback.State.Area
@@ -103,8 +103,8 @@ loadSavedGameSummaries = do
     mbInfo <- loadFromFile reads (combine path "summary")
     case mbInfo of
       Just (name, loc, time) -> do
-        --screenshot <- runDraw $ loadSprite (combine path "screenshot.png")
-        screenshot <- runDraw $ loadSprite "/Users/mdsteele/Projects/fallback/data/images/characters.png" -- FIXME
+        --screenshot <- loadSprite (combine path "screenshot.png")
+        screenshot <- loadSprite "/Users/mdsteele/Projects/fallback/data/images/characters.png" -- FIXME
         return $ Just SavedGameSummary
           { sgsDirPath = path,
             sgsLocation = loc,

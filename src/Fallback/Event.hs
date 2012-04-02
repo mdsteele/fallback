@@ -19,7 +19,8 @@
 
 module Fallback.Event
   (Event(..), Key(..), KeyMod(..),
-   fromSDLKey, toSDLKey, getKeyState, getAbsoluteMousePosition, letterKeys)
+   fromSDLKey, toSDLKey, letterKeys,
+   getKeyStateIO, getMouseButtonStateIO, getAbsoluteMousePosition)
 where
 
 import qualified Graphics.UI.SDL as SDL
@@ -38,8 +39,6 @@ data Event = EvTick
            | EvMouseUp !IPoint              -- ^ location
            | EvScrollDownwards !IPoint      -- ^ location
            | EvScrollUpwards !IPoint        -- ^ location
-           | EvFocus !IPoint                -- ^ mouse location
-           | EvBlur
   deriving (Eq, Show)
 
 data KeyMod = KeyModCmd | KeyModShift
@@ -152,20 +151,25 @@ fromSDLKey SDL.SDLK_RIGHT = KeyRightArrow
 fromSDLKey SDL.SDLK_LEFT = KeyLeftArrow
 fromSDLKey _ = KeyUnknown
 
--------------------------------------------------------------------------------
-
-getKeyState :: Key -> IO Bool
-getKeyState k = SDLx.getKeyState (toSDLKey k)
-
-getAbsoluteMousePosition :: IO IPoint
-getAbsoluteMousePosition = do
-  (x, y, _) <- SDL.getMouseState
-  return (Point x y)
-
 -- | A list of the letter keys, in order from A to Z.
 letterKeys :: [Key]
 letterKeys = [KeyA, KeyB, KeyC, KeyD, KeyE, KeyF, KeyG, KeyH, KeyI, KeyJ,
               KeyK, KeyL, KeyM, KeyN, KeyO, KeyP, KeyQ, KeyR, KeyS, KeyT,
               KeyU, KeyV, KeyW, KeyX, KeyY, KeyZ]
+
+-------------------------------------------------------------------------------
+
+getKeyStateIO :: Key -> IO Bool
+getKeyStateIO k = SDLx.getKeyState (toSDLKey k)
+
+getMouseButtonStateIO :: IO Bool
+getMouseButtonStateIO = do
+  (_, _, buttons) <- SDL.getMouseState
+  return (SDL.ButtonLeft `elem` buttons)
+
+getAbsoluteMousePosition :: IO IPoint
+getAbsoluteMousePosition = do
+  (x, y, _) <- SDL.getMouseState
+  return (Point x y)
 
 -------------------------------------------------------------------------------

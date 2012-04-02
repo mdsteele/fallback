@@ -23,18 +23,16 @@ import Control.Applicative ((<$>))
 import Control.Monad (when)
 import qualified Data.Foldable as Fold (sum)
 import qualified Data.IntMap as IntMap (fromList)
-import Data.List (intercalate)
 import qualified Data.Map as Map (empty)
 import qualified Data.Set as Set (empty)
 
-import Fallback.Constants (screenRect)
-import Fallback.Control.Error (IOEO, onlyIO, runEO, runIOEO)
+import Fallback.Control.Error (IOEO, onlyIO)
 import Fallback.Data.TotalMap (makeTotalMap)
-import Fallback.Draw (paintScreen, runDraw)
+import Fallback.Draw (handleScreen, paintScreen)
 import Fallback.Event
 import Fallback.Mode.Base
 import Fallback.Mode.Dialog (newHorizontalDialogMode, newQuitWithoutSavingMode)
-import Fallback.Mode.Narrate (newNarrateMode)
+import Fallback.Mode.Error (popupIfErrors)
 import Fallback.Scenario.Areas
   (enterPartyIntoArea, startingArea, startingPosition)
 import Fallback.Scenario.Triggers (initialProgress)
@@ -51,23 +49,20 @@ import Fallback.View.NewGame
 
 newNewGameMode :: Resources -> Modes -> Mode -> View a b -> a -> IO Mode
 newNewGameMode resources modes prevMode bgView bgInput = do
-  view <- runDraw $ newNewGameView resources bgView bgInput
-  let mode EvQuit =
+  view <- newNewGameView resources bgView bgInput
+  let mode EvQuit = do
         ChangeMode <$> newQuitWithoutSavingMode resources mode view ()
       mode event = do
-        action <- runDraw $ viewHandler view () screenRect event
+        action <- handleScreen $ viewHandler view () event
         when (event == EvTick) $ paintScreen (viewPaint view ())
         case fromAction action of
           Nothing -> return SameMode
           Just CancelNewGame ->
             ChangeMode <$> newDiscardPartyMode resources prevMode mode view ()
           Just (StartNewGame spec) -> do
-            eoTownState <- runIOEO (newGameTownState resources spec)
-            case runEO eoTownState of
-              Left errors ->
-                ChangeMode <$> newNarrateMode resources view ()
-                                 (intercalate "\n\n" errors) (return mode)
-              Right townState -> ChangeMode <$> newTownMode' modes townState
+            popupIfErrors resources view () (return mode)
+                          (newGameTownState resources spec) $ \ts -> do
+              ChangeMode <$> newTownMode' modes ts
   return mode
 
 newDiscardPartyMode :: Resources -> Mode -> Mode -> View a b -> a -> IO Mode
@@ -88,7 +83,7 @@ newGameTownState resources spec = do
 
 initCharacter :: NewCharacterSpec -> Character
 initCharacter spec = Character
-  { chrAbilities = makeTotalMap initLevel,
+  { chrAbilities = makeTotalMap initRank,
     chrAdrenaline = 0,
     chrAppearance = ncsAppearance spec,
     chrBaseStats = makeTotalMap startingStat,
@@ -96,7 +91,7 @@ initCharacter spec = Character
     chrEquipment = Equipment { eqpWeapon = Just weapon, eqpArmor = Nothing,
                                eqpAccessory = Nothing },
     chrHealth = 0,
-    chrMana = 0,
+    chrMojo = 0,
     chrName = ncsName spec,
     chrSkillPoints = 0,
     chrStatPoints = 0,
@@ -111,8 +106,8 @@ initCharacter spec = Character
         AlchemistClass -> Quarterstaff
         ClericClass -> Dagger
         MagusClass -> Dagger
-    initLevel Ability0 = Just Level1
-    initLevel _ = Nothing
+    initRank Ability0 = Just Rank1
+    initRank _ = Nothing
     startingStat stat =
       case (cls, stat) of
         (WarriorClass, Strength) -> 27
@@ -155,7 +150,7 @@ newParty spec = do
           partyLevel = 1,
           partyProgress = initialProgress }
   let healChar char = char { chrHealth = chrMaxHealth party char,
-                             chrMana = chrMaxMana party char }
+                             chrMojo = chrMaxMojo party char }
   return party { partyCharacters = fmap healChar (partyCharacters party) }
   where
     ingredientStartQuantity AquaVitae = 20

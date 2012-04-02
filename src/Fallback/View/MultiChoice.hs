@@ -33,8 +33,8 @@ import Fallback.View.Widget
 
 -------------------------------------------------------------------------------
 
-newMultiChoiceView :: Resources -> View a b -> a -> String -> [(String, c)]
-                   -> Maybe c -> Draw z (View () c)
+newMultiChoiceView :: (MonadDraw m) => Resources -> View a b -> a -> String
+                   -> [(String, c)] -> Maybe c -> m (View () c)
 newMultiChoiceView resources bgView bgInput text choices cancelValue = do
   let margin = 20
       textW = 512

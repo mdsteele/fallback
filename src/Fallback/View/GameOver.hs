@@ -38,7 +38,7 @@ data GameOverAction = LoadASavedGame | ReturnToMainMenu | QuitGame
 
 -------------------------------------------------------------------------------
 
-newGameOverView :: Resources -> Draw z (View Clock GameOverAction)
+newGameOverView :: (MonadDraw m) => Resources -> m (View Clock GameOverAction)
 newGameOverView resources = do
   compoundViewM [
     newBackgroundView resources,
@@ -52,7 +52,7 @@ newGameOverView resources = do
 
 -------------------------------------------------------------------------------
 
-newBackgroundView :: Resources -> Draw z (View Clock b)
+newBackgroundView :: (MonadDraw m) => Resources -> m (View Clock b)
 newBackgroundView resources = do
   let font = rsrcFont resources FontChancery72
   let paint clock = do

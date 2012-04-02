@@ -60,8 +60,8 @@ ivsGetCharacter ivs = partyGetCharacter (ivsParty ivs) (ivsActiveCharacter ivs)
 
 -------------------------------------------------------------------------------
 
-newInventoryView :: Resources -> HoverSink Cursor
-                 -> Draw z (View InventoryState InventoryAction)
+newInventoryView :: (MonadDraw m) => Resources -> HoverSink Cursor
+                 -> m (View InventoryState InventoryAction)
 newInventoryView resources cursorSink = do
   itemRef <- newHoverRef Nothing
   let itemSink = hoverSink itemRef
@@ -73,8 +73,8 @@ newInventoryView resources cursorSink = do
      newCharStatsView resources cursorSink itemSink),
     (newItemInfoView resources itemRef)]
 
-newItemInfoView :: Resources -> HoverRef (Maybe ItemTag)
-                -> Draw z (View a b)
+newItemInfoView :: (MonadDraw m) => Resources -> HoverRef (Maybe ItemTag)
+                -> m (View a b)
 newItemInfoView resources itemRef = do
   cache <- newDrawRef Nothing
   let inputFn _ = do
@@ -98,9 +98,9 @@ newItemInfoView resources itemRef = do
 
 -------------------------------------------------------------------------------
 
-newPartyInventoryView :: Resources -> HoverSink Cursor
+newPartyInventoryView :: (MonadDraw m) => Resources -> HoverSink Cursor
                       -> HoverSink (Maybe ItemTag)
-                      -> Draw z (View Party InventoryAction)
+                      -> m (View Party InventoryAction)
 newPartyInventoryView resources cursorSink itemSink = do
   let { rows = 7; cols = 5 }
   topRef <- newDrawRef 0
@@ -142,8 +142,9 @@ newPartyInventoryView resources cursorSink itemSink = do
     (fmap compoundView $ mapM newInventorySlot $
      range ((0, 0), (rows - 1, cols - 1)))]
 
-newItemSlotWidget :: Resources -> HoverSink Cursor -> HoverSink (Maybe ItemTag)
-                  -> Draw z (View (Int, Maybe ItemTag) InventoryAction)
+newItemSlotWidget :: (MonadDraw m) => Resources -> HoverSink Cursor
+                  -> HoverSink (Maybe ItemTag)
+                  -> m (View (Int, Maybe ItemTag) InventoryAction)
 newItemSlotWidget resources _cursorSink itemSink = do
   let
     paint (_, mbTag) = do
@@ -155,10 +156,9 @@ newItemSlotWidget resources _cursorSink itemSink = do
         let sprite = rsrcItemIcon resources $ itemIconCoords tag
         blitLoc sprite $ LocCenter $ rectCenter rect
 
-    handler (idx, _) rect (EvMouseDown pt) = do
-      if not (rectContains rect pt) then return Ignore else
-        return $ Action $ ExchangeItem $ PartyItemSlot idx
-    handler _ _ _ = return Ignore
+    handler (idx, _) (EvMouseDown pt) = do
+      whenWithinCanvas pt $ return $ Action $ ExchangeItem $ PartyItemSlot idx
+    handler _ _ = return Ignore
 
   button <- do
     let
@@ -185,8 +185,9 @@ newItemSlotWidget resources _cursorSink itemSink = do
 
 -------------------------------------------------------------------------------
 
-newCharStatsView :: Resources -> HoverSink Cursor -> HoverSink (Maybe ItemTag)
-                 -> Draw z (View InventoryState InventoryAction)
+newCharStatsView :: (MonadDraw m) => Resources -> HoverSink Cursor
+                 -> HoverSink (Maybe ItemTag)
+                 -> m (View InventoryState InventoryAction)
 newCharStatsView resources cursorSink itemSink = do
   let headingFont = rsrcFont resources FontGeorgiaBold11
   let infoFont = rsrcFont resources FontGeorgia11
@@ -257,11 +258,11 @@ newCharStatsView resources cursorSink itemSink = do
        (makeEquip (Tint 0 96 0 192) eqpAccessory
                   AccessoryItemTag CharAccessorySlot 119)])]
 
-newEquipmentSlotWidget :: Resources -> HoverSink Cursor
+newEquipmentSlotWidget :: (MonadDraw m) => Resources -> HoverSink Cursor
                        -> HoverSink (Maybe ItemTag) -> Tint
                        -> (Equipment -> Maybe a) -> (a -> ItemTag)
                        -> (CharacterNumber -> ItemSlot)
-                       -> Draw z (View InventoryState InventoryAction)
+                       -> m (View InventoryState InventoryAction)
 newEquipmentSlotWidget resources _cursorSink itemSink tint fromEqp toItemTag
                        toSlot = do
   let
@@ -274,10 +275,10 @@ newEquipmentSlotWidget resources _cursorSink itemSink tint fromEqp toItemTag
         let sprite = rsrcItemIcon resources $ itemIconCoords $ toItemTag tag
         blitLoc sprite $ LocCenter $ rectCenter rect
 
-    handler ivs rect (EvMouseDown pt) = do
-      if not (rectContains rect pt) then return Ignore else
+    handler ivs (EvMouseDown pt) = do
+      whenWithinCanvas pt $ do
         return $ Action $ ExchangeItem $ toSlot $ ivsActiveCharacter ivs
-    handler _ _ _ = return Ignore
+    handler _ _ = return Ignore
 
     hoverFn = Just . fmap toItemTag . fromEqp . chrEquipment . ivsGetCharacter
 

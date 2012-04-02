@@ -30,12 +30,13 @@ import qualified Fallback.Data.SparseMap as SM
 import Fallback.Data.TotalMap (tmGet)
 import Fallback.Draw
 import Fallback.Event (Key(..))
-import Fallback.Scenario.Abilities (abilityIconCoords, abilityMinPartyLevel)
+import Fallback.Scenario.Abilities
+  (abilityDescription, abilityIconCoords, abilityMinPartyLevel)
 import Fallback.State.Party
 import Fallback.State.Resources
   (FontTag(..), Resources, rsrcAbilityIcon, rsrcFont, rsrcSheetEquipButtons)
 import Fallback.State.Simple
-import Fallback.State.Tags (classAbility)
+import Fallback.State.Tags (AbilityTag, abilityName, classAbility)
 import Fallback.View.Base
 import Fallback.View.Dialog (newDialogBackgroundView)
 import Fallback.View.Hover
@@ -71,8 +72,8 @@ upsSkillPointsSpent ups =
 
 -------------------------------------------------------------------------------
 
-newUpgradeView :: Resources -> HoverSink Cursor
-               -> Draw z (View UpgradeState UpgradeAction)
+newUpgradeView :: (MonadDraw m) => Resources -> HoverSink Cursor
+               -> m (View UpgradeState UpgradeAction)
 newUpgradeView resources _cursorSink = do
   let headingFont = rsrcFont resources FontGeorgiaBold11
   let infoFont = rsrcFont resources FontGeorgia11
@@ -90,7 +91,7 @@ newUpgradeView resources _cursorSink = do
   let makeAbilityWidget abilNum idx =
         subView_ (Rect (20 + 48 * (idx `mod` 5))
                        (140 + 48 * (idx `div` 5)) 40 40) <$>
-        newAbilityWidget resources abilNum
+        newAbilityWidget resources upgradeSink abilNum
   let skillPointsFn ups =
         "Skill points to spend: " ++
         show (chrSkillPoints (upsGetCharacter ups) - upsSkillPointsSpent ups)
@@ -113,10 +114,12 @@ newUpgradeView resources _cursorSink = do
         newSimpleTextButton resources "Cancel" [KeyEscape] CancelUpgrades),
        (subView (\_ (w, h) -> Rect (w - 100) (h - 44) 80 24) <$>
         newSimpleTextButton resources "Done" [KeyReturn] CommitUpgrades)]),
-    (newStatInfoView resources upgradeRef)]
+    (newStatInfoView resources upgradeRef),
+    (newAbilityInfoView resources upgradeRef)]
 
-newStatWidget :: Resources -> HoverSink (Maybe (Either Stat AbilityNumber))
-              -> Stat -> Draw z (View UpgradeState UpgradeAction)
+newStatWidget :: (MonadDraw m) => Resources
+              -> HoverSink (Maybe (Either Stat AbilityNumber))
+              -> Stat -> m (View UpgradeState UpgradeAction)
 newStatWidget resources upgradeSink stat = do
   let infoFont = rsrcFont resources FontGeorgia11
   let str = case stat of
@@ -143,18 +146,19 @@ newStatWidget resources upgradeSink stat = do
     (newMaybeView plusFn =<< newPlusButton resources (IncreaseStat stat)
                                            (LocTopleft $ Point 120 0))]
 
-newAbilityWidget :: Resources -> AbilityNumber
-                 -> Draw z (View UpgradeState UpgradeAction)
-newAbilityWidget resources abilNum = do
+newAbilityWidget :: (MonadDraw m) => Resources
+                 -> HoverSink (Maybe (Either Stat AbilityNumber))
+                 -> AbilityNumber -> m (View UpgradeState UpgradeAction)
+newAbilityWidget resources upgradeSink abilNum = do
   let paintIcon ups = do
         let party = upsParty ups
         let char = partyGetCharacter party (upsActiveCharacter ups)
         let abilTag = classAbility (chrClass char) abilNum
-        let mbLevel = tmGet abilNum $ chrAbilities char
+        let mbRank = tmGet abilNum $ chrAbilities char
         let available =
-              mbLevel /= Just maxBound &&
+              mbRank /= Just maxBound &&
               partyLevel party >=
-              abilityMinPartyLevel abilTag (nextAbilityLevel mbLevel)
+              abilityMinPartyLevel abilTag (nextAbilityRank mbRank)
         let tint = if available then whiteTint else Tint 255 255 255 64
         let icon = rsrcAbilityIcon resources (abilityIconCoords abilTag)
         center <- rectCenter <$> canvasRect
@@ -165,25 +169,25 @@ newAbilityWidget resources abilNum = do
             char = partyGetCharacter party charNum
             abilTag = classAbility (chrClass char) abilNum
             spentOn n = SM.get (charNum, n) (upsSpentSkills ups)
-            curLevel = abilityLevelPlus (tmGet abilNum $ chrAbilities char)
+            curRank = abilityRankPlus (tmGet abilNum $ chrAbilities char)
                                         (spentOn abilNum)
-        in if curLevel /= Just maxBound &&
+        in if curRank /= Just maxBound &&
               partyLevel party >=
-              abilityMinPartyLevel abilTag (nextAbilityLevel curLevel) &&
+              abilityMinPartyLevel abilTag (nextAbilityRank curRank) &&
               chrSkillPoints char > sum (map spentOn [minBound .. maxBound])
            then Just () else Nothing
   let minusFn ups =
         if SM.get (upsActiveCharacter ups, abilNum) (upsSpentSkills ups) > 0
         then Just () else Nothing
-  compoundViewM [
+  hoverView upgradeSink (Just $ Right abilNum) <$> compoundViewM [
     (return $ inertView paintIcon),
     (newMaybeView minusFn =<< newMinusButton resources (DecreaseSkill abilNum)
                                              (LocBottomleft $ Point 0 40)),
     (newMaybeView plusFn =<< newPlusButton resources (IncreaseSkill abilNum)
                                            (LocBottomright $ Point 40 40))]
 
-newStatInfoView :: Resources -> HoverRef (Maybe (Either Stat AbilityNumber))
-                -> Draw z (View a b)
+newStatInfoView :: (MonadDraw m) => Resources
+                -> HoverRef (Maybe (Either Stat AbilityNumber)) -> m (View a b)
 newStatInfoView resources upgradeRef = do
   let inputFn _ = do
         mbUpgrade <- readHoverRef upgradeRef
@@ -194,68 +198,38 @@ newStatInfoView resources upgradeRef = do
   tooltip <- newTooltipView resources
   vmapM inputFn <$> newMaybeView id (subView rectFn tooltip)
 
--- newAbilityInfoView :: Resources -> HoverRef (Maybe (Either Stat AbilityNumber))
---                    -> Draw z (View UpgradeState b)
--- newAbilityInfoView resources upgradeRef = do
---   let inputFn ups = do
---         mbUpgrade <- readHoverRef upgradeRef
---         case mbUpgrade of
---           Just (Right abilNum) -> do
---             return $ Just $ ability
---           _ -> return Nothing
---         return Nothing -- FIXME
---   let rectFn _ (w, _) = Rect 50 0 (w - 100) 250
---   tooltip <- newTooltipView resources
---   vmapM inputFn <$> newMaybeView id (subView rectFn tooltip)
-
-{-
-newUpgradeInfoView :: Resources -> HoverRef (Maybe (Either Stat AbilityNumber))
-                   -> Draw z (View UpgradeState b)
-newUpgradeInfoView resources upgradeRef = do
+newAbilityInfoView :: (MonadDraw m) => Resources
+                   -> HoverRef (Maybe (Either Stat AbilityNumber))
+                   -> m (View UpgradeState b)
+newAbilityInfoView resources upgradeRef = do
   let inputFn ups = do
         mbUpgrade <- readHoverRef upgradeRef
-        return (((,) ups) <$> mbUpgrade)
-  let rectFn (_, eith) =
-        either (const $ Rect)
-               (const $ Rect) eith
-  let inputFn _ = do
-        mbUpgrade <- readHoverRef upgradeRef
         case mbUpgrade of
-          Nothing -> do
-            writeDrawRef cache Nothing
-            return Nothing
-          Just upgrade -> do
-            mbCached <- readDrawRef cache
-            desc <- do
-              case mbCached of
-                Just (tag, string) | tag == itemTag -> return string
-                _ -> do
-                  let string = itemFullDescription itemTag
-                  writeDrawRef cache $ Just (itemTag, string)
-                  return string
-            return (Just desc)
-  vmapM inputFn . subView_ (Rect 270 0 240 360) <$>
-    (newMaybeView id =<< newTooltipView resources)
--}
--- newCachedDrawFn :: (Eq a) => a -> (a -> b) -> Draw z (a -> Draw z b)
--- newCachedDrawFn initial fn = do
---   cache <- newDrawRef (initial, fn initial)
---   return $ \input -> do
---     (input', output') <- readDrawRef cache
---     if input' == input then return output' else do
---     let output = fn input
---     writeDrawRef cache $ Just (input, output)
---     return output
+          Just (Right abilNum) -> do
+            let charNum = upsActiveCharacter ups
+            let char = upsGetCharacter ups
+            let abilTag = classAbility (chrClass char) abilNum
+            let spentOn n = SM.get (charNum, n) (upsSpentSkills ups)
+            let curRank = abilityRankPlus (tmGet abilNum $ chrAbilities char)
+                                            (spentOn abilNum)
+            return $ Just $ abilityUpgradeDescription abilTag curRank $
+                     partyLevel $ upsParty ups
+          _ -> return Nothing
+  let rectFn _ (w, _) = Rect 50 0 (w - 100) 300
+  tooltip <- newTooltipView resources
+  vmapM inputFn <$> newMaybeView id (subView rectFn tooltip)
 
 -------------------------------------------------------------------------------
 
-newPlusButton :: Resources -> b -> LocSpec Int -> Draw z (View a b)
+newPlusButton :: (MonadDraw m) => Resources -> b -> LocSpec Int -> m (View a b)
 newPlusButton = newPlusMinusButton 0
 
-newMinusButton :: Resources -> b -> LocSpec Int -> Draw z (View a b)
+newMinusButton :: (MonadDraw m) => Resources -> b -> LocSpec Int
+               -> m (View a b)
 newMinusButton = newPlusMinusButton 1
 
-newPlusMinusButton :: Int -> Resources -> b -> LocSpec Int -> Draw z (View a b)
+newPlusMinusButton :: (MonadDraw m) => Int -> Resources -> b -> LocSpec Int
+                   -> m (View a b)
 newPlusMinusButton col resources value loc =
   subView_ (locRect loc (16, 16)) <$>
   newButton paintFn (const ReadyButton) [] value
@@ -268,5 +242,22 @@ newPlusMinusButton col resources value loc =
                   ButtonDisabled -> 3
       rect <- canvasRect
       blitStretch ((rsrcSheetEquipButtons resources) ! (row, col)) rect
+
+-------------------------------------------------------------------------------
+
+abilityUpgradeDescription :: AbilityTag -> Maybe AbilityRank -> Int -> String
+abilityUpgradeDescription  abilTag abilRank level =
+  "{b}" ++ abilityName abilTag ++ "{_}  (" ++ status ++ ")\n" ++
+  abilityDescription abilTag
+  where
+    status = if abilRank < Just maxBound && level < requiredLevel
+             then "rank " ++ show (abilityRankNumber nextRank) ++
+                  " requires level " ++ show requiredLevel
+             else case abilRank of
+                    Nothing -> "not yet learned"
+                    Just rank ->
+                      "currently at rank " ++ show (abilityRankNumber rank)
+    nextRank = nextAbilityRank abilRank
+    requiredLevel = abilityMinPartyLevel abilTag nextRank
 
 -------------------------------------------------------------------------------

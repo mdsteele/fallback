@@ -23,8 +23,7 @@ module Fallback.State.Town where
 
 import qualified Data.Set as Set
 
-import Fallback.Constants
-  (cameraCenterOffset, combatArenaCols, combatArenaRows, sightRangeSquared)
+import Fallback.Constants (cameraCenterOffset, sightRangeSquared)
 import Fallback.Control.Script (Script)
 import Fallback.Data.Point
 import qualified Fallback.Data.SparseMap as SM
@@ -51,8 +50,7 @@ data TownState = TownState
     tsTriggersReady :: [Trigger TownState TownEffect] }
 
 instance AreaState TownState where
-  arsArenaTopleft ts = tsPartyPosition ts `pSub`
-                       Point (half combatArenaCols) (half combatArenaRows)
+  arsBoundaryRect ts = makeRect pZero $ terrainSize $ arsTerrain ts
   arsCharacterPosition _ = tsPartyPosition
   arsCharacterAtPosition pos ts = if pos /= tsPartyPosition ts then Nothing
                                   else Just (tsActiveCharacter ts)

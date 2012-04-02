@@ -33,11 +33,11 @@ import qualified Data.Set as Set
 
 import Fallback.Constants
   (baseFramesPerActionPoint, baseMomentsPerFrame, combatCameraOffset,
-   maxActionPoints, momentsPerActionPoint, screenRect)
+   maxActionPoints, momentsPerActionPoint)
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Data.TotalMap (TotalMap, makeTotalMap, tmAlter, tmGet)
-import Fallback.Draw (paintScreen, runDraw)
+import Fallback.Draw (handleScreen, paintScreen)
 import Fallback.Event
 import Fallback.Mode.Base
 import Fallback.Mode.Dialog (newQuitWithoutSavingMode)
@@ -72,7 +72,7 @@ import Fallback.View.Sidebar (SidebarAction(..))
 
 newCombatMode :: Resources -> Modes -> CombatState -> IO Mode
 newCombatMode resources modes initState = do
-  view <- runDraw (newCombatView resources)
+  view <- newCombatView resources
   stateRef <- newIORef =<< updateCombatVisibility initState
   let
 
@@ -87,7 +87,7 @@ newCombatMode resources modes initState = do
         (cs', mbInt) <- readIORef stateRef >>= doTick
         mbInt <$ writeIORef stateRef cs'
       cs <- readIORef stateRef
-      action <- runDraw $ viewHandler view cs screenRect event
+      action <- handleScreen $ viewHandler view cs event
       when (event == EvTick) $ paintScreen (viewPaint view cs)
       case mbInterrupt of
         Just (DoActivateCharacter charNum) ->
@@ -271,9 +271,11 @@ newCombatMode resources modes initState = do
                case targeting of
                  TargetingAlly rng ->
                    if cannotHit rng then ignore else execute (sfn $ Left pos)
-                 TargetingArea rng areaFn ->
-                   if cannotHit rng then ignore else
-                     execute $ sfn (pos, areaFn cs originPos pos)
+                 TargetingArea rng areaFn -> do
+                   if cannotHit rng then ignore else do
+                   let targets = areaFn cs originPos pos
+                   if null targets then ignore else do
+                   execute $ sfn (pos, targets)
                  TargetingMulti rng n ps ->
                    if pos `elem` ps then switch (delete pos ps) else
                      if cannotHit rng then ignore else
@@ -351,8 +353,8 @@ newCombatMode resources modes initState = do
       let charNum = ccCharacterNumber cc
       let char = arsGetCharacter charNum cs
       fromMaybe ignore $ do
-        level <- tmGet abilNum (chrAbilities char)
-        case getAbility (chrClass char) abilNum level of
+        abilRank <- tmGet abilNum (chrAbilities char)
+        case getAbility (chrClass char) abilNum abilRank of
           ActiveAbility originalCost effect -> do
             let cost = modifyCost costMod originalCost
             guard $ partyCanAffordCastingCost charNum cost $ arsParty cs
@@ -455,7 +457,7 @@ newCombatMode resources modes initState = do
     ignore :: IO NextMode
     ignore = return SameMode
 
-  focusBlurMode (readIORef stateRef) view mode
+  return mode
 
 -------------------------------------------------------------------------------
 

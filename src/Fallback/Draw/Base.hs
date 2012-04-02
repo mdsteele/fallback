@@ -17,19 +17,22 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
-{-# LANGUAGE EmptyDataDecls, ForeignFunctionInterface #-}
+{-# LANGUAGE ForeignFunctionInterface, GeneralizedNewtypeDeriving #-}
 
 module Fallback.Draw.Base
   (-- * Setting up the screen
    initializeScreen,
    -- * The Draw monad
-   Draw, runDraw, paintDraw, debugDraw,
-   -- * Reference cells
-   DrawRef, newDrawRef, readDrawRef, writeDrawRef, modifyDrawRef,
+   Draw, MonadDraw(..), debugDraw,
+   -- * The Handler monad
+   Handler, MonadHandler(..), handleScreen,
+   canvasWidth, canvasHeight, canvasSize, canvasRect,
    -- * The Paint monad
    Paint, paintScreen,
-   Canvas, canvasWidth, canvasHeight, canvasSize, canvasRect,
-   withSubCanvas,
+   -- * Reference cells
+   DrawRef, newDrawRef, readDrawRef, writeDrawRef, modifyDrawRef,
+   -- * Keyboard/mouse input
+   getKeyState, getMouseButtonState, getRelativeMousePos, withInputsSuppressed,
    -- * Textures
    Texture, loadTexture,
    -- * Sprites
@@ -53,7 +56,7 @@ module Fallback.Draw.Base
    newMinimap, alterMinimap, blitMinimap, minimapScale)
 where
 
-import Control.Applicative ((<$>), (<*>), Applicative, pure)
+import Control.Applicative ((<$>), (<*), Applicative)
 import Control.Arrow ((&&&), (***))
 import Control.Monad ((<=<), forM_, when)
 import Data.Array ((!), Array, bounds, listArray, range)
@@ -74,6 +77,7 @@ import Fallback.Constants (screenHeight, screenRect, screenWidth)
 import Fallback.Data.Color (Color(Color), Tint(Tint), whiteTint)
 import Fallback.Data.Point
 import Fallback.Draw.Texture
+import Fallback.Event (Key, getKeyStateIO, getMouseButtonStateIO)
 import Fallback.Resource (getResourcePath)
 import Fallback.Utility (ceilDiv, flip3)
 
@@ -135,41 +139,9 @@ makeSubSprite rect texture =
               spriteTexRect = Rect (sx / tw) (sy / th) (sw / tw) (sh / th),
               spriteWidth = rectW rect, spriteHeight = rectH rect }
 
-{-
-
-data Sprite = Sprite
-  { spriteTexture :: !GL.TextureObject,
-    -- | Return the width of the 'Sprite', in pixels.
-    spriteWidth :: !Int,
-    -- | Return the height of the 'Sprite', in pixels.
-    spriteHeight :: !Int }
--- -}
-
-
 -- | Return the width and height of the 'Sprite', in pixels.
 spriteSize :: Sprite -> (Int, Int)
 spriteSize = spriteWidth &&& spriteHeight
-
--- subSprite :: Sprite -> IRect -> Draw z Sprite
--- subSprite sprite rect = newSprite (rectSize rect) $ do
---   blitTopleft sprite $ pNeg $ rectTopleft rect
--- subSprite sprite rect@(Rect x y w h) = Draw $ do
---   let { width = spriteWidth sprite; height = spriteHeight sprite }
---   when (x + w > width || y + h > height) $ do
---     fail ("subSprite: " ++ show rect ++ " outside of " ++ show (width, height))
---   allocaBytes (4 * width * height) $ \ptr -> do
---     GL.textureBinding GL.Texture2D $= Just (spriteTexture sprite)
---     delayFinalizers sprite $ do
---       GL.getTexImage (Left GL.Texture2D) 0
---                      (GL.PixelData GL.RGBA GL.UnsignedByte ptr)
---     forM_ [0 .. h - 1] $ \row -> do
---       moveBytes (ptr `plusPtr` (4 * w * row))
---                 (ptr `plusPtr` (4 * x + 4 * width * (y + row)))
---                 (4 * w)
---     makeSpriteFromIO w h $ do
---       GL.texImage2D Nothing GL.NoProxy 0 GL.RGBA'
---           (GL.TextureSize2D (fromIntegral w) (fromIntegral h))
---           0 (GL.PixelData GL.RGBA GL.UnsignedByte ptr)
 
 type Strip = Array Int Sprite
 
@@ -181,116 +153,158 @@ type Sheet = Array (Int, Int) Sprite
 -------------------------------------------------------------------------------
 -- The Draw monad:
 
-newtype Draw a b = Draw { fromDraw :: IO b }
+newtype Draw a = Draw { fromDraw :: IO a }
+  deriving (Applicative, Functor, Monad)
 
-instance Applicative (Draw a) where
-  pure = Draw . pure
-  (Draw f) <*> (Draw g) = Draw (f <*> g)
+class (Applicative m, Monad m) => MonadDraw m where
+  runDraw :: Draw a -> m a
 
-instance Functor (Draw a) where
-  fmap fn m = Draw (fmap fn (fromDraw m))
+instance MonadDraw Draw where runDraw = id
+instance MonadDraw IO where runDraw = fromDraw
 
-instance Monad (Draw a) where
-  return = Draw . return
-  draw >>= fn = Draw $ fromDraw draw >>= (fromDraw . fn)
-  fail = Draw . fail
+debugDraw :: (MonadDraw m) => String -> m ()
+debugDraw = drawIO . putStrLn
 
-runDraw :: Draw () a -> IO a
-runDraw = fromDraw
+-------------------------------------------------------------------------------
+-- The Handler monad:
 
-paintDraw :: Draw () a -> Paint a
-paintDraw = Draw . fromDraw
+newtype Handler a = Handler { fromHandler :: IO a }
+  deriving (Applicative, Functor, Monad, MonadDraw)
 
-debugDraw :: String -> Draw a ()
-debugDraw = Draw . putStrLn
+class (MonadDraw m) => MonadHandler m where
+  runHandler :: Handler a -> m a
+  withSubCanvas :: IRect -> m a -> m a
+
+instance MonadHandler Handler where
+  runHandler = id
+  withSubCanvas subRect action = Handler $ do
+    oldRect <- readIORef canvasRectRef
+    let newRect = subRect `rectPlus` rectTopleft oldRect
+    writeIORef canvasRectRef newRect
+    fromHandler action <* writeIORef canvasRectRef oldRect
+
+handleScreen :: Handler a -> IO a
+handleScreen action = withAbsoluteCanvas screenRect (fromHandler action)
+
+canvasWidth :: (MonadHandler m) => m Int
+canvasWidth = handlerIO (rectW <$> readIORef canvasRectRef)
+
+canvasHeight :: (MonadHandler m) => m Int
+canvasHeight = handlerIO (rectH <$> readIORef canvasRectRef)
+
+canvasSize :: (MonadHandler m) => m (Int, Int)
+canvasSize = handlerIO (rectSize <$> readIORef canvasRectRef)
+
+canvasRect :: (MonadHandler m) => m IRect
+canvasRect = do
+  (width, height) <- canvasSize
+  return $ Rect 0 0 width height
+
+{-# NOINLINE canvasRectRef #-} -- needed for unsafePerformIO
+canvasRectRef :: IORef IRect
+canvasRectRef = unsafePerformIO (newIORef screenRect)
+
+withAbsoluteCanvas :: IRect -> IO a -> IO a
+withAbsoluteCanvas newRect action = do
+  oldRect <- readIORef canvasRectRef
+  writeIORef canvasRectRef newRect
+  action <* writeIORef canvasRectRef oldRect
 
 -------------------------------------------------------------------------------
 -- The Paint monad:
 
-data Canvas
+newtype Paint a = Paint { fromPaint :: IO a }
+  deriving (Applicative, Functor, Monad, MonadDraw)
 
-type Paint a = Draw Canvas a
+instance MonadHandler Paint where
+  runHandler = Paint . fromHandler
+  withSubCanvas = paintWithSubCanvas
+
+paintWithSubCanvas :: IRect -> Paint a -> Paint a
+paintWithSubCanvas subRect paint = Paint $ GL.preservingMatrix $ do
+  let fromScissor (GL.Position x y, GL.Size w h) =
+        Rect (fromIntegral x) (screenHeight - fromIntegral y - fromIntegral h)
+             (fromIntegral w) (fromIntegral h)
+  let toScissor (Rect x y w h) =
+        (GL.Position (toGLint x) (toGLint (screenHeight - y - h)),
+         GL.Size (toGLint w) (toGLint h))
+  -- Change the canvas rect:
+  oldRect <- readIORef canvasRectRef
+  let newRect = subRect `rectPlus` rectTopleft oldRect
+  writeIORef canvasRectRef newRect
+  -- Change the GL coordinates and scissor:
+  GL.translate $ GL.Vector3 (toGLdouble $ rectX subRect)
+                            (toGLdouble $ rectY subRect) 0
+  oldScissor <- GL.get GL.scissor
+  let oldScissorRect = maybe screenRect fromScissor oldScissor
+  let newScissorRect = oldScissorRect `rectIntersection` newRect
+  GL.scissor $= Just (toScissor newScissorRect)
+  -- Perform the inner paint:
+  result <- fromPaint paint
+  -- Reset to previous state before returning:
+  GL.scissor $= oldScissor
+  writeIORef canvasRectRef oldRect
+  return result
 
 paintScreen :: Paint () -> IO ()
-paintScreen draw = do
+paintScreen paint = do
   GL.clear [GL.ColorBuffer]
-  fromDraw draw
+  withAbsoluteCanvas screenRect (fromPaint paint)
   GL.flush -- Are the flush and finish at all necessary?  I'm not sure.
   GL.finish
   SDL.glSwapBuffers
-
-canvasWidth :: Paint Int
-canvasWidth = fmap fst canvasSize
-
-canvasHeight :: Paint Int
-canvasHeight = fmap snd canvasSize
-
-canvasSize :: Paint (Int, Int)
-canvasSize = Draw $ do
-  scissor <- GL.get GL.scissor
-  return $ case scissor of
-    Nothing -> (screenWidth, screenHeight)
-    Just (_, GL.Size w h) -> (fromIntegral w, fromIntegral h)
-
-canvasRect :: Paint IRect
-canvasRect = do
-  (width, height) <- canvasSize
-  return $ Rect 0 0 width height
 
 -------------------------------------------------------------------------------
 -- Reference cells:
 
 newtype DrawRef a = DrawRef (IORef a)
 
-newDrawRef :: a -> Draw z (DrawRef a)
-newDrawRef = Draw . fmap DrawRef . newIORef
+newDrawRef :: (MonadDraw m) => a -> m (DrawRef a)
+newDrawRef = drawIO . fmap DrawRef . newIORef
 
-readDrawRef :: DrawRef a -> Draw z a
-readDrawRef (DrawRef ref) = Draw (readIORef ref)
+readDrawRef :: (MonadDraw m) => DrawRef a -> m a
+readDrawRef (DrawRef ref) = drawIO (readIORef ref)
 
-writeDrawRef :: DrawRef a -> a -> Draw z ()
-writeDrawRef (DrawRef ref) value = Draw (writeIORef ref value)
+writeDrawRef :: (MonadDraw m) => DrawRef a -> a -> m ()
+writeDrawRef (DrawRef ref) value = drawIO (writeIORef ref value)
 
-modifyDrawRef :: DrawRef a -> (a -> a) -> Draw z ()
-modifyDrawRef (DrawRef ref) fn = Draw (modifyIORef ref fn)
+modifyDrawRef :: (MonadDraw m) => DrawRef a -> (a -> a) -> m ()
+modifyDrawRef (DrawRef ref) fn = drawIO (modifyIORef ref fn)
+
+-------------------------------------------------------------------------------
+-- Keyboard/mouse input:
+
+getKeyState :: (MonadHandler m) => Key -> m Bool
+getKeyState key = handlerIO $ do
+  suppressed <- readIORef inputsSuppressed
+  if suppressed then return False else getKeyStateIO key
+
+getMouseButtonState :: (MonadHandler m) => m Bool
+getMouseButtonState = handlerIO $ do
+  suppressed <- readIORef inputsSuppressed
+  if suppressed then return False else getMouseButtonStateIO
+
+getRelativeMousePos :: (MonadHandler m) => m (Maybe IPoint)
+getRelativeMousePos = handlerIO $ do
+  suppressed <- readIORef inputsSuppressed
+  if suppressed then return Nothing else do
+  (absoluteMouseX, absoluteMouseY, _) <- SDL.getMouseState
+  rect <- readIORef canvasRectRef
+  return $ Just $ Point (absoluteMouseX - rectX rect)
+                        (absoluteMouseY - rectY rect)
+
+withInputsSuppressed :: (MonadHandler m) => m a -> m a
+withInputsSuppressed action = do
+  suppressed <- handlerIO (readIORef inputsSuppressed <*
+                           writeIORef inputsSuppressed True)
+  action <* handlerIO (writeIORef inputsSuppressed suppressed)
+
+{-# NOINLINE inputsSuppressed #-} -- needed for unsafePerformIO
+inputsSuppressed :: IORef Bool
+inputsSuppressed = unsafePerformIO (newIORef False)
 
 -------------------------------------------------------------------------------
 -- Creating new sprites:
-{-
-newSprite :: (Int, Int) -> Paint () -> Draw a Sprite
-newSprite (width, height) paint = Draw $ do
-  oldBuffer <- GL.get GL.drawBuffer
-  let newBuffer = case oldBuffer of GL.AuxBuffer i -> GL.AuxBuffer (i + 1)
-                                    _ -> GL.AuxBuffer 0
-  GL.drawBuffer $= newBuffer
-  GL.clear [GL.ColorBuffer]
-  oldScissor <- GL.get GL.scissor
-  GL.scissor $= Just (GL.Position 0 0,
-                      GL.Size (fromIntegral width) (fromIntegral height))
-  GL.preservingMatrix $ do
-    -- See note [New Sprite] below for why we do this little dance here.
-    GL.scale 1 (-1) (1 :: GL.GLdouble)
-    GL.translate $ GL.Vector3 0 (negate $ toGLdouble screenHeight) 0
-    oldZoom <- GL.get GL.pixelZoom
-    GL.pixelZoom $= (1, 1)
-    fromDraw paint
-    GL.pixelZoom $= oldZoom
-  GL.scissor $= oldScissor
-  makeSpriteFromIO width height $ do
-    GL.readBuffer $= newBuffer
-    GL.copyTexImage2D Nothing 0 GL.RGBA' (GL.Position 0 0)
-        (GL.TextureSize2D (fromIntegral width) (fromIntegral height)) 0
-    GL.drawBuffer $= oldBuffer
--}
--- Note [New Sprite]:
---   Unfortunately, GL.copyTexImage2D doesn't seem to let us specify that the
---   start position is the top-left rather than the bottom-right.  So, we need
---   to carefully scale and translate the screen so that we draw everything
---   upside-down, and then when we do the GL.copyTexImage2D, we pretend that
---   the start position really is the top-left, and everything comes out fine.
---   However, since we're drawing everything upside-down, we also need to
---   temporarily set the pixelZoom to (1, 1) rather than (1, -1), so that if we
---   call GL.drawPixels the rastered pixels will come out the right way.
 
 -- | Make a copy of the current state of a region of the screen.
 takeScreenshot :: IRect -> IO Sprite
@@ -330,7 +344,7 @@ blitStretch :: (Axis a) => Sprite -> Rect a -> Paint ()
 blitStretch = blitStretchTinted whiteTint
 
 blitStretchTinted :: (Axis a) => Tint -> Sprite -> Rect a -> Paint ()
-blitStretchTinted tint sprite rect = Draw $ do
+blitStretchTinted tint sprite rect = Paint $ do
   withTexture (spriteTexture sprite) $ do
     setTint tint
     GL.renderPrimitive GL.Quads $ do
@@ -352,7 +366,7 @@ blitRotate = blitRotateTinted whiteTint
 blitRotateTinted :: (Axis a) => Tint {-^tint-} -> Sprite {-^sprite-}
                  -> Point a {-^center-} -> Double {-^ angle (in radians) -}
                  -> Paint ()
-blitRotateTinted tint sprite (Point cx cy) radians = Draw $ do
+blitRotateTinted tint sprite (Point cx cy) radians = Paint $ do
   withTexture (spriteTexture sprite) $ do
     setTint tint
     GL.preservingMatrix $ do
@@ -388,66 +402,17 @@ blitRepeatTinted tint sprite (Point ox oy) rect = withSubCanvas rect $ do
       blitTopleftTinted tint sprite $
           Point (ox + col * width) (oy + row * height)
 
-{-
-blitRepeatTinted :: (Axis a) => Tint -> Sprite -> Point a -> Rect a -> Paint ()
-blitRepeatTinted tint sprite offset rect =
-  let width = toGLdouble (spriteWidth sprite)
-      height = toGLdouble (spriteHeight sprite)
-      (Point ox oy) = fmap toGLdouble offset
-      toRect = fmap toGLdouble rect
-      texRect = Rect (negate ox / width) (negate oy / height)
-                     (rectW toRect / width) (rectH toRect / height)
-  in blitGeneralized sprite tint toRect texRect
-
-blitGeneralized :: Sprite -> Tint -> Rect GL.GLdouble -> Rect GL.GLdouble
-                -> Paint ()
-blitGeneralized sprite tint (Rect rx ry rw rh) (Rect tx ty tw th) = do
-  Draw $ delayFinalizers sprite $ do
-    GL.textureBinding GL.Texture2D $= Just (spriteTexture sprite)
-    setTint tint
-    GL.renderPrimitive GL.Quads $ do
-      GL.texCoord $ GL.TexCoord2 tx ty
-      glVertex rx ry
-      GL.texCoord $ GL.TexCoord2 (tx + tw) ty
-      glVertex (rx + rw) ry
-      GL.texCoord $ GL.TexCoord2 (tx + tw) (ty + th)
-      glVertex (rx + rw) (ry + rh)
-      GL.texCoord $ GL.TexCoord2 tx (ty + th)
-      glVertex rx (ry + rh)
-
-blitRotate :: (Axis a) => Sprite {-^sprite-} -> Point a {-^center-}
-           -> Double {-^ angle (in radians) -} -> Paint ()
-blitRotate sprite (Point cx cy) radians =
-  Draw $ delayFinalizers sprite $ do
-    GL.textureBinding GL.Texture2D $= Just (spriteTexture sprite)
-    setTint whiteTint
-    GL.preservingMatrix $ do
-      GL.translate $ GL.Vector3 (toGLdouble cx) (toGLdouble cy) 0
-      GL.rotate (realToFrac (radians * (180 / pi))) $
-        GL.Vector3 0 0 (1 :: GL.GLfloat)
-      GL.renderPrimitive GL.Quads $ do
-        let sw = toGLdouble (spriteWidth sprite) / 2
-            sh = toGLdouble (spriteHeight sprite) / 2
-        GL.texCoord $ GL.TexCoord2 0 (0 :: GL.GLfloat)
-        glVertex (negate sw) (negate sh)
-        GL.texCoord $ GL.TexCoord2 1 (0 :: GL.GLfloat)
-        glVertex sw (negate sh)
-        GL.texCoord $ GL.TexCoord2 1 (1 :: GL.GLfloat)
-        glVertex sw sh
-        GL.texCoord $ GL.TexCoord2 0 (1 :: GL.GLfloat)
-        glVertex (negate sw) sh
--}
 -------------------------------------------------------------------------------
 -- Geometric primitives:
 
 -- | Draw an antialiased line onto the canvas.
 drawLine :: (Axis a) => Tint {-^color-} -> Point a {-^start-}
          -> Point a {-^end-} -> Paint ()
-drawLine tint start end = Draw $ do
+drawLine tint start end = Paint $ do
   drawPrimitive GL.Lines tint $ pointVertex' start >> pointVertex' end
 
 drawRect :: (Axis a) => Tint -> Rect a -> Paint ()
-drawRect tint (Rect x y w h) = Draw $ do
+drawRect tint (Rect x y w h) = Paint $ do
   drawPrimitive GL.LineLoop tint $ do
     axisVertex' x y
     axisVertex' (x + w - 1) y
@@ -456,7 +421,7 @@ drawRect tint (Rect x y w h) = Draw $ do
 
 -- | Tint a subrectangle of the canvas uniformly.
 tintRect :: (Axis a) => Tint -> Rect a -> Paint ()
-tintRect tint (Rect x y w h) = Draw $ do
+tintRect tint (Rect x y w h) = Paint $ do
   drawPrimitive GL.Quads tint $ do
     axisVertex x y
     axisVertex (x + w) y
@@ -513,25 +478,25 @@ tintCanvas tint = canvasRect >>= tintRect tint
 --     pointVertex' point3
 
 drawLineChain :: (Axis a) => Tint -> [Point a] -> Paint ()
-drawLineChain tint points = Draw $ do
+drawLineChain tint points = Paint $ do
   drawPrimitive GL.LineStrip tint $ mapM_ pointVertex' points
 
 drawPolygon :: (Axis a) => Tint -> [Point a] -> Paint ()
-drawPolygon tint points = Draw $ do
+drawPolygon tint points = Paint $ do
   drawPrimitive GL.LineLoop tint $ mapM_ pointVertex' points
 
 tintPolygon :: (Axis a) => Tint -> [Point a] -> Paint ()
-tintPolygon tint points = Draw $ do
+tintPolygon tint points = Paint $ do
   drawPrimitive GL.Polygon tint $ mapM_ pointVertex' points
 
 gradientPolygon :: (Axis a) => [(Tint, Point a)] -> Paint ()
-gradientPolygon pointTints = Draw $ do
+gradientPolygon pointTints = Paint $ do
   GL.textureBinding GL.Texture2D $= Nothing
   let doVertex (tint, point) = setTint tint >> pointVertex point
   GL.renderPrimitive GL.Polygon $ mapM_ doVertex pointTints
 
 tintRing :: (Axis a) => Tint -> a -> Point a -> a -> a -> Paint ()
-tintRing tint thickness (Point cx cy) hRad vRad = Draw $ do
+tintRing tint thickness (Point cx cy) hRad vRad = Paint $ do
   GL.preservingMatrix $ do
     GL.translate $ GL.Vector3 (toGLdouble cx) (toGLdouble cy) 0
     drawPrimitive GL.TriangleStrip tint $ do
@@ -547,27 +512,6 @@ tintRing tint thickness (Point cx cy) hRad vRad = Draw $ do
       GL.vertex $ GL.Vertex3 (ohr * cos step) (ovr * sin step) 0
 
 -------------------------------------------------------------------------------
--- Miscellaneous canvas functions:
-
-withSubCanvas :: IRect -> Paint a -> Paint a
-withSubCanvas rect draw = Draw $ GL.preservingMatrix $ do
-  GL.translate $ GL.Vector3 (toGLdouble $ rectX rect)
-                            (toGLdouble $ rectY rect) 0
-  oldScissor <- GL.get GL.scissor
-  let fromScissor (GL.Position x y, GL.Size w h) =
-        Rect (fromIntegral x) (screenHeight - fromIntegral y - fromIntegral h)
-             (fromIntegral w) (fromIntegral h)
-  let oldRect = maybe screenRect fromScissor oldScissor
-  let rect' = oldRect `rectIntersection` (rect `rectPlus` rectTopleft oldRect)
-  GL.scissor $= Just
-      (GL.Position (fromIntegral $ rectX rect')
-                   (fromIntegral $ screenHeight - rectY rect' - rectH rect'),
-       GL.Size (fromIntegral $ rectW rect') (fromIntegral $ rectH rect'))
-  result <- fromDraw draw
-  GL.scissor $= oldScissor
-  return result
-
--------------------------------------------------------------------------------
 -- Fonts and text:
 
 newtype Font = Font SDLt.Font
@@ -576,15 +520,10 @@ newtype Font = Font SDLt.Font
 -- | Draw text with the given font and color onto the screen at the specified
 -- location.
 drawText :: (Axis a) => Font -> Color -> LocSpec a -> String -> Paint ()
-drawText font color spec string = Draw $ do
+drawText font color spec string = Paint $ do
   surface <- renderText' font color string
   blitSurface 1 surface spec
-{-
--- | Create a new sprite containing text with the given font and color.
-renderText :: Font -> Color -> String -> Draw z Sprite
-renderText font color string = Draw $ do
-  renderText' font color string >>= makeSpriteFromSurface
--}
+
 -- | Create a new SDL surface containing text with the given font and color.
 renderText' :: Font -> Color -> String -> IO SDL.Surface
 renderText' (Font font) color string =
@@ -608,7 +547,7 @@ textRenderWidth = (fst .) . textRenderSize
 
 -------------------------------------------------------------------------------
 -- Minimaps:
--- {-
+
 -- | A 'Minimap' is a mutable image intended for drawing terrain minimaps.
 newtype Minimap = Minimap Texture
 
@@ -647,7 +586,7 @@ alterMinimap (Minimap texture) pixels = withTexture texture $ do
 
 -- | Draw the minimap to the screen.
 blitMinimap :: (Axis a) => Minimap -> LocSpec a -> Paint ()
-blitMinimap mm@(Minimap texture) loc = Draw $ withTexture texture $ do
+blitMinimap mm@(Minimap texture) loc = Paint $ withTexture texture $ do
   setTint whiteTint
   GL.renderPrimitive GL.Quads $ do
     let (w, h) = minimapBlitSize mm
@@ -661,42 +600,6 @@ blitMinimap mm@(Minimap texture) loc = Draw $ withTexture texture $ do
     glVertex (rx + rw) (ry + rh)
     GL.texCoord $ GL.TexCoord2 0 (1 :: GL.GLdouble)
     glVertex rx (ry + rh)
-
--- -}
-
-{-
--- | A 'Minimap' is a mutable image intended for drawing terrain minimaps.
-newtype Minimap = Minimap SDL.Surface
-
--- | Return the original dimensions passed to 'newMinimap'.
-minimapMapSize :: Minimap -> (Int, Int)
-minimapMapSize (Minimap surface) =
-  (SDL.surfaceGetWidth surface, SDL.surfaceGetHeight surface)
-
--- | Return the size of the image that will be drawn by 'blitMinimap'.
-minimapBlitSize :: Minimap -> (Int, Int)
-minimapBlitSize (Minimap surface) =
-  (SDL.surfaceGetWidth surface * minimapScale,
-   SDL.surfaceGetHeight surface * minimapScale)
-
--- | Create a new minimap for a map with the given dimensions, initially all
--- black.
-newMinimap :: (Int, Int) -> IO Minimap
-newMinimap (width, height) = Minimap <$>
-  SDL.createRGBSurfaceEndian [SDL.SWSurface] width height 24
-
--- | Mutate the color of some of the map locations on the minimap.
-alterMinimap :: Minimap -> [(IPoint, Color)] -> IO ()
-alterMinimap (Minimap surface) pixels = do
-  forM_ pixels $ \(Point x y, Color r g b) -> do
-    pixel <- SDL.mapRGB (SDL.surfaceGetPixelFormat surface) r g b
-    SDL.fillRect surface (Just $ SDL.Rect x y 1 1) pixel
-
--- | Draw the minimap to the screen.
-blitMinimap :: (Axis a) => Minimap -> LocSpec a -> Paint ()
-blitMinimap (Minimap surface) spec = Draw $ do
-  blitSurface minimapScale surface spec
--}
 
 -- | The width/height of each minimap tile, in pixels.
 minimapScale :: Int
@@ -713,62 +616,14 @@ loadFont name size = do
   path <- getResourcePath "fonts" name
   fmap Font $ SDLt.openFont path size
 
-{-
-loadSprite :: FilePath -> Draw z Sprite
-loadSprite = drawWeakCached HT.hashString $ \name -> Draw $ do
-  when debugResources $ do
-    putStrLn ("loading sprite " ++ name)
-  loadSurface name >>= makeSpriteFromSurface
+loadSprite :: (MonadDraw m) => String -> m Sprite
+loadSprite name = drawIO (makeSprite <$> loadTexture name)
 
-loadSubSprite :: FilePath -> IRect -> Draw z Sprite
-loadSubSprite = curry $ drawWeakCached hash $ \(name, rect) -> Draw $ do
-  when debugResources $ do
-    putStrLn ("loading subsprite " ++ name ++ " " ++ show rect)
-  loadSurface name >>= subSurface rect >>= makeSpriteFromSurface
-  where hash (name, Rect x y w h) =
-          HT.hashString name ## HT.hashInt x ## HT.hashInt y ##
-          HT.hashInt w ## HT.hashInt h
+loadSubSprite :: (MonadDraw m) => String -> IRect -> m Sprite
+loadSubSprite name rect = drawIO (makeSubSprite rect <$> loadTexture name)
 
-loadVStrip :: FilePath -> Int -> Draw z Strip
-loadVStrip = curry $ drawWeakCached hash $ \(name, size) -> Draw $ do
-  when debugResources $ do
-    putStrLn ("loading vstrip " ++ name ++ " " ++ show size)
-  surface <- loadSurface name
-  let (height, extra) = SDL.surfaceGetHeight surface `divMod` size
-  when (extra /= 0) $ fail ("bad vstrip size " ++ show size ++ " for " ++ name)
-  let width = SDL.surfaceGetWidth surface
-  let slice n = subSurface (Rect 0 (n * height) width height) surface >>=
-                makeSpriteFromSurface
-  listArray (0, size - 1) <$> mapM slice [0 .. size - 1]
-  where hash (name, size) = HT.hashString name ## HT.hashInt size
-
-loadSheet :: FilePath -> (Int, Int) -> Draw z Sheet
-loadSheet = curry $ drawWeakCached hash $ \(name, (rows, cols)) -> Draw $ do
-  when debugResources $ do
-    putStrLn ("loading sheet " ++ name ++ " " ++ show (rows, cols))
-  surface <- loadSurface name
-  let (height, extraH) = SDL.surfaceGetHeight surface `divMod` rows
-  let (width, extraW) = SDL.surfaceGetWidth surface `divMod` cols
-  when (extraH /= 0 || extraW /= 0) $ do
-    fail ("bad sheet size " ++ show (rows, cols) ++ " for " ++ name)
-  let slice (row, col) =
-        subSurface (Rect (col * width) (row * height) width height) surface >>=
-        makeSpriteFromSurface
-  let bound = ((0, 0), (rows - 1, cols - 1))
-  listArray bound <$> mapM slice (range bound)
-  where hash (n, (w, h)) = HT.hashString n ## HT.hashInt w ## HT.hashInt h
--}
-
----------
-
-loadSprite :: String -> Draw z Sprite
-loadSprite name = Draw $ makeSprite <$> loadTexture name
-
-loadSubSprite :: String -> IRect -> Draw z Sprite
-loadSubSprite name rect = Draw $ makeSubSprite rect <$> loadTexture name
-
-loadVStrip :: String -> Int -> Draw z Strip
-loadVStrip name size = Draw $ do
+loadVStrip :: (MonadDraw m) => String -> Int -> m Strip
+loadVStrip name size = drawIO $ do
   texture <- loadTexture name
   let (height, extra) = textureHeight texture `divMod` size
   when (extra /= 0) $ fail ("bad vstrip size " ++ show size ++ " for " ++ name)
@@ -776,8 +631,8 @@ loadVStrip name size = Draw $ do
   let slice n = makeSubSprite (Rect 0 (n * height) width height) texture
   return $ listArray (0, size - 1) $ map slice [0 .. size - 1]
 
-loadSheet :: FilePath -> (Int, Int) -> Draw z Sheet
-loadSheet name (rows, cols) = Draw $ do
+loadSheet :: (MonadDraw m) => FilePath -> (Int, Int) -> m Sheet
+loadSheet name (rows, cols) = drawIO $ do
   texture <- loadTexture name
   let (height, extraH) = textureHeight texture `divMod` rows
   let (width, extraW) = textureWidth texture `divMod` cols
@@ -795,9 +650,6 @@ loadTexture = ioEverCached HT.hashString $ \name -> do
     putStrLn ("loading texture " ++ name)
   (newTextureFromSurface <=< loadSurface) name
 
---------------
-
-
 -- | Load an image from disk as an SDL surface.
 loadSurface :: String -> IO SDL.Surface
 loadSurface name = do -- = ioWeakCached HT.hashString $ \name -> do
@@ -806,35 +658,7 @@ loadSurface name = do -- = ioWeakCached HT.hashString $ \name -> do
   surface <- getResourcePath "images" name >>= SDLi.load
   _ <- SDL.setAlpha surface [] 255 -- Turn off the SDL.SrcAlpha flag, if set.
   return surface
-{-
-subSurface :: IRect -> SDL.Surface -> IO SDL.Surface
-subSurface rect@(Rect x y w h) surface = do
-  let width = SDL.surfaceGetWidth surface
-      height = SDL.surfaceGetHeight surface
-  when (x < 0 || y < 0 || w < 0 || h < 0 || x + w > width || y + h > height) $
-    fail ("subSurface: " ++ show rect ++ " outside " ++ show (width, height))
-  surface' <- SDL.createRGBSurfaceEndian [SDL.SWSurface] w h 32
-  _ <- SDL.blitSurface surface (Just $ SDL.Rect x y w h) surface' Nothing
-  return surface'
 
--- | Wrap an 'IO' function with a weak-value hash table cache.
-{-# NOINLINE ioWeakCached #-} -- needed for unsafePerformIO
-ioWeakCached :: (Eq a) => (a -> Int32) -> (a -> IO b) -> (a -> IO b)
-ioWeakCached hash fn = unsafePerformIO $ do
-  table <- HT.new (==) hash
-  return $ \key -> do
-    mbWeak <- HT.lookup table key
-    mbValue <- maybe (return Nothing) deRefWeak mbWeak
-    flip3 maybe return mbValue $ do
-      value <- fn key
-      weak <- mkWeakPtr value $ Just $ HT.delete table key
-      HT.insert table key weak
-      return value
-
--- | Wrap a 'Draw' function with a weak-value hash table cache.
-drawWeakCached :: (Eq a) => (a -> Int32) -> (a -> Draw () b) -> (a -> Draw z b)
-drawWeakCached hash fn = Draw . ioWeakCached hash (runDraw . fn)
--}
 -- | Wrap an 'IO' function with a strong-value hash table cache.
 {-# NOINLINE ioEverCached #-} -- needed for unsafePerformIO
 ioEverCached :: (Eq a) => (a -> Int32) -> (a -> IO b) -> (a -> IO b)
@@ -846,11 +670,7 @@ ioEverCached hash fn = unsafePerformIO $ do
       value <- fn key
       HT.insert table key value
       return value
-{-
--- | Wrap a 'Draw' function with a strong-value hash table cache.
-drawEverCached :: (Eq a) => (a -> Int32) -> (a -> Draw () b) -> (a -> Draw z b)
-drawEverCached hash fn = Draw . ioEverCached hash (runDraw . fn)
--}
+
 -------------------------------------------------------------------------------
 -- Private utility functions:
 
@@ -872,36 +692,7 @@ blitSurface zoom surface spec = do
   pixelsPtr <- SDL.surfaceGetPixels surface
   GL.drawPixels (GL.Size (fromIntegral width) (fromIntegral height))
                 (GL.PixelData format GL.UnsignedByte pixelsPtr)
-{-
--- | Make a 'Sprite', given a size and an IO action that will populate a
---   freshly generated OpenGL texture (e.g. using @GL.texImage2D@).
-makeSpriteFromIO :: Int -> Int -> IO () -> IO Sprite
-makeSpriteFromIO width height action = do
-  [texName] <- GL.genObjectNames 1
-  when debugResources $ do
-    putStrLn ("alloc tex " ++ show texName)
-  GL.textureBinding GL.Texture2D $= Just texName
-  GL.textureFilter GL.Texture2D $= ((GL.Linear', Nothing), GL.Linear')
-  action
-  let sprite = Sprite { spriteTexture = texName,
-                        spriteWidth = width,
-                        spriteHeight = height }
-  addFinalizer sprite $ GL.deleteObjectNames [texName]
-  return sprite
 
--- | Turn an SDL surface into a 'Sprite'.
-makeSpriteFromSurface :: SDL.Surface -> IO Sprite
-makeSpriteFromSurface surface = do
-  (format, format') <- surfaceFormats surface
-  let width = SDL.surfaceGetWidth surface
-      height = SDL.surfaceGetHeight surface
-  makeSpriteFromIO width height $ do
-    withForeignPtr surface $ const $ do
-      pixelsPtr <- SDL.surfaceGetPixels surface
-      GL.texImage2D Nothing GL.NoProxy 0 format'
-          (GL.TextureSize2D (fromIntegral width) (fromIntegral height))
-          0 (GL.PixelData format GL.UnsignedByte pixelsPtr)
--}
 -- | Turn an SDL surface into a 'Texture'.
 newTextureFromSurface :: SDL.Surface -> IO Texture
 newTextureFromSurface surface = do
@@ -968,9 +759,11 @@ toGLdouble = toFloating
 
 toGLint :: Int -> GL.GLint
 toGLint = fromIntegral
-{-
--- | Combine two hash codes.
-(##) :: Int32 -> Int32 -> Int32
-a ## b = (a + b `shiftL` 5) `xor` b
--}
+
+drawIO :: (MonadDraw m) => IO a -> m a
+drawIO = runDraw . Draw
+
+handlerIO :: (MonadHandler m) => IO a -> m a
+handlerIO = runHandler . Handler
+
 -------------------------------------------------------------------------------

@@ -92,9 +92,9 @@ partyCanAffordCastingCost :: CharacterNumber -> CastingCost -> Party -> Bool
 partyCanAffordCastingCost charNum cost party =
   case cost of
     AdrenalineCost adren -> adren <= chrAdrenaline char
-    FocusCost focus -> focus <= chrMana char
+    FocusCost focus -> focus <= chrMojo char
     IngredientCost ing -> Fold.and $ (<=) <$> ing <*> partyIngredients party
-    ManaCost mana -> mana <= chrMana char
+    ManaCost mana -> mana <= chrMojo char
     NoCost -> True
   where char = partyGetCharacter party charNum
 
@@ -105,13 +105,13 @@ partyDeductCastingCost charNum cost party =
       let fn char = char { chrAdrenaline = max 0 $ chrAdrenaline char - adren }
       in partyAlterCharacter charNum fn party
     FocusCost focus ->
-      let fn char = char { chrMana = max 0 $ chrMana char - focus }
+      let fn char = char { chrMojo = max 0 $ chrMojo char - focus }
       in partyAlterCharacter charNum fn party
     IngredientCost ing ->
       party { partyIngredients = (max 0 .) . subtract <$> ing <*>
                                  partyIngredients party }
     ManaCost mana ->
-      let fn char = char { chrMana = max 0 $ chrMana char - mana }
+      let fn char = char { chrMojo = max 0 $ chrMojo char - mana }
       in partyAlterCharacter charNum fn party
     NoCost -> party
 
@@ -147,7 +147,7 @@ partySpendUpgrades st sk party = party' where
                    chrStatPoints = assert (statPoints' >= 0) $ statPoints' }
     skillDelta abilNum = SM.get (charNum, abilNum) sk
     statDelta stat = SM.get (charNum, stat) st
-    abilities' = abilityLevelPlus <$> chrAbilities char <*>
+    abilities' = abilityRankPlus <$> chrAbilities char <*>
                  makeTotalMap skillDelta
     baseStats' = (+) <$> chrBaseStats char <*> makeTotalMap statDelta
     skillPoints' = chrSkillPoints char -
@@ -299,33 +299,33 @@ partyTryToggleEquipped slot party =
 -------------------------------------------------------------------------------
 
 data Character = Character
-  { chrAbilities :: TotalMap AbilityNumber (Maybe AbilityLevel),
+  { chrAbilities :: TotalMap AbilityNumber (Maybe AbilityRank),
     chrAdrenaline :: Int,
     chrAppearance :: CharacterAppearance,
     chrBaseStats :: Stats,
     chrClass :: CharacterClass,
     chrEquipment :: Equipment,
     chrHealth :: Int,
-    chrMana :: Int,
+    chrMojo :: Int,
     chrName :: String,
     chrSkillPoints :: Int,
     chrStatPoints :: Int,
     chrStatus :: StatusEffects }
   deriving (Read, Show)
 
-chrAbilityLevel :: AbilityTag -> Character -> Maybe AbilityLevel
-chrAbilityLevel tag char =
+chrAbilityRank :: AbilityTag -> Character -> Maybe AbilityRank
+chrAbilityRank tag char =
   let (cls, num) = abilityClassAndNumber tag
   in if cls /= chrClass char then Nothing else tmGet num $ chrAbilities char
 
 chrAbilityMultiplier :: AbilityTag -> Double -> Double -> Double -> Character
                      -> Double
 chrAbilityMultiplier tag m1 m2 m3 char =
-  case chrAbilityLevel tag char of
+  case chrAbilityRank tag char of
     Nothing -> 1
-    Just Level1 -> m1
-    Just Level2 -> m2
-    Just Level3 -> m3
+    Just Rank1 -> m1
+    Just Rank2 -> m2
+    Just Rank3 -> m3
 
 chrAlterStatus :: (StatusEffects -> StatusEffects) -> Character -> Character
 chrAlterStatus fn char = char { chrStatus = fn (chrStatus char) }
@@ -355,7 +355,7 @@ chrEquippedWeaponData char =
   case wdRange wd of
     Melee -> wd
     Ranged n ->
-      if chrAbilityLevel EagleEye char < Just Level3 then wd
+      if chrAbilityRank EagleEye char < Just Rank3 then wd
       else wd { wdRange = Ranged (n + 1) }
   where wd = maybe unarmedWeaponData getWeaponData $
              eqpWeapon $ chrEquipment char
@@ -378,8 +378,9 @@ chrMaxHealth :: Party -> Character -> Int
 chrMaxHealth party char =
   100 + ((15 + partyLevel party) * chrGetStat Strength char) `div` 10
 
-chrMaxMana :: Party -> Character -> Int
-chrMaxMana party char =
+-- | Determine a character's maximum mojo (that is, mana or focus).
+chrMaxMojo :: Party -> Character -> Int
+chrMaxMojo party char =
   case chrClass char of
     WarriorClass -> maxFocus
     RogueClass -> maxFocus
@@ -420,9 +421,7 @@ chrResistances char =
       baseResist ResistMental =
         0.9966 ^^ tmGet Intellect stats *
         chrAbilityMultiplier Clarity 0.8 0.6 0.3 char
-      baseResist ResistStun =
-        0.9966 ^^ tmGet Agility stats *
-        chrAbilityMultiplier Stability 0.9 0.8 0.6 char
+      baseResist ResistStun = 0.9966 ^^ tmGet Agility stats
   in (*) <$> makeTotalMap baseResist <*> bonusResistances (chrBonuses char)
 
 -- | Get the specified resistance value for a character (including item

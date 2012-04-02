@@ -21,7 +21,7 @@ module Fallback.View.Combat
   (CombatAction(..), newCombatView)
 where
 
-import Control.Applicative ((<$), (<$>))
+import Control.Applicative ((<$>))
 import Data.Foldable (toList)
 import Data.Maybe (isJust)
 
@@ -48,7 +48,6 @@ import Fallback.View.Base
 import Fallback.View.Camera
 import Fallback.View.Hover
 import Fallback.View.Inventory
-import Fallback.View.Quiver
 import Fallback.View.Sidebar
 
 -------------------------------------------------------------------------------
@@ -63,7 +62,8 @@ data CombatAction = CombatSidebar SidebarAction
                   | CombatTargetCharacter CharacterNumber
                   | CombatEndTargeting
 
-newCombatView :: Resources -> Draw z (View CombatState CombatAction)
+newCombatView :: (MonadDraw m) => Resources
+              -> m (View CombatState CombatAction)
 newCombatView resources = newCursorView resources $ \cursorSink -> do
   let mapRect _ (w, h) = Rect sidebarWidth 0 (w - sidebarWidth) h
   let sidebarRect _ (_, h) = Rect 0 0 sidebarWidth h
@@ -97,11 +97,11 @@ newCombatView resources = newCursorView resources $ \cursorSink -> do
        (newMaybeView abilitiesFn =<< fmap CombatAbilities <$>
         newAbilitiesView resources cursorSink)])]
 
-newCombatMapView :: Resources -> Draw z (View CombatState CombatAction)
+newCombatMapView :: (MonadDraw m) => Resources
+                 -> m (View CombatState CombatAction)
 newCombatMapView resources = do
-  quiver <- newQuiver
   let
-    paint (cs, mbMousePt) = do
+    paint cs = do
       let acs = csCommon cs
       let cameraTopleft = camTopleft (acsCamera acs)
       paintTerrain acs
@@ -125,17 +125,18 @@ newCombatMapView resources = do
         CommandPhase cc -> paintRange cc
         TargetingPhase (CombatTargeting { ctCommander = cc,
                                           ctTargeting = targeting }) -> do
+          mbMousePt <- getRelativeMousePos
           paintTargeting cameraTopleft mbMousePt cs
                          (ccCharacterNumber cc) targeting
         ExecutionPhase ce -> maybeM (ceCommander ce) paintRange
         _ -> return ()
       maybeM (acsMessage acs) (paintMessage resources)
 
-    handler _ _ EvTick =
-      maybe Ignore (Action . CombatMove) <$> quiverDirection quiver
-    handler (cs, _) rect (EvMouseDown pt) = do
-      if not (rectContains rect pt) then return Ignore else do
-      let pt' = pt `pSub` rectTopleft rect `pAdd` (camTopleft $ arsCamera cs)
+    handler _ EvTick =
+      maybe Ignore (Action . CombatMove) <$> getArrowKeysDirection
+    handler cs (EvMouseDown pt) = do
+      whenWithinCanvas pt $ do
+      let pt' = pt `pAdd` (camTopleft $ arsCamera cs)
       let pos = pointPosition pt'
       case csPhase cs of
         WaitingPhase ->
@@ -160,8 +161,7 @@ newCombatMapView resources = do
         InventoryPhase _ _ -> return Suppress
         TargetingPhase _ -> return $ Action $ CombatTargetPosition pos
         ExecutionPhase _ -> return Suppress
-    handler (cs, _) _ (EvKeyDown key _ _) = do
-      quiverKeyDown quiver key
+    handler cs (EvKeyDown key _ _) = do
       case key of
         KeySpace -> do
           case csPhase cs of
@@ -180,11 +180,9 @@ newCombatMapView resources = do
                   return $ Action $ CombatTargetCharacter charNum
                 _ -> return Ignore
             Nothing -> return Ignore
-    handler _ _ (EvKeyUp key) = Ignore <$ quiverKeyUp quiver key
-    handler _ _ EvBlur = Ignore <$ resetQuiver quiver
-    handler _ _ _ = return Ignore
+    handler _ _ = return Ignore
 
-  newMouseView $ View paint handler
+  return $ View paint handler
 
 -------------------------------------------------------------------------------
 

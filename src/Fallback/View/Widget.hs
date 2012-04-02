@@ -33,7 +33,7 @@ where
 
 import Control.Applicative ((<$), (<$>))
 import Control.Arrow (second)
-import Control.Monad (when, zipWithM_)
+import Control.Monad (unless, when, zipWithM_)
 import Data.List (inits)
 import Data.Maybe (isJust)
 
@@ -44,6 +44,7 @@ import Fallback.Draw
 import Fallback.Event
 import Fallback.State.Resources (FontTag(..), Resources, rsrcFont)
 import Fallback.State.Text (TextLine, paintTextLine, wrapText)
+import Fallback.Utility (anyM)
 import Fallback.View.Base
 
 -------------------------------------------------------------------------------
@@ -59,20 +60,21 @@ makeLabel_ font color loc = inertView $ drawText font color loc
 
 -------------------------------------------------------------------------------
 
-newStaticTextWrapColorPaint :: Resources -> Int -> String
-                            -> Draw z (Int, Color -> Paint ())
+newStaticTextWrapColorPaint :: (MonadDraw m) => Resources -> Int -> String
+                            -> m (Int, Color -> Paint ())
 newStaticTextWrapColorPaint resources width string = do
   let textLines = wrapText resources width string
   let spacing = 14
   let paint color = drawTextLines color spacing textLines
   return (spacing * length textLines, paint)
 
-newStaticTextWrapView :: Resources -> Int -> String -> Draw z (Int, View a b)
+newStaticTextWrapView :: (MonadDraw m) => Resources -> Int -> String
+                      -> m (Int, View a b)
 newStaticTextWrapView resources width string =
   (second (inertView . (. const blackColor))) <$>
   newStaticTextWrapColorPaint resources width string
 
-newDynamicTextWrapView :: Resources -> Draw z (View String b)
+newDynamicTextWrapView :: (MonadDraw m) => Resources -> m (View String b)
 newDynamicTextWrapView resources = do
   cacheRef <- newDrawRef (0, "", [])
   let paint text = do
@@ -86,7 +88,7 @@ newDynamicTextWrapView resources = do
         drawTextLines blackColor 14 textLines
   return $ inertView paint
 
-newTooltipView :: Resources -> Draw z (View String b)
+newTooltipView :: (MonadDraw m) => Resources -> m (View String b)
 newTooltipView resources = do
   let margin = 7
   cacheRef <- newDrawRef (0, "", [])
@@ -124,14 +126,15 @@ data ButtonStatus = ReadyButton | DisabledButton | DepressedButton
 enabledIf :: Bool -> ButtonStatus
 enabledIf b = if b then ReadyButton else DisabledButton
 
-newButton :: (a -> ButtonState -> Paint ()) -> (a -> ButtonStatus) -> [Key]
-          -> b -> Draw z (View a b)
+newButton :: (MonadDraw m) => (a -> ButtonState -> Paint ())
+          -> (a -> ButtonStatus) -> [Key] -> b -> m (View a b)
 newButton paintFn statusFn keys value = do
-  state <- newDrawRef (False, False, False)
+  state <- newDrawRef (False, False)
   let
 
     paint input = do
-      (keyPress, mousePress, mouseHover) <- readDrawRef state
+      (keyPress, mousePress) <- readDrawRef state
+      mouseHover <- isMouseWithinCanvas
       paintFn input $
         case statusFn input of
           ReadyButton ->
@@ -140,36 +143,36 @@ newButton paintFn statusFn keys value = do
           DisabledButton -> ButtonDisabled
           DepressedButton -> ButtonDown
 
-    handler input rect event = do
-      (kp, mp, mh) <- readDrawRef state
+    handler input event = do
+      (kp, mp) <- readDrawRef state
       case event of
+        EvTick -> do
+          kp' <- if kp then anyM getKeyState keys else return False
+          mp' <- if mp then getMouseButtonState else return False
+          writeDrawRef state (kp', mp')
+          return Ignore
         EvKeyDown key [] _ ->
           if key `notElem` keys then return Ignore
-          else Suppress <$ writeDrawRef state (True, mp, mh)
+          else Suppress <$ writeDrawRef state (True, mp)
         EvKeyUp key ->
           if not (kp && key `elem` keys) then return Ignore else do
-            writeDrawRef state (False, mp, mh)
-            return $ if not (mp && mh) && statusFn input == ReadyButton
+            writeDrawRef state (False, mp)
+            mouseHeld <- if mp then isMouseWithinCanvas else return False
+            return $ if not mouseHeld && statusFn input == ReadyButton
                      then Action value else Ignore
-        EvMouseMotion pt _ ->
-          Ignore <$ writeDrawRef state (kp, mp, rectContains rect pt)
         EvMouseDown pt ->
-          if not (rectContains rect pt) then return Ignore
-          else Suppress <$ writeDrawRef state (kp, True, mh)
-        EvMouseUp _ -> if not mp then return Ignore else do
-          writeDrawRef state (kp, False, mh)
-          return $ if mh && not kp && statusFn input == ReadyButton
-                   then Action value else Ignore
-        EvFocus pt ->
-          Ignore <$ writeDrawRef state (False, False, rectContains rect pt)
-        EvBlur ->
-          Ignore <$ writeDrawRef state (False, False, False)
+          whenWithinCanvas pt $ Suppress <$ writeDrawRef state (kp, True)
+        EvMouseUp pt -> if not mp then return Ignore else do
+          writeDrawRef state (kp, False)
+          whenWithinCanvas pt $ do
+            return $ if not kp && statusFn input == ReadyButton
+                     then Action value else Ignore
         _ -> return Ignore
 
   return (View paint handler)
 
-newStandardButton :: (a -> ButtonState -> Paint ()) -> (a -> ButtonStatus)
-                  -> [Key] -> b -> Draw z (View a b)
+newStandardButton :: (MonadDraw m) => (a -> ButtonState -> Paint ())
+                  -> (a -> ButtonStatus) -> [Key] -> b -> m (View a b)
 newStandardButton paintFn statusFn keys value = do
   paintUp <- newBackgroundPaint "gui/blank-button.png" 0  0 3 3 57 34
   paintHv <- newBackgroundPaint "gui/blank-button.png" 0 40 3 3 57 34
@@ -184,8 +187,8 @@ newStandardButton paintFn statusFn keys value = do
         withSubCanvas (Rect x y (w - 2) (h - 2)) $ paintFn input bs
   newButton paintFn' statusFn keys value
 
-newTextButton :: Resources -> [Key] -> a
-              -> Draw z (View (String, ButtonStatus) a)
+newTextButton :: (MonadDraw m) => Resources -> [Key] -> a
+              -> m (View (String, ButtonStatus) a)
 newTextButton resources keys value = do
   let font = rsrcFont resources FontChancery14
   let paintFn (text, _) bs = do
@@ -198,12 +201,13 @@ newTextButton resources keys value = do
         drawText font color (LocCenter $ rectCenter rect) text
   newStandardButton paintFn snd keys value
 
-newSimpleTextButton :: Resources -> String -> [Key] -> b -> Draw z (View a b)
+newSimpleTextButton :: (MonadDraw m) => Resources -> String -> [Key] -> b
+                    -> m (View a b)
 newSimpleTextButton resources text keys value =
   vmap (const (text, ReadyButton)) <$> newTextButton resources keys value
 
-newFlashingTextButton :: Resources -> String -> [Key] -> b
-                      -> Draw z (View Clock b)
+newFlashingTextButton :: (MonadDraw m) => Resources -> String -> [Key] -> b
+                      -> m (View Clock b)
 newFlashingTextButton resources text keys value = do
   let font = rsrcFont resources FontChancery14
   let paintFn clock bs = do
@@ -217,7 +221,8 @@ newFlashingTextButton resources text keys value = do
         drawText font color (LocCenter $ rectCenter rect) text
   newStandardButton paintFn (const ReadyButton) keys value
 
-newIconButton :: [Key] -> a -> Draw z (View (Sprite, ButtonStatus) a)
+newIconButton :: (MonadDraw m) => [Key] -> a
+              -> m (View (Sprite, ButtonStatus) a)
 newIconButton keys value = do
   let paintFn (icon, _) bs = do
         let tint = case bs of
@@ -229,23 +234,10 @@ newIconButton keys value = do
         blitLocTinted tint icon $ LocCenter $ rectCenter rect
   newStandardButton paintFn snd keys value
 
--- newPlusButton :: Resources -> b -> LocSpec Int -> Draw z (View a b)
--- newPlusButton resources value loc =
---   subView_ (locRect loc (12, 12)) <$>
---   newButton paintFn (const ReadyButton) [] value
---   where
---     paintFn _ buttonState = do
---       let row = case buttonState of
---                   ButtonUp -> 0
---                   ButtonHover -> 1
---                   ButtonDown -> 2
---                   ButtonDisabled -> 3
---       blitStretch ((rsrcSheetEquipButtons resources) ! (row, 0)) =<< canvasRect
-
 -------------------------------------------------------------------------------
 
-newTextBox :: Resources -> (String -> Draw () Bool)
-           -> Draw z (View String String)
+newTextBox :: (MonadDraw m) => Resources -> (String -> Draw Bool)
+           -> m (View String String)
 newTextBox resources testFn = do
   let font = rsrcFont resources FontGeorgiaBold16
   activeRef <- newDrawRef True
@@ -264,13 +256,13 @@ newTextBox resources testFn = do
         let x = margin + textRenderWidth font (take cursor text)
         drawLine (Tint 0 128 128 128) (Point x 2) (Point x (height - 2))
 
-    handler _ _ (EvKeyDown KeyLeftArrow _ _) = do
+    handler _ (EvKeyDown KeyLeftArrow _ _) = do
       readDrawRef cursorRef >>= writeDrawRef cursorRef . max 0 . subtract 1
       return Suppress
-    handler t _ (EvKeyDown KeyRightArrow _ _) = do
+    handler t (EvKeyDown KeyRightArrow _ _) = do
       readDrawRef cursorRef >>= writeDrawRef cursorRef . min (length t) . (+1)
       return Suppress
-    handler text _ (EvKeyDown _ _ char) = do
+    handler text (EvKeyDown _ _ char) = do
       active <- readDrawRef activeRef
       if not active || char < ' ' || char > '\DEL' then return Ignore else do
         cursor <- readDrawRef cursorRef
@@ -278,10 +270,11 @@ newTextBox resources testFn = do
               if char == '\DEL'
               then (cursor - 1, take (cursor - 1) text ++ drop cursor text)
               else (cursor + 1, take cursor text ++ [char] ++ drop cursor text)
-        acceptable <- testFn text'
+        acceptable <- runDraw (testFn text')
         if not acceptable then return Suppress else
           Action text' <$ writeDrawRef cursorRef cursor'
-    handler text rect (EvMouseDown pt) = do
+    handler text (EvMouseDown pt) = do
+      rect <- canvasRect
       let hit = rectContains rect pt
       writeDrawRef activeRef hit
       if not hit then return Ignore else do
@@ -289,8 +282,7 @@ newTextBox resources testFn = do
           map (abs . subtract (pointX pt - rectX rect - margin) .
                textRenderWidth font) $ inits text
         return Suppress
-    handler _ _ EvBlur = Ignore <$ writeDrawRef activeRef False
-    handler _ _ _ = return Ignore
+    handler _ _ = return Ignore
 
   return $ View paint handler
 
@@ -298,10 +290,10 @@ newTextBox resources testFn = do
 
 -- | Create a new scroll bar view.  The view inputs are (minimum value, maximum
 -- value, per-page, current page top), while the output is the new page top.
-newScrollBar :: Draw z (View (Int, Int, Int, Int) Int)
+newScrollBar :: (MonadDraw m) => m (View (Int, Int, Int, Int) Int)
 newScrollBar = do
   sheet <- loadSheet "gui/scroll-bar.png" (3, 4)
-  stateRef <- newDrawRef (Nothing, False)
+  stateRef <- newDrawRef Nothing
   let
 
     (width, pieceHeight) = spriteSize $ sheet ! (0, 0)
@@ -309,9 +301,12 @@ newScrollBar = do
     paint input =
       if isDisabled input then paintBackground (Tint 255 255 255 128) else do
         paintBackground whiteTint
-        (grab, hover) <- readDrawRef stateRef
-        let col = if isJust grab then 2 else if hover then 1 else 0
         rect <- knobRect input <$> canvasRect
+        col <- do
+          grabbed <- isJust <$> readDrawRef stateRef
+          if grabbed then return 2 else do
+            hover <- maybe False (rectContains rect) <$> getRelativeMousePos
+            return $ if hover then 1 else 0
         blitLoc (sheet ! (0, col)) $ LocTopleft $ Point 0 (rectY rect)
         when (rectH rect > 2 * pieceHeight) $ do
           blitRepeat (sheet ! (1, col)) pZero $
@@ -327,9 +322,15 @@ newScrollBar = do
         Rect 0 pieceHeight width (height - 2 * pieceHeight)
       blitLocTinted tint (sheet ! (2, 3)) $ LocBottomleft $ Point 0 height
 
-    handler input@(minVal, maxVal, perPage, _) rect (EvMouseMotion pt _) = do
-      grab <- fst <$> readDrawRef stateRef
-      writeDrawRef stateRef (grab, rectContains (knobRect input rect) pt)
+    handler _ EvTick = do
+      grabbed <- isJust <$> readDrawRef stateRef
+      when grabbed $ do
+        mouseHeld <- getMouseButtonState
+        unless mouseHeld $ writeDrawRef stateRef Nothing
+      return Ignore
+    handler input@(minVal, maxVal, perPage, _) (EvMouseMotion pt _) = do
+      rect <- canvasRect
+      grab <- readDrawRef stateRef
       case grab of
         Nothing -> return Ignore
         Just (startValue, startY) -> do
@@ -338,31 +339,28 @@ newScrollBar = do
                    (rectH rect - rectH (knobRect input rect))
           return $ Action $ max minVal $
             min (maxVal - perPage) (startValue + dv)
-    handler input@(minVal, maxVal, perPage, curVal) rect (EvMouseDown pt) =
+    handler input@(minVal, maxVal, perPage, curVal) (EvMouseDown pt) = do
+      rect <- canvasRect
       let knob = knobRect input rect
-      in if rectContains knob pt
-         then Ignore <$ writeDrawRef stateRef (Just (curVal, pointY pt), True)
-         else if not (rectContains rect pt)
-              then return Ignore
-              else return $ Action $
-                   if pointY pt < rectY knob
-                   then max minVal $ curVal - perPage
-                   else min (maxVal - perPage) (curVal + perPage)
-    handler input rect (EvMouseUp pt) = do
-      writeDrawRef stateRef (Nothing, rectContains (knobRect input rect) pt)
+      if rectContains knob pt then do
+        Ignore <$ writeDrawRef stateRef (Just (curVal, pointY pt))
+       else do
+        return $ if not (rectContains rect pt) then Ignore
+                 else Action $ if pointY pt < rectY knob
+                               then max minVal $ curVal - perPage
+                               else min (maxVal - perPage) (curVal + perPage)
+    handler _ (EvMouseUp _) = do
+      writeDrawRef stateRef Nothing
       return Ignore
-    handler (_, maxValue, perPage, curValue) rect (EvScrollDownwards pt) =
-      if rectContains rect pt && curValue < maxValue - perPage
-      then return (Action (curValue + 1)) else return Ignore
-    handler (minValue, _, _, curValue) rect (EvScrollUpwards pt) =
-      if rectContains rect pt && curValue > minValue
-      then return (Action (curValue - 1)) else return Ignore
-    handler input rect (EvFocus pt) = do
-      when (rectContains (knobRect input rect) pt) $ do
-        writeDrawRef stateRef (Nothing, True)
-      return Ignore
-    handler _ _ EvBlur = Ignore <$ writeDrawRef stateRef (Nothing, False)
-    handler _ _ _ = return Ignore
+    handler (_, maxValue, perPage, curValue) (EvScrollDownwards pt) = do
+      rect <- canvasRect
+      return $ if rectContains rect pt && curValue < maxValue - perPage
+               then Action (curValue + 1) else Ignore
+    handler (minValue, _, _, curValue) (EvScrollUpwards pt) = do
+      rect <- canvasRect
+      return $ if rectContains rect pt && curValue > minValue
+               then Action (curValue - 1) else Ignore
+    handler _ _ = return Ignore
 
     isDisabled (minValue, maxValue, perPage, _) =
       perPage >= maxValue - minValue
@@ -381,17 +379,16 @@ newScrollBar = do
 
   return $ View paint handler
 
-newScrollZone :: Draw z (View (Int, Int, Int, Int) Int)
+newScrollZone :: (MonadDraw m) => m (View (Int, Int, Int, Int) Int)
 newScrollZone = do
   let barWidth = 10
   scrollBar <- newScrollBar
-  let handler (_, maxValue, perPage, curValue) rect (EvScrollDownwards pt) =
-        if not (rectContains rect pt) then return Ignore
-        else return $ Action $ min (maxValue - perPage) $ curValue + 1
-      handler (minValue, _, _, curValue) rect (EvScrollUpwards pt) =
-        if not (rectContains rect pt) then return Ignore
-        else return $ Action $ max minValue $ curValue - 1
-      handler _ _ _ = return Ignore
+  let handler (_, maxValue, perPage, curValue) (EvScrollDownwards pt) = do
+        whenWithinCanvas pt $ do
+          return $ Action $ min (maxValue - perPage) $ curValue + 1
+      handler (minValue, _, _, curValue) (EvScrollUpwards pt) = do
+        whenWithinCanvas pt $ return $ Action $ max minValue $ curValue - 1
+      handler _ _ = return Ignore
   return $ compoundView [
     (subView (\_ (w, h) -> Rect (w - barWidth) 0 barWidth h) $ scrollBar),
     (View (const $ return ()) handler)]

@@ -23,7 +23,7 @@ module Fallback.View.Dialog
 where
 
 import Control.Applicative ((<$), (<$>))
-import Control.Monad (when, zipWithM)
+import Control.Monad (zipWithM)
 
 import Fallback.Constants (screenHeight, screenWidth)
 import Fallback.Data.Color (Tint(Tint))
@@ -37,41 +37,25 @@ import Fallback.View.Widget
 
 -------------------------------------------------------------------------------
 
-newDialogView :: View c d -> c -> View a b -> IRect -> Draw z (View a b)
-newDialogView bgView bgInput fgView targetRect = do
-  rectRef <- newDrawRef targetRect
-  --rectRef <- let Point x y = rectCenter targetRect in newDrawRef (Rect x y 0 0)
+newDialogView :: (MonadDraw m) => View c d -> c -> View a b -> IRect
+              -> m (View a b)
+newDialogView bgView bgInput fgView subRect = do
+  let bgPaint _ = do
+        withInputsSuppressed $ viewPaint bgView bgInput
+        tintCanvas (Tint 0 0 0 64)
+      bgHandler _ EvTick =
+        Ignore <$ withInputsSuppressed (viewHandler bgView bgInput EvTick)
+      bgHandler _ _ = return Ignore
   midView <- newDialogBackgroundView
-  let
-
-    paint input = do
-      viewPaint bgView bgInput
-      tintCanvas (Tint 0 0 0 64)
-      subrect <- readDrawRef rectRef
-      withSubCanvas subrect $ do
-        viewPaint midView ()
-        when (subrect == targetRect) $ viewPaint fgView input
-
-    handler input rect event = do
-      when (event == EvTick) $ do
-        _ <- viewHandler bgView bgInput rect event
-        subrect <- readDrawRef rectRef
-        when (subrect /= targetRect) $ do
-          let Rect x y w h = subrect
-              r = 2 + (rectW targetRect - w) `div` 8
-              s = 10
-          writeDrawRef rectRef (targetRect `rectIntersection`
-                                Rect (x - r) (y - s) (w + 2 * r) (h + 2 * s))
-      subrect <- readDrawRef rectRef
-      if subrect /= targetRect then return Ignore else
-        viewHandler fgView input targetRect event
-
-  return $ View paint handler
+  return $ compoundView $ [
+    (View bgPaint bgHandler),
+    (subView_ subRect $ compoundView [midView, fgView])]
 
 -------------------------------------------------------------------------------
 
-newHorizontalDialogView :: Resources -> String -> [(String, [Key], b)]
-                        -> View c d -> c -> Draw z (View a b)
+newHorizontalDialogView :: (MonadDraw m) => Resources -> String
+                        -> [(String, [Key], b)] -> View c d -> c
+                        -> m (View a b)
 newHorizontalDialogView resources text buttonSpecs bgView bgInput = do
   let width = 320
       margin = 16
@@ -97,8 +81,9 @@ newHorizontalDialogView resources text buttonSpecs bgView bgInput = do
 
 -------------------------------------------------------------------------------
 
-newTextEntryDialogView :: Resources -> String -> String -> (String -> Bool)
-                       -> View c d -> c -> Draw z (View a (Maybe String))
+newTextEntryDialogView :: (MonadDraw m) => Resources -> String -> String
+                       -> (String -> Bool) -> View c d -> c
+                       -> m (View a (Maybe String))
 newTextEntryDialogView resources text initValue testFn bgView bgInput = do
   let width = 320
       margin = 16
@@ -130,7 +115,7 @@ newTextEntryDialogView resources text initValue testFn bgView bgInput = do
 
 -------------------------------------------------------------------------------
 
-newDialogBackgroundView :: Draw z (View a b)
+newDialogBackgroundView :: (MonadDraw m) => m (View a b)
 newDialogBackgroundView = wallView . const <$>
   newBackgroundPaint "gui/dialog-background.png" 0 0 8 8 64 64
 

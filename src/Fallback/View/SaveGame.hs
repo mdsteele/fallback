@@ -42,14 +42,14 @@ data SaveGameAction = CancelSaveGame | DoSaveGame String
 
 -------------------------------------------------------------------------------
 
-newSaveGameView :: Resources -> View c d -> c -> Sprite -> String
-                -> [SavedGameSummary] -> Draw z (View () SaveGameAction)
+newSaveGameView :: (MonadDraw m) => Resources -> View c d -> c -> Sprite
+                -> String -> [SavedGameSummary] -> m (View () SaveGameAction)
 newSaveGameView resources bgView bgInput screenshot location summaries = do
   dialog <- newSaveGameDialog resources screenshot location summaries
   newDialogView bgView bgInput dialog $ Rect 120 25 400 440
 
-newSaveGameDialog :: Resources -> Sprite -> String -> [SavedGameSummary]
-                  -> Draw z (View () SaveGameAction)
+newSaveGameDialog :: (MonadDraw m) => Resources -> Sprite -> String
+                  -> [SavedGameSummary] -> m (View () SaveGameAction)
 newSaveGameDialog resources screenshot location summaries = do
   let upperBound = length summaries - 1
   stateRef <- newDrawRef $ InternalState
@@ -112,7 +112,8 @@ data InternalState = InternalState
 data InternalAction = ScrollSummaries Int
                     | SetSaveName String
 
-newSaveSummaryView :: Resources -> Draw z (View InternalState InternalAction)
+newSaveSummaryView :: (MonadDraw m) => Resources
+                   -> m (View InternalState InternalAction)
 newSaveSummaryView resources = do
   let locFont = rsrcFont resources FontGeorgiaBold12
   let
@@ -127,8 +128,8 @@ newSaveSummaryView resources = do
      viewMap nsSaveName SetSaveName <$>
      newTextBox resources (const $ return True))]
 
-newSummariesListView :: Resources -> Int
-                     -> Draw z (View InternalState InternalAction)
+newSummariesListView :: (MonadDraw m) => Resources -> Int
+                     -> m (View InternalState InternalAction)
 newSummariesListView resources upperBound = do
   let spacing = 3
   let itemRect offset _ (w, h) =
@@ -139,14 +140,14 @@ newSummariesListView resources upperBound = do
         subView (itemRect offset) <$> newSummaryItemView resources offset
   compoundView <$> mapM newItem [0 .. min upperBound (numEntriesVisible - 1)]
 
-newSummaryItemView :: Resources -> Int
-                   -> Draw z (View InternalState InternalAction)
+newSummaryItemView :: (MonadDraw m) => Resources -> Int
+                   -> m (View InternalState InternalAction)
 newSummaryItemView resources offset = do
   let nameFont = rsrcFont resources FontGeorgiaBold12
   let infoFont = rsrcFont resources FontGeorgia12
   let
 
-    paint (ns, mbPt) = do
+    paint ns = do
       rect <- canvasRect
       let sgs = getSummary ns
       drawText nameFont blackColor (LocTopleft (Point 6 5 :: IPoint))
@@ -155,19 +156,20 @@ newSummaryItemView resources offset = do
                (sgsLocation sgs)
       drawText infoFont blackColor (LocTopright (Point (rectW rect - 6) 22))
                (sgsTimeSaved sgs)
-      let tint = if sgsName sgs == trimSaveName (nsSaveName ns)
-                 then Tint 0 192 0 255
-                 else if maybe False (rectContains rect) mbPt
-                      then Tint 64 128 64 255 else Tint 64 64 64 128
+      tint <- if sgsName sgs == trimSaveName (nsSaveName ns)
+              then return (Tint 0 192 0 255) else do
+        mbMousePt <- getRelativeMousePos
+        return $ if maybe False (rectContains rect) mbMousePt
+                 then Tint 64 128 64 255 else Tint 64 64 64 128
       drawBevelRect tint 3 rect
 
-    handler (ns, _) rect (EvMouseDown pt) =
-      if not (rectContains rect pt) then return Ignore else
+    handler ns (EvMouseDown pt) = do
+      whenWithinCanvas pt $ do
         return $ Action $ SetSaveName $ sgsName $ getSummary ns
-    handler _ _ _ = return Ignore
+    handler _ _ = return Ignore
 
     getSummary ns = nsSummaries ns ! (nsScrollTop ns + offset)
 
-  newMouseView $ View paint handler
+  return $ View paint handler
 
 -------------------------------------------------------------------------------

@@ -112,12 +112,15 @@ paintFields resources cameraTopleft visible clock =
     paintField (pos, field) =
       if Set.notMember pos visible then return () else
         case field of
-          FireWall _ ->
-            blit $ rsrcStrip resources SrpFireAura ! clockMod 4 3 clock
-          IceWall _ ->
-            blit $ rsrcStrip resources SrpIceAura ! clockMod 4 5 clock
-          _ -> return () -- FIXME
-      where blit s = blitStretch s $ positionRect pos `rectMinus` cameraTopleft
+          BarrierWall _ -> blit SrpBarrierAura $ clockMod 4 6 clock
+          FireWall _ -> blit SrpFireAura $ clockMod 4 3 clock
+          IceWall _ -> blit SrpIceAura $ clockMod 4 5 clock
+          PoisonCloud _ -> blit SrpGasAura $ clockMod 4 5 clock
+          SmokeScreen _ -> blit SrpSmokeAura $ clockMod 4 8 clock
+          Webbing _ -> return () -- FIXME
+      where
+        blit tag idx = blitStretch (rsrcStrip resources tag ! idx) $
+                       positionRect pos `rectMinus` cameraTopleft
 
 -- | Paint monsters, given the topleft position of the camera, a set of visible
 -- tile locations, a list of party member positions (used to determine if the
@@ -283,9 +286,10 @@ paintTargeting cameraTopleft mbMousePt ars charNum targeting = do
     TargetingArea sqdist areaFn -> do
       let targetable = getRegion sqdist
       paintRegion targetable
-      whenMouse $ \targetPos ->
-        if targetPos `Set.notMember` targetable then paintX targetPos else
-          mapM_ paintTile (areaFn ars originPos targetPos)
+      whenMouse $ \targetPos -> do
+        if targetPos `Set.notMember` targetable then paintX targetPos else do
+          let targets = areaFn ars originPos targetPos
+          if null targets then paintX targetPos else mapM_ paintTile targets
     TargetingMulti sqdist _ targets -> do
       let targetable = getRegion sqdist
       paintRegion targetable
@@ -349,7 +353,7 @@ paintTargetingRegion tint1 cameraTopleft positions = do
 
 -------------------------------------------------------------------------------
 
-newFadeToBlackView :: Draw z (View Double a)
+newFadeToBlackView :: (MonadDraw m) => m (View Double a)
 newFadeToBlackView = do
   let
     paint opacity = do

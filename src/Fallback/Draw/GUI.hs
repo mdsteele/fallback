@@ -19,17 +19,19 @@
 
 module Fallback.Draw.GUI where
 
+import Control.Applicative ((<$>))
 import Control.Monad (zipWithM_)
 
 import Fallback.Data.Color (Tint, tintAlpha)
 import Fallback.Data.Point
 import Fallback.Draw.Base
+import Fallback.Event (Key(..))
 import Fallback.Utility (fmod)
 
 -------------------------------------------------------------------------------
 
-newBackgroundPaint :: String -> Int -> Int -> Int -> Int -> Int -> Int
-                   -> Draw z (Paint ())
+newBackgroundPaint :: (MonadDraw m) => String -> Int -> Int -> Int -> Int
+                   -> Int -> Int -> m (Paint ())
 newBackgroundPaint filename ox oy mh mv sh sv = do
   let load = loadSubSprite filename . (`rectPlus` Point ox oy)
   topleft <- load $ Rect 0 0 mh mv
@@ -69,7 +71,7 @@ drawBevelRect tint b rect = withSubCanvas rect $ do
 
 -------------------------------------------------------------------------------
 
-newDigitPaint :: Draw z (Int -> LocSpec Int -> Paint ())
+newDigitPaint :: (MonadDraw m) => m (Int -> LocSpec Int -> Paint ())
 newDigitPaint = do
   digits <- loadVStrip "small-digits.png" 10
   let paint num loc =
@@ -118,5 +120,29 @@ drawThickLineChain width tint (p1 : p2 : rest) = do
   drawThickLine width tint p1 p2
   drawThickLineChain width tint (p2 : rest)
 drawThickLineChain _ _ _ = return ()
+
+-------------------------------------------------------------------------------
+
+getArrowKeysDirection :: (MonadHandler m) => m (Maybe Direction)
+getArrowKeysDirection = do
+  up <- getKeyState KeyUpArrow
+  dn <- getKeyState KeyDownArrow
+  lf <- getKeyState KeyLeftArrow
+  rt <- getKeyState KeyRightArrow
+  return $ case (up, dn, lf, rt) of
+    (False, False, False,  True) -> Just DirE
+    (False, False,  True, False) -> Just DirW
+    (False,  True, False, False) -> Just DirS
+    (False,  True, False,  True) -> Just DirSE
+    (False,  True,  True, False) -> Just DirSW
+    ( True, False, False, False) -> Just DirN
+    ( True, False, False,  True) -> Just DirNE
+    ( True, False,  True, False) -> Just DirNW
+    _ -> Nothing
+
+isMouseWithinCanvas :: (MonadHandler m) => m Bool
+isMouseWithinCanvas = do
+  rect <- canvasRect
+  maybe False (rectContains rect) <$> getRelativeMousePos
 
 -------------------------------------------------------------------------------

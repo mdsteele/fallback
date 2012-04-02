@@ -71,14 +71,13 @@ eventLoop state = SDL.pollEvent >>= handleEvent where
 --        end <- getClockTime
 --        print . round . (1e12 /) . fromIntegral . tdPicosec $
 --           diffClockTimes end start
-       nextMode state nxt
+       nextMode nxt
   handleEvent (SDL.GotFocus focus) =
     if SDL.InputFocus `notElem` focus then ignore else do
-      pt <- getAbsoluteMousePosition
-      passToMode' (state { engineClockOn = True }) (EvFocus pt)
+      eventLoop (state { engineClockOn = True })
   handleEvent (SDL.LostFocus focus) =
     if SDL.InputFocus `notElem` focus then ignore else do
-      passToMode' (state { engineClockOn = False }) EvBlur
+      eventLoop (state { engineClockOn = False })
   handleEvent (SDL.KeyDown (SDL.Keysym k ms char)) =
     let handle mods = if mods == [KeyModCmd] && k == SDL.SDLK_q
                       then passToMode EvQuit
@@ -105,15 +104,12 @@ eventLoop state = SDL.pollEvent >>= handleEvent where
   ignore = eventLoop state
 
   passToMode :: Event -> IO ()
-  passToMode = passToMode' state
+  passToMode = engineMode state >=> nextMode
 
-  passToMode' :: EngineState -> Event -> IO ()
-  passToMode' state' = engineMode state' >=> nextMode state'
-
-  nextMode :: EngineState -> NextMode -> IO ()
-  nextMode _ DoQuit = return ()
-  nextMode state' SameMode = eventLoop state'
-  nextMode state' (ChangeMode mode) = eventLoop $ state' { engineMode = mode }
+  nextMode :: NextMode -> IO ()
+  nextMode DoQuit = return ()
+  nextMode SameMode = eventLoop state
+  nextMode (ChangeMode mode) = eventLoop $ state { engineMode = mode }
 
 -------------------------------------------------------------------------------
 

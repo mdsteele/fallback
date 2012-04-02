@@ -93,13 +93,14 @@ data SidebarAction = EnterCheatCode
                    | ToggleInventory
                    | TryToggleCombat
 
-newSidebarView :: Resources -> Draw z (View SidebarState SidebarAction)
+newSidebarView :: (MonadDraw m) => Resources
+               -> m (View SidebarState SidebarAction)
 newSidebarView resources = do
   bgSprite <- loadSprite "gui/sidebar-background.png"
   buttonIcons <- loadVStrip "gui/sidebar-buttons.png" 5
-  let cheatHandler _ _ (EvKeyDown KeyD [KeyModShift] _) =
+  let cheatHandler _ (EvKeyDown KeyD [KeyModShift] _) =
         return (Action EnterCheatCode)
-      cheatHandler _ _ _ = return Ignore
+      cheatHandler _ _ = return Ignore
   let charRect i = Rect 1 (96 + 85 * i) (sidebarWidth - 6) 84
   let makeButton xIndex iconFn keys value =
         subView_ (Rect (2 + 29 * xIndex) 440 29 36) .
@@ -176,7 +177,7 @@ newQuestionWindowView _resources _cursorSink = do
 -------------------------------------------------------------------------------
 -- Minimap view:
 
-newMinimapView :: Draw z (View (IRect, Minimap) Position)
+newMinimapView :: (MonadDraw m) => m (View (IRect, Minimap) Position)
 newMinimapView = do
   let
     paint (camera, minimap) = do
@@ -188,13 +189,14 @@ newMinimapView = do
       blitMinimap minimap $ LocTopleft $ Point offsetX offsetY
       drawRect (Tint 255 255 255 192) (Rect mincamX mincamY mincamW mincamH)
 
-    handler (camera, minimap) rect (EvMouseDown pt) =
-      if not (rectContains rect pt) then return Ignore else
-        let (_, _, offsetX, offsetY) = getOffset camera minimap (rectSize rect)
-            x = (pointX pt - rectX rect - offsetX) `div` minimapScale
-            y = (pointY pt - rectY rect - offsetY) `div` minimapScale
-        in return $ Action $ Point x y
-    handler _ _ _ = return Ignore
+    handler (camera, minimap) (EvMouseDown pt) = do
+      whenWithinCanvas pt $ do
+        (w, h) <- canvasSize
+        let (_, _, offsetX, offsetY) = getOffset camera minimap (w, h)
+        let x = (pointX pt - w - offsetX) `div` minimapScale
+        let y = (pointY pt - h - offsetY) `div` minimapScale
+        return $ Action $ Point x y
+    handler _ _ = return Ignore
 
     getOffset camera minimap (viewW, viewH) =
       let (mapW, mapH) = minimapBlitSize minimap
@@ -213,8 +215,8 @@ newMinimapView = do
 -------------------------------------------------------------------------------
 -- Character view:
 
-newCharacterView :: Resources -> CharacterNumber
-                 -> Draw z (View SidebarState SidebarAction)
+newCharacterView :: (MonadDraw m) => Resources -> CharacterNumber
+                 -> m (View SidebarState SidebarAction)
 newCharacterView resources charNum = do
   let getCharacter state = partyGetCharacter (ssParty state) charNum
   let nameTopleft = Point 4 4 :: IPoint
@@ -235,35 +237,35 @@ newCharacterView resources charNum = do
         newStatusEffectsView resources)]),
     (vmap (ssParty &&& getCharacter) <$> compoundViewM [
        (subView_ (Rect 4 19 80 15) <$> newHealthBarView),
-       (subView_ (Rect 4 36 80 15) <$> newManaBarView)]),
+       (subView_ (Rect 4 36 80 15) <$> newMojoBarView)]),
     (newMaybeView ssCombatState =<< subView_ (Rect 60 53 52 15) <$>
      newTimeBarView charNum)]
 
-newCharacterViewBackground :: CharacterNumber
-                           -> Draw z (View SidebarState SidebarAction)
+newCharacterViewBackground :: (MonadDraw m) => CharacterNumber
+                           -> m (View SidebarState SidebarAction)
 newCharacterViewBackground charNum = do
   let
-    paint (state, mbMousePt) = do
+    paint state = do
       let active = ssActiveCharacter state == Just charNum
       rect <- canvasRect
-      let hover = maybe False (rectContains rect) mbMousePt
-      drawRect (if active then Tint 128 0 0 192 else
-                  if hover then Tint 128 0 0 128 else Tint 0 0 0 128) rect
+      tint <- if active then return (Tint 128 0 0 192) else do
+        hover <- maybe False (rectContains rect) <$> getRelativeMousePos
+        return $ if hover then Tint 128 0 0 128 else Tint 0 0 0 128
+      drawRect tint rect
       when active $ do
         drawRect (Tint 128 0 0 128) $ adjustRect1 1 rect
         tintRect (Tint 255 255 255 96) $ adjustRect1 2 rect
 
-    handler _ rect (EvMouseDown pt) =
-      return $ if rectContains rect pt
-               then Action (MakeCharacterActive charNum) else Ignore
-    handler _ _ (EvKeyDown key _ _) =
+    handler _ (EvMouseDown pt) = do
+      whenWithinCanvas pt $ return $ Action (MakeCharacterActive charNum)
+    handler _ (EvKeyDown key _ _) = do
       return $ if key == characterKey charNum
                then Action (MakeCharacterActive charNum) else Ignore
-    handler _ _ _ = return Ignore
+    handler _ _ = return Ignore
 
-  newMouseView $ View paint handler
+  return $ View paint handler
 
-newHealthBarView :: Draw z (View (Party, Character) b)
+newHealthBarView :: (MonadDraw m) => m (View (Party, Character) b)
 newHealthBarView = do
   paintDigits <- newDigitPaint
   let
@@ -277,8 +279,8 @@ newHealthBarView = do
       paintDigits (chrHealth char) $ LocCenter $ rectCenter rect
   return (inertView paint)
 
-newManaBarView :: Draw z (View (Party, Character) b)
-newManaBarView = do
+newMojoBarView :: (MonadDraw m) => m (View (Party, Character) b)
+newMojoBarView = do
   paintDigits <- newDigitPaint
   let
     paint (party, char) =
@@ -293,7 +295,7 @@ newManaBarView = do
       height <- canvasHeight
       let paintFocusPip index = tintRect (Tint 0 0 255 255)
                                          (Rect (6 * index) 0 5 height)
-      mapM_ paintFocusPip [0 .. chrMana char - 1]
+      mapM_ paintFocusPip [0 .. chrMojo char - 1]
     paintIngredients party = do
       let ingredients = partyIngredients party
       let paintIngredient ingredient index = do
@@ -313,15 +315,15 @@ newManaBarView = do
       zipWithM_ paintIngredient [minBound .. maxBound] [0 ..]
     paintMana party char = do
       rect <- canvasRect
-      let fr = fromIntegral (chrMana char) /
-               fromIntegral (chrMaxMana party char)
+      let fr = fromIntegral (chrMojo char) /
+               fromIntegral (chrMaxMojo party char)
       tintRect (Tint 0 0 255 255) (Rect 0 0 (fr * fromIntegral (rectW rect))
                                         (fromIntegral (rectH rect) :: Double))
       drawRect (Tint 0 0 128 255) rect
-      paintDigits (chrMana char) $ LocCenter $ rectCenter rect
+      paintDigits (chrMojo char) $ LocCenter $ rectCenter rect
   return (inertView paint)
 
-newAdrenalineBarView :: Draw z (View Character b)
+newAdrenalineBarView :: (MonadDraw m) => m (View Character b)
 newAdrenalineBarView = do
   paintDigits <- newDigitPaint
   let
@@ -335,7 +337,7 @@ newAdrenalineBarView = do
       paintDigits (chrAdrenaline char) $ LocCenter $ rectCenter rect
   return (inertView paint)
 
-newTimeBarView :: CharacterNumber -> Draw z (View CombatState b)
+newTimeBarView :: (MonadDraw m) => CharacterNumber -> m (View CombatState b)
 newTimeBarView charNum = do
   paintDigits <- newDigitPaint
   let
@@ -364,7 +366,8 @@ newTimeBarView charNum = do
 
   return (inertView paint)
 
-newStatusEffectsView :: Resources -> Draw z (View (StatusEffects, Int) b)
+newStatusEffectsView :: (MonadDraw m) => Resources
+                     -> m (View (StatusEffects, Int) b)
 newStatusEffectsView resources = do
   let
     paint (se, health) = do

@@ -32,7 +32,7 @@ import Fallback.Draw
 import Fallback.Event (Event(..))
 import Fallback.State.Resources (Resources, rsrcCursorsStrip)
 import Fallback.Utility (maybeM)
-import Fallback.View.Base (View(View), newMouseView)
+import Fallback.View.Base (View(View))
 
 -------------------------------------------------------------------------------
 
@@ -40,13 +40,13 @@ data HoverRef a = HoverRef
   { hovCurrent :: DrawRef a,
     hovOpen :: DrawRef Bool }
 
-newHoverRef :: a -> Draw z (HoverRef a)
+newHoverRef :: (MonadDraw m) => a -> m (HoverRef a)
 newHoverRef value = HoverRef <$> newDrawRef value <*> newDrawRef True
 
-reopenHoverRef :: HoverRef a -> Draw z ()
+reopenHoverRef :: (MonadDraw m) => HoverRef a -> m ()
 reopenHoverRef hov = writeDrawRef (hovOpen hov) True
 
-readHoverRef :: HoverRef a -> Draw z a
+readHoverRef :: (MonadDraw m) => HoverRef a -> m a
 readHoverRef = readDrawRef . hovCurrent
 
 newtype HoverSink a = HoverSink (HoverRef a)
@@ -54,7 +54,7 @@ newtype HoverSink a = HoverSink (HoverRef a)
 hoverSink :: HoverRef a -> HoverSink a
 hoverSink = HoverSink
 
-writeHoverSink :: HoverSink a -> a -> Draw z ()
+writeHoverSink :: (MonadDraw m) => HoverSink a -> a -> m ()
 writeHoverSink (HoverSink hov) value = do
   open <- readDrawRef (hovOpen hov)
   when open $ do
@@ -65,39 +65,28 @@ writeHoverSink (HoverSink hov) value = do
 
 hoverView :: HoverSink c -> c -> View a b -> View a b
 hoverView sink value view = hoverView' sink (const $ Just value) view
-{-
-hoverView sink value (View paint handler) =
-  let handler' input rect event = do
-        result <- handler input rect event
-        let check pt = when (rectContains rect pt) (writeHoverSink sink value)
-        case event of
-          EvMouseMotion pt _ -> check pt
-          EvMouseDown pt -> check pt
-          EvMouseUp pt -> check pt
-          EvFocus pt -> check pt
-          _ -> return ()
-        return result
-  in View paint handler'
--}
 
 hoverView' :: HoverSink c -> (a -> Maybe c) -> View a b -> View a b
 hoverView' sink valueFn (View paint handler) =
-  let handler' input rect event = do
-        result <- handler input rect event
+  let handler' input event = do
+        result <- handler input event
+        rect <- canvasRect
         let check pt = when (rectContains rect pt) $
                        maybeM (valueFn input) (writeHoverSink sink)
         case event of
+          EvTick -> do
+            mbPt <- getRelativeMousePos
+            maybeM mbPt check
           EvMouseMotion pt _ -> check pt
           EvMouseDown pt -> check pt
           EvMouseUp pt -> check pt
-          EvFocus pt -> check pt
           _ -> return ()
         return result
   in View paint handler'
 
 hoverJunction :: HoverRef c -> View a b -> View a b
 hoverJunction ref (View paint handler) = View paint handler' where
-  handler' input rect event = reopenHoverRef ref >> handler input rect event
+  handler' input event = reopenHoverRef ref >> handler input event
 
 -------------------------------------------------------------------------------
 
@@ -139,19 +128,20 @@ paintCursor resources cursor mousePt =
           blitTopleft (rsrcCursorsStrip resources ! index)
                       (mousePt `pSub` offset)
 
-newCursorView :: Resources -> (HoverSink Cursor -> Draw z (View a b))
-              -> Draw z (View a b)
+newCursorView :: (MonadDraw m) => Resources
+              -> (HoverSink Cursor -> m (View a b)) -> m (View a b)
 newCursorView resources fn = do
   hov <- newHoverRef DefaultCursor
   View paint handler <- fn (hoverSink hov)
   let
-    paint' (input, mbMousePt) = do
+    paint' input = do
       cursor <- readHoverRef hov
       paint input
+      mbMousePt <- getRelativeMousePos
       maybeM mbMousePt (paintCursor resources cursor)
-    handler' (input, _) rect event = do
+    handler' input event = do
       reopenHoverRef hov
-      handler input rect event
-  newMouseView (View paint' handler')
+      handler input event
+  return (View paint' handler')
 
 -------------------------------------------------------------------------------

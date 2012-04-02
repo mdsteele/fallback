@@ -65,12 +65,13 @@ initialNewGameSpec = NewGameSpec
 
 -------------------------------------------------------------------------------
 
-newNewGameView :: Resources -> View c d -> c -> Draw z (View () NewGameAction)
+newNewGameView :: (MonadDraw m) => Resources -> View c d -> c
+               -> m (View () NewGameAction)
 newNewGameView resources bgView bgInput = do
   dialog <- newNewGameDialog resources
   newDialogView bgView bgInput dialog $ Rect 25 90 590 340 -- 120 90 400 340
 
-newNewGameDialog :: Resources -> Draw z (View () NewGameAction)
+newNewGameDialog :: (MonadDraw m) => Resources -> m (View () NewGameAction)
 newNewGameDialog resources = do
   stateRef <- newDrawRef (InternalState initialNewGameSpec minBound)
   let handleAction action = do
@@ -129,8 +130,8 @@ data InternalAction = SelectCharacter CharacterNumber
                     | ChangeAppearance CharacterAppearance
                     | SetDifficulty Difficulty
 
-newCharacterRadio :: Resources -> CharacterNumber
-                  -> Draw z (View InternalState InternalAction)
+newCharacterRadio :: (MonadDraw m) => Resources -> CharacterNumber
+                  -> m (View InternalState InternalAction)
 newCharacterRadio resources charNum = do
   let nameFont = rsrcFont resources FontChancery18
   let classFont = rsrcFont resources FontGeorgiaBold10
@@ -149,13 +150,13 @@ newCharacterRadio resources charNum = do
                      then blackTint else Tint 0 0 0 40)
                     [Point w 0, Point 5 0, Point 0 5,
                      Point 0 (h - 6), Point 5 (h - 1), Point w (h - 1)]
-    handler _ rect (EvMouseDown pt) =
-      if not (rectContains rect pt) then return Ignore
-      else return $ Action $ SelectCharacter charNum
-    handler _ _ _ = return Ignore
+    handler _ (EvMouseDown pt) = do
+      whenWithinCanvas pt $ return $ Action $ SelectCharacter charNum
+    handler _ _ = return Ignore
   return $ View paint handler
 
-newEditCharView :: Resources -> Draw z (View InternalState InternalAction)
+newEditCharView :: (MonadDraw m) => Resources
+                -> m (View InternalState InternalAction)
 newEditCharView resources = do
   let paintBackground state = do
         (w, h) <- canvasSize
@@ -187,8 +188,8 @@ newEditCharView resources = do
      newDynamicTextWrapView resources),
     (compoundView <$> zipWithM newAppRadio [minBound .. maxBound] [0 ..])]
 
-newClassRadio :: Resources -> CharacterClass
-              -> Draw z (View InternalState InternalAction)
+newClassRadio :: (MonadDraw m) => Resources -> CharacterClass
+              -> m (View InternalState InternalAction)
 newClassRadio resources cls = do
   let font1 = rsrcFont resources FontGeorgia14
   let font2 = rsrcFont resources FontGeorgiaBold14
@@ -202,14 +203,13 @@ newClassRadio resources cls = do
                (LocCenter $ rectCenter rect) (className cls)
       drawBevelRect (if selected then Tint 192 32 32 255 else Tint 0 0 0 40)
                     3 rect
-    handler _ rect (EvMouseDown pt) =
-      if not (rectContains rect pt) then return Ignore else
-        return $ Action $ ChangeClass cls
-    handler _ _ _ = return Ignore
+    handler _ (EvMouseDown pt) = do
+      whenWithinCanvas pt $ return $ Action $ ChangeClass cls
+    handler _ _ = return Ignore
   return $ View paint handler
 
-newAppearanceRadio :: Resources -> CharacterAppearance
-                   -> Draw z (View InternalState InternalAction)
+newAppearanceRadio :: (MonadDraw m) => Resources -> CharacterAppearance
+                   -> m (View InternalState InternalAction)
 newAppearanceRadio resources appear = do
   let
     paint state = do
@@ -220,13 +220,13 @@ newAppearanceRadio resources appear = do
       blitLoc sprite $ LocCenter $ rectCenter rect
       drawBevelRect (if ncsAppearance ncs == appear
                      then Tint 192 32 32 255 else Tint 0 0 0 40) 5 rect
-    handler _ rect (EvMouseDown pt) =
-      if not (rectContains rect pt) then return Ignore else
-        return $ Action $ ChangeAppearance appear
-    handler _ _ _ = return Ignore
+    handler _ (EvMouseDown pt) =
+      whenWithinCanvas pt $ return $ Action $ ChangeAppearance appear
+    handler _ _ = return Ignore
   return $ View paint handler
 
-newDifficultyView :: Resources -> Draw z (View InternalState InternalAction)
+newDifficultyView :: (MonadDraw m) => Resources
+                  -> m (View InternalState InternalAction)
 newDifficultyView resources = do
   let font = rsrcFont resources FontGeorgiaBold14
   let paintBackground _ = do
@@ -244,8 +244,8 @@ newDifficultyView resources = do
      vmap (difficultyDescription . ngsDifficulty . insSpec) <$>
      newDynamicTextWrapView resources)]
 
-newDifficultyRadio :: Resources -> Difficulty
-                   -> Draw z (View InternalState InternalAction)
+newDifficultyRadio :: (MonadDraw m) => Resources -> Difficulty
+                   -> m (View InternalState InternalAction)
 newDifficultyRadio resources diff = do
   let font1 = rsrcFont resources FontGeorgia11
   let font2 = rsrcFont resources FontGeorgiaBold12
@@ -258,10 +258,9 @@ newDifficultyRadio resources diff = do
                (LocCenter $ rectCenter rect) (difficultyName diff)
       drawBevelRect (if selected then Tint 192 32 32 255 else Tint 0 0 0 40)
                     3 rect
-    handler _ rect (EvMouseDown pt) =
-      if not (rectContains rect pt) then return Ignore else
-        return $ Action $ SetDifficulty diff
-    handler _ _ _ = return Ignore
+    handler _ (EvMouseDown pt) = do
+      whenWithinCanvas pt $ return $ Action $ SetDifficulty diff
+    handler _ _ = return Ignore
   return $ View paint handler
 
 -------------------------------------------------------------------------------

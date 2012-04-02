@@ -22,8 +22,7 @@ module Fallback.Mode.Dialog where
 import Control.Applicative ((<$>))
 import Control.Monad (when)
 
-import Fallback.Constants (screenRect)
-import Fallback.Draw (paintScreen, runDraw)
+import Fallback.Draw (handleScreen, paintScreen)
 import Fallback.Event
 import Fallback.Mode.Base
 import Fallback.State.Resources (Resources)
@@ -35,31 +34,29 @@ import Fallback.View.Dialog (newHorizontalDialogView, newTextEntryDialogView)
 newHorizontalDialogMode :: Resources -> String -> [(String, [Key], c)]
                         -> (c -> IO NextMode) -> View a b -> a -> IO Mode
 newHorizontalDialogMode resources text buttonSpecs nextMode bgView bgInput = do
-  view <- runDraw $
-          newHorizontalDialogView resources text buttonSpecs bgView bgInput
+  view <- newHorizontalDialogView resources text buttonSpecs bgView bgInput
   let mode EvQuit = return SameMode
       mode event = do
-        action <- runDraw $ viewHandler view () screenRect event
+        action <- handleScreen $ viewHandler view () event
         when (event == EvTick) $ paintScreen (viewPaint view ())
         maybe (return SameMode) nextMode (fromAction action)
-  focusBlurMode (return ()) view mode
+  return mode
 
 newTextEntryDialogMode :: Resources -> String -> String -> (String -> Bool)
                        -> IO Mode -> (String -> IO Mode) -> View a b -> a
                        -> IO Mode
 newTextEntryDialogMode resources text initValue testFn
                        onCancel onOk bgView bgInput = do
-  view <- runDraw $
-          newTextEntryDialogView resources text initValue testFn bgView bgInput
+  view <- newTextEntryDialogView resources text initValue testFn bgView bgInput
   let mode EvQuit = return SameMode
       mode event = do
-        action <- runDraw $ viewHandler view () screenRect event
+        action <- handleScreen $ viewHandler view () event
         when (event == EvTick) $ paintScreen (viewPaint view ())
         case fromAction action of
           Nothing -> return SameMode
           Just Nothing -> ChangeMode <$> onCancel
           Just (Just string) -> ChangeMode <$> onOk string
-  focusBlurMode (return ()) view mode
+  return mode
 
 newQuitWithoutSavingMode :: Resources -> Mode -> View a b -> a -> IO Mode
 newQuitWithoutSavingMode resources prevMode bgView bgInput =

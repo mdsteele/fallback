@@ -30,11 +30,10 @@ import Data.IORef
 import qualified Data.Set as Set
 import qualified Text.ParserCombinators.ReadP as Read
 
-import Fallback.Constants (screenRect)
 import Fallback.Control.Error (runEO, runIOEO)
 import Fallback.Data.Clock (initClock)
 import Fallback.Data.Point
-import Fallback.Draw (paintScreen, runDraw)
+import Fallback.Draw (handleScreen, paintScreen)
 import Fallback.Event
 import Fallback.Mode.Base
 import Fallback.Mode.Dialog (newTextEntryDialogMode)
@@ -52,7 +51,7 @@ import Fallback.View.Editor
 
 newEditorMode :: Resources -> IO Mode
 newEditorMode resources = do
-  view <- runDraw (newEditorView resources)
+  view <- newEditorView resources
   stateRef <- newEditorState resources >>= newIORef
   let
 
@@ -73,7 +72,7 @@ newEditorMode resources = do
     mode event = do
       when (event == EvTick) $ modifyIORef stateRef tickEditorState
       es <- readIORef stateRef
-      action <- runDraw $ viewHandler view es screenRect event
+      action <- handleScreen $ viewHandler view es event
       when (event == EvTick) $ paintScreen (viewPaint view es)
       case fromAction action of
         Nothing -> return SameMode
@@ -309,6 +308,7 @@ floodFill start tile tmap =
                (Set.insert pos visited)
       startId = ttId (tmapGet tmap start)
       filled = Set.toList $ fill [start] Set.empty
+      cardinalDirections = filter isCardinal allDirections
   in (tmapSet filled tile tmap, filled)
 
 newEditorState :: Resources -> IO EditorState

@@ -18,19 +18,13 @@
 ============================================================================ -}
 
 module Fallback.Mode.Base
-  (Mode, NextMode(..), Modes(..), focusBlurMode)
+  (Mode, NextMode(..), Modes(..))
 where
 
-import Control.Monad (unless)
-import Data.IORef
-
-import Fallback.Constants (screenRect)
-import Fallback.Draw (runDraw)
-import Fallback.Event (Event(EvBlur, EvFocus), getAbsoluteMousePosition)
+import Fallback.Event (Event)
 import Fallback.State.Combat (CombatState)
 import Fallback.State.Region (RegionState)
 import Fallback.State.Town (TownState)
-import Fallback.View (View, viewHandler)
 
 -------------------------------------------------------------------------------
 
@@ -46,26 +40,5 @@ data Modes = Modes
     newMainMenuMode' :: IO Mode,
     newRegionMode' :: RegionState -> IO Mode,
     newTownMode' :: TownState -> IO Mode }
-
--------------------------------------------------------------------------------
-
-focusBlurMode :: IO a -> View a b -> Mode -> IO Mode
-focusBlurMode getInput view mode = do
-  activeRef <- newIORef False
-  return $ \event -> do
-    isActive <- readIORef activeRef
-    unless isActive $ do
-      input <- getInput
-      pt <- getAbsoluteMousePosition
-      _ <- runDraw $ viewHandler view input screenRect (EvFocus pt)
-      writeIORef activeRef True
-    result <- mode event
-    case result of
-      ChangeMode _ -> do
-        input <- getInput
-        _ <- runDraw $ viewHandler view input screenRect EvBlur
-        writeIORef activeRef False
-      _ -> return ()
-    return result
 
 -------------------------------------------------------------------------------

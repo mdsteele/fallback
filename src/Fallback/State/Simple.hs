@@ -32,19 +32,24 @@ data AbilityNumber = Ability0 | Ability1 | Ability2 | Ability3 | Ability4
                    | Ability5 | Ability6 | Ability7 | Ability8 | Ability9
   deriving (Bounded, Enum, Eq, Ix, Ord)
 
-data AbilityLevel = Level1 | Level2 | Level3
+data AbilityRank = Rank1 | Rank2 | Rank3
   deriving (Bounded, Enum, Eq, Ix, Ord, Read, Show)
 
-nextAbilityLevel :: Maybe AbilityLevel -> AbilityLevel
-nextAbilityLevel Nothing = Level1
-nextAbilityLevel (Just Level1) = Level2
-nextAbilityLevel (Just Level2) = Level3
-nextAbilityLevel (Just Level3) = Level3
+abilityRankNumber :: AbilityRank -> Int
+abilityRankNumber Rank1 = 1
+abilityRankNumber Rank2 = 2
+abilityRankNumber Rank3 = 3
 
-abilityLevelPlus :: Maybe AbilityLevel -> Int -> Maybe AbilityLevel
-abilityLevelPlus mbLevel n =
-  if n <= 0 || mbLevel == Just maxBound then mbLevel
-  else abilityLevelPlus (Just $ nextAbilityLevel mbLevel) (n - 1)
+nextAbilityRank :: Maybe AbilityRank -> AbilityRank
+nextAbilityRank Nothing = Rank1
+nextAbilityRank (Just Rank1) = Rank2
+nextAbilityRank (Just Rank2) = Rank3
+nextAbilityRank (Just Rank3) = Rank3
+
+abilityRankPlus :: Maybe AbilityRank -> Int -> Maybe AbilityRank
+abilityRankPlus mbRank n =
+  if n <= 0 || mbRank == Just maxBound then mbRank
+  else abilityRankPlus (Just $ nextAbilityRank mbRank) (n - 1)
 
 data CastingCost = AdrenalineCost Int
                  | FocusCost Int
@@ -96,7 +101,7 @@ data AttackEffect = DrainMana Double -- mana drained per base damage
                   | InflictDaze Double
                   | InflictPoison Double -- poison per base damage
                   | InflictSlow Double
-                  | InflictStun Double
+                  | InflictStun Double -- AP stun per base damage
                   | InflictWeakness Double
                   | ReduceBuffs Double
 
@@ -178,10 +183,10 @@ deltaFaceDir (Point dx dy) =
 -------------------------------------------------------------------------------
 
 data Field = BarrierWall Int -- duration in frames
-           | FireWall Double -- base damage
-           | IceWall Double -- base damage
-           | PoisonCloud Double -- base poison damage
-           | SmokeScreen Double
+           | FireWall Double -- base damage per round
+           | IceWall Double -- base damage per round
+           | PoisonCloud Double -- base poison damage per round
+           | SmokeScreen Double -- half-life in frames
            | Webbing Double -- entanglement to impart
   deriving (Eq, Read, Show)
 
@@ -236,12 +241,17 @@ nullStats = makeTotalMap (const 0)
 
 -------------------------------------------------------------------------------
 
-data TerrainOpenness = TerrainHover | TerrainOpen | TerrainSmoke
-                     | TerrainSolid | TerrainWindow
+data TerrainOpenness = TerrainHover | TerrainHoverSmoke | TerrainOpen
+                     | TerrainSmoke | TerrainSolid | TerrainWindow
   deriving (Eq)
 
 canSeeThrough :: TerrainOpenness -> Bool
-canSeeThrough t = t /= TerrainSolid && t /= TerrainSmoke
+canSeeThrough TerrainHover = True
+canSeeThrough TerrainHoverSmoke = False
+canSeeThrough TerrainOpen = True
+canSeeThrough TerrainSmoke = False
+canSeeThrough TerrainSolid = False
+canSeeThrough TerrainWindow = True
 
 cannotSeeThrough :: TerrainOpenness -> Bool
 cannotSeeThrough = not . canSeeThrough
@@ -251,5 +261,24 @@ cannotFlyOver t = t == TerrainSolid || t == TerrainWindow
 
 cannotWalkOn :: TerrainOpenness -> Bool
 cannotWalkOn t = t /= TerrainOpen && t /= TerrainSmoke
+
+smokifyOpenness :: TerrainOpenness -> TerrainOpenness
+smokifyOpenness TerrainHover = TerrainHoverSmoke
+smokifyOpenness TerrainHoverSmoke = TerrainHoverSmoke
+smokifyOpenness TerrainOpen = TerrainSmoke
+smokifyOpenness TerrainSmoke = TerrainSmoke
+smokifyOpenness TerrainSolid = TerrainSolid
+smokifyOpenness TerrainWindow = TerrainSolid
+
+-- | Change a 'TerrainOpenness' to one with the same visibility properties, but
+-- that cannot be walked through (or flown over).  Essentially, everything
+-- becomes either 'TerrainWindow' or 'TerrainSolid'.
+solidifyOpenness :: TerrainOpenness -> TerrainOpenness
+solidifyOpenness TerrainHover = TerrainWindow
+solidifyOpenness TerrainHoverSmoke = TerrainSolid
+solidifyOpenness TerrainOpen = TerrainWindow
+solidifyOpenness TerrainSmoke = TerrainSolid
+solidifyOpenness TerrainSolid = TerrainSolid
+solidifyOpenness TerrainWindow = TerrainWindow
 
 -------------------------------------------------------------------------------

@@ -63,8 +63,8 @@ abilsGetCharacter as =
 
 -------------------------------------------------------------------------------
 
-newAbilitiesView :: Resources -> HoverSink Cursor
-                 -> Draw z (View AbilitiesState AbilitiesAction)
+newAbilitiesView :: (MonadDraw m) => Resources -> HoverSink Cursor
+                 -> m (View AbilitiesState AbilitiesAction)
 newAbilitiesView resources cursorSink = do
   let margin = 20
       buttonSpacing = 8
@@ -140,17 +140,17 @@ newAbilitiesView resources cursorSink = do
 
 -------------------------------------------------------------------------------
 
-newAbilityWidget :: Resources -> HoverSink (Maybe (AbilityTag, AbilityLevel))
-                 -> AbilityNumber
-                 -> Draw z (View AbilitiesState AbilitiesAction)
+newAbilityWidget :: (MonadDraw m) => Resources
+                 -> HoverSink (Maybe (AbilityTag, AbilityRank))
+                 -> AbilityNumber -> m (View AbilitiesState AbilitiesAction)
 newAbilityWidget resources abilitySink abilNum = do
   let maybeFn as = do
         let char = abilsGetCharacter as
-        level <- tmGet abilNum $ chrAbilities char
+        abilRank <- tmGet abilNum $ chrAbilities char
         let abilTag = classAbility (chrClass char) abilNum
-        Just ((as, char), (abilTag, level))
-  let eitherFn ((as, char), (abilTag, level)) =
-        case getAbility (chrClass char) abilNum level of
+        Just ((as, char), (abilTag, abilRank))
+  let eitherFn ((as, char), (abilTag, abilRank)) =
+        case getAbility (chrClass char) abilNum abilRank of
           ActiveAbility cost eff ->
             Left (abilTag, canUseActiveAbility as cost eff)
           PassiveAbility -> Right abilTag
@@ -159,13 +159,13 @@ newAbilityWidget resources abilitySink abilNum = do
   newMaybeView maybeFn =<< (hoverView' abilitySink (Just . Just . snd) <$>
                             newEitherView eitherFn active passive)
 
-newActiveAbilityWidget :: Resources -> AbilityNumber
-                       -> Draw z (View (AbilityTag, Bool) AbilitiesAction)
+newActiveAbilityWidget :: (MonadDraw m) => Resources -> AbilityNumber
+                       -> m (View (AbilityTag, Bool) AbilitiesAction)
 newActiveAbilityWidget resources abilNum =
   vmap (rsrcAbilityIcon resources . abilityIconCoords *** enabledIf) <$>
   newIconButton [] (UseAbility abilNum)
 
-newPassiveAbilityWidget :: Resources -> Draw z (View AbilityTag b)
+newPassiveAbilityWidget :: (MonadDraw m) => Resources -> m (View AbilityTag b)
 newPassiveAbilityWidget resources = do
   let paint abilTag = do
         rect <- canvasRect
@@ -177,8 +177,9 @@ newPassiveAbilityWidget resources = do
 
 -------------------------------------------------------------------------------
 
-newAbilityInfoView :: Resources -> HoverRef (Maybe (AbilityTag, AbilityLevel))
-                   -> Draw z (View a b)
+newAbilityInfoView :: (MonadDraw m) => Resources
+                   -> HoverRef (Maybe (AbilityTag, AbilityRank))
+                   -> m (View a b)
 newAbilityInfoView resources abilRef = do
   cache <- newDrawRef Nothing
   let inputFn _ = do

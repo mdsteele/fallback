@@ -30,7 +30,7 @@ import qualified Data.Set as Set
 import Data.Traversable (for)
 import System.Random (Random, randomRIO)
 
-import Fallback.Constants (combatArenaCols, combatArenaRows, secondsPerFrame)
+import Fallback.Constants (secondsPerFrame)
 import Fallback.Control.Script (Script)
 import Fallback.Data.Clock (Clock, clockInc)
 import qualified Fallback.Data.Grid as Grid
@@ -82,7 +82,9 @@ updateMinimap acs visible = do
 -------------------------------------------------------------------------------
 
 class (HasProgress a) => AreaState a where
-  arsArenaTopleft :: a -> Position
+  -- | The boundaries of movement.  In town mode, this is the whole map; in
+  -- combat mode, it is the combat arena.
+  arsBoundaryRect :: a -> PRect
 
   -- | Return the position of a particular character.  In town mode, this will
   -- be the party position, regardless of which character was asked for.  In
@@ -108,10 +110,6 @@ class (HasProgress a) => AreaState a where
   arsVisibleForCharacter :: CharacterNumber -> a -> Set.Set Position
 
 -------------------------------------------------------------------------------
-
-arsArenaRect :: (AreaState a) => a -> IRect
-arsArenaRect ars = let Point x y = arsArenaTopleft ars
-                   in Rect x y combatArenaCols combatArenaRows
 
 arsCamera :: (AreaState a) => a -> Camera
 arsCamera = acsCamera . arsCommon
@@ -156,13 +154,18 @@ arsTerrain = acsTerrain . arsCommon
 
 arsTerrainOpenness :: (AreaState a) => Position -> a -> TerrainOpenness
 arsTerrainOpenness pos ars =
-  ttOpenness $ terrainGetTile pos $ acsTerrain $ arsCommon ars
+  case Map.lookup pos $ arsFields ars of
+    Just (BarrierWall _) -> TerrainSolid
+    Just (SmokeScreen _) -> smokifyOpenness openness
+    _ -> if rectContains (arsBoundaryRect ars) pos then openness
+         else solidifyOpenness openness
+  where openness = ttOpenness $ terrainGetTile pos $ acsTerrain $ arsCommon ars
 
 arsVisibleForParty :: (AreaState a) => a -> Set.Set Position
 arsVisibleForParty = acsVisible . arsCommon
 
 arsIsOpaque :: (AreaState a) => a -> Position -> Bool
-arsIsOpaque ars pos = not $ canSeeThrough $ arsTerrainOpenness pos ars
+arsIsOpaque ars pos = cannotSeeThrough $ arsTerrainOpenness pos ars
 
 -- | Determine if the given monster cannot occupy the given position (for large
 -- monsters, this position corresponds to the top-left position of the
@@ -224,7 +227,7 @@ arsBeamPositions :: (AreaState a) => a -> Position {-^start-}
 arsBeamPositions ars start thru =
   let delta = thru `pSub` start
   in if delta == pZero then [start] else
-       let arena = arsArenaRect ars
+       let arena = arsBoundaryRect ars
            blocked pos = not (rectContains arena pos) || arsIsOpaque ars pos
            takeThru _ [] = []
            takeThru p (x : xs) = if p x then [x] else x : takeThru p xs
@@ -359,7 +362,7 @@ decayFields frames fields = fmap (Map.mapMaybe id) $ for fields $ \field -> do
     FireWall _ -> decay 180
     IceWall _ -> decay 240
     PoisonCloud _ -> decay 150
-    SmokeScreen _ -> decay 150
+    SmokeScreen halflife -> decay halflife
     Webbing _ -> return (Just field)
 
 -------------------------------------------------------------------------------
@@ -494,8 +497,9 @@ executeAreaCommonEffect eff ars = do
     EffAddDoodad dood -> do
       change acs { acsDoodads = addDoodad dood (acsDoodads acs) }
     EffAlterFields fn ps -> do
-      -- TODO update visibility, for the sake of smokescreen
-      change acs { acsFields = foldr (Map.alter fn) (acsFields acs) ps }
+      let fields' = foldr (Map.alter fn) (acsFields acs) ps
+      ars' <- arsUpdateVisibility $ set acs { acsFields = fields' }
+      return ((), ars')
     EffAreaGet fn -> return (fn ars, ars)
     EffMessage text -> change acs { acsMessage = Just (makeMessage text) }
     EffTryAddDevice pos device -> do

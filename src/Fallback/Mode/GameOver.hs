@@ -23,9 +23,8 @@ import Control.Applicative ((<$>))
 import Control.Monad (when)
 import Data.IORef
 
-import Fallback.Constants (screenRect)
 import Fallback.Data.Clock
-import Fallback.Draw (paintScreen, runDraw)
+import Fallback.Draw (handleScreen, paintScreen)
 import Fallback.Event
 import Fallback.Mode.Base
 import Fallback.Mode.LoadGame (newLoadGameMode)
@@ -38,12 +37,12 @@ import Fallback.View.GameOver (GameOverAction(..), newGameOverView)
 newGameOverMode :: Resources -> Modes -> IO Mode
 newGameOverMode resources modes = do
   clockRef <- newIORef initClock
-  view <- runDraw (newGameOverView resources)
+  view <- newGameOverView resources
   let mode EvQuit = return DoQuit
       mode event = do
         when (event == EvTick) $ modifyIORef clockRef clockInc
         clock <- readIORef clockRef
-        action <- runDraw $ viewHandler view clock screenRect event
+        action <- handleScreen $ viewHandler view clock event
         when (event == EvTick) $ paintScreen (viewPaint view clock)
         case fromAction action of
           Nothing -> return SameMode
@@ -51,6 +50,6 @@ newGameOverMode resources modes = do
             ChangeMode <$> newLoadGameMode resources modes mode view clock
           Just ReturnToMainMenu -> ChangeMode <$> newMainMenuMode' modes
           Just QuitGame -> return DoQuit
-  focusBlurMode (readIORef clockRef) view mode
+  return mode
 
 -------------------------------------------------------------------------------

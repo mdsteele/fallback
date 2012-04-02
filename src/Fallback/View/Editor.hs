@@ -24,7 +24,7 @@ where
 
 import Control.Applicative ((<$), (<$>))
 import Control.Arrow ((&&&))
-import Control.Monad (when)
+import Control.Monad (unless, when)
 import Data.Array (Array, bounds, range)
 import Data.List (find)
 
@@ -40,11 +40,10 @@ import Fallback.State.Resources
    rsrcTerrainSprite)
 import Fallback.State.Terrain
 import Fallback.State.Tileset
-import Fallback.Utility (ceilDiv)
+import Fallback.Utility (ceilDiv, maybeM)
 import Fallback.View.Base
 import Fallback.View.Camera (paintTerrainFullyExplored)
 import Fallback.View.Hover
-import Fallback.View.Quiver
 import Fallback.View.Sidebar (newMinimapView)
 import Fallback.View.Widget (makeLabel, newScrollZone)
 
@@ -86,7 +85,8 @@ tickEditorState es = es { esClock = clockInc (esClock es) }
 
 -------------------------------------------------------------------------------
 
-newEditorView :: Resources -> Draw z (View EditorState EditorAction)
+newEditorView :: (MonadDraw m) => Resources
+              -> m (View EditorState EditorAction)
 newEditorView resources = do
   ref <- newHoverRef Nothing
   let mapRect _ (w, h) = Rect sidebarWidth 0 (w - sidebarWidth) h
@@ -97,30 +97,34 @@ newEditorView resources = do
 
 -------------------------------------------------------------------------------
 
-newEditorMapView :: Resources -> HoverSink (Maybe Position)
-                 -> Draw z (View EditorState EditorAction)
+newEditorMapView :: (MonadDraw m) => Resources -> HoverSink (Maybe Position)
+                 -> m (View EditorState EditorAction)
 newEditorMapView resources sink = do
-  quiver <- newQuiver
   dragRef <- newDrawRef False
-  keyARef <- newDrawRef False
-  keyERef <- newDrawRef False
-  keyFRef <- newDrawRef False
   let
 
     paint state = do
       paintTerrainFullyExplored resources (esCameraTopleft state)
                                 (esTerrain state) (esClock state)
 
-    handler _ _ EvTick =
+    handler state EvTick = do
+      mbMousePt <- getRelativeMousePos
+      maybeM mbMousePt $ \pt -> do
+        rect <- canvasRect
+        writeHoverSink sink $ positionAt state rect pt
+      mouseHeld <- getMouseButtonState
+      unless mouseHeld $ writeDrawRef dragRef False
       maybe Ignore (Action . ScrollMap . (`pMul` 8) . dirDelta) <$>
-      quiverDirection quiver
-    handler state rect (EvMouseMotion pt _) = do
+        getArrowKeysDirection
+    handler state (EvMouseMotion pt _) = do
+      rect <- canvasRect
       writeHoverSink sink $ positionAt state rect pt
       drag <- readDrawRef dragRef
       if drag then paintAt state rect pt else return Ignore
-    handler state rect (EvMouseDown pt) = do
-      eyedropper <- readDrawRef keyERef
-      fill <- readDrawRef keyFRef
+    handler state (EvMouseDown pt) = do
+      rect <- canvasRect
+      eyedropper <- getKeyState KeyE
+      fill <- getKeyState KeyF
       (if eyedropper
        then return $
             maybe Ignore (Action . PickTile . tmapGet (esTerrain state)) $
@@ -129,34 +133,16 @@ newEditorMapView resources sink = do
        then return $ maybe Ignore (Action . FloodFill) $
             positionAt state rect pt
        else writeDrawRef dragRef True >> paintAt state rect pt)
-    handler _ _ (EvMouseUp _) = Ignore <$ writeDrawRef dragRef False
-    handler _ _ (EvKeyDown KeyA _ _) = Suppress <$ writeDrawRef keyARef True
-    handler _ _ (EvKeyDown KeyE _ _) = Suppress <$ writeDrawRef keyERef True
-    handler _ _ (EvKeyDown KeyF _ _) = Suppress <$ writeDrawRef keyFRef True
-    handler _ _ (EvKeyDown KeyO [KeyModCmd] _) = return (Action DoLoad)
-    handler _ _ (EvKeyDown KeyS [KeyModCmd] _) = return (Action DoSave)
-    handler _ _ (EvKeyDown KeyZ [KeyModCmd] _) = return (Action DoUndo)
-    handler _ _ (EvKeyDown KeyZ [KeyModCmd, KeyModShift] _) =
+    handler _ (EvMouseUp _) = Ignore <$ writeDrawRef dragRef False
+    handler _ (EvKeyDown KeyO [KeyModCmd] _) = return (Action DoLoad)
+    handler _ (EvKeyDown KeyS [KeyModCmd] _) = return (Action DoSave)
+    handler _ (EvKeyDown KeyZ [KeyModCmd] _) = return (Action DoUndo)
+    handler _ (EvKeyDown KeyZ [KeyModCmd, KeyModShift] _) =
       return (Action DoRedo)
-    handler _ _ (EvKeyDown key _ _) = Ignore <$ quiverKeyDown quiver key
-    handler _ _ (EvKeyUp KeyA) = Ignore <$ writeDrawRef keyARef False
-    handler _ _ (EvKeyUp KeyE) = Ignore <$ writeDrawRef keyERef False
-    handler _ _ (EvKeyUp KeyF) = Ignore <$ writeDrawRef keyFRef False
-    handler _ _ (EvKeyUp key) = Ignore <$ quiverKeyUp quiver key
-    handler state rect (EvFocus pt) = do
-      writeHoverSink sink $ positionAt state rect pt
-      return Ignore
-    handler _ _ EvBlur = do
-      resetQuiver quiver
-      writeDrawRef dragRef False
-      writeDrawRef keyARef False
-      writeDrawRef keyERef False
-      writeDrawRef keyFRef False
-      return Ignore
-    handler _ _ _ = return Ignore
+    handler _ _ = return Ignore
 
     paintAt state rect pt = do
-      auto <- readDrawRef keyARef
+      auto <- getKeyState KeyA
       let action = if auto then AutoPaintAt else PaintAt
       return $ maybe Ignore (Action . action) $ positionAt state rect pt
     positionAt state rect pt =
@@ -168,8 +154,8 @@ newEditorMapView resources sink = do
 
 -------------------------------------------------------------------------------
 
-newEditorSidebarView :: Resources -> HoverRef (Maybe Position)
-                     -> Draw z (View EditorState EditorAction)
+newEditorSidebarView :: (MonadDraw m) => Resources -> HoverRef (Maybe Position)
+                     -> m (View EditorState EditorAction)
 newEditorSidebarView resources ref = do
   bgSprite <- loadSprite "gui/sidebar-background.png"
   let font = rsrcFont resources FontGeorgia10
@@ -189,7 +175,8 @@ newEditorSidebarView resources ref = do
      (newMaybeView (fmap show) $ makeLabel font blackColor $ \(_, h) ->
         LocBottomleft $ Point 2 (h - 2)))]
 
-newEditorPaletteView :: Resources -> Draw z (View EditorState EditorAction)
+newEditorPaletteView :: (MonadDraw m) => Resources
+                     -> m (View EditorState EditorAction)
 newEditorPaletteView resources = do
   let
 
@@ -209,11 +196,12 @@ newEditorPaletteView resources = do
               drawRect (Tint 255 0 255 255) rect
       canvasSize >>= (mapM_ paintTile . rectsAndTiles state)
 
-    handler state rect (EvMouseDown pt) =
+    handler state (EvMouseDown pt) = do
+      rect <- canvasRect
       let hit rAndT = rectContains (fst rAndT) (pt `pSub` rectTopleft rect)
-      in return $ maybe Ignore (Action . PickTile . snd) $ find hit $
-         rectsAndTiles state $ rectSize rect
-    handler _ _ _ = return Ignore
+      return $ maybe Ignore (Action . PickTile . snd) $ find hit $
+        rectsAndTiles state $ rectSize rect
+    handler _ _ = return Ignore
 
     rectsAndTiles state (width, height) =
       let gap = 2
