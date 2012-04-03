@@ -22,11 +22,6 @@ module Fallback.Scenario.Script.Other
    -- ** Movement
    getPartyPosition, setPartyPosition, partyWalkTo, charWalkTo, teleport,
    exitTo, walkMonster, setMonsterTownAI,
-   -- ** Attacks
-   characterBeginOffensiveAction, characterWeaponAttack,
-   characterWeaponInitialAnimation, characterWeaponBaseDamage,
-   characterWeaponChooseCritical, characterWeaponHit,
-   monsterBeginOffensiveAction, monsterPerformAttack,
 
    -- * Effects
    -- ** Damage
@@ -70,7 +65,7 @@ where
 import Control.Applicative ((<$), (<$>))
 import Control.Arrow (right, second)
 import Control.Exception (assert)
-import Control.Monad (foldM, forM, forM_, replicateM, unless, when)
+import Control.Monad (foldM, forM, forM_, unless, when)
 import Data.Array (range)
 import qualified Data.Foldable as Fold
 import Data.List (foldl1')
@@ -81,7 +76,6 @@ import qualified Data.Set as Set (empty)
 import Fallback.Constants
   (maxAdrenaline, momentsPerActionPoint, sightRangeSquared)
 import Fallback.Control.Script
-import Fallback.Data.Color (Tint(Tint))
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Data.TotalMap (tmGet)
@@ -91,7 +85,6 @@ import Fallback.Scenario.Script.Doodad
 import Fallback.State.Action (TargetKind(..))
 import Fallback.State.Area
 import Fallback.State.Creature
-import Fallback.State.Item (WeaponData(..))
 import Fallback.State.Party
 import Fallback.State.Progress (Var)
 import Fallback.State.Resources
@@ -103,14 +96,6 @@ import Fallback.State.Terrain (TerrainTile, prectRect, terrainMap, tmapGet)
 import Fallback.State.Tileset (TileTag, tilesetGet)
 import Fallback.Utility
   (ceilDiv, flip3, flip4, groupKey, maybeM, sortKey, square, sumM)
-
--------------------------------------------------------------------------------
--- Query:
-
-demandMonsterEntry :: (FromAreaEffect f) => Grid.Key Monster
-                   -> Script f (Grid.Entry Monster)
-demandMonsterEntry key =
-  maybe (fail "demandMonsterEntry") return =<< lookupMonsterEntry key
 
 -------------------------------------------------------------------------------
 -- Movement:
@@ -165,239 +150,6 @@ setMonsterTownAI :: (FromAreaEffect f) => Grid.Key Monster -> MonsterTownAI
 setMonsterTownAI key townAI = withMonsterEntry key $ \entry -> do
   emitAreaEffect (EffReplaceMonster key $
                   Just (Grid.geValue entry) { monstTownAI = townAI })
-
--------------------------------------------------------------------------------
--- Attacks:
-
-determineIfAttackMisses :: Either CharacterNumber (Grid.Key Monster)
-                        -> Position -> Bool -> Script CombatEffect Bool
-determineIfAttackMisses attacker target isRanged = do
-  attackAgil <- do
-    case attacker of
-      Left charNum -> chrGetStat Agility <$> areaGet (arsGetCharacter charNum)
-      Right monstKey -> mtAgility . monstType . Grid.geValue <$>
-                        demandMonsterEntry monstKey
-  let doMiss = True <$ (playSound =<< getRandomElem [SndMiss1, SndMiss2])
-  let missWhen x = x >>= \b -> if b then doMiss else return False
-  let doTryAvoid defendAgil = do
-        -- TODO take bless/curse into account
-        -- TODO take EagleEye rank 1 into account
-        let input = fromIntegral (attackAgil - defendAgil) / 15 + 4
-        let probMiss = 1 - 0.5 * (1 + input / (1 + abs input))
-        missWhen $ randomBool probMiss
-  mbOccupant <- areaGet (arsOccupant target)
-  case mbOccupant of
-    Just (Left charNum) -> do
-      char <- areaGet (arsGetCharacter charNum)
-      dodge <- do
-        if not isRanged then return False else do
-        let probMiss = 1 - chrAbilityMultiplier Dodge 0.95 0.9 0.8 char
-        -- TODO add doodad saying "Dodge"
-        missWhen $ randomBool probMiss
-      if dodge then return True else do
-      parry <- do
-        if isRanged then return False else do
-        let probMiss = 1 - chrAbilityMultiplier Parry 0.97 0.94 0.9 char
-        -- TODO add doodad saying "Parry"
-        -- TODO do we want a different sound?  e.g. clang instead of woosh?
-        missWhen $ randomBool probMiss
-      if parry then return True else do
-      doTryAvoid (chrGetStat Agility char)
-    Just (Right monstEntry) -> do
-      doTryAvoid $ mtAgility $ monstType $ Grid.geValue monstEntry
-    Nothing -> doMiss
-
-characterBeginOffensiveAction :: CharacterNumber -> Position
-                              -> Script CombatEffect ()
-characterBeginOffensiveAction charNum target = do
-  faceCharacterToward charNum target
-  alterCharacterStatus charNum $ seSetInvisibility Nothing
-  setCharacterAnim charNum (AttackAnim 8)
-
-characterWeaponAttack :: CharacterNumber -> Position -> Script CombatEffect ()
-characterWeaponAttack charNum target = do
-  char <- areaGet (arsGetCharacter charNum)
-  let wd = chrEquippedWeaponData char
-  characterWeaponInitialAnimation charNum target wd
-  let isRanged = wdRange wd /= Melee
-  miss <- determineIfAttackMisses (Left charNum) target isRanged
-  unless miss $ do
-  (critical, damage) <- characterWeaponChooseCritical char =<<
-                        characterWeaponBaseDamage char wd
-  -- TODO take EagleEye rank 2 into account for damage
-  -- TODO take Backstab into account for damage
-  -- TODO take FinalBlow into account somehow
-  characterWeaponHit wd target critical damage
-
-characterWeaponInitialAnimation  :: CharacterNumber -> Position
-                                 -> WeaponData -> Script CombatEffect ()
-characterWeaponInitialAnimation charNum target wd = do
-  characterBeginOffensiveAction charNum target
-  origin <- areaGet (arsCharacterPosition charNum)
-  attackInitialAnimation (wdAppearance wd) (wdElement wd) origin target
-
-characterWeaponBaseDamage :: (FromAreaEffect f) => Character -> WeaponData
-                          -> Script f Double
-characterWeaponBaseDamage char wd = do
-  let dieRoll = uncurry getRandomR (wdDamageRange wd)
-  let rollDice n = sum <$> replicateM n dieRoll
-  let strength = chrGetStat Strength char
-  extraDie <- (strength `mod` 5 >) <$> getRandomR 0 4
-  fromIntegral <$> rollDice (wdDamageBonus wd + strength `div` 5 +
-                             if extraDie then 1 else 0)
-
-characterWeaponChooseCritical :: (FromAreaEffect f) => Character -> Double
-                              -> Script f (Bool, Double)
-characterWeaponChooseCritical char damage = do
-  critical <- randomBool (1 - 0.998 ^^ chrGetStat Intellect char)
-  return (critical, if critical then damage * 1.5 else damage)
-
-characterWeaponHit :: WeaponData -> Position -> Bool -> Double
-                   -> Script CombatEffect ()
-characterWeaponHit wd target critical damage = do
-  attackHit (wdAppearance wd) (wdElement wd) (wdEffects wd)
-            target critical damage
-
-monsterBeginOffensiveAction :: Grid.Key Monster -> Position
-                            -> Script CombatEffect ()
-monsterBeginOffensiveAction key target = do
-  faceMonsterToward key target
-  alterMonsterStatus key $ seSetInvisibility Nothing
-  setMonsterAnim key (AttackAnim 8)
-
-monsterPerformAttack :: Grid.Key Monster -> MonsterAttack -> Position
-                     -> Script CombatEffect ()
-monsterPerformAttack key attack target = do
-  monsterAttackInitialAnimation key attack target
-  miss <- determineIfAttackMisses (Right key) target (maRange attack /= Melee)
-  unless miss $ do
-  (critical, damage) <- monsterAttackChooseCritical attack =<<
-                        monsterAttackBaseDamage attack
-  monsterAttackHit attack target critical damage
-
-monsterAttackInitialAnimation :: Grid.Key Monster -> MonsterAttack -> Position
-                              -> Script CombatEffect ()
-monsterAttackInitialAnimation key attack target = do
-  monsterBeginOffensiveAction key target
-  withMonsterEntry key $ \entry -> do
-    attackInitialAnimation (maAppearance attack) (maElement attack)
-                           (monsterHeadPos entry) target
-
-monsterAttackBaseDamage :: (FromAreaEffect f) => MonsterAttack
-                        -> Script f Double
-monsterAttackBaseDamage attack = do
-  let dieRoll = uncurry getRandomR (maDamageRange attack)
-  let rollDice n = sum <$> replicateM n dieRoll
-  fromIntegral <$> rollDice (maDamageCount attack)
-
-monsterAttackChooseCritical :: (FromAreaEffect f) => MonsterAttack -> Double
-                            -> Script f (Bool, Double)
-monsterAttackChooseCritical attack damage = do
-  critical <- randomBool (maCriticalChance attack)
-  return (critical, if critical then damage * 1.5 else damage)
-
-monsterAttackHit :: MonsterAttack -> Position -> Bool -> Double
-                 -> Script CombatEffect ()
-monsterAttackHit ma target critical damage = do
-  attackHit (maAppearance ma) (maElement ma) (maEffects ma)
-            target critical damage
-
-attackInitialAnimation :: (FromAreaEffect f) => AttackAppearance
-                       -> AttackElement -> Position -> Position -> Script f ()
-attackInitialAnimation appearance element origin target = do
-  case appearance of
-    BiteAttack -> return ()
-    BladeAttack -> return ()
-    BluntAttack -> return ()
-    BowAttack -> do
-      playSound SndArrow
-      addBallisticDoodad ArrowProj origin target 250 >>= wait
-    BreathAttack -> do
-      let proj = case element of
-                   AcidAttack -> AcidProj
-                   EnergyAttack -> IceProj -- FIXME
-                   FireAttack -> FireProj
-                   IceAttack -> IceProj
-                   PhysicalAttack -> StarProj
-      playSound SndBreath
-      addBallisticDoodad proj origin target 220 >>= wait
-    ClawAttack -> return ()
-    ThrownAttack -> do
-      playSound SndThrow
-      addBallisticDoodad StarProj origin target 200 >>= wait
-    WandAttack -> do
-      let tint = case element of
-                   AcidAttack -> Tint 0 255 0 192
-                   EnergyAttack -> Tint 0 0 255 192
-                   FireAttack -> Tint 255 0 0 192
-                   IceAttack -> Tint 0 255 255 192
-                   PhysicalAttack -> Tint 255 255 255 192
-      addLightningDoodad tint origin target
-
-attackHit :: AttackAppearance -> AttackElement -> [AttackEffect] -> Position
-          -> Bool -> Double -> Script CombatEffect ()
-attackHit appearance element effects target critical damage = do
-  -- TODO take attack effects into account (in addition to main attack element)
-  -- when choosing sound/doodad
-  let elementSnd AcidAttack = SndChemicalDamage
-      elementSnd FireAttack = if critical then SndBoomSmall else SndFireDamage
-      elementSnd PhysicalAttack = if critical then SndHit3 else SndHit4
-      elementSnd _ = error "FIXME attackHit"
-  playSound =<<
-    case appearance of
-      BiteAttack -> return SndBite
-      BowAttack -> if critical then return SndHit2 else return SndHit1
-      BladeAttack -> if critical then return SndHit4
-                     else getRandomElem [SndHit1, SndHit2, SndHit3]
-      BluntAttack -> if critical then return SndHit2 else return SndHit1
-      BreathAttack -> return $ elementSnd element
-      ClawAttack -> return SndClaw
-      ThrownAttack -> if critical then return SndHit2 else return SndHit1
-      WandAttack -> return $ elementSnd element
-  let elementBoom = do
-        let boom = case element of
-                     AcidAttack -> AcidBoom
-                     EnergyAttack -> EnergyBoom
-                     FireAttack -> FireBoom
-                     IceAttack -> IceBoom
-                     PhysicalAttack -> SlashRight
-        addBoomDoodadAtPosition boom (if critical then 3 else 2) target
-  case appearance of
-    BiteAttack -> addBoomDoodadAtPosition SlashRight 2 target -- FIXME
-    BowAttack -> addBoomDoodadAtPosition SlashRight 2 target -- FIXME
-    BladeAttack -> do
-      addBoomDoodadAtPosition SlashRight 2 target
-      when critical $ addBoomDoodadAtPosition SlashLeft 3 target
-    BluntAttack -> addBoomDoodadAtPosition SlashRight 2 target -- FIXME
-    BreathAttack -> elementBoom
-    ClawAttack -> addBoomDoodadAtPosition SlashRight 2 target -- FIXME
-    ThrownAttack -> addBoomDoodadAtPosition SlashRight 2 target -- FIXME
-    WandAttack -> elementBoom
-  let hitTarget = HitPosition target
-  extraHits <- flip3 foldM [] effects $ \hits effect -> do
-    case effect of
-      DrainMana mult ->
-        hits <$ alterMana hitTarget (subtract $ round $ mult * damage)
-      ExtraAcidDamage mult -> do
-        return ((hitTarget, AcidDamage, mult * damage) : hits)
-      ExtraEnergyDamage mult -> do
-        return ((hitTarget, EnergyDamage, mult * damage) : hits)
-      ExtraFireDamage mult -> do
-        return ((hitTarget, FireDamage, mult * damage) : hits)
-      ExtraIceDamage mult -> do
-        return ((hitTarget, ColdDamage, mult * damage) : hits)
-      InflictPoison mult -> hits <$ inflictPoison hitTarget (mult * damage)
-      InflictStun mult -> hits <$ inflictStun hitTarget (mult * damage)
-      _ -> return hits -- FIXME
-  let damageElement =
-        case element of
-          AcidAttack -> AcidDamage
-          EnergyAttack -> EnergyDamage
-          FireAttack -> FireDamage
-          IceAttack -> ColdDamage
-          PhysicalAttack -> PhysicalDamage
-  dealDamage ((hitTarget, damageElement, damage) : extraHits)
-  wait 16
 
 -------------------------------------------------------------------------------
 -- Damage:
@@ -707,7 +459,7 @@ faceMonsterToward :: (FromAreaEffect f) => Grid.Key Monster -> Position
                   -> Script f ()
 faceMonsterToward key pos = do
   withMonsterEntry key $ \entry -> do
-    let deltaX = pointX $ (pos `pSub`) $ monsterHeadPos entry
+    let deltaX = pointX $ (pos `pSub`) $ monstHeadPos entry
     when (deltaX /= 0) $ do
       let dir = if deltaX < 0 then FaceLeft else FaceRight
       emitAreaEffect $ EffReplaceMonster key $
@@ -737,7 +489,7 @@ getMonsterHeadPos :: (FromAreaEffect f) => Grid.Key Monster
                   -> Script f Position
 getMonsterHeadPos key = do
   entry <- demandMonsterEntry key
-  return $ monsterHeadPos entry
+  return $ monstHeadPos entry
 
 -------------------------------------------------------------------------------
 -- Messages and conversation:
@@ -1057,12 +809,5 @@ characterScreamSound char =
     (MagusClass, Appearance0) -> SndHurtMale
     (MagusClass, Appearance1) -> SndHurtMale
     _ -> SndHurtFemale
-
-monsterHeadPos :: Grid.Entry Monster -> Position
-monsterHeadPos entry =
-  let Rect x y w _ = Grid.geRect entry
-  in case monstFaceDir (Grid.geValue entry) of
-       FaceLeft -> Point x y
-       FaceRight -> Point (x + w - 1) y
 
 -------------------------------------------------------------------------------

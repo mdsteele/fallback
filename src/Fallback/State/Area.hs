@@ -324,15 +324,12 @@ data MonsterScript = MonsterScript
   { mscriptId :: MonsterScriptId,
     mscriptScriptFn :: Grid.Entry Monster -> Script TownEffect () }
 
--- monstImageRect :: Monster -> IRect
--- monstImageRect monst =
---   let (w, h) = case mtSize $ monstType monst of
---                  SizeSmall -> (tileWidth, tileHeight)
---                  SizeWide -> (2 * tileWidth, tileHeight)
---                  SizeTall -> (tileWidth, 2 * tileHeight)
---                  SizeHuge -> (2 * tileWidth, 2 * tileHeight)
---       Point x y = positionTopleft (monstPosition monst)
---   in Rect x y w h
+monstHeadPos :: Grid.Entry Monster -> Position
+monstHeadPos entry =
+  let Rect x y w _ = Grid.geRect entry
+  in case monstFaceDir (Grid.geValue entry) of
+       FaceLeft -> Point x y
+       FaceRight -> Point (x + w - 1) y
 
 tickMonsterAnim :: Monster -> Monster
 tickMonsterAnim mon = mon { monstAnim = tickCreatureAnim (monstAnim mon) }

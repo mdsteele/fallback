@@ -26,7 +26,8 @@ module Fallback.Scenario.Script.Base
    wait, alsoWith, also_, concurrent, concurrent_, concurrentAny,
    whenCombat, unlessCombat, whenDifficulty,
    -- * Query
-   HitTarget(..), getHitTargetOccupant, lookupMonsterEntry, withMonsterEntry,
+   HitTarget(..), getHitTargetOccupant,
+   lookupMonsterEntry, demandMonsterEntry, withMonsterEntry,
    getAllConsciousCharacters, getAllAllyMonsters, getAllEnemyMonsters,
    getAllAllyTargets,
    -- * Randomization
@@ -173,6 +174,11 @@ getHitTargetOccupant (HitPosition pos) = areaGet (arsOccupant pos)
 lookupMonsterEntry :: (FromAreaEffect f) => Grid.Key Monster
                    -> Script f (Maybe (Grid.Entry Monster))
 lookupMonsterEntry key = areaGet (Grid.lookup key . arsMonsters)
+
+demandMonsterEntry :: (FromAreaEffect f) => Grid.Key Monster
+                   -> Script f (Grid.Entry Monster)
+demandMonsterEntry key =
+  maybe (fail "demandMonsterEntry") return =<< lookupMonsterEntry key
 
 withMonsterEntry :: (FromAreaEffect f) => Grid.Key Monster
                  -> (Grid.Entry Monster -> Script f ()) -> Script f ()
