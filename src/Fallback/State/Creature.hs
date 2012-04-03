@@ -89,7 +89,8 @@ data MonsterTownAI = ChaseAI -- chase party relentlessly
                    | PatrolAI Position Position
 
 data MonsterType = MonsterType
-  { mtAttacks :: [MonsterAttack],
+  { mtAgility :: Int,
+    mtAttacks :: [MonsterAttack],
     mtCanFly :: Bool,
     --mtDeathSound :: SoundTag,
     --mtDefaultCombatAI :: MonsterCombatAI,

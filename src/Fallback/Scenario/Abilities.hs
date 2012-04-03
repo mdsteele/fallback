@@ -570,7 +570,7 @@ abilityDescription Shieldbreaker =
   \At rank 2, reduces the target's defenses more.\n\
   \At rank 3, this attack will be unmitigated by the target's armor."
 abilityDescription Parry =
-  "Permanently gives you a 3% chance to avoid any melee attack.\n\
+  "Permanently gives you an extra 3% chance to avoid any melee attack.\n\
   \At rank 2, your chance of parrying rises to 6%.\n\
   \At rank 3, your chance of parrying rises to 10%."
 abilityDescription Spellshatter =
@@ -621,9 +621,9 @@ abilityDescription RopeDart =
   \At rank 2, also heavily stuns the enemy.\n\
   \At rank 3, you slash the enemy with your weapon after reeling them in."
 abilityDescription Dodge =
-  "Permanently gives you a 10% chance to avoid any ranged attack.\n\
-  \At rank 2, your chance of dodging rises to 20%.\n\
-  \At rank 3, your chance of dodging rises to 40%."
+  "Permanently gives you an extra 5% chance to avoid any ranged attack.\n\
+  \At rank 2, your chance of dodging rises to 10%.\n\
+  \At rank 3, your chance of dodging rises to 20%."
 abilityDescription Subsume =
   "Make a melee weapon attack, stealing the enemy's health and healing\
   \ yourself by one quarter the amount of damage you inflict.\n\
@@ -664,7 +664,7 @@ abilityDescription Charm =
   \At rank 2, charms the target, so that it always attacks its allies.\n\
   \At rank 3, if the target resists being charmed, it takes damage."
 abilityDescription EagleEye =
-  "Permanently doubles your chance to hit with a ranged attack.\n\
+  "Permanently increases your chance to hit with a ranged attack.\n\
   \At rank 2, also increases your ranged attack damage by 15%.\n\
   \At rank 3, also increases the maximum range of all your ranged attacks."
 abilityDescription CurseShot =

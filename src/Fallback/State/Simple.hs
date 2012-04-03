@@ -109,6 +109,7 @@ data AttackEffect = DrainMana Double -- mana drained per base damage
 -- as \"melee\" or \"ranged\" for the purposes of e.g. meta-attacks or the
 -- Parry skill.
 data AttackRange = Melee | Ranged Int
+  deriving (Eq)
 
 -- | Translates an 'AttackRange' into a maximum squared distance.
 rangeSqDist :: AttackRange -> SqDist

@@ -30,7 +30,7 @@ module Fallback.Scenario.Script.Base
    getAllConsciousCharacters, getAllAllyMonsters, getAllEnemyMonsters,
    getAllAllyTargets,
    -- * Randomization
-   getRandomR, getRandomElem, randomPermutation,
+   randomBool, getRandomR, getRandomElem, randomPermutation,
    -- * Sound
    playSound, startMusic, stopMusic, fadeOutMusic,
    -- * Debugging
@@ -212,6 +212,10 @@ getAllAllyTargets = do
 
 -------------------------------------------------------------------------------
 -- Randomization:
+
+-- | Return 'True' with the given probability.
+randomBool :: (FromAreaEffect f) => Double -> Script f Bool
+randomBool probTrue = (probTrue >) <$> getRandomR 0 1
 
 -- | Choose a random element from a non-empty list.
 getRandomElem :: (FromAreaEffect f) => [a] -> Script f a

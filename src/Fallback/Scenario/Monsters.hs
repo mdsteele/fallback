@@ -33,7 +33,8 @@ import Fallback.State.Tags (MonsterSpellTag(..), MonsterTag(..))
 
 getMonsterType :: MonsterTag -> MonsterType
 getMonsterType Revenant = baseMonsterType
-  { mtAttacks = [MonsterAttack
+  { mtAgility = 30,
+    mtAttacks = [MonsterAttack
       { maAppearance = BladeAttack,
         maCriticalChance = 0.05,
         maDamageCount = 10,
@@ -51,7 +52,8 @@ getMonsterType Revenant = baseMonsterType
     mtSpeed = 1.5,
     mtWalksFast = True }
 getMonsterType Revenantor = baseMonsterType
-  { mtAttacks = map attack [EnergyAttack, FireAttack, IceAttack, AcidAttack],
+  { mtAgility = 50,
+    mtAttacks = map attack [EnergyAttack, FireAttack, IceAttack, AcidAttack],
     mtExperienceValue = 100,
     mtImageRow = 1,
     mtIsUndead = True,
@@ -72,7 +74,8 @@ getMonsterType Revenantor = baseMonsterType
         maEffects = [],
         maRange = Ranged 3 }
 getMonsterType MasterRevenant = baseMonsterType
-  { mtAttacks = [MonsterAttack
+  { mtAgility = 50,
+    mtAttacks = [MonsterAttack
       { maAppearance = ClawAttack,
         maCriticalChance = 0.5,
         maDamageCount = 20,
@@ -91,7 +94,8 @@ getMonsterType MasterRevenant = baseMonsterType
     -- TODO spells
     mtWalksFast = True }
 getMonsterType Wolf = baseMonsterType
-  { mtAttacks = [MonsterAttack
+  { mtAgility = 40,
+    mtAttacks = [MonsterAttack
       { maAppearance = ClawAttack,
         maCriticalChance = 0.1,
         maDamageCount = 6,
@@ -106,7 +110,8 @@ getMonsterType Wolf = baseMonsterType
     mtName = "Wolf",
     mtSpeed = 2 }
 getMonsterType DemonWolf = baseMonsterType
-  { mtAttacks = [MonsterAttack
+  { mtAgility = 60,
+    mtAttacks = [MonsterAttack
       { maAppearance = ClawAttack,
         maCriticalChance = 0.15,
         maDamageCount = 8,
@@ -131,7 +136,8 @@ getMonsterType DemonWolf = baseMonsterType
     mtSpeed = 2,
     mtSpells = [FireSpray] }
 getMonsterType Ghoul = baseMonsterType
-  { mtAttacks = [MonsterAttack
+  { mtAgility = 35,
+    mtAttacks = [MonsterAttack
       { maAppearance = BiteAttack,
         maCriticalChance = 0.2,
         maDamageCount = 15,
@@ -147,7 +153,8 @@ getMonsterType Ghoul = baseMonsterType
     mtName = "Ghoul",
     mtSpeed = 1.2 }
 getMonsterType Zombie = baseMonsterType
-  { mtAttacks = [MonsterAttack
+  { mtAgility = 25,
+    mtAttacks = [MonsterAttack
       { maAppearance = BluntAttack,
         maCriticalChance = 0.05,
         maDamageCount = 10,
@@ -165,34 +172,14 @@ getMonsterType Zombie = baseMonsterType
 getMonsterType TownManRed = townsperson { mtImageRow = 10 }
 getMonsterType TownManApron = townsperson { mtImageRow = 14 }
 getMonsterType TownWomanBlue = townsperson { mtImageRow = 17 }
-getMonsterType _ = MonsterType -- FIXME
-  { mtAttacks = [MonsterAttack
-      { maAppearance = BladeAttack,
-        maCriticalChance = 0.05,
-        maDamageCount = 10,
-        maDamageRange = (1, 10),
-        maElement = PhysicalAttack,
-        maEffects = [],
-        maRange = Melee }], -- FIXME
-    mtCanFly = False,
-    mtExperienceValue = 100,
-    mtImageRow = 0,
-    mtIsDaemonic = False,
-    mtIsUndead = True,
-    mtLevel = 99,
-    mtMaxHealth = 80,
-    mtName = "Revenant",
-    mtResistances = nullResistances,
-    mtSize = SizeSmall,
-    mtSpeed = 1.25,
-    mtSpells = [],
-    mtWalksFast = True }
+getMonsterType _ = baseMonsterType -- FIXME
 
 -------------------------------------------------------------------------------
 
 baseMonsterType :: MonsterType
 baseMonsterType = MonsterType
-  { mtAttacks = [],
+  { mtAgility = 20,
+    mtAttacks = [],
     mtCanFly = False,
     mtExperienceValue = 0,
     mtImageRow = 0,

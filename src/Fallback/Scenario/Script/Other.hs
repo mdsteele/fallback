@@ -98,7 +98,7 @@ import Fallback.State.Resources
 import Fallback.State.Simple
 import Fallback.State.Status
 import Fallback.State.Tags
-  (AbilityTag(Recuperation), AreaTag, ItemTag(..), MonsterTag, WeaponItemTag)
+  (AbilityTag(..), AreaTag, ItemTag(..), MonsterTag, WeaponItemTag)
 import Fallback.State.Terrain (TerrainTile, prectRect, terrainMap, tmapGet)
 import Fallback.State.Tileset (TileTag, tilesetGet)
 import Fallback.Utility
@@ -169,6 +169,44 @@ setMonsterTownAI key townAI = withMonsterEntry key $ \entry -> do
 -------------------------------------------------------------------------------
 -- Attacks:
 
+determineIfAttackMisses :: Either CharacterNumber (Grid.Key Monster)
+                        -> Position -> Bool -> Script CombatEffect Bool
+determineIfAttackMisses attacker target isRanged = do
+  attackAgil <- do
+    case attacker of
+      Left charNum -> chrGetStat Agility <$> areaGet (arsGetCharacter charNum)
+      Right monstKey -> mtAgility . monstType . Grid.geValue <$>
+                        demandMonsterEntry monstKey
+  let doMiss = True <$ (playSound =<< getRandomElem [SndMiss1, SndMiss2])
+  let missWhen x = x >>= \b -> if b then doMiss else return False
+  let doTryAvoid defendAgil = do
+        -- TODO take bless/curse into account
+        -- TODO take EagleEye rank 1 into account
+        let input = fromIntegral (attackAgil - defendAgil) / 15 + 4
+        let probMiss = 1 - 0.5 * (1 + input / (1 + abs input))
+        missWhen $ randomBool probMiss
+  mbOccupant <- areaGet (arsOccupant target)
+  case mbOccupant of
+    Just (Left charNum) -> do
+      char <- areaGet (arsGetCharacter charNum)
+      dodge <- do
+        if not isRanged then return False else do
+        let probMiss = 1 - chrAbilityMultiplier Dodge 0.95 0.9 0.8 char
+        -- TODO add doodad saying "Dodge"
+        missWhen $ randomBool probMiss
+      if dodge then return True else do
+      parry <- do
+        if isRanged then return False else do
+        let probMiss = 1 - chrAbilityMultiplier Parry 0.97 0.94 0.9 char
+        -- TODO add doodad saying "Parry"
+        -- TODO do we want a different sound?  e.g. clang instead of woosh?
+        missWhen $ randomBool probMiss
+      if parry then return True else do
+      doTryAvoid (chrGetStat Agility char)
+    Just (Right monstEntry) -> do
+      doTryAvoid $ mtAgility $ monstType $ Grid.geValue monstEntry
+    Nothing -> doMiss
+
 characterBeginOffensiveAction :: CharacterNumber -> Position
                               -> Script CombatEffect ()
 characterBeginOffensiveAction charNum target = do
@@ -181,17 +219,15 @@ characterWeaponAttack charNum target = do
   char <- areaGet (arsGetCharacter charNum)
   let wd = chrEquippedWeaponData char
   characterWeaponInitialAnimation charNum target wd
-  miss <- do
-    -- TODO take bless/curse and passive abilities into account
-    attackerRoll <- getRandomR 0 $ 2 * chrGetStat Agility char
-    defenderRoll <- getRandomR 0 20 -- FIXME
-    return (attackerRoll < defenderRoll)
-  if miss then do
-    playSound =<< getRandomElem [SndMiss1, SndMiss2]
-   else do
-    (critical, damage) <- characterWeaponChooseCritical char =<<
-                          characterWeaponBaseDamage char wd
-    characterWeaponHit wd target critical damage
+  let isRanged = wdRange wd /= Melee
+  miss <- determineIfAttackMisses (Left charNum) target isRanged
+  unless miss $ do
+  (critical, damage) <- characterWeaponChooseCritical char =<<
+                        characterWeaponBaseDamage char wd
+  -- TODO take EagleEye rank 2 into account for damage
+  -- TODO take Backstab into account for damage
+  -- TODO take FinalBlow into account somehow
+  characterWeaponHit wd target critical damage
 
 characterWeaponInitialAnimation  :: CharacterNumber -> Position
                                  -> WeaponData -> Script CombatEffect ()
@@ -213,8 +249,7 @@ characterWeaponBaseDamage char wd = do
 characterWeaponChooseCritical :: (FromAreaEffect f) => Character -> Double
                               -> Script f (Bool, Double)
 characterWeaponChooseCritical char damage = do
-  critical <- (0.998 ^^ chrGetStat Intellect char <) <$>
-              getRandomR 0 (1 :: Double)
+  critical <- randomBool (1 - 0.998 ^^ chrGetStat Intellect char)
   return (critical, if critical then damage * 1.5 else damage)
 
 characterWeaponHit :: WeaponData -> Position -> Bool -> Double
@@ -234,17 +269,11 @@ monsterPerformAttack :: Grid.Key Monster -> MonsterAttack -> Position
                      -> Script CombatEffect ()
 monsterPerformAttack key attack target = do
   monsterAttackInitialAnimation key attack target
-  miss <- do
-    -- TODO take bless/curse into account
-    -- TODO take monster agility into account
-    -- TODO take target agility into account
-    return False
-  if miss then do
-    playSound =<< getRandomElem [SndMiss1, SndMiss2]
-   else do
-    (critical, damage) <- monsterAttackChooseCritical attack =<<
-                          monsterAttackBaseDamage attack
-    monsterAttackHit attack target critical damage
+  miss <- determineIfAttackMisses (Right key) target (maRange attack /= Melee)
+  unless miss $ do
+  (critical, damage) <- monsterAttackChooseCritical attack =<<
+                        monsterAttackBaseDamage attack
+  monsterAttackHit attack target critical damage
 
 monsterAttackInitialAnimation :: Grid.Key Monster -> MonsterAttack -> Position
                               -> Script CombatEffect ()
@@ -264,7 +293,7 @@ monsterAttackBaseDamage attack = do
 monsterAttackChooseCritical :: (FromAreaEffect f) => MonsterAttack -> Double
                             -> Script f (Bool, Double)
 monsterAttackChooseCritical attack damage = do
-  critical <- (maCriticalChance attack >) <$> getRandomR 0 1
+  critical <- randomBool (maCriticalChance attack)
   return (critical, if critical then damage * 1.5 else damage)
 
 monsterAttackHit :: MonsterAttack -> Position -> Bool -> Double
@@ -426,6 +455,7 @@ dealRawDamageToCharacter gentle charNum damage stun = do
     alterCharacterStatus charNum seWakeFromDaze
     party <- areaGet arsParty
     let maxHealth = chrMaxHealth party $ partyGetCharacter party charNum
+    -- TODO take Valiance into account
     alterAdrenaline charNum (+ adrenalineForDamage damage maxHealth)
   -- Do stun (if in combat):
   when (stun > 0) $ whenCombat $ do
