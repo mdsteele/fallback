@@ -42,6 +42,7 @@ import Fallback.State.Resources
 import Fallback.State.Simple
 import Fallback.State.Status
 import Fallback.State.Tags (AbilityTag(..))
+import Fallback.State.Terrain (positionCenter, prectRect)
 import Fallback.Utility (flip3)
 
 -------------------------------------------------------------------------------
@@ -180,38 +181,46 @@ determineIfAttackMisses :: Either CharacterNumber (Grid.Key Monster)
 determineIfAttackMisses attacker target isRanged = do
   attackAgil <- do
     case attacker of
+      -- TODO take EagleEye rank 1 into account
       Left charNum -> chrGetStat Agility <$> areaGet (arsGetCharacter charNum)
       Right monstKey -> mtAgility . monstType . Grid.geValue <$>
                         demandMonsterEntry monstKey
-  let doMiss = True <$ (playSound =<< getRandomElem [SndMiss1, SndMiss2])
-  let missWhen x = x >>= \b -> if b then doMiss else return False
-  let doTryAvoid defendAgil = do
+  let playMissSound = playSound =<< getRandomElem [SndMiss1, SndMiss2]
+  let missWithProb probMiss onMiss = do
+        miss <- randomBool probMiss
+        if not miss then return False else do True <$ onMiss
+  let doTryAvoid defendAgil pt = do
         -- TODO take bless/curse into account
-        -- TODO take EagleEye rank 1 into account
+        -- TODO take invisibility into account
         let input = fromIntegral (attackAgil - defendAgil) / 15 + 4
         let probMiss = 1 - 0.5 * (1 + input / (1 + abs input))
-        missWhen $ randomBool probMiss
+        missWithProb probMiss $ do
+          playMissSound
+          addWordDoodadAtPoint WordMiss pt
   mbOccupant <- areaGet (arsOccupant target)
   case mbOccupant of
     Just (Left charNum) -> do
       char <- areaGet (arsGetCharacter charNum)
+      pos <- areaGet (arsCharacterPosition charNum)
       dodge <- do
         if not isRanged then return False else do
         let probMiss = 1 - chrAbilityMultiplier Dodge 0.95 0.9 0.8 char
-        -- TODO add doodad saying "Dodge"
-        missWhen $ randomBool probMiss
+        missWithProb probMiss $ do
+          playMissSound
+          addWordDoodadAtPosition WordDodge pos
       if dodge then return True else do
       parry <- do
         if isRanged then return False else do
         let probMiss = 1 - chrAbilityMultiplier Parry 0.97 0.94 0.9 char
-        -- TODO add doodad saying "Parry"
-        -- TODO do we want a different sound?  e.g. clang instead of woosh?
-        missWhen $ randomBool probMiss
+        missWithProb probMiss $ do
+          playMissSound -- TODO maybe different sound?  e.g. clang?
+          addWordDoodadAtPosition WordParry pos
       if parry then return True else do
-      doTryAvoid (chrGetStat Agility char)
+      doTryAvoid (chrGetStat Agility char) (positionCenter pos)
     Just (Right monstEntry) -> do
-      doTryAvoid $ mtAgility $ monstType $ Grid.geValue monstEntry
-    Nothing -> doMiss
+      doTryAvoid (mtAgility $ monstType $ Grid.geValue monstEntry)
+                 (rectCenter $ prectRect $ Grid.geRect monstEntry)
+    Nothing -> True <$ playMissSound
 
 attackHit :: AttackAppearance -> AttackElement -> [AttackEffect] -> Position
           -> Bool -> Double -> Script CombatEffect ()
@@ -222,17 +231,16 @@ attackHit appearance element effects target critical damage = do
       elementSnd FireAttack = if critical then SndBoomSmall else SndFireDamage
       elementSnd PhysicalAttack = if critical then SndHit3 else SndHit4
       elementSnd _ = error "FIXME attackHit"
-  playSound =<<
+  playSound $
     case appearance of
-      BiteAttack -> return SndBite
-      BowAttack -> if critical then return SndHit2 else return SndHit1
-      BladeAttack -> if critical then return SndHit4
-                     else getRandomElem [SndHit1, SndHit2, SndHit3]
-      BluntAttack -> if critical then return SndHit2 else return SndHit1
-      BreathAttack -> return $ elementSnd element
-      ClawAttack -> return SndClaw
-      ThrownAttack -> if critical then return SndHit2 else return SndHit1
-      WandAttack -> return $ elementSnd element
+      BiteAttack -> SndBite
+      BowAttack -> if critical then SndHit2 else SndHit1
+      BladeAttack -> if critical then SndHit4 else SndHit3
+      BluntAttack -> if critical then SndHit2 else SndHit1
+      BreathAttack -> elementSnd element
+      ClawAttack -> SndClaw
+      ThrownAttack -> if critical then SndHit2 else SndHit1
+      WandAttack -> elementSnd element
   let elementBoom = do
         let boom = case element of
                      AcidAttack -> AcidBoom
@@ -275,6 +283,7 @@ attackHit appearance element effects target critical damage = do
           FireAttack -> FireDamage
           IceAttack -> ColdDamage
           PhysicalAttack -> PhysicalDamage
+  when critical $ addWordDoodadOnTarget WordCritical hitTarget
   dealDamage ((hitTarget, damageElement, damage) : extraHits)
   wait 16
 

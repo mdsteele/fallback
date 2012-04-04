@@ -17,7 +17,16 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
-module Fallback.Scenario.Script.Doodad where
+module Fallback.Scenario.Script.Doodad
+  (addBallisticDoodad, addBeamDoodad, addBlasterDoodad,
+   addBoomDoodadAtPoint, addBoomDoodadAtPosition,
+   addDeathDoodad, addLightningDoodad, addLightWallDoodad,
+   addNumberDoodadAtPoint, addNumberDoodadAtPosition,
+   addWordDoodadAtPoint, addWordDoodadAtPosition, addWordDoodadOnTarget,
+   addShockwaveDoodad, doExplosionDoodad,
+   addExtendingHookshotDoodad, addExtendedHookshotDoodad,
+   addRetractingHookshotDoodad)
+where
 
 import Control.Applicative ((<$>))
 import Control.Monad (foldM_, forM, replicateM)
@@ -26,6 +35,7 @@ import Data.Array (listArray)
 import Fallback.Constants (framesPerSecond)
 import Fallback.Control.Script
 import Fallback.Data.Color (Tint(Tint, tintAlpha))
+import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Draw
 import Fallback.Scenario.Script.Base
@@ -37,14 +47,6 @@ import Fallback.State.Terrain (positionCenter, prectRect)
 import Fallback.Utility (flip3)
 
 -------------------------------------------------------------------------------
-
-addContinuousDoodad :: (FromAreaEffect f) => DoodadHeight -> Int
-                    -> (Double -> IPoint -> Paint ()) -> Script f ()
-addContinuousDoodad height limit paintFn = do
-  let paintFn' n topleft =
-        paintFn (fromIntegral (limit - n) / fromIntegral limit) topleft
-  emitAreaEffect $ EffAddDoodad $ Doodad
-    { doodadCountdown = limit, doodadHeight = height, doodadPaint = paintFn' }
 
 -- | Return the number of frames the projectile will spend travelling.
 addBallisticDoodad :: (FromAreaEffect f) => ProjTag -> Position -> Position
@@ -67,8 +69,7 @@ addBallisticDoodad ptag start end speed = do
         let dy = (pointY ept - pointY spt) - 4 * (1 - 2 * t) * height
         blitRotate sprite (Point x y `pSub` fmap fromIntegral topleft)
                    (atan2 dy dx)
-  emitAreaEffect $ EffAddDoodad $ Doodad
-    { doodadCountdown = limit, doodadHeight = MidDood, doodadPaint = paint }
+  addDoodad MidDood limit paint
   return limit
 
 addBeamDoodad :: (FromAreaEffect f) => Tint -> DPoint -> DPoint -> Int
@@ -87,8 +88,7 @@ addBeamDoodad tint startPt endPt limit = do
                          (tint', end `pAdd` v2), (tint', start `pAdd` v2)]
         gradientPolygon [(tint, start `pSub` v1), (tint, end `pSub` v1),
                          (tint', end `pSub` v2), (tint', start `pSub` v2)]
-  emitAreaEffect $ EffAddDoodad $ Doodad
-    { doodadCountdown = limit, doodadHeight = MidDood, doodadPaint = paint }
+  addDoodad MidDood limit paint
 
 addBlasterDoodad :: (FromAreaEffect f) => Tint -> Double -> Double -> Position
                  -> Position -> Double -> Script f Int
@@ -120,8 +120,7 @@ addBoomDoodadAtPoint tag slowdown center = do
   let paint count cameraTopleft = do
         blitLoc (strip ! (7 - count `div` slowdown))
                 (LocCenter $ center `pSub` cameraTopleft)
-  emitAreaEffect $ EffAddDoodad $ Doodad
-    { doodadCountdown = limit, doodadHeight = MidDood, doodadPaint = paint }
+  addDoodad MidDood limit paint
 
 addBoomDoodadAtPosition :: (FromAreaEffect f) => StripTag -> Int -> Position
                         -> Script f ()
@@ -130,16 +129,15 @@ addBoomDoodadAtPosition tag slowdown pos =
 
 addDeathDoodad :: (FromAreaEffect f) => CreatureImages -> FaceDir -> PRect
                -> Script f ()
-addDeathDoodad images faceDir prect =
-  emitAreaEffect $ EffAddDoodad $ Doodad limit MidDood paint where
-    paint count topleft = do
-      let tint = let gba = fromIntegral (255 * count `div` limit)
-                 in Tint 255 gba gba gba
-      let rect = adjustRect1 (2 * (count - limit)) initRect
-      blitStretchTinted tint sprite (rect `rectMinus` topleft)
-    limit = 15
-    initRect = prectRect prect
-    sprite = ciStand faceDir images
+addDeathDoodad images faceDir prect = addDoodad MidDood limit paint where
+  paint count topleft = do
+    let tint = let gba = fromIntegral (255 * count `div` limit)
+               in Tint 255 gba gba gba
+    let rect = adjustRect1 (2 * (count - limit)) initRect
+    blitStretchTinted tint sprite (rect `rectMinus` topleft)
+  limit = 15
+  initRect = prectRect prect
+  sprite = ciStand faceDir images
 
 addLightningDoodad :: (FromAreaEffect f) => Tint -> Position -> Position
                    -> Script f ()
@@ -159,7 +157,7 @@ addLightningDoodad tint startPos endPos = do
   let paint count topleft =
         drawThickLineChain 3 tint $
         map (`pSub` fmap fromIntegral topleft) (lists ! count)
-  emitAreaEffect $ EffAddDoodad $ Doodad limit MidDood paint
+  addDoodad MidDood limit paint
 
 addLightWallDoodad :: (FromAreaEffect f) => Bool -> Tint -> Int
                    -> Double -> DPoint -> DPoint -> Script f ()
@@ -178,20 +176,43 @@ addLightWallDoodad foreground tint duration maxHeight startPt endPt = do
 -- | Add a number doodad, centered on a given point (map pixel).
 addNumberDoodadAtPoint :: (FromAreaEffect f) => Int -> IPoint -> Script f ()
 addNumberDoodadAtPoint number (Point x y) = do
-  paintDigits <- areaGet (rsrcPaintDigits . arsResources)
+  digits <- areaGet (rsrcDigitsStripBig . arsResources)
   let limit = 30
   let paint count cameraTopleft =
-        paintDigits number $ LocCenter $
+        paintNumber digits number $ LocCenter $
         Point x (y - (limit - count)) `pSub` cameraTopleft
-  emitAreaEffect $ EffAddDoodad $ Doodad { doodadCountdown = limit,
-                                           doodadHeight = HighDood,
-                                           doodadPaint = paint }
+  addDoodad HighDood limit paint
 
 -- | Add a number doodad, centered on a given position (map coordinates).
 addNumberDoodadAtPosition :: (FromAreaEffect f) => Int -> Position
                           -> Script f ()
 addNumberDoodadAtPosition number pos =
   addNumberDoodadAtPoint number (positionCenter pos)
+
+addWordDoodadOnTarget :: (FromAreaEffect f) => WordTag -> HitTarget
+                      -> Script f ()
+addWordDoodadOnTarget tag hitTarget = do
+  case hitTarget of
+    HitCharacter charNum -> do
+      addWordDoodadAtPosition tag =<< areaGet (arsCharacterPosition charNum)
+    HitMonster monstKey -> do
+      withMonsterEntry monstKey $ \entry -> do
+        addWordDoodadAtPoint tag $ rectCenter $ prectRect $ Grid.geRect entry
+    HitPosition pos -> addWordDoodadAtPosition tag pos
+
+addWordDoodadAtPoint :: (FromAreaEffect f) => WordTag -> IPoint -> Script f ()
+addWordDoodadAtPoint tag (Point x y) = do
+  sprite <- areaGet (flip rsrcWordSprite tag . arsResources)
+  let limit = 30
+  let paint count cameraTopleft =
+        blitLoc sprite $ LocCenter $
+        Point x (y - (limit - count) - 8) `pSub` cameraTopleft
+  addDoodad HighDood limit paint
+
+addWordDoodadAtPosition :: (FromAreaEffect f) => WordTag -> Position
+                        -> Script f ()
+addWordDoodadAtPosition tag pos =
+  addWordDoodadAtPoint tag (positionCenter pos)
 
 addShockwaveDoodad :: (FromAreaEffect f) => Int -> DPoint
                    -> (Double -> (Tint, Double, Double, Double)) -> Script f ()
@@ -201,9 +222,7 @@ addShockwaveDoodad limit center fn = do
               fn (fromIntegral (limit - count) / fromIntegral limit)
         tintRing tint thickness (center `pSub` fmap fromIntegral cameraTopleft)
                  hRad vRad
-  emitAreaEffect $ EffAddDoodad $ Doodad { doodadCountdown = limit,
-                                           doodadHeight = MidDood,
-                                           doodadPaint = paint }
+  addDoodad MidDood limit paint
 
 doExplosionDoodad :: (FromAreaEffect f) => StripTag -> DPoint -> Script f ()
 doExplosionDoodad tag (Point cx cy) = do
@@ -265,5 +284,19 @@ addRetractingHookshotDoodad startPos endPos = do
         let alpha = floor (255 * (1 - factor))
         drawLineChain (Tint 128 64 0 alpha) $ map pointFn [0, 0.01 .. 1]
   addContinuousDoodad MidDood limit paint
+
+-------------------------------------------------------------------------------
+
+addDoodad :: (FromAreaEffect f) => DoodadHeight -> Int
+          -> (Int -> IPoint -> Paint ()) -> Script f ()
+addDoodad height limit paint = emitAreaEffect $ EffAddDoodad $ Doodad
+  { doodadCountdown = limit, doodadHeight = height, doodadPaint = paint }
+
+addContinuousDoodad :: (FromAreaEffect f) => DoodadHeight -> Int
+                    -> (Double -> IPoint -> Paint ()) -> Script f ()
+addContinuousDoodad height limit paintFn = do
+  let paintFn' n topleft =
+        paintFn (fromIntegral (limit - n) / fromIntegral limit) topleft
+  addDoodad height limit paintFn'
 
 -------------------------------------------------------------------------------

@@ -25,10 +25,12 @@ module Fallback.State.Resources
    ProjTag(..), rsrcProj,
    SpriteTag(..), rsrcSprite,
    StripTag(..), rsrcStrip,
+   WordTag(..), rsrcWordSprite,
    -- * Fonts
    FontTag(..), rsrcFont,
    -- * GUI graphics
-   rsrcCursorsStrip, rsrcSheetEquipButtons, rsrcPaintDigits,
+   rsrcCursorsStrip, rsrcDigitsStripBig, rsrcSheetEquipButtons,
+   rsrcPaintDigits,
    -- * Icons
    rsrcAbilityIcon, rsrcItemIcon, rsrcStatusIcons,
    -- * Music
@@ -43,7 +45,7 @@ where
 
 import Data.Array (Array, Ix, listArray)
 
-import Fallback.Data.Point (LocSpec, Rect(Rect))
+import Fallback.Data.Point (IRect, LocSpec, Rect(Rect))
 import Fallback.Data.TotalMap (TotalMap, makeTotalMap, makeTotalMapA, tmGet)
 import Fallback.Draw
 import Fallback.Sound (Sound, loadSound)
@@ -60,6 +62,7 @@ data Resources = Resources
       TotalMap (CharacterClass, CharacterAppearance) CreatureImages,
     rsrcAllMonsterImages :: TotalMap CreatureSize (Array Int CreatureImages),
     rsrcCursorsStrip :: Strip,
+    rsrcDigitsStripBig :: Strip,
     rsrcFonts :: TotalMap FontTag Font,
     rsrcItemIcons :: Sheet,
     rsrcPaintDigits :: Int -> LocSpec Int -> Paint (),
@@ -72,7 +75,8 @@ data Resources = Resources
     rsrcStrips :: TotalMap StripTag Strip,
     rsrcTerrainSheet :: Sheet,
     rsrcTerrainOverlaySheet :: Sheet,
-    rsrcTileset :: Tileset }
+    rsrcTileset :: Tileset,
+    rsrcWordSprites :: TotalMap WordTag Sprite }
 
 newResources :: IO Resources
 newResources = do
@@ -93,6 +97,7 @@ newResources = do
   terrainSheet <- loadSheet "terrain.png" (50, 12)
   terrainOverlaySheet <- loadSheet "terrain-overlays.png" (6, 8)
   tileset <- loadTileset
+  digitsWords <- loadTexture "big-digits.png"
   return Resources
     { rsrcAbilityIcons = abilityIcons,
       rsrcAllCharacterImages = makeTotalMap $ \(cls, app) ->
@@ -100,6 +105,9 @@ newResources = do
         in CreatureImages (charSheet ! (row, 0)) (charSheet ! (row, 1))
                           (charSheet ! (row, 2)) (charSheet ! (row, 3)),
       rsrcAllMonsterImages = monsterImages,
+      rsrcDigitsStripBig =
+        listArray (0, 9) $ flip map [0..9] $ \n ->
+          makeSubSprite (Rect (7 * n) 0 7 9) digitsWords,
       rsrcCursorsStrip = cursors,
       rsrcFonts = fonts,
       rsrcItemIcons = itemIcons,
@@ -113,7 +121,9 @@ newResources = do
       rsrcStrips = strips,
       rsrcTerrainSheet = terrainSheet,
       rsrcTerrainOverlaySheet = terrainOverlaySheet,
-      rsrcTileset = tileset }
+      rsrcTileset = tileset,
+      rsrcWordSprites =
+        makeTotalMap (flip makeSubSprite digitsWords . wordRect) }
 
 loadMonsterImages :: CreatureSize -> IO (Array Int CreatureImages)
 loadMonsterImages size =
@@ -224,6 +234,22 @@ stripSpec SlashRight = ("doodads/slash-right.png", 8)
 
 rsrcStrip :: Resources -> StripTag -> Strip
 rsrcStrip rsrc tag = tmGet tag $ rsrcStrips rsrc
+
+data WordTag = WordBackstab | WordCritical | WordDodge | WordFinalBlow
+             | WordMiss | WordParry | WordRiposte
+  deriving (Bounded, Eq, Ix, Ord)
+
+wordRect :: WordTag -> IRect
+wordRect WordBackstab = Rect 0 27 35 9
+wordRect WordCritical = Rect 36 27 29 9
+wordRect WordDodge = Rect 23 9 22 9
+wordRect WordFinalBlow = Rect 0 18 36 9
+wordRect WordMiss = Rect 46 9 17 9
+wordRect WordParry = Rect 0 9 22 9
+wordRect WordRiposte = Rect 37 27 28 9
+
+rsrcWordSprite :: Resources -> WordTag -> Sprite
+rsrcWordSprite rsrc tag = tmGet tag $ rsrcWordSprites rsrc
 
 -------------------------------------------------------------------------------
 -- Fonts:

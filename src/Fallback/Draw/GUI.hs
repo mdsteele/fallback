@@ -71,17 +71,19 @@ drawBevelRect tint b rect = withSubCanvas rect $ do
 
 -------------------------------------------------------------------------------
 
+paintNumber :: Strip -> Int -> LocSpec Int -> Paint ()
+paintNumber digits num loc = do
+  let (w, h) = spriteSize (digits ! 0)
+  let string = show (abs num)
+  let Point x y = locTopleft loc (1 + (w - 1) * length string, h)
+  let drawDigit dx char =
+        blitTopleft (digits ! (fromEnum char - fromEnum '0'))
+                    (Point (x + dx) y)
+  zipWithM_ drawDigit [0, w - 1 ..] string
+
+-- TODO: deprecated
 newDigitPaint :: (MonadDraw m) => m (Int -> LocSpec Int -> Paint ())
-newDigitPaint = do
-  digits <- loadVStrip "small-digits.png" 10
-  let paint num loc =
-        let string = show (abs num)
-            Point x y = locTopleft loc (1 + 4 * length string, 7)
-            drawDigit dx char =
-              blitTopleft (digits ! (fromEnum char - fromEnum '0'))
-                          (Point (x + dx) y)
-        in zipWithM_ drawDigit [0, 4 ..] string
-  return paint
+newDigitPaint = paintNumber <$> loadVStrip "small-digits.png" 10
 
 -------------------------------------------------------------------------------
 

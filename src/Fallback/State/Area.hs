@@ -271,8 +271,8 @@ data DoodadHeight = LowDood | MidDood | HighDood
 emptyDoodads :: Doodads
 emptyDoodads = Doodads $ makeTotalMap (const [])
 
-addDoodad :: Doodad -> Doodads -> Doodads
-addDoodad doodad (Doodads tm) =
+appendDoodad :: Doodad -> Doodads -> Doodads
+appendDoodad doodad (Doodads tm) =
   Doodads $ tmAlter (doodadHeight doodad) (++ [doodad]) tm
 
 tickDoodads :: Doodads -> Doodads
@@ -492,7 +492,7 @@ executeAreaCommonEffect eff ars = do
       (result, party') <- executePartyEffect partyEff (arsParty ars)
       return (result, set acs { acsParty = party' })
     EffAddDoodad dood -> do
-      change acs { acsDoodads = addDoodad dood (acsDoodads acs) }
+      change acs { acsDoodads = appendDoodad dood (acsDoodads acs) }
     EffAlterFields fn ps -> do
       let fields' = foldr (Map.alter fn) (acsFields acs) ps
       ars' <- arsUpdateVisibility $ set acs { acsFields = fields' }
