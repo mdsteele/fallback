@@ -73,8 +73,7 @@ import qualified Data.Map as Map
 import Data.Maybe (catMaybes, fromMaybe, isJust, isNothing)
 import qualified Data.Set as Set (empty)
 
-import Fallback.Constants
-  (maxAdrenaline, momentsPerActionPoint, sightRangeSquared)
+import Fallback.Constants (maxAdrenaline, momentsPerActionPoint, sightRange)
 import Fallback.Control.Script
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
@@ -716,20 +715,20 @@ inflictAllPeriodicDamage = do
 
 circleArea :: SqDist -> Position -> [Position]
 circleArea dist center =
-  let limit = floor $ sqrt (fromIntegral dist :: Double)
+  let limit = floor (sqDistRadius dist)
       corner = Point limit limit
   in filter ((dist >=) . pSqDist center) $
      range (center `pSub` corner, center `pAdd` corner)
 
 aoeTarget :: Int -> SqDist -> TargetKind (Position, [Position])
-aoeTarget maxRange blastRadiusSquared = AreaTarget (ofRadius maxRange) fn
+aoeTarget maxRange blastRadiusSquared = AreaTarget maxRange fn
   where fn _ars _origin target = circleArea blastRadiusSquared target
 
 beamTarget :: TargetKind (Position, [Position])
-beamTarget = AreaTarget sightRangeSquared arsBeamPositions
+beamTarget = AreaTarget sightRange arsBeamPositions
 
 splashTarget :: Int -> TargetKind (Position, [Position])
-splashTarget maxRange = AreaTarget (ofRadius maxRange) fn where
+splashTarget maxRange = AreaTarget maxRange fn where
   fn ars origin target =
     if origin == target || cannotSeeThrough (arsTerrainOpenness target ars)
     then [target] else
@@ -738,7 +737,7 @@ splashTarget maxRange = AreaTarget (ofRadius maxRange) fn where
           target `plusDir` succ dir]
 
 wallTarget :: Int -> Int -> TargetKind (Position, [Position])
-wallTarget maxRange radius = AreaTarget (ofRadius maxRange) fn where
+wallTarget maxRange radius = AreaTarget maxRange fn where
   fn ars origin target =
     if origin == target || blocked target then [] else
       let (d1, d2, d3, d4) =

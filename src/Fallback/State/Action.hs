@@ -22,7 +22,7 @@
 module Fallback.State.Action where
 
 import Fallback.Control.Script (Script)
-import Fallback.Data.Point (Position, SqDist)
+import Fallback.Data.Point (Position)
 import Fallback.State.Area (AreaEffect, AreaState, CombatEffect)
 import Fallback.State.Simple
 
@@ -30,13 +30,13 @@ import Fallback.State.Simple
 -- Targeting:
 
 data TargetKind :: * -> * where
-  AllyTarget :: SqDist -> TargetKind (Either Position CharacterNumber)
-  AreaTarget :: SqDist -> (forall a. (AreaState a) => a -> Position ->
-                           Position -> [Position])
+  AllyTarget :: Int -> TargetKind (Either Position CharacterNumber)
+  AreaTarget :: Int -> (forall a. (AreaState a) => a -> Position ->
+                        Position -> [Position])
              -> TargetKind (Position, [Position])
   AutoTarget :: TargetKind ()
-  MultiTarget :: SqDist -> Int -> TargetKind [Position]
-  SingleTarget :: SqDist -> TargetKind Position
+  MultiTarget :: Int -> Int -> TargetKind [Position]
+  SingleTarget :: Int -> TargetKind Position
 
 -------------------------------------------------------------------------------
 -- Abilities:
@@ -46,7 +46,7 @@ data Ability = PassiveAbility
              | ActiveAbility CastingCost AbilityEffect
 
 data AbilityEffect :: * where
-  MetaAttack :: MetaAttackType -> (SqDist -> TargetKind a)
+  MetaAttack :: MetaAttackType -> (Int -> TargetKind a)
              -> (CharacterNumber -> PowerModifier -> a ->
                  Script CombatEffect ()) -> AbilityEffect
   GeneralAbility :: TargetKind a -> (CharacterNumber -> PowerModifier -> a ->

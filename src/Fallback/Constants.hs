@@ -100,8 +100,11 @@ maxActionPoints = 4
 maxAdrenaline :: Int
 maxAdrenaline = 100
 
+sightRange :: Int
+sightRange = 10
+
 sightRangeSquared :: SqDist
-sightRangeSquared = ofRadius 10
+sightRangeSquared = ofRadius sightRange
 
 talkRadius :: Int
 talkRadius = 6

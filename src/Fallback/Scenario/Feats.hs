@@ -51,7 +51,7 @@ getFeat SolarFlare = CombatFeat
     cfDescription = "Deal massive damage to three targets",
     cfIconCoords = (9, 1),
     cfCastingCost = AdrenalineCost 30,
-    cfEffect = StandardFeat (MultiTarget (ofRadius 6) 3) $ \_ _ -> do
+    cfEffect = StandardFeat (MultiTarget 6 3) $ \_ _ -> do
       return () } -- TODO
 getFeat Energize = CombatFeat
   { cfName = "Energize",

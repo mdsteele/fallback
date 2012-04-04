@@ -111,10 +111,14 @@ data AttackEffect = DrainMana Double -- mana drained per base damage
 data AttackRange = Melee | Ranged Int
   deriving (Eq)
 
+-- | Translates an 'AttackRange' into a maximum radius.
+rangeRadius :: AttackRange -> Int
+rangeRadius Melee = 1
+rangeRadius (Ranged r) = r
+
 -- | Translates an 'AttackRange' into a maximum squared distance.
 rangeSqDist :: AttackRange -> SqDist
-rangeSqDist Melee = 2
-rangeSqDist (Ranged r) = ofRadius r
+rangeSqDist = ofRadius . rangeRadius
 
 -------------------------------------------------------------------------------
 -- Characters:

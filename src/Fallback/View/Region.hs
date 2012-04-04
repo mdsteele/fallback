@@ -104,7 +104,8 @@ newRegionMapView bgPath = do
         LocCenter $ areaLocation $ selected
 
     handler state (EvMouseDown pt) =
-      let hit tag = pSqDist pt (areaLocation tag) <= 350
+      let hit tag = pDist (fromIntegral <$> pt)
+                          (fromIntegral <$> areaLocation tag) <= (20 :: Double)
       in return $ maybe Ignore Action $ fmap SelectAreaNode $ find hit $
          regionAreas $ rsRegion state
     handler _ _ = return Ignore

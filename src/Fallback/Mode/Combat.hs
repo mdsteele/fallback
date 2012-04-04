@@ -293,7 +293,7 @@ newCombatMode resources modes initState = do
                where
                  cannotHit rng =
                    not (arsIsVisibleToCharacter charNum cs pos) ||
-                   pSqDist pos originPos > rng
+                   pSqDist pos originPos > ofRadius rng
                  charNum = ccCharacterNumber cc
                  execute = executeCommand cs cc cost maxActionPoints
                  originPos = arsCharacterPosition charNum cs
@@ -362,7 +362,7 @@ newCombatMode resources modes initState = do
               MetaAttack matype tkindFn sfn -> do
                 let wrange = wdRange $ chrEquippedWeaponData char
                 guard $ metaAttackMatches matype wrange
-                let tkind = tkindFn $ rangeSqDist wrange
+                let tkind = tkindFn $ rangeRadius wrange
                 Just $ switchToTargetingPhase cc cs cost tkind $
                   sfn charNum power
               GeneralAbility tkind sfn ->
@@ -420,7 +420,7 @@ newCombatMode resources modes initState = do
             let positions = map ccsPosition $ toList $ csCharStates cs
                 center :: DPoint
                 center = foldl' pAdd pZero $ map (fmap fromIntegral) positions
-            in minimumKey (pSqDist center . fmap fromIntegral) positions
+            in minimumKey (pDist center . fmap fromIntegral) positions
       let acs = csCommon cs
       let townTriggers =
             getAreaTriggers scenarioTriggers $ partyCurrentArea $ acsParty acs

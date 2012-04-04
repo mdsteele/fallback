@@ -24,7 +24,7 @@ import Data.List (transpose)
 import qualified Data.Set as Set
 import Test.HUnit ((~:), Test(TestCase, TestList), assertFailure)
 
-import Fallback.Data.Point (Point(Point))
+import Fallback.Data.Point (Point(Point), SqDist(SqDist))
 import Fallback.State.FOV (fieldOfView)
 
 -------------------------------------------------------------------------------
@@ -32,90 +32,102 @@ import Fallback.State.FOV (fieldOfView)
 fovTests :: Test
 fovTests = "fov" ~: TestList [
 
-  fovTest 007 ".......\n\
-              \..   ..\n\
-              \.     .\n\
-              \.  *  .\n\
-              \.     .\n\
-              \..   ..\n\
-              \.......",
+  fovTest (SqDist 7)
+    ".......\n\
+    \..   ..\n\
+    \.     .\n\
+    \.  *  .\n\
+    \.     .\n\
+    \..   ..\n\
+    \.......",
 
-  fovTest 999 "*   \n\
-              \ o  \n\
-              \  . \n\
-              \   .",
+  fovTest (SqDist 999)
+    "*   \n\
+    \ o  \n\
+    \  . \n\
+    \   .",
 
-  fovTest 999 "*oO.\n\
-              \o oO\n\
-              \Oo O\n\
-              \.OOo",
+  fovTest (SqDist 999)
+    "*oO.\n\
+    \o oO\n\
+    \Oo O\n\
+    \.OOo",
 
-  fovTest 999 "* o.\n\
-              \o   \n\
-              \.   \n\
-              \.   ",
+  fovTest (SqDist 999)
+    "* o.\n\
+    \o   \n\
+    \.   \n\
+    \.   ",
 
-  fovTest 999 "OOo*oOO\n\
-              \OOo oOO\n\
-              \O.   .O\n\
-              \O     O\n\
-              \OoooooO",
+  fovTest (SqDist 999)
+    "OOo*oOO\n\
+    \OOo oOO\n\
+    \O.   .O\n\
+    \O     O\n\
+    \OoooooO",
 
-  fovTest 999 "OOo*oOO\n\
-              \OOo oOO\n\
-              \O.   .O\n\
-              \O     O\n\
-              \o     o\n\
-              \ooooooo",
+  fovTest (SqDist 999)
+    "OOo*oOO\n\
+    \OOo oOO\n\
+    \O.   .O\n\
+    \O     O\n\
+    \o     o\n\
+    \ooooooo",
 
-  fovTest 999 "o*oOOO\n\
-              \o oOOO\n\
-              \o oOOO\n\
-              \o  ...\n\
-              \oooOOO",
+  fovTest (SqDist 999)
+    "o*oOOO\n\
+    \o oOOO\n\
+    \o oOOO\n\
+    \o  ...\n\
+    \oooOOO",
 
-  fovTest 999 ".OOOOOOO.\n\
-              \OoooooooO\n\
-              \Oo     oO\n\
-              \Oo *   oO\n\
-              \Oo     oO\n\
-              \OoooooooO\n\
-              \.O.O.O.O.",
+  fovTest (SqDist 999)
+    ".OOOOOOO.\n\
+    \OoooooooO\n\
+    \Oo     oO\n\
+    \Oo *   oO\n\
+    \Oo     oO\n\
+    \OoooooooO\n\
+    \.O.O.O.O.",
 
-  fovTest 999 "OOOOOOOO.OOOOO\n\
-              \OOoooooo oo  o\n\
-              \oo          oO\n\
-              \o* oOOOOOOOOOO\n\
-              \ooooOOOOOOOOOO",
+  fovTest (SqDist 999)
+    "OOOOOOOO.OOOOO\n\
+    \OOoooooo oo  o\n\
+    \oo          oO\n\
+    \o* oOOOOOOOOOO\n\
+    \ooooOOOOOOOOOO",
 
-  fovTest 110 "OOOOOOOOo\n\
-              \OOOOOooo \n\
-              \OOOOoo   \n\
-              \OOooo    \n\
-              \OOo      \n\
-              \OOo   *  \n\
-              \Oo       ",
+  fovTest (SqDist 110)
+    "OOOOOOOOo\n\
+    \OOOOOooo \n\
+    \OOOOoo   \n\
+    \OOooo    \n\
+    \OOo      \n\
+    \OOo   *  \n\
+    \Oo       ",
 
-  fovTest 110 "OOOOOOOOo\n\
-              \OOOOOooo \n\
-              \OOOOoo   \n\
-              \OOooo    \n\
-              \OOo      \n\
-              \OOo    * \n\
-              \Oo       ",
+  fovTest (SqDist 110)
+    "OOOOOOOOo\n\
+    \OOOOOooo \n\
+    \OOOOoo   \n\
+    \OOooo    \n\
+    \OOo      \n\
+    \OOo    * \n\
+    \Oo       ",
 
-  fovTest 110 "OOOOOOOoo\n\
-              \OOOOOooo \n\
-              \OOOOoo   \n\
-              \OOooo    \n\
-              \OOo      \n\
-              \OOo     *\n\
-              \Oo       "]
+  fovTest (SqDist 110)
+    "OOOOOOOoo\n\
+    \OOOOOooo \n\
+    \OOOOoo   \n\
+    \OOooo    \n\
+    \OOo      \n\
+    \OOo     *\n\
+    \Oo       "]
 
 -------------------------------------------------------------------------------
 
 
-fovTest :: Int -> String -> Test
+fovTest :: SqDist -> String -> Test
 fovTest radSq expectedString =
   let strings = lines expectedString
       width = length (head strings)

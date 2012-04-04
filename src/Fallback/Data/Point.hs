@@ -22,7 +22,7 @@ module Fallback.Data.Point
    Axis(..),
    -- * Point type
    Point(..), IPoint, DPoint,
-   pZero, pPolar, pNeg, pAdd, pSub, pMul, pDiv, pSqDist, pDist, pAtan2,
+   pZero, pPolar, pNeg, pAdd, pSub, pMul, pDiv, pDist, pAtan2,
    -- * Rect type
    Rect(..), IRect, DRect,
    makeRect, rectContains, rectIntersects, rectIntersection,
@@ -34,7 +34,7 @@ module Fallback.Data.Point
    Direction(..), allDirections, isCardinal, ipointDir, dirDelta, plusDir,
    -- * Position type
    Position, PRect, adjacent, bresenhamPositions, prectPositions,
-   SqDist, ofRadius, rangeTouchesRect)
+   SqDist(..), sqDistRadius, pSqDist, ofRadius, rangeTouchesRect)
 where
 
 import Data.Ix (Ix, range)
@@ -104,10 +104,6 @@ pMul (Point x y) a = Point (x * a) (y * a)
 
 pDiv :: (Fractional a) => Point a -> a -> Point a
 pDiv (Point x y) a = Point (x / a) (y / a)
-
-pSqDist :: (Num a) => Point a -> Point a -> a
-pSqDist (Point x1 y1) (Point x2 y2) =
-  (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1)
 
 pDist :: DPoint -> DPoint -> Double
 pDist (Point x1 y1) (Point x2 y2) = hypot (x2 - x1) (y2 - y1)
@@ -289,7 +285,7 @@ type PRect = IRect
 
 -- | Return 'True' if the positions are adjacent or equal, 'False' otherwise.
 adjacent :: Position -> Position -> Bool
-adjacent p1 p2 = pSqDist p1 p2 <= 2
+adjacent p1 p2 = pSqDist p1 p2 <= SqDist 2
 
 bresenhamPositions :: Position -> Position -> [Position]
 bresenhamPositions (Point x1'' y1'') (Point x2'' y2'') =
@@ -322,20 +318,28 @@ prectPositions (Rect x y w h) =
   range (Point x y, Point (x + w - 1) (y + h - 1))
 
 -- | A squared distance between two positions.
-type SqDist = Int
+newtype SqDist = SqDist Int
+  deriving (Eq, Ord)
+
+sqDistRadius :: SqDist -> Double
+sqDistRadius (SqDist sq) = sqrt (fromIntegral sq)
+
+pSqDist :: Position -> Position -> SqDist
+pSqDist (Point x1 y1) (Point x2 y2) =
+  SqDist ((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1))
 
 -- | Given a radius (in tiles), produce a squared distance that yields a pretty
 -- nice circle of that radius.  In particular, this gives a better-shaped
 -- circle than simply squaring the input.
 ofRadius :: Int -> SqDist
-ofRadius r = floor ((fromIntegral r + 0.5 :: Double) ^^ (2 :: Int))
+ofRadius r = SqDist $ floor ((fromIntegral r + 0.5 :: Double) ^^ (2 :: Int))
 
 rangeTouchesRect :: Position -> SqDist -> PRect -> Bool
 rangeTouchesRect (Point cx cy) sqDist (Rect x1 y1 w h) =
   let x2 = x1 + w - 1
       y2 = y1 + h - 1
       corner x y = pSqDist (Point cx cy) (Point x y) <= sqDist
-      side a b = (a - b) * (a - b) <= sqDist
+      side a b = SqDist ((a - b) * (a - b)) <= sqDist
   in if cx < x1 then
        if cy < y1 then corner x1 y1
        else if cy > y2 then corner x1 y2 else side cx x1

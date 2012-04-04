@@ -88,7 +88,7 @@ pathfindToRange :: (Position -> Bool) -> Position -> SqDist -> Int
                 -> Position -> Maybe [Position]
 pathfindToRange isBlocked goal sqDist =
   pathfind isBlocked ((sqDist >=) . pSqDist goal)
-           (max 0 . subtract (sqrt $ fromIntegral sqDist) .
+           (max 0 . subtract (sqDistRadius sqDist) .
             pDist (fromIntegral <$> goal) . fmap fromIntegral)
 
 pathfindToRanges :: (Position -> Bool) -> [Position] -> SqDist -> Int
@@ -100,9 +100,9 @@ pathfindToRanges isBlocked goals sqDist limit start =
   pathfind isBlocked isGoal heuristic limit start
   where
     isGoal pos = any (\goal -> sqDist >= pSqDist pos goal) goals
-    heuristic pos = max 0 $ subtract (sqrt $ fromIntegral sqDist) $
+    heuristic pos = max 0 $ subtract (sqDistRadius sqDist) $
                     minimum $ map (distTo pos) goals
-    pos `distTo` goal = sqrt $ fromIntegral $ pSqDist pos goal
+    pos `distTo` goal = sqDistRadius $ pSqDist pos goal
 
 pathfindSizeToRange :: (Position -> Bool) -> (Int, Int) -> Position -> SqDist
                     -> Int -> Position -> Maybe [Position]
@@ -132,8 +132,7 @@ pathfindSizeToRanges isBlocked (w, h) goals sqDist limit start =
     heuristic pos = max 0 $ subtract radius $ minimum $ map (distTo pos) goals
     pos `distTo` goal = pDist (fromIntegral <$> goal) $
                         pAdd offset (fromIntegral <$> pos)
-    radius = (sqrt $ fromIntegral sqDist) +
-             (sqrt $ fromIntegral $ w * w + h * h)
+    radius = sqDistRadius sqDist + (sqrt $ fromIntegral $ w * w + h * h)
     offset = Point (fromIntegral (w - 1) / 2) (fromIntegral (h - 1) / 2)
 
 pathfindRectToRange :: (Position -> Bool) -> PRect -> Position -> SqDist

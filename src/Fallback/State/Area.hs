@@ -337,12 +337,12 @@ tickMonsterAnim mon = mon { monstAnim = tickCreatureAnim (monstAnim mon) }
 -------------------------------------------------------------------------------
 
 data Targeting :: * -> * where
-  TargetingAlly :: SqDist -> Targeting (Either Position CharacterNumber)
-  TargetingArea :: SqDist -> (forall a. (AreaState a) => a -> Position ->
+  TargetingAlly :: Int -> Targeting (Either Position CharacterNumber)
+  TargetingArea :: Int -> (forall a. (AreaState a) => a -> Position ->
                               Position -> [Position])
                 -> Targeting (Position, [Position])
-  TargetingMulti :: SqDist -> Int -> [Position] -> Targeting [Position]
-  TargetingSingle :: SqDist -> Targeting Position
+  TargetingMulti :: Int -> Int -> [Position] -> Targeting [Position]
+  TargetingSingle :: Int -> Targeting Position
 
 -------------------------------------------------------------------------------
 

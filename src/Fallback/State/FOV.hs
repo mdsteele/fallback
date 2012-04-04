@@ -49,7 +49,7 @@ import Control.Monad.ST (ST, runST)
 import qualified Data.Set as Set
 import Data.STRef
 
-import Fallback.Data.Point (IPoint, Point(..), Position, SqDist, pAdd)
+import Fallback.Data.Point (IPoint, Point(..), Position, SqDist(..), pAdd)
 import Fallback.Utility (flip3, whenM)
 
 -------------------------------------------------------------------------------
@@ -64,7 +64,7 @@ fieldOfView :: (Int, Int) {-^map size-}
             -> (Position -> Bool) {-^isBlocked function-}
             -> SqDist {-^radius squared-} -> Position {-^viewer position-}
             -> Set.Set Position {-^already visible-} -> Set.Set Position
-fieldOfView (width, height) isBlocked radiusSquared start visible =
+fieldOfView (width, height) isBlocked (SqDist radiusSquared) start visible =
   let radius = floor $ sqrt (fromIntegral radiusSquared :: Double)
       minX = min radius $ pointX start
       maxX = min radius $ width - pointX start - 1

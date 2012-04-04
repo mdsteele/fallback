@@ -279,28 +279,30 @@ paintTargeting cameraTopleft mbMousePt ars charNum targeting = do
         if targetPos `Set.member` positions
         then paintTile targetPos else paintX targetPos
   case targeting of
-    TargetingAlly sqdist -> do
-      let targetable = getRegion sqdist
+    TargetingAlly radius -> do
+      let targetable = getRegionOfRadius radius
       paintRegion targetable
       paintMouseTarget targetable
-    TargetingArea sqdist areaFn -> do
-      let targetable = getRegion sqdist
+    TargetingArea radius areaFn -> do
+      let targetable = getRegionOfRadius radius
       paintRegion targetable
       whenMouse $ \targetPos -> do
         if targetPos `Set.notMember` targetable then paintX targetPos else do
           let targets = areaFn ars originPos targetPos
           if null targets then paintX targetPos else mapM_ paintTile targets
-    TargetingMulti sqdist _ targets -> do
-      let targetable = getRegion sqdist
+    TargetingMulti radius _ targets -> do
+      let targetable = getRegionOfRadius radius
       paintRegion targetable
       mapM_ paintTile targets
       paintMouseTarget targetable
-    TargetingSingle sqdist -> do
-      let targetable = getRegion sqdist
+    TargetingSingle radius -> do
+      let targetable = getRegionOfRadius radius
       paintRegion targetable
       paintMouseTarget targetable
   where
-    getRegion sqdist = Set.filter ((sqdist >=) . pSqDist originPos) visible
+    getRegionOfRadius radius =
+      let sqdist = ofRadius radius
+      in Set.filter ((sqdist >=) . pSqDist originPos) visible
     originPos = arsCharacterPosition charNum ars
     paintRegion = paintTargetingRegion (Tint 255 0 128 128) cameraTopleft
     paintTile pos = drawRect (Tint 255 0 128 255) $

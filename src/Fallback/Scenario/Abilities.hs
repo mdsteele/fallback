@@ -109,7 +109,7 @@ getAbility characterClass abilityNumber rank =
         setFields (SmokeScreen halflife) targets
     Immunity -> PassiveAbility
     RopeDart ->
-      combat (FocusCost 1) (SingleTarget $ ofRadius 5) $
+      combat (FocusCost 1) (SingleTarget 5) $
       \caster power endPos -> do
         characterBeginOffensiveAction caster endPos
         startPos <- areaGet (arsCharacterPosition caster)
@@ -208,7 +208,7 @@ getAbility characterClass abilityNumber rank =
         characterWeaponHit wd' endPos critical damage
     EagleEye -> PassiveAbility
     Fireball ->
-      combat (mix AquaVitae Naphtha) (SingleTarget $ ofRadius 5) $
+      combat (mix AquaVitae Naphtha) (SingleTarget 5) $
       \caster power endPos -> do
         characterBeginOffensiveAction caster endPos
         startPos <- areaGet (arsCharacterPosition caster)
@@ -269,7 +269,7 @@ getAbility characterClass abilityNumber rank =
           duration <- round . (baseDuration *) <$> getRandomR 0.9 1.1
           setFields (BarrierWall duration) [target]
     Drain ->
-      combat (mix Brimstone Limestone) (aoeTarget 5 4) $
+      combat (mix Brimstone Limestone) (aoeTarget 5 $ SqDist 4) $
       \caster power (endPos, targets) -> do
         characterBeginOffensiveAction caster endPos
         -- TODO sound/doodad
@@ -306,7 +306,7 @@ getAbility characterClass abilityNumber rank =
         also_ (doExplosionDoodad FireBoom $ positionCenter endPos)
               (wait 5 >> dealDamage hits)
     Healing ->
-      general (ManaCost 4) (AllyTarget $ ofRadius 8) $ \caster power eith -> do
+      general (ManaCost 4) (AllyTarget 8) $ \caster power eith -> do
         intBonus <- getIntellectBonus caster
         randMult <- getRandomR 0.9 1.1
         let healAmount = randMult * intBonus * power * ranked 20 35 55
@@ -315,7 +315,7 @@ getAbility characterClass abilityNumber rank =
           Left pos -> healDamage [(HitPosition pos, healAmount)]
           Right charNum -> healDamage [(HitCharacter charNum, healAmount)]
     Disruption ->
-      combat (ManaCost 6) (MultiTarget (ofRadius 4) (ranked 1 3 3)) $
+      combat (ManaCost 6) (MultiTarget 4 (ranked 1 3 3)) $
       \caster power targets -> do
         characterBeginOffensiveAction caster (head targets)
         startPos <- areaGet (arsCharacterPosition caster)
@@ -384,7 +384,7 @@ getAbility characterClass abilityNumber rank =
                         then [(hitTarget, MagicDamage, damage * 0.7)] else [])
         dealDamage hits >> wait 8
     Shock ->
-      combat (ManaCost 2) (SingleTarget $ ofRadius 5) $
+      combat (ManaCost 2) (SingleTarget 5) $
       \caster power endPos -> do
         characterBeginOffensiveAction caster endPos
         startPos <- areaGet (arsCharacterPosition caster)
@@ -397,7 +397,7 @@ getAbility characterClass abilityNumber rank =
         addBoomDoodadAtPosition EnergyBoom 3 endPos >> wait 12
         dealDamage [(HitPosition endPos, EnergyDamage, damage)] >> wait 12
     IceBolts ->
-      combat (ManaCost 5) (MultiTarget (ofRadius 4) (ranked 2 3 4)) $
+      combat (ManaCost 5) (MultiTarget 4 (ranked 2 3 4)) $
       \caster power targets -> do
         characterBeginOffensiveAction caster (head targets)
         startPos <- areaGet (arsCharacterPosition caster)
@@ -430,7 +430,8 @@ getAbility characterClass abilityNumber rank =
             addBallisticDoodad AcidProj center target speed >>= wait
             hit target
     Invisibility ->
-      combat (ManaCost 5) (AllyTarget 6) $ \_caster _power eith -> do
+      combat (ManaCost 5) (AllyTarget 6) $
+      \_caster _power eith -> do
         let invis = if rank >= Rank2 then MediumInvisibility
                     else MinorInvisibility
         let hitTarget = either HitPosition HitCharacter eith
@@ -439,7 +440,7 @@ getAbility characterClass abilityNumber rank =
         when (rank >= Rank3) $ do
           return () -- FIXME grantBlessing hitTarget (power * whatever)
     Freeze ->
-      combat (ManaCost 1) (aoeTarget 4 1) $
+      combat (ManaCost 1) (aoeTarget 4 $ SqDist 1) $
       \caster power (endPos, targets) -> do
         characterBeginOffensiveAction caster endPos
         intBonus <- getIntellectBonus caster
@@ -477,7 +478,7 @@ getAbility characterClass abilityNumber rank =
           dealDamage [(HitPosition target, AcidDamage, damage)]
           wait 12
     Luminaire ->
-      combat (ManaCost 1) (aoeTarget 4 4) $
+      combat (ManaCost 1) (aoeTarget 4 $ SqDist 4) $
       \caster power (endPos, targets) -> do
         characterBeginOffensiveAction caster endPos
         intBonus <- getIntellectBonus caster

@@ -94,12 +94,13 @@ monsterTownStep ge = do
       if rectTopleft rect `pSqDist` partyPos > ofRadius 25 then
         return False else do
       maybe (return False) stepTowardsParty
-            (pathfindRectToRange isBlocked rect partyPos 2 30)
+            (pathfindRectToRange isBlocked rect partyPos (SqDist 2) 30)
     GuardAI home -> do
-      case pathfindRectToRange isBlocked rect partyPos 2 5 of
+      case pathfindRectToRange isBlocked rect partyPos (SqDist 2) 5 of
         Just path -> stepTowardsParty path
         Nothing -> do
-          maybeM (pathfindRectToRange isBlocked rect home 0 30) takeStep_
+          maybeM (pathfindRectToRange isBlocked rect home (SqDist 0) 30)
+                 takeStep_
           return False
     ImmobileAI -> do
       if monstIsAlly monst then return False else do
@@ -112,12 +113,13 @@ monsterTownStep ge = do
       canSee <- canMonsterSeeParty key
       if not canSee then return False else do
       maybe (return False) stepTowardsParty
-            (pathfindRectToRange isBlocked rect partyPos 2 20)
+            (pathfindRectToRange isBlocked rect partyPos (SqDist 2) 20)
     PatrolAI home goal -> do
-      case pathfindRectToRange isBlocked rect partyPos 2 5 of
+      case pathfindRectToRange isBlocked rect partyPos (SqDist 2) 5 of
         Just path -> stepTowardsParty path
         Nothing -> do
-          maybeM (pathfindRectToRange isBlocked rect goal 0 30) $ \path -> do
+          maybeM (pathfindRectToRange isBlocked rect goal (SqDist 0) 30) $
+                 \path -> do
             remaining <- takeStep path
             when (remaining <= 0) $ do
               setMonsterTownAI key (PatrolAI goal home)

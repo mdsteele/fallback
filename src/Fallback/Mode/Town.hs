@@ -36,7 +36,7 @@ import Fallback.Constants
 import Fallback.Control.Script
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
-  (Point(Point), Position, half, makeRect, plusDir, pSqDist, pSub)
+  (Point(Point), Position, half, makeRect, ofRadius, plusDir, pSqDist, pSub)
 import qualified Fallback.Data.SparseMap as SM
 import Fallback.Data.TotalMap (tmGet, unfoldTotalMap)
 import Fallback.Draw (handleScreen, paintScreen)
@@ -330,7 +330,7 @@ newTownMode resources modes initState = do
                    else execute (sfn pos)
                where
                  cannotHit rng =
-                   pSqDist pos originPos > rng ||
+                   pSqDist pos originPos > ofRadius rng ||
                    not (arsIsVisibleToCharacter (tsActiveCharacter ts) ts pos)
                  execute = executeAbility ts cost
                  originPos = tsPartyPosition ts
