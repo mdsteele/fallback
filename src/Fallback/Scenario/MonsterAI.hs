@@ -37,31 +37,38 @@ import Fallback.State.Pathfind (pathfindRectToRange, pathfindRectToRanges)
 import Fallback.State.Simple
 import Fallback.State.Tags (MonsterSpellTag)
 import Fallback.State.Terrain (terrainSize)
+import Fallback.Utility (maybeM)
 
 -------------------------------------------------------------------------------
 
 defaultMonsterCombatAI :: Grid.Entry Monster -> Script CombatEffect ()
 defaultMonsterCombatAI ge = do
+  let key = Grid.geKey ge
   done <- tryMonsterSpells ge (mtSpells $ monstType $ Grid.geValue ge)
   unless done $ do
   let attacks = mtAttacks $ monstType $ Grid.geValue ge
   if null attacks then fleeMonsterCombatAI ge else do
   attack <- getRandomElem attacks
-  isBlocked <- areaGet (arsIsBlockedForMonster ge)
-  goals <- getMonsterOpponentPositions (Grid.geKey ge)
-  let rect = Grid.geRect ge
   let sqDist = rangeSqDist $ maRange attack
-  let path = pathfindRectToRanges isBlocked rect goals sqDist 20
-  if null path then return () else do
-  let path' = take 4 $ drop 1 path
-  mapM_ (walkMonster 4 $ Grid.geKey ge) path'
-  if length path' > 3 then return () else do
-  visible <- getMonsterVisibility (Grid.geKey ge)
-  let targets = filter (\pos -> rangeTouchesRect pos sqDist rect &&
-                                Set.member pos visible) goals
-  if null targets then return () else do
-  target <- getRandomElem targets
-  monsterPerformAttack (Grid.geKey ge) attack target
+  isBlocked <- areaGet (arsIsBlockedForMonster ge)
+  goals <- getMonsterOpponentPositions key
+  loopM (4 :: Int) $ \ap -> do
+    rect <- Grid.geRect <$> demandMonsterEntry key
+    case pathfindRectToRanges isBlocked rect goals sqDist 20 of
+      Just (pos : _) -> do
+        walkMonster 4 key pos
+        return $ if ap <= 1 then Nothing else Just (ap - 1)
+      Just [] -> Nothing <$ do
+        visible <- getMonsterVisibility key
+        let targets = filter (\pos -> rangeTouchesRect pos sqDist rect &&
+                              Set.member pos visible) goals
+        if null targets then return () else do
+        target <- getRandomElem targets
+        monsterPerformAttack key attack target
+      Nothing -> return Nothing
+
+loopM :: (Monad m) => a -> (a -> m (Maybe a)) -> m ()
+loopM input fn = maybe (return ()) (flip loopM fn) =<< fn input
 
 fleeMonsterCombatAI :: Grid.Entry Monster -> Script CombatEffect ()
 fleeMonsterCombatAI _ge = do
@@ -86,46 +93,45 @@ monsterTownStep ge = do
     ChaseAI -> do
       if rectTopleft rect `pSqDist` partyPos > ofRadius 25 then
         return False else do
-      let path = pathfindRectToRange isBlocked rect partyPos 2 30
-      if null path then return False else do
-      stepTowardsParty path
+      maybe (return False) stepTowardsParty
+            (pathfindRectToRange isBlocked rect partyPos 2 30)
     GuardAI home -> do
-      let partyPath = pathfindRectToRange isBlocked rect partyPos 2 5
-      -- TODO only chase the party so far from home
-      if not (null partyPath) then stepTowardsParty partyPath else do
-      let homePath = pathfindRectToRange isBlocked rect home 0 30
-      unless (null homePath) $ () <$ takeStep homePath
-      return False
+      case pathfindRectToRange isBlocked rect partyPos 2 5 of
+        Just path -> stepTowardsParty path
+        Nothing -> do
+          maybeM (pathfindRectToRange isBlocked rect home 0 30) takeStep_
+          return False
     ImmobileAI -> do
       if monstIsAlly monst then return False else do
       let attacks = mtAttacks $ monstType monst
       if null attacks then return False else do
       let sqDist = maximum $ map (rangeSqDist . maRange) attacks
       if not (rangeTouchesRect partyPos sqDist rect) then return False else do
-      canMonsterSeeParty (Grid.geKey ge)
+      canMonsterSeeParty key
     MindlessAI -> do
-      canSee <- canMonsterSeeParty (Grid.geKey ge)
+      canSee <- canMonsterSeeParty key
       if not canSee then return False else do
-      let path = pathfindRectToRange isBlocked rect partyPos 2 20
-      if null path then return False else do
-      stepTowardsParty path
+      maybe (return False) stepTowardsParty
+            (pathfindRectToRange isBlocked rect partyPos 2 20)
     PatrolAI home goal -> do
-      let partyPath = pathfindRectToRange isBlocked rect partyPos 2 5
-      if not (null partyPath) then stepTowardsParty partyPath else do
-      let patrolPath = pathfindRectToRange isBlocked rect goal 0 30
-      unless (null patrolPath) $ do
-        remaining <- takeStep patrolPath
-        when (remaining <= 0) $ do
-          setMonsterTownAI (Grid.geKey ge) (PatrolAI goal home)
-      return False
+      case pathfindRectToRange isBlocked rect partyPos 2 5 of
+        Just path -> stepTowardsParty path
+        Nothing -> do
+          maybeM (pathfindRectToRange isBlocked rect goal 0 30) $ \path -> do
+            remaining <- takeStep path
+            when (remaining <= 0) $ do
+              setMonsterTownAI key (PatrolAI goal home)
+          return False
   where
     monst = Grid.geValue ge
     rect = Grid.geRect ge
+    key = Grid.geKey ge
+    takeStep_ path = () <$ takeStep path
     takeStep path = do
       let (time, steps) = if mtWalksFast $ monstType monst
                           then (2, 2) else (4, 1)
-      mapM_ (walkMonster time $ Grid.geKey ge) $ take steps $ drop 1 path
-      return (length path - steps - 1)
+      mapM_ (walkMonster time key) $ take steps path
+      return (length path - steps)
     stepTowardsParty path = do
       remaining <- takeStep path
       return (remaining <= 3 && not (monstIsAlly monst))

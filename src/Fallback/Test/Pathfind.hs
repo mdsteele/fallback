@@ -54,6 +54,50 @@ pathfindTests = "pathfind" ~: TestList [
 
   pathfindTest 20
     "OOOOOOOO\n\
+    \O e    O\n\
+    \O  .   O\n\
+    \O  .   O\n\
+    \O  .   O\n\
+    \O   .  O\n\
+    \O    . O\n\
+    \O     sO\n\
+    \OOOOOOOO",
+
+  pathfindTest 20
+    "OOOOOOOO\n\
+    \Oe     O\n\
+    \O.OOOO O\n\
+    \O.     O\n\
+    \Os     O\n\
+    \O      O\n\
+    \O      O\n\
+    \O     gO\n\
+    \OOOOOOOO",
+
+  pathfindTest 20
+    "OOOOOOOO\n\
+    \Og     O\n\
+    \OOOOOO O\n\
+    \O      O\n\
+    \Os     O\n\
+    \O .    O\n\
+    \O  ... O\n\
+    \O     eO\n\
+    \OOOOOOOO",
+
+  pathfindTest 20
+    "OOOOOOOO\n\
+    \O eO   O\n\
+    \O.OO   O\n\
+    \O.O .  O\n\
+    \O.O.O. O\n\
+    \O.O.O. O\n\
+    \O . O. O\n\
+    \O   O sO\n\
+    \OOOOOOOO",
+
+  pathfindTest 20
+    "OOOOOOOO\n\
     \O    e O\n\
     \O ...  O\n\
     \O.OOOOOO\n\
@@ -92,7 +136,7 @@ pathfindTest limit terrain =
                       pDist (fromIntegral <$> pos) (fromIntegral <$> goal)
       start = head $ filter (('s' ==) . get) $ allPoints
       path = pathfind isBlocked isGoal heuristic limit start
-      expected =
+      expected = Just $
         let fn (mbCurrent, prev) =
               case mbCurrent of
                 Nothing -> Nothing
@@ -102,7 +146,7 @@ pathfindTest limit terrain =
                   in Just (current, (mbNext, current))
             ok prev next =
               next /= prev && (let c = get next in c == '.' || c == 'e')
-        in unfoldr fn (Just start, start)
+        in tail $ unfoldr fn (Just start, start)
   in insistEq expected path
 
 pathfindFail :: Int -> String -> Test
@@ -121,6 +165,6 @@ pathfindFail limit terrain =
                       pDist (fromIntegral <$> pos) (fromIntegral <$> goal)
       start = head $ filter (('s' ==) . get) $ allPoints
       path = pathfind isBlocked isGoal heuristic limit start
-  in insistEq [] path
+  in insistEq Nothing path
 
 -------------------------------------------------------------------------------

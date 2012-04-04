@@ -31,38 +31,33 @@ import qualified Fallback.Data.PriorityQueue as PQ
 -------------------------------------------------------------------------------
 
 -- | Find a path from the start position to a goal position.  The return value
--- will be a sequence of positions from the start to the goal, including /both/
--- endpoints.  If the goal cannot be reached, return the empty list; if the
--- start position is already a goal position, return a list of length one
--- containing the start position.
+-- will be a sequence of positions from the start to the goal, including the
+-- goal (as the last element) but /not/ including the start position.  If the
+-- goal cannot be reached, return 'Nothing'; if the start position is already a
+-- goal position, return 'Just'@ []@.
 pathfind :: (Position -> Bool) {-^ Is this position blocked? -}
          -> (Position -> Bool) {-^ Is this position a goal position? -}
          -> (Position -> Double) {-^ heuristic distance to goal from here -}
          -> Int {-^ max number of steps -}
          -> Position {-^ start position -}
-         -> [Position]
+         -> Maybe [Position] -- path, not including start
 pathfind isBlocked isGoal heuristic limit start =
   step (Set.singleton start) (PQ.singleton (heuristic start) (start, 0, 0, []))
   where
-    step visited queue =
-      case PQ.pop queue of
-        Nothing -> []
-        Just ((pos, dist, len, path), queue') ->
-          if isGoal pos then reverse path' else
-            if len >= limit then step visited queue'
-            else step (foldr Set.insert visited $ map fst children)
-                      (foldr addChild queue' children)
-          where
-            len' = len + 1
-            path' = pos : path
-            addChild (child, dist') =
-              let remain = heuristic child -- See [Note: Heuristic] below
-              in if remain > fromIntegral (limit - len') * sqrt 2 then id
-                 else PQ.insert (dist' + remain) (child, dist', len', path')
-            children = mapMaybe fn allDirections where
-              fn dir = let pos' = pos `plusDir` dir
-                       in if Set.notMember pos' visited && not (isBlocked pos')
-                          then Just (pos', dist + dirDist dir) else Nothing
+    step visited queue = PQ.pop queue >>= \((pos, dist, len, path), queue') ->
+      let len' = len + 1
+          addChild (child, dist') =
+            if remain > fromIntegral (limit - len') * sqrt 2 then id
+            else PQ.insert (dist' + remain) (child, dist', len', child : path)
+            where remain = heuristic child -- See [Note: Heuristic] below
+          children = flip mapMaybe allDirections $ \dir ->
+            let pos' = pos `plusDir` dir
+            in if Set.notMember pos' visited && not (isBlocked pos')
+               then Just (pos', dist + dirDist dir) else Nothing
+      in if isGoal pos then Just $ reverse path
+         else if len >= limit then step visited queue'
+              else step (foldr Set.insert visited $ map fst children)
+                        (foldr addChild queue' children)
 
     dirDist :: Direction -> Double
     dirDist DirE = 1
@@ -72,14 +67,15 @@ pathfind isBlocked isGoal heuristic limit start =
     dirDist _ = sqrt 2
 
 -- [Note: Heuristic] The heuristic gives a lower bound on the distance
--- remaining to the goal.  If the maximum distance we could possible cover with
+-- remaining to the goal.  If the maximum distance we could possibly cover with
 -- the remaining steps we have is less than that, then we'll never get to the
 -- goal from this child, so don't bother adding it to the queue.  This
 -- optimization is important for when limit is high; otherwise, we will
 -- completely explore all spaces within limit even when the goal is much too
 -- far away.
 
-pathfindToRect :: (Position -> Bool) -> PRect -> Int -> Position -> [Position]
+pathfindToRect :: (Position -> Bool) -> PRect -> Int -> Position
+               -> Maybe [Position]
 pathfindToRect isBlocked rect =
   pathfind isBlocked (rectContains rect) heuristic where
     heuristic pos =
@@ -89,15 +85,15 @@ pathfindToRect isBlocked rect =
       in (pDist pos' $ rectCenter rect') - 0.5 * (sqrt $ w*w + h*h)
 
 pathfindToRange :: (Position -> Bool) -> Position -> SqDist -> Int
-                -> Position -> [Position]
+                -> Position -> Maybe [Position]
 pathfindToRange isBlocked goal sqDist =
   pathfind isBlocked ((sqDist >=) . pSqDist goal)
            (max 0 . subtract (sqrt $ fromIntegral sqDist) .
             pDist (fromIntegral <$> goal) . fmap fromIntegral)
 
 pathfindToRanges :: (Position -> Bool) -> [Position] -> SqDist -> Int
-                 -> Position -> [Position]
-pathfindToRanges _isBlocked [] _sqDist _limit _start = []
+                 -> Position -> Maybe [Position]
+pathfindToRanges _isBlocked [] _sqDist _limit _start = Nothing
 pathfindToRanges isBlocked [goal] sqDist limit start =
   pathfindToRange isBlocked goal sqDist limit start
 pathfindToRanges isBlocked goals sqDist limit start =
@@ -109,7 +105,7 @@ pathfindToRanges isBlocked goals sqDist limit start =
     pos `distTo` goal = sqrt $ fromIntegral $ pSqDist pos goal
 
 pathfindSizeToRange :: (Position -> Bool) -> (Int, Int) -> Position -> SqDist
-                    -> Int -> Position -> [Position]
+                    -> Int -> Position -> Maybe [Position]
 pathfindSizeToRange isBlocked size goal sqDist =
   pathfindSizeToRanges isBlocked size [goal] sqDist
 --   pathfind isBlocked isGoal (max 0 . subtract radius . pDist goal' .
@@ -122,10 +118,10 @@ pathfindSizeToRange isBlocked size goal sqDist =
 --     offset = Point (fromIntegral (w - 1) / 2) (fromIntegral (h - 1) / 2)
 
 pathfindSizeToRanges :: (Position -> Bool) -> (Int, Int) -> [Position]
-                     -> SqDist -> Int -> Position -> [Position]
+                     -> SqDist -> Int -> Position -> Maybe [Position]
 pathfindSizeToRanges isBlocked (1, 1) goals sqDist limit start =
   pathfindToRanges isBlocked goals sqDist limit start
-pathfindSizeToRanges _isBlocked _size [] _sqDist _limit _start = []
+pathfindSizeToRanges _isBlocked _size [] _sqDist _limit _start = Nothing
 -- pathfindSizeToRanges isBlocked size [goal] sqDist =
 --   pathfindSizeToRange isBlocked size goal sqDist
 pathfindSizeToRanges isBlocked (w, h) goals sqDist limit start =
@@ -141,13 +137,13 @@ pathfindSizeToRanges isBlocked (w, h) goals sqDist limit start =
     offset = Point (fromIntegral (w - 1) / 2) (fromIntegral (h - 1) / 2)
 
 pathfindRectToRange :: (Position -> Bool) -> PRect -> Position -> SqDist
-                    -> Int -> [Position]
+                    -> Int -> Maybe [Position]
 pathfindRectToRange isBlocked rect goal sqDist limit =
   pathfindSizeToRange isBlocked (rectSize rect) goal sqDist limit
                       (rectTopleft rect)
 
 pathfindRectToRanges :: (Position -> Bool) -> PRect -> [Position] -> SqDist
-                     -> Int -> [Position]
+                     -> Int -> Maybe [Position]
 pathfindRectToRanges isBlocked rect goals sqDist limit =
   pathfindSizeToRanges isBlocked (rectSize rect) goals sqDist limit
                        (rectTopleft rect)
