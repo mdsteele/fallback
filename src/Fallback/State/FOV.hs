@@ -40,7 +40,7 @@
 --
 -- Much thanks to Aaron for releasing his code.
 
-module Fallback.State.FOV (fieldOfView) where
+module Fallback.State.FOV (fieldOfView, lineOfSight) where
 
 import Control.Applicative ((<$>))
 import Control.Monad (ap, foldM, liftM2, when)
@@ -73,6 +73,26 @@ fieldOfView (width, height) isBlocked (SqDist radiusSquared) start visible =
       check = checkQuadrent isBlocked radiusSquared start
   in runST $ check (-1) 1 minX maxY =<< check (-1) (-1) minX minY =<<
      check 1 (-1) maxX minY =<< check 1 1 maxX maxY (Set.insert start visible)
+
+-- | Determine whether two positions can see each other (assuming an unlimited
+-- vision range).  This is more efficient than calling 'fieldOfView' from one
+-- position and checking if the other position is in the set; however, calling
+-- 'fieldOfView' is more efficient than calling this function many times for
+-- many positions.
+lineOfSight :: (Position -> Bool) {-^isBlocked function-} -> Position
+            -> Position -> Bool
+lineOfSight isBlocked p1@(Point x1 y1) p2@(Point x2 y2) =
+  if x1 == x2 then
+    if y1 == y2 then True
+    else not $ any isBlocked $ map (Point x1) $ subrange y1 y2
+  else
+    if y1 == y2 then not $ any isBlocked $ map (flip Point y1) $ subrange x1 x2
+    else runST $ do
+      let { dx = x2 - x1; dy = y2 - y1 }
+      visible <- checkQuadrent isBlocked (dx * dx + dy * dy) p1 (signum dx)
+                               (signum dy) (abs dx) (abs dy) Set.empty
+      return (Set.member p2 visible)
+  where subrange a b = [(min a b + 1) .. (max a b - 1)]
 
 checkQuadrent :: (Position -> Bool) -> Int -> Position -> Int -> Int
               -> Int -> Int -> Set.Set Position -> ST s (Set.Set Position)

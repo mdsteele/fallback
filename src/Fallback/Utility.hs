@@ -25,7 +25,9 @@ module Fallback.Utility
    -- * List functions
    firstJust, groupKey, minimumKey, maximumKey, nubKey, sortKey,
    -- * Function combinators
-   flip3, flip4, anyM, maybeM, sumM, untilM, whenM,
+   flip3, flip4,
+   -- * Monadic functions
+   anyM, maybeM, sumM, unfoldM, untilM, whenM,
    -- * IO
    delayFinalizers)
 where
@@ -117,6 +119,9 @@ flip3 f b c a = f a b c
 flip4 :: (a -> b -> c -> d -> e) -> b -> c -> d -> a -> e
 flip4 f b c d a = f a b c d
 
+-------------------------------------------------------------------------------
+-- Monadic functions:
+
 -- | Perform the monadic actions one at a time; as soon as one returns 'True',
 -- return 'True' without executing the rest.  If all of the actions return
 -- 'False', then return 'False'.
@@ -134,6 +139,14 @@ maybeM = flip $ maybe $ return ()
 sumM :: (Monad m, Num b) => (a -> m b) -> [a] -> m b
 sumM fn = foldM fn' 0 where
   fn' total item = do { value <- fn item; return $! total + value }
+
+-- | Monadic version of @unfoldr@.
+unfoldM :: (Monad m) => (b -> m (Maybe (a, b))) -> b -> m [a]
+unfoldM fn start = do
+  mbNext <- fn start
+  case mbNext of
+    Nothing -> return []
+    Just (a, b) -> do { as <- unfoldM fn b; return (a : as) }
 
 untilM :: (Monad m) => a -> (a -> Bool) -> (a -> a) -> (a -> m ()) -> m ()
 untilM value done update action =

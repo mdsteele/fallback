@@ -20,12 +20,13 @@
 module Fallback.Test.FOV (fovTests) where
 
 import Data.Array
-import Data.List (transpose)
+import Data.List (find, transpose)
+import Data.Maybe (fromJust)
 import qualified Data.Set as Set
 import Test.HUnit ((~:), Test(TestCase, TestList), assertFailure)
 
-import Fallback.Data.Point (Point(Point), SqDist(SqDist))
-import Fallback.State.FOV (fieldOfView)
+import Fallback.Data.Point (Point(Point), Position, SqDist(SqDist))
+import Fallback.State.FOV (fieldOfView, lineOfSight)
 
 -------------------------------------------------------------------------------
 
@@ -48,6 +49,12 @@ fovTests = "fov" ~: TestList [
     \   .",
 
   fovTest (SqDist 999)
+    "*oO.\n\
+    \o oO\n\
+    \Oo O\n\
+    \.OOo",
+
+  losTest
     "*oO.\n\
     \o oO\n\
     \Oo O\n\
@@ -97,6 +104,13 @@ fovTests = "fov" ~: TestList [
     \o* oOOOOOOOOOO\n\
     \ooooOOOOOOOOOO",
 
+  losTest
+    "OOOOOOOO.OOOOO\n\
+    \OOoooooo oo  o\n\
+    \oo          oO\n\
+    \o* oOOOOOOOOOO\n\
+    \ooooOOOOOOOOOO",
+
   fovTest (SqDist 110)
     "OOOOOOOOo\n\
     \OOOOOooo \n\
@@ -129,31 +143,53 @@ fovTests = "fov" ~: TestList [
 
 fovTest :: SqDist -> String -> Test
 fovTest radSq expectedString =
-  let strings = lines expectedString
+  let (width, height, arr, isBlocked, expected) = buildArray expectedString
+      visible = foldr (fieldOfView (width, height) isBlocked radSq) Set.empty $
+                map (uncurry Point) $ filter (('*' ==) . (arr !)) $
+                range $ bounds arr
+  in TestCase $
+     if visible == expected then return () else
+       let actualString = computeActualString (width, height) arr visible
+       in assertFailure ("Actual:\n" ++ actualString ++
+                         "Expected:\n" ++ expectedString)
+
+losTest :: String -> Test
+losTest expectedString =
+  let (width, height, arr, isBlocked, expected) = buildArray expectedString
+      eye = uncurry Point $ fromJust $ find (('*' ==) . (arr !)) $ range $
+            bounds arr
+      visible = Set.fromList $ filter (lineOfSight isBlocked eye) $
+                map (uncurry Point) $ range $ bounds arr
+  in TestCase $
+     if visible == expected then return () else
+       let actualString = computeActualString (width, height) arr visible
+       in assertFailure ("Actual:\n" ++ actualString ++
+                         "Expected:\n" ++ expectedString)
+
+buildArray :: String -> (Int, Int, Array (Int, Int) Char, Position -> Bool,
+                         Set.Set Position)
+buildArray string =
+  let strings = lines string
       width = length (head strings)
       height = length strings
       arr = listArray ((0, 0), (width - 1, height - 1)) $ concat $
             transpose strings
       isBlocked (Point x y) = let c = arr ! (x, y) in c == 'o' || c == 'O'
-      visible = foldr (fieldOfView (width, height) isBlocked radSq) Set.empty $
-                map (uncurry Point) $ filter (('*' ==) . (arr !)) $
-                range $ bounds arr
       shouldBeVisible p = let c = arr ! p in c /= '.' && c /= 'O'
       expected = Set.fromList $ map (uncurry Point) $ filter shouldBeVisible $
                  range $ bounds arr
-  in TestCase $
-     if visible == expected then return () else
-       let trans ((x, y), c) =
-             if c == 'o' || c == 'O'
-             then if Set.member p visible then 'o' else 'O'
-             else if c == ' ' || c == '.'
-                  then if Set.member p visible then ' ' else '.'
-                  else if Set.member p visible then c else '#'
-             where p = Point x y
-           arr' = listArray (bounds arr) $ map trans $ assocs arr
-           rowString y = map (\x -> arr' ! (x, y)) [0 .. width - 1]
-           actualString = unlines $ map rowString [0 .. height - 1]
-       in assertFailure ("Actual:\n" ++ actualString ++
-                         "Expected:\n" ++ expectedString)
+  in (width, height, arr, isBlocked, expected)
+
+computeActualString :: (Int, Int) -> Array (Int, Int) Char -> Set.Set Position
+                    -> String
+computeActualString (width, height) arr visible =
+  let trans ((x, y), c) =
+        if c == 'o' || c == 'O' then if canSee then 'o' else 'O'
+        else if c == ' ' || c == '.' then if canSee then ' ' else '.'
+             else if canSee then c else '#'
+        where canSee = Set.member (Point x y) visible
+      arr' = listArray (bounds arr) $ map trans $ assocs arr
+      rowString y = map (\x -> arr' ! (x, y)) [0 .. width - 1]
+  in unlines $ map rowString [0 .. height - 1]
 
 -------------------------------------------------------------------------------

@@ -24,7 +24,7 @@ where
 
 import Control.Applicative ((<$>))
 import Control.Arrow ((***))
-import Control.Monad (foldM, forM, forM_, replicateM_, unless, when)
+import Control.Monad (filterM, foldM, forM, forM_, replicateM_, unless, when)
 import Data.List (delete, find, intercalate, sort)
 import Data.Maybe (catMaybes, fromMaybe, isJust)
 import qualified Data.Set as Set
@@ -33,11 +33,13 @@ import Fallback.Constants (baseFramesPerActionPoint)
 import Fallback.Data.Color (Tint(Tint))
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
+import qualified Fallback.Data.Queue as Queue
 import Fallback.Data.TotalMap (makeTotalMap, tmAssocs)
 import Fallback.Scenario.Script
 import Fallback.State.Action
 import Fallback.State.Area
 import Fallback.State.Creature (CreatureAnim(..), mtIsDaemonic, mtIsUndead)
+import Fallback.State.FOV (fieldOfView)
 import Fallback.State.Item (WeaponData(..), unarmedWeaponData)
 import Fallback.State.Party
 import Fallback.State.Resources (ProjTag(..), SoundTag(..), StripTag(..))
@@ -46,8 +48,8 @@ import Fallback.State.Status (Invisibility(..), seApplyArmor)
 import Fallback.State.Tags
   (AbilityTag(..), MonsterTag(..), abilityClassAndNumber, abilityName,
    classAbility)
-import Fallback.State.Terrain (positionCenter)
-import Fallback.Utility (flip3, maybeM)
+import Fallback.State.Terrain (positionCenter, terrainSize)
+import Fallback.Utility (flip3, maybeM, sortKey, unfoldM)
 
 -------------------------------------------------------------------------------
 
@@ -439,6 +441,46 @@ getAbility characterClass abilityNumber rank =
         grantInvisibility hitTarget invis
         when (rank >= Rank3) $ do
           return () -- FIXME grantBlessing hitTarget (power * whatever)
+    Lightning ->
+      combat (ManaCost 5) (SingleTarget 4) $ \caster power endPos -> do
+        characterBeginOffensiveAction caster endPos
+        intBonus <- getIntellectBonus caster
+        let baseDamage = power * intBonus * ranked 10 20 30
+        let maxForks = ranked 1 2 3
+        startPos <- areaGet (arsCharacterPosition caster)
+        let hasEnemy pos = do
+              mbOccupant <- areaGet (arsOccupant pos)
+              case mbOccupant of
+                Just (Right monstEntry) ->
+                  return $ not $ monstIsAlly $ Grid.geValue monstEntry
+                _ -> return False
+        size <- terrainSize <$> areaGet arsTerrain
+        isOpaque <- areaGet arsIsOpaque
+        let pickHits origin remain delay (queue, hits) = do
+              if remain <= 0 then return (queue, hits) else do
+              targets <-
+                fmap (take 2 . sortKey (pSqDist origin)) $
+                (randomPermutation =<<) $ filterM hasEnemy $
+                filter (flip Set.notMember hits) $ Set.toList $
+                fieldOfView size isOpaque (ofRadius 2) origin Set.empty
+              queue' <- flip3 foldM queue targets $ \q target -> do
+                delay' <- (delay +) <$> getRandomR 4 8
+                return $ Queue.insert (origin, target, remain - 1, delay') q
+              return (queue', foldr Set.insert hits targets)
+        bolts <- flip unfoldM (Queue.singleton (startPos, endPos, maxForks, 0),
+                               Set.singleton endPos) $ \(queue, hits) -> do
+          flip (maybe $ return Nothing) (Queue.pop queue) $
+               \(bolt@(_origin, target, remain, delay), queue') -> do
+            (queue'', hits') <- pickHits target remain delay (queue', hits)
+            return $ Just (bolt, (queue'', hits'))
+        concurrent_ bolts $ \(origin, target, remain, delay) -> do
+          wait delay
+          damage <- (baseDamage *) <$> getRandomR 0.9 1.1
+          playSound SndLightning
+          replicateM_ ((remain + 2) `div` 2) $ do
+            addLightningDoodad (Tint 64 64 255 192) origin target
+          addBoomDoodadAtPosition EnergyBoom 3 target >> wait 6
+          dealDamage [(HitPosition target, EnergyDamage, damage)] >> wait 18
     Freeze ->
       combat (ManaCost 1) (aoeTarget 4 $ SqDist 1) $
       \caster power (endPos, targets) -> do

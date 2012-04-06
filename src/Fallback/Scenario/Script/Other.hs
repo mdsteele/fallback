@@ -67,11 +67,11 @@ import Control.Arrow (right, second)
 import Control.Exception (assert)
 import Control.Monad (foldM, forM, forM_, unless, when)
 import Data.Array (range)
-import qualified Data.Foldable as Fold
+import qualified Data.Foldable as Fold (any)
 import Data.List (foldl1')
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes, fromMaybe, isJust, isNothing)
-import qualified Data.Set as Set (empty)
+import qualified Data.Set as Set
 
 import Fallback.Constants (maxAdrenaline, momentsPerActionPoint, sightRange)
 import Fallback.Control.Script
@@ -712,6 +712,8 @@ inflictAllPeriodicDamage = do
 
 -------------------------------------------------------------------------------
 -- Targeting:
+
+-- TODO move this stuff to Fallback.State.Action
 
 circleArea :: SqDist -> Position -> [Position]
 circleArea dist center =

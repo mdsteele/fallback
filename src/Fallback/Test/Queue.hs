@@ -1,5 +1,5 @@
 {- ============================================================================
-| Copyright 2010 Matthew D. Steele <mdsteele@alum.mit.edu>                    |
+| Copyright 2011 Matthew D. Steele <mdsteele@alum.mit.edu>                    |
 |                                                                             |
 | This file is part of Fallback.                                              |
 |                                                                             |
@@ -17,28 +17,33 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
-module Test (main) where
+module Fallback.Test.Queue (queueTests) where
 
-import Test.HUnit (Test(TestList), runTestTT)
+import Data.List (unfoldr)
+import Test.HUnit ((~:), Test(TestList))
 
-import Fallback.Test.Error (errorTests)
-import Fallback.Test.FOV (fovTests)
-import Fallback.Test.Grid (gridTests)
-import Fallback.Test.Pathfind (pathfindTests)
-import Fallback.Test.Point (pointTests)
-import Fallback.Test.PriorityQueue (pqTests)
-import Fallback.Test.Queue (queueTests)
-import Fallback.Test.Script (scriptTests)
-import Fallback.Test.Utility (utilityTests)
+import qualified Fallback.Data.Queue as Queue
+import Fallback.Test.Base (insist, qcTest)
 
 -------------------------------------------------------------------------------
 
-main :: IO ()
-main = runTestTT allTests >> return ()
+queueTests :: Test
+queueTests = "queue" ~: TestList [
+  insist $ Queue.null Queue.empty,
+  insist $ Queue.size Queue.empty == 0,
+  qcTest $ \v -> not (Queue.null (Queue.singleton v :: QI)),
+  qcTest $ \v -> Queue.size (Queue.singleton v :: QI) == 1,
+  qcTest $ \v -> Queue.pop (Queue.singleton v :: QI) == Just (v, Queue.empty),
+  qcTest $ \v -> Queue.insert v Queue.empty == (Queue.singleton v :: QI),
+  qcTest $ \v1 v2 -> Queue.size (Queue.insert v2 $ Queue.insert v1 $
+                                 Queue.empty :: QI) == 2,
+  qcTest $ \list -> Queue.size (Queue.fromList list :: QI) == length list,
+  qcTest $ \list -> Queue.toList (Queue.fromList list :: QI) == list,
+  qcTest $ \list -> (Queue.fromList list :: QI) ==
+                    foldl (flip Queue.insert) Queue.empty list,
+  qcTest $ \list -> let queue = Queue.fromList list :: QI
+                    in Queue.toList queue == unfoldr Queue.pop queue]
 
-allTests :: Test
-allTests = TestList [errorTests, fovTests, gridTests, pathfindTests,
-                     pointTests, pqTests, queueTests, scriptTests,
-                     utilityTests]
+type QI = Queue.Queue Int
 
 -------------------------------------------------------------------------------
