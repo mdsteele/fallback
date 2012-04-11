@@ -244,33 +244,7 @@ featName NeutronBomb = "Neutron Bomb"
 featName tag = show tag
 
 -------------------------------------------------------------------------------
-{-
-data ItemTag = Sunrod | Starspear | Moonbow | Lifeblade
-             -- Light swords:
-             | Dagger | Shortsword
-             -- Heavy swords:
-             | Longsword | Flameblade | Soultaker
-             -- Polearms:
-             | Quarterstaff | Spear
-             -- Throwing stars:
-             | ThrowingStar | RazorStar | NeutronStar
-             -- Bows:
-             | Shortbow | Longbow | CompositeBow | RainBow | TrineBow
-             -- Wands:
-             | SilverWand | JeweledRod | GoldenWand | DiamondRod
-             | ChronosScepter
-             -- Accessories:
-             | TitanFists
-             -- Potions:
-             | HealingTincture | HealingPotion | HealingElixir
-             | ManaPhilter | ManaElixir | Quintessence
-             | Antidote | CuringPotion | MiracleElixir
-             -- Keys:
-             | IronKey | SilverKey
-             -- Miscellaneous:
-             | PerfectLily
-  deriving (Bounded, Enum, Eq, Ord, Read, Show)
--}
+
 data ItemTag = WeaponItemTag WeaponItemTag
              | ArmorItemTag ArmorItemTag
              | AccessoryItemTag AccessoryItemTag

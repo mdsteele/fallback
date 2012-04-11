@@ -43,7 +43,7 @@ import Fallback.Mode.Base
 import Fallback.Mode.Dialog (newQuitWithoutSavingMode)
 import Fallback.Mode.Narrate (newNarrateMode)
 import Fallback.Scenario.Abilities (getAbility)
-import Fallback.Scenario.Feats (getFeat)
+import Fallback.Scenario.Feats (featCastingCost, featEffect)
 import Fallback.Scenario.MonsterAI (defaultMonsterCombatAI)
 import Fallback.Scenario.Potions (runPotionAction)
 import Fallback.Scenario.Script
@@ -156,8 +156,6 @@ newCombatMode resources modes initState = do
             ExecutionPhase ce -> changeState cs { csPhase =
               ExecutionPhase ce { cePendingEndCombat = True } }
         Just (CombatSidebar _) -> ignore -- FIXME other sidebar commands
-        Just (CombatAbilities UpgradeSkills) -> do
-          fail "FIXME CombatMode UpgradeSkills"
         Just (CombatAbilities (UseAbility abilNum)) -> do
           case csPhase cs of
             ChooseAbilityPhase cc -> useAbility cs cc abilNum NormalCost 1
@@ -168,19 +166,21 @@ newCombatMode resources modes initState = do
         Just (CombatAbilities (UseCombatFeat tag)) -> do
           case csPhase cs of
             ChooseAbilityPhase cc -> do
-              let feat = getFeat tag
-              let cost = cfCastingCost feat
+              let cost = featCastingCost tag
               let charNum = ccCharacterNumber cc
               if not (partyCanAffordCastingCost charNum cost (arsParty cs))
                 then ignore else do
-              case cfEffect feat of
+              case featEffect tag of
                 MetaAbility costMod powerMod -> do
+                  -- TODO arrange to charge adrenaline after using ability
                   changeState cs { csPhase = MetaAbilityPhase CombatMetability
                     { cmCommander = cc, cmCostModifier = costMod,
                       cmFeatTag = tag, cmPowerModifier = powerMod } }
                 StandardFeat tkind sfn -> do
                   switchToTargetingPhase cc cs cost tkind $ sfn charNum
             _ -> ignore
+        Just (CombatAbilities UseNormalAttack) -> do
+          fail "FIXME Combat UseNormalAttack"
         Just (CombatInventory invAct) -> do
           case csPhase cs of
             InventoryPhase cc mbItemTag -> do

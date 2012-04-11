@@ -188,7 +188,6 @@ newTownMode resources modes initState = do
           case tsPhase ts of
             ChooseAbilityPhase -> do
               case abilAct of
-                UpgradeSkills -> startUpgradePhase ts
                 UseAbility abilNum -> do
                   let party = arsParty ts
                   let charNum = tsActiveCharacter ts
@@ -218,6 +217,7 @@ newTownMode resources modes initState = do
                       PassiveAbility -> Nothing
                 -- TODO: We should probably allow meta-abilities in town mode
                 UseCombatFeat _ -> ignore
+                UseNormalAttack -> ignore
             _ -> ignore
         Just (TownInventory invAct) -> do
           case tsPhase ts of

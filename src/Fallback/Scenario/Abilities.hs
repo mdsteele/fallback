@@ -25,7 +25,7 @@ where
 import Control.Applicative ((<$>))
 import Control.Arrow ((***))
 import Control.Monad (filterM, foldM, forM, forM_, replicateM_, unless, when)
-import Data.List (delete, find, intercalate, sort)
+import Data.List (delete, find, sort)
 import Data.Maybe (catMaybes, fromMaybe, isJust)
 import qualified Data.Set as Set
 
@@ -34,7 +34,7 @@ import Fallback.Data.Color (Tint(Tint))
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import qualified Fallback.Data.Queue as Queue
-import Fallback.Data.TotalMap (makeTotalMap, tmAssocs)
+import Fallback.Data.TotalMap (makeTotalMap)
 import Fallback.Scenario.Script
 import Fallback.State.Action
 import Fallback.State.Area
@@ -568,26 +568,7 @@ abilityFullDescription abilTag abilRank =
     costString =
       case getAbility characterClass abilNum abilRank of
         PassiveAbility -> "Passive ability"
-        ActiveAbility cost _ ->
-          case cost of
-            AdrenalineCost n -> "Cost: " ++ show n ++ " adrenaline"
-            FocusCost n -> "Cost: " ++ show n ++ " focus"
-            IngredientCost ing ->
-              ("Cost: " ++) $ intercalate " + " $ map ingredientString $
-              filter ((0 /=) . snd) $ tmAssocs ing
-            ManaCost n -> "Cost: " ++ show n ++ " mana"
-            NoCost -> "No cost"
-    ingredientString (ingredient, n) =
-      (if n == 1 then "" else show n ++ " ") ++
-      case ingredient of
-        AquaVitae -> "aqua vitae"
-        Naphtha -> "naphtha"
-        Limestone -> "limestone"
-        Mandrake -> "mandrake"
-        Potash -> "potash"
-        Brimstone -> "brimstone"
-        DryIce -> "dry ice"
-        Quicksilver -> "quicksilver"
+        ActiveAbility cost _ -> costDescription cost
     (characterClass, abilNum) = abilityClassAndNumber abilTag
 
 abilityDescription :: AbilityTag -> String

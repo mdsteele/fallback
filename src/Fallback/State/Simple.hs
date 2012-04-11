@@ -19,10 +19,12 @@
 
 module Fallback.State.Simple where
 
+import Data.Char (toLower)
 import Data.Ix (Ix)
+import Data.List (intercalate)
 
 import Fallback.Data.Point
-import Fallback.Data.TotalMap (TotalMap, makeTotalMap)
+import Fallback.Data.TotalMap (TotalMap, makeTotalMap, tmAssocs)
 import Fallback.Utility (ceilDiv)
 
 -------------------------------------------------------------------------------
@@ -50,25 +52,6 @@ abilityRankPlus :: Maybe AbilityRank -> Int -> Maybe AbilityRank
 abilityRankPlus mbRank n =
   if n <= 0 || mbRank == Just maxBound then mbRank
   else abilityRankPlus (Just $ nextAbilityRank mbRank) (n - 1)
-
-data CastingCost = AdrenalineCost Int
-                 | FocusCost Int
-                 | IngredientCost Ingredients
-                 | ManaCost Int
-                 | NoCost
-
-data CostModifier = ZeroCost | OneThirdCost | NormalCost
-
-modifyCost :: CostModifier -> CastingCost -> CastingCost
-modifyCost ZeroCost _ = NoCost
-modifyCost OneThirdCost cost =
-  case cost of
-    AdrenalineCost x -> AdrenalineCost (x `ceilDiv` 3)
-    FocusCost x -> FocusCost (x `ceilDiv` 3)
-    IngredientCost ing -> IngredientCost (fmap (`ceilDiv` 3) ing)
-    ManaCost x -> ManaCost (x `ceilDiv` 3)
-    NoCost -> NoCost
-modifyCost NormalCost cost = cost
 
 type PowerModifier = Double
 
@@ -121,6 +104,40 @@ rangeSqDist :: AttackRange -> SqDist
 rangeSqDist = ofRadius . rangeRadius
 
 -------------------------------------------------------------------------------
+-- Casting cost:
+
+data CastingCost = AdrenalineCost Int
+                 | FocusCost Int
+                 | IngredientCost Ingredients
+                 | ManaCost Int
+                 | NoCost
+
+data CostModifier = ZeroCost | OneThirdCost | NormalCost
+
+modifyCost :: CostModifier -> CastingCost -> CastingCost
+modifyCost ZeroCost _ = NoCost
+modifyCost OneThirdCost cost =
+  case cost of
+    AdrenalineCost x -> AdrenalineCost (x `ceilDiv` 3)
+    FocusCost x -> FocusCost (x `ceilDiv` 3)
+    IngredientCost ing -> IngredientCost (fmap (`ceilDiv` 3) ing)
+    ManaCost x -> ManaCost (x `ceilDiv` 3)
+    NoCost -> NoCost
+modifyCost NormalCost cost = cost
+
+costDescription :: CastingCost -> String
+costDescription (AdrenalineCost n) = "Cost: " ++ show n ++ " adrenaline"
+costDescription (FocusCost n) = "Cost: " ++ show n ++ " focus"
+costDescription (IngredientCost ings) =
+  ("Cost: " ++) $ intercalate " + " $ map ingredientString $
+  filter ((0 /=) . snd) $ tmAssocs ings
+  where ingredientString (ing, n) =
+          (if n == 1 then "" else show n ++ " ") ++
+          map toLower (ingredientName ing)
+costDescription (ManaCost n) = "Cost: " ++ show n ++ " mana"
+costDescription NoCost = "No cost"
+
+-------------------------------------------------------------------------------
 -- Characters:
 
 data CharacterClass = WarriorClass | RogueClass | HunterClass
@@ -162,7 +179,7 @@ data DamageType = AcidDamage -- subject to chemical resistance and magic armor
                 | FireDamage -- subject to fire resistance and magic armor
                 | MagicDamage -- subject to magic armor only
                 | PhysicalDamage -- subject to physical armor only
-                | RawDamage -- no resistance at all
+                | RawDamage -- not subject to resistances at all
 
 -------------------------------------------------------------------------------
 
@@ -202,6 +219,11 @@ data Ingredient = AquaVitae | Naphtha | Limestone | Mandrake
   deriving (Bounded, Enum, Eq, Ix, Ord, Read, Show)
 
 type Ingredients = TotalMap Ingredient Int
+
+ingredientName :: Ingredient -> String
+ingredientName AquaVitae = "Aqua Vitae"
+ingredientName DryIce = "Dry Ice"
+ingredientName ing = show ing
 
 -------------------------------------------------------------------------------
 

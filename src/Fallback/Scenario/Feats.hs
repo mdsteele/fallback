@@ -17,13 +17,14 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
-module Fallback.Scenario.Feats (getFeat) where
+module Fallback.Scenario.Feats
+  (featEffect, featCastingCost, featDescription, featIconCoords)
+where
 
 import Control.Monad (forM_, unless)
 
 import Fallback.Constants (maxAdrenaline)
 import qualified Fallback.Data.Grid as Grid (geKey)
-import Fallback.Data.Point
 import Fallback.Scenario.Script
 import Fallback.State.Action
 import Fallback.State.Resources
@@ -33,6 +34,103 @@ import Fallback.State.Tags (FeatTag(..))
 
 -------------------------------------------------------------------------------
 
+featEffect :: FeatTag -> FeatEffect
+featEffect Offering = MetaAbility ZeroCost 3
+featEffect SolarFlare =
+  StandardFeat (MultiTarget 6 3) $ \_caster _targets -> do
+    return ()  -- FIXME
+featEffect Energize =
+  StandardFeat AutoTarget $ \caster () -> do
+    charNums <- getAllConsciousCharacters
+    playSound SndHeal
+    forM_ charNums $ \charNum -> do
+      -- TODO add doodad and wait
+      restoreMojoToFull charNum
+      unless (charNum == caster) $ do
+        alterAdrenaline charNum (const maxAdrenaline)
+featEffect Zodiac =
+  StandardFeat AutoTarget $ \_ () -> do
+    entries <- randomPermutation =<< getAllEnemyMonsters
+    forM_ entries $ \entry -> do
+      damage <- getRandomR 40 60 -- TODO how much damage?
+      dealDamage [(HitMonster (Grid.geKey entry), EnergyDamage, damage)]
+      -- TODO doodad/sound
+      wait 3
+featEffect Eclipse =
+  StandardFeat AutoTarget $ \_caster () -> do
+    hitTargets <- getAllAllyTargets
+    playSound SndIllusion
+    forM_ hitTargets $ \hitTarget -> do
+      -- TODO add doodad and wait
+      grantInvisibility hitTarget MajorInvisibility
+featEffect _ = MetaAbility NormalCost 1.1 -- FIXME
+
+-------------------------------------------------------------------------------
+
+featCastingCost :: FeatTag -> CastingCost
+featCastingCost Offering = AdrenalineCost 10
+featCastingCost SolarFlare = AdrenalineCost 30
+featCastingCost Energize = AdrenalineCost 100
+featCastingCost StarShield = AdrenalineCost 25
+featCastingCost Zodiac = AdrenalineCost 50
+featCastingCost Imprison = AdrenalineCost 100
+featCastingCost TidalForce = AdrenalineCost 40
+featCastingCost Eclipse = AdrenalineCost 60
+featCastingCost LunarBeam = AdrenalineCost 100
+featCastingCost PulseOfLife = AdrenalineCost 50
+featCastingCost Avatar = AdrenalineCost 80
+featCastingCost AllCreation = AdrenalineCost 100
+featCastingCost _ = AdrenalineCost 1 -- FIXME
+
+featDescription :: FeatTag -> String
+featDescription Offering = "Use any one ability for free, at triple power."
+featDescription SolarFlare =
+  "Deal massive fire damage to up to three enemies.  Any undead targets, no\
+  \ matter how strong, are instantly destroyed."
+featDescription Energize =
+  "Completely refill mana/focus/adrenaline for all allies."
+featDescription StarShield =
+  "Put a powerful shield around all allies, protecting them from both physical\
+  \ and magical attacks."
+featDescription Zodiac = "Deal major energy damage to all enemies."
+featDescription Imprison = "??? FIXME"
+featDescription TidalForce =
+  "Inflict ice damage and daze everything in a wide area."
+featDescription Eclipse =
+  "Instantly grant major invisibility to all allies.  Enemies will not be able\
+  \ to see you until you attack."
+featDescription LunarBeam =
+  "Shoot a devastating beam of cold, damaging everything in a line and\
+  \ covering it with ice."
+featDescription PulseOfLife =
+  "Restore a single ally to full health, even if they were unconscious."
+featDescription Avatar =
+  "Become a mighty warrior; heals, blesses, shields, and hastens yourself, and\
+  \ cures you of all negative effects."
+featDescription AllCreation =
+  "Summon a multitude of wild animals and beasts to attack your enemies."
+featDescription Longshot = "Fire an arrow at +3 range and +25% damage."
+featDescription _ = "??? FIXME ???"
+
+featIconCoords :: FeatTag -> (Int, Int)
+featIconCoords Offering = (6, 0)
+featIconCoords SolarFlare = (6, 1)
+featIconCoords Energize = (6, 2)
+featIconCoords StarShield = (7, 0)
+featIconCoords Zodiac = (7, 1)
+featIconCoords Imprison = (7, 2)
+featIconCoords TidalForce = (8, 0)
+featIconCoords Eclipse = (8, 1)
+featIconCoords LunarBeam = (8, 2)
+featIconCoords PulseOfLife = (9, 0)
+featIconCoords Avatar = (9, 1)
+featIconCoords AllCreation = (9, 2)
+featIconCoords Longshot = (7, 4)
+featIconCoords Multishot = (7, 3)
+featIconCoords _ = (6, 3) -- FIXME
+
+-------------------------------------------------------------------------------
+{-
 getFeat :: FeatTag -> CombatFeat
 getFeat Concentrate = CombatFeat
   { cfName = "Concentrate",
@@ -145,5 +243,5 @@ getFeat _ = CombatFeat -- TODO
     cfIconCoords = (9, 0),
     cfCastingCost = NoCost,
     cfEffect = StandardFeat AutoTarget $ \_ () -> debug "I did nothing." }
-
+-}
 -------------------------------------------------------------------------------

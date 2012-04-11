@@ -24,7 +24,7 @@ where
 import Control.Applicative ((<$>))
 import Control.Arrow ((***))
 import Control.Monad (zipWithM)
-import Data.Maybe (listToMaybe)
+import Data.Maybe (isNothing, listToMaybe)
 
 import Fallback.Data.Color
 import Fallback.Data.Point
@@ -32,14 +32,17 @@ import Fallback.Data.TotalMap (tmGet)
 import Fallback.Draw
 import Fallback.Scenario.Abilities
   (getAbility, abilityFullDescription, abilityIconCoords)
-import Fallback.Scenario.Feats (getFeat)
+import Fallback.Scenario.Feats
+  (featCastingCost, featDescription, featIconCoords)
 import Fallback.State.Action
-import Fallback.State.Item
+import Fallback.State.Item (itemIconCoords, itemName, wdFeats)
 import Fallback.State.Party
 import Fallback.State.Resources
-  (FontTag(..), Resources, rsrcAbilityIcon, rsrcFont)
+  (FontTag(..), Resources, rsrcAbilityIcon, rsrcFont, rsrcItemIcon)
 import Fallback.State.Simple
-import Fallback.State.Tags (AbilityTag, FeatTag, classAbility)
+import Fallback.State.Tags
+  (AbilityTag, FeatTag, ItemTag(WeaponItemTag), WeaponItemTag, classAbility,
+   featName)
 import Fallback.View.Base
 import Fallback.View.Dialog (newDialogBackgroundView)
 import Fallback.View.Hover
@@ -53,13 +56,24 @@ data AbilitiesState = AbilitiesState
     abilsMetaAbilityTag :: Maybe FeatTag,
     abilsParty :: Party }
 
-data AbilitiesAction = UpgradeSkills
-                     | UseAbility AbilityNumber
+data AbilitiesAction = UseAbility AbilityNumber
                      | UseCombatFeat FeatTag
+                     | UseNormalAttack
 
 abilsGetCharacter :: AbilitiesState -> Character
 abilsGetCharacter as =
   partyGetCharacter (abilsParty as) (abilsActiveCharacter as)
+
+data TooltipKey = NoTooltip
+                | AbilityTooltip AbilityTag AbilityRank
+                | AttackTooltip (Maybe WeaponItemTag)
+                | FeatTooltip (Maybe WeaponItemTag) FeatTag
+
+-------------------------------------------------------------------------------
+
+buttonSize, buttonSpacing :: Int
+buttonSize = 40
+buttonSpacing = 8
 
 -------------------------------------------------------------------------------
 
@@ -67,83 +81,50 @@ newAbilitiesView :: (MonadDraw m) => Resources -> HoverSink Cursor
                  -> m (View AbilitiesState AbilitiesAction)
 newAbilitiesView resources cursorSink = do
   let margin = 20
-      buttonSpacing = 8
-      buttonSize = 40
       headingHeight = 20
       sectionSpacing = 10
   let headingFont = rsrcFont resources FontGeorgiaBold11
-  let infoFont = rsrcFont resources FontGeorgia11
-  abilityRef <- newHoverRef Nothing
-  let abilitySink = hoverSink abilityRef
+  tooltipRef <- newHoverRef NoTooltip
+  let tooltipSink = hoverSink tooltipRef
   let makeAbilityWidget abilNum index =
         subView_ (Rect (margin + (index `mod` 5) *
                                  (buttonSize + buttonSpacing))
                        (margin + headingHeight +
                         (index `div` 5) * (buttonSize + buttonSpacing))
                        buttonSize buttonSize) <$>
-        newAbilityWidget resources abilitySink abilNum
-  let newFeatButton index =
-        let tryGetInput as = do
-              let featTags = wdFeats $ chrEquippedWeaponData $
-                             partyGetCharacter (abilsParty as)
-                                               (abilsActiveCharacter as)
-              featTag <- listToMaybe $ drop index featTags
-              let feat = getFeat featTag
-              Just ((featTag, length featTags),
-                    (rsrcAbilityIcon resources (cfIconCoords feat),
-                     if abilsMetaAbilityTag as == Just featTag
-                     then DepressedButton
-                     else enabledIf (abilsInCombat as &&
-                       partyCanAffordCastingCost (abilsActiveCharacter as)
-                         (cfCastingCost feat) (abilsParty as))))
-            rectFn ((_, numFeats), _) (w, _) =
-              Rect ((w - numFeats * (buttonSize + buttonSpacing) +
-                     buttonSpacing) `div` 2 +
-                    index * (buttonSize + buttonSpacing))
-                   (margin + 2 * headingHeight + 2 * buttonSize +
-                    buttonSpacing + sectionSpacing)
-                   buttonSize buttonSize
-        in newMaybeView tryGetInput =<<
-           f2map (const . UseCombatFeat . fst . fst) . subView rectFn .
-           vmap snd <$> newIconButton [] ()
+        newAbilityWidget resources tooltipSink abilNum
   let rectFn _ (w, h) =
         let w' = 2 * margin + 5 * buttonSize + 4 * buttonSpacing
             h' = 2 * margin + 2 * headingHeight +
                  3 * buttonSize + buttonSpacing + sectionSpacing
         in Rect ((w - w') `div` 2) ((h - h') `div` 2) w' h'
-  let skillPtsFn as =
-        let pts = chrSkillPoints $
-                  partyGetCharacter (abilsParty as) (abilsActiveCharacter as)
-        in if pts == 0 then Left () else Right pts
-  hoverJunction abilityRef <$> compoundViewM [
-    (return $ hoverView abilitySink Nothing nullView),
+  hoverJunction tooltipRef <$> compoundViewM [
+    (return $ hoverView tooltipSink NoTooltip nullView),
     (subView rectFn <$> compoundViewM [
        (hoverView cursorSink DefaultCursor <$> newDialogBackgroundView),
-       (newEitherView skillPtsFn
-          (vmap (const "Abilities") $
-           makeLabel headingFont blackColor $ \(w, _) ->
-             LocMidtop $ Point (w `div` 2) margin)
-          (compoundView [
-             (vmap (const "Abilities") $ makeLabel_ headingFont blackColor $
-              LocTopleft $ Point 40 margin),
-             (vmap (("Points to spend:  " ++) . show) $
-              makeLabel infoFont blackColor $ \(w, _) ->
-                LocTopleft $ Point (w - 135) margin)])),
+       (return $ vmap (const "Abilities") $ makeLabel headingFont blackColor $
+        \(w, _) -> LocMidtop $ Point (w `div` 2) margin),
        (compoundView <$> zipWithM makeAbilityWidget [minBound .. maxBound]
                                                     [0 ..]),
-       (return $ vmap (const "Combat Feats") $
-        makeLabel headingFont blackColor $ \(w, _) -> LocMidtop $
-          Point (w `div` 2) (margin + headingHeight + 2 * buttonSize +
-                             buttonSpacing + sectionSpacing)),
-       (compoundView <$> mapM newFeatButton [0 .. 4])]),
-    (newAbilityInfoView resources abilityRef)]
+       (subView_ (Rect margin (margin + headingHeight + 2 * buttonSize +
+                               buttonSpacing + sectionSpacing)
+                       (buttonSize * 2 + buttonSpacing)
+                       (buttonSize + headingHeight)) <$>
+        newAttackSection resources tooltipSink),
+       (subView_ (Rect (margin + 2 * buttonSize + 2 * buttonSpacing)
+                       (margin + headingHeight + 2 * buttonSize +
+                        buttonSpacing + sectionSpacing)
+                       (buttonSize * 3 + buttonSpacing * 2)
+                       (buttonSize + headingHeight)) <$>
+        newFeatsSection resources tooltipSink)]),
+    (newAbilityInfoView resources tooltipRef),
+    (newFeatInfoView resources tooltipRef)]
 
 -------------------------------------------------------------------------------
 
-newAbilityWidget :: (MonadDraw m) => Resources
-                 -> HoverSink (Maybe (AbilityTag, AbilityRank))
+newAbilityWidget :: (MonadDraw m) => Resources -> HoverSink TooltipKey
                  -> AbilityNumber -> m (View AbilitiesState AbilitiesAction)
-newAbilityWidget resources abilitySink abilNum = do
+newAbilityWidget resources tooltipSink abilNum = do
   let maybeFn as = do
         let char = abilsGetCharacter as
         abilRank <- tmGet abilNum $ chrAbilities char
@@ -156,8 +137,9 @@ newAbilityWidget resources abilitySink abilNum = do
           PassiveAbility -> Right abilTag
   active <- newActiveAbilityWidget resources abilNum
   passive <- newPassiveAbilityWidget resources
-  newMaybeView maybeFn =<< (hoverView' abilitySink (Just . Just . snd) <$>
-                            newEitherView eitherFn active passive)
+  newMaybeView maybeFn =<<
+    (hoverView' tooltipSink (Just . uncurry AbilityTooltip . snd) <$>
+     newEitherView eitherFn active passive)
 
 newActiveAbilityWidget :: (MonadDraw m) => Resources -> AbilityNumber
                        -> m (View (AbilityTag, Bool) AbilitiesAction)
@@ -177,18 +159,75 @@ newPassiveAbilityWidget resources = do
 
 -------------------------------------------------------------------------------
 
-newAbilityInfoView :: (MonadDraw m) => Resources
-                   -> HoverRef (Maybe (AbilityTag, AbilityRank))
+newAttackSection :: (MonadDraw m) => Resources -> HoverSink TooltipKey
+                 -> m (View AbilitiesState AbilitiesAction)
+newAttackSection resources tooltipSink = do
+  let headingFont = rsrcFont resources FontGeorgiaBold11
+  let inputFn as = (mbTag, abilsInCombat as) where
+        mbTag = eqpWeapon $ chrEquipment $
+                partyGetCharacter (abilsParty as) (abilsActiveCharacter as)
+  let hoverFn (mbTag, _) = Just (AttackTooltip mbTag)
+  let buttonFn (mbTag, enabled) =
+        (rsrcItemIcon resources $
+         maybe (1, 7) (itemIconCoords . WeaponItemTag) mbTag,
+         enabledIf enabled)
+  let rectFn _ (w, h) =
+        Rect ((w - buttonSize) `div` 2) (h - buttonSize) buttonSize buttonSize
+  compoundViewM [
+    (return $ vmap (const "Attack") $ makeLabel headingFont blackColor $
+     \(w, _) -> LocMidtop $ Point (w `div` 2) 0),
+    (subView rectFn . vmap inputFn . hoverView' tooltipSink hoverFn .
+     vmap buttonFn <$> newIconButton [] UseNormalAttack)]
+
+-------------------------------------------------------------------------------
+
+newFeatsSection :: (MonadDraw m) => Resources -> HoverSink TooltipKey
+                -> m (View AbilitiesState AbilitiesAction)
+newFeatsSection resources tooltipSink = do
+  let headingFont = rsrcFont resources FontGeorgiaBold11
+  let inputFn as =
+        let char = partyGetCharacter (abilsParty as) (abilsActiveCharacter as)
+        in  (as, eqpWeapon (chrEquipment char),
+             wdFeats (chrEquippedWeaponData char))
+  let rectFn idx (_, _, featTags) (w, h) =
+        Rect ((w - length featTags * (buttonSize + buttonSpacing) +
+               buttonSpacing) `div` 2 + idx * (buttonSize + buttonSpacing))
+             (h - buttonSize) buttonSize buttonSize
+  let makeFeatButton idx =
+        subView (rectFn idx) <$> newFeatButton resources tooltipSink idx
+  compoundViewM [
+    (return $ vmap (const "Combat Feats") $ makeLabel headingFont blackColor $
+     \(w, _) -> LocMidtop $ Point (w `div` 2) 0),
+    (vmap inputFn . compoundView <$> mapM makeFeatButton [0 .. 2])]
+
+newFeatButton :: (MonadDraw m) => Resources -> HoverSink TooltipKey -> Int
+              -> m (View (AbilitiesState, Maybe WeaponItemTag,
+                          [FeatTag]) AbilitiesAction)
+newFeatButton resources tooltipSink idx = do
+  let tryGetInput (as, mbWTag, featTags) = do
+        featTag <- listToMaybe $ drop idx featTags
+        Just ((mbWTag, featTag),
+              (rsrcAbilityIcon resources (featIconCoords featTag),
+               if abilsMetaAbilityTag as == Just featTag then DepressedButton
+               else enabledIf (abilsInCombat as &&
+                 partyCanAffordCastingCost (abilsActiveCharacter as)
+                   (featCastingCost featTag) (abilsParty as))))
+  newMaybeView tryGetInput =<<
+    hoverView' tooltipSink (Just . uncurry FeatTooltip . fst) .
+    f2map (const . UseCombatFeat . snd . fst) . vmap snd <$>
+    newIconButton [] ()
+
+-------------------------------------------------------------------------------
+
+newAbilityInfoView :: (MonadDraw m) => Resources -> HoverRef TooltipKey
                    -> m (View a b)
-newAbilityInfoView resources abilRef = do
+newAbilityInfoView resources tooltipRef = do
   cache <- newDrawRef Nothing
   let inputFn _ = do
-        mbKey <- readHoverRef abilRef
-        case mbKey of
-          Nothing -> do
-            writeDrawRef cache Nothing
-            return Nothing
-          Just key -> do
+        tooltipKey <- readHoverRef tooltipRef
+        case tooltipKey of
+          AbilityTooltip tag rank -> do
+            let key = (tag, rank)
             mbCached <- readDrawRef cache
             desc <- do
               case mbCached of
@@ -198,9 +237,26 @@ newAbilityInfoView resources abilRef = do
                   writeDrawRef cache $ Just (key, string)
                   return string
             return (Just desc)
+          _ -> do
+            writeDrawRef cache Nothing
+            return Nothing
   vmapM inputFn . subView (\_ (w, h) -> Rect (half (w - 400)) (half h)
                                              400 (half h)) <$>
     (newMaybeView id =<< newTooltipView resources)
+
+newFeatInfoView :: (MonadDraw m) => Resources -> HoverRef TooltipKey
+                -> m (View a b)
+newFeatInfoView resources tooltipRef = do
+  let inputFn _ = do
+        tooltipKey <- readHoverRef tooltipRef
+        case tooltipKey of
+          AttackTooltip mbTag -> return $ Just $ attackDescription mbTag
+          FeatTooltip mbWTag featTag ->
+            return $ Just $ featFullDescription mbWTag featTag
+          _ -> return Nothing
+  let rectFn _ (w, h) = Rect (half (w - 400)) 0 400 (half h)
+  tooltip <- newTooltipView resources
+  vmapM inputFn <$> newMaybeView id (subView rectFn tooltip)
 
 -------------------------------------------------------------------------------
 
@@ -209,5 +265,19 @@ canUseActiveAbility abils cost eff =
   partyCanAffordCastingCost (abilsActiveCharacter abils) cost
                             (abilsParty abils) &&
   case eff of { GeneralAbility _ _ -> True; _ -> abilsInCombat abils }
+
+attackDescription :: Maybe WeaponItemTag -> String
+attackDescription mbTag =
+  "{b}Attack{_}  >  " ++ weaponName mbTag ++ "  >  " ++
+  costDescription NoCost ++ "\nAttack with " ++
+  (if isNothing mbTag then "your bare hands." else "your equipped weapon.")
+
+featFullDescription :: Maybe WeaponItemTag -> FeatTag -> String
+featFullDescription mbWTag featTag =
+  "{b}" ++ featName featTag ++ "{_}  >  " ++ weaponName mbWTag ++ "  >  " ++
+  costDescription (featCastingCost featTag) ++ "\n" ++ featDescription featTag
+
+weaponName :: Maybe WeaponItemTag -> String
+weaponName = maybe "Fists" (itemName . WeaponItemTag)
 
 -------------------------------------------------------------------------------
