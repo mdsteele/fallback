@@ -24,6 +24,8 @@ where
 import Control.Applicative ((<$>))
 import Control.Monad (zipWithM)
 import Data.Ix (range)
+import Data.List (delete, find)
+import Data.Maybe (fromMaybe, isJust, listToMaybe)
 
 import Fallback.Data.Color
 import Fallback.Data.Point
@@ -77,14 +79,11 @@ newNewGameDialog resources = do
   let handleAction action = do
         state <- readDrawRef stateRef
         writeDrawRef stateRef $ case action of
-          SelectCharacter charNum ->
-            state { insSelectedCharacter = charNum }
+          SelectCharacter charNum -> state { insSelectedCharacter = charNum }
           ChangeName name ->
-            insAlterCharacter state $ \ncs -> ncs { ncsName = name }
-          ChangeClass cls ->
-            insAlterCharacter state $ \ncs -> ncs { ncsClass = cls }
-          ChangeAppearance app ->
-            insAlterCharacter state $ \ncs -> ncs { ncsAppearance = app }
+            insAlterSelectedCharacter (\ncs -> ncs { ncsName = name }) state
+          ChangeClass cls -> insSetCharClass state cls
+          ChangeAppearance app -> insSetCharAppearance state app
           SetDifficulty diff ->
             state { insSpec = (insSpec state) { ngsDifficulty = diff } }
         return Suppress
@@ -112,17 +111,54 @@ data InternalState = InternalState
     insSelectedCharacter :: CharacterNumber }
 
 insSelectedCharacterSpec :: InternalState -> NewCharacterSpec
-insSelectedCharacterSpec is =
-  tmGet (insSelectedCharacter is) $ ngsCharacters $ insSpec is
+insSelectedCharacterSpec ins =
+  tmGet (insSelectedCharacter ins) $ ngsCharacters $ insSpec ins
 
-insAlterCharacter :: InternalState -> (NewCharacterSpec -> NewCharacterSpec)
-                  -> InternalState
-insAlterCharacter is fn =
-  let charNum = insSelectedCharacter is
-      ngs = insSpec is
-      characters = ngsCharacters ngs
-      ncs = tmGet charNum characters
-  in is { insSpec = ngs { ngsCharacters = tmSet charNum (fn ncs) characters } }
+insAppearanceTaken :: InternalState -> CharacterClass -> CharacterAppearance
+                   -> Bool
+insAppearanceTaken ins cls app = isJust $ insAppearanceTakenBy ins cls app
+
+insAppearanceTakenBy :: InternalState -> CharacterClass -> CharacterAppearance
+                     -> Maybe CharacterNumber
+insAppearanceTakenBy ins cls app =
+  find matches $ delete (insSelectedCharacter ins) [minBound .. maxBound]
+  where matches charNum =
+          let ncs = tmGet charNum $ ngsCharacters $ insSpec ins
+          in ncsClass ncs == cls && ncsAppearance ncs == app
+
+insAlterCharacter :: CharacterNumber -> (NewCharacterSpec -> NewCharacterSpec)
+                  -> InternalState -> InternalState
+insAlterCharacter charNum fn ins =
+  let ngs = insSpec ins
+      chars = ngsCharacters ngs
+      ncs = tmGet charNum chars
+  in ins { insSpec = ngs { ngsCharacters = tmSet charNum (fn ncs) chars } }
+
+insAlterSelectedCharacter :: (NewCharacterSpec -> NewCharacterSpec)
+                          -> InternalState -> InternalState
+insAlterSelectedCharacter fn ins =
+  insAlterCharacter (insSelectedCharacter ins) fn ins
+
+insSetCharClass :: InternalState -> CharacterClass -> InternalState
+insSetCharClass ins cls =
+  let getNcs num = tmGet num $ ngsCharacters $ insSpec ins
+      appear = ncsAppearance $ getNcs (insSelectedCharacter ins)
+      unclaimed = filter (not . insAppearanceTaken ins cls)
+                         [minBound .. maxBound]
+      appear' = if appear `elem` unclaimed then appear
+                else fromMaybe appear $ listToMaybe unclaimed
+  in flip insAlterSelectedCharacter ins $ \ncs ->
+       ncs { ncsClass = cls, ncsAppearance = appear' }
+
+insSetCharAppearance :: InternalState -> CharacterAppearance -> InternalState
+insSetCharAppearance ins appear =
+  let ncs = insSelectedCharacterSpec ins
+  in insAlterSelectedCharacter (\ncs' -> ncs' { ncsAppearance = appear }) $
+     case insAppearanceTakenBy ins (ncsClass ncs) appear of
+             Nothing -> ins
+             Just charNum ->
+               insAlterCharacter charNum (\ncs' ->
+                 ncs' { ncsAppearance = ncsAppearance ncs }) ins
 
 data InternalAction = SelectCharacter CharacterNumber
                     | ChangeName String
@@ -214,10 +250,12 @@ newAppearanceRadio resources appear = do
   let
     paint state = do
       let ncs = insSelectedCharacterSpec state
-      let sprite = ciRightStand $
-                   rsrcCharacterImages resources (ncsClass ncs) appear
+      let cls = ncsClass ncs
+      let tint = if insAppearanceTaken state cls appear
+                 then whiteTint { tintAlpha = 96 } else whiteTint
+      let sprite = ciRightStand $ rsrcCharacterImages resources cls appear
       rect <- canvasRect
-      blitLoc sprite $ LocCenter $ rectCenter rect
+      blitLocTinted tint sprite $ LocCenter $ rectCenter rect
       drawBevelRect (if ncsAppearance ncs == appear
                      then Tint 192 32 32 255 else Tint 0 0 0 40) 5 rect
     handler _ (EvMouseDown pt) =
