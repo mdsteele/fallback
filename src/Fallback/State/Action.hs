@@ -31,11 +31,10 @@ import Fallback.State.Simple
 
 data TargetKind :: * -> * where
   AllyTarget :: Int -> TargetKind (Either Position CharacterNumber)
-  AreaTarget :: Int -> (forall a. (AreaState a) => a -> Position ->
-                        Position -> [Position])
-             -> TargetKind (Position, [Position])
+  AreaTarget :: (forall a. (AreaState a) => a -> Position -> Position ->
+                 [Position]) -> Int -> TargetKind (Position, [Position])
   AutoTarget :: TargetKind ()
-  MultiTarget :: Int -> Int -> TargetKind [Position]
+  MultiTarget :: Int {-num targets-} -> Int {-range-} -> TargetKind [Position]
   SingleTarget :: Int -> TargetKind Position
 
 -------------------------------------------------------------------------------
@@ -74,7 +73,8 @@ data CombatFeat = CombatFeat
 
 data FeatEffect :: * where
   MetaAbility :: CostModifier -> PowerModifier -> FeatEffect
-  StandardFeat :: TargetKind a -> (CharacterNumber -> a ->
-                                   Script CombatEffect ()) -> FeatEffect
+  StandardFeat :: (Int -> TargetKind a)
+               -> (CharacterNumber -> a -> Script CombatEffect ())
+               -> FeatEffect
 
 -------------------------------------------------------------------------------

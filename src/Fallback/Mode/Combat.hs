@@ -176,11 +176,20 @@ newCombatMode resources modes initState = do
                   changeState cs { csPhase = MetaAbilityPhase CombatMetability
                     { cmCommander = cc, cmCostModifier = costMod,
                       cmFeatTag = tag, cmPowerModifier = powerMod } }
-                StandardFeat tkind sfn -> do
-                  switchToTargetingPhase cc cs cost tkind $ sfn charNum
+                StandardFeat tkindFn sfn -> do
+                  let tk = tkindFn $ rangeRadius $ wdRange $
+                           chrEquippedWeaponData $ arsGetCharacter charNum cs
+                  switchToTargetingPhase cc cs cost tk $ sfn charNum
             _ -> ignore
         Just (CombatAbilities UseNormalAttack) -> do
-          fail "FIXME Combat UseNormalAttack"
+          case csPhase cs of
+            ChooseAbilityPhase cc -> do
+              let charNum = ccCharacterNumber cc
+              let wd = chrEquippedWeaponData $ arsGetCharacter charNum cs
+              let tk = SingleTarget $ rangeRadius $ wdRange wd
+              switchToTargetingPhase cc cs NoCost tk $ \target -> do
+                characterWeaponAttack charNum target
+            _ -> ignore
         Just (CombatInventory invAct) -> do
           case csPhase cs of
             InventoryPhase cc mbItemTag -> do
@@ -271,12 +280,12 @@ newCombatMode resources modes initState = do
                case targeting of
                  TargetingAlly rng ->
                    if cannotHit rng then ignore else execute (sfn $ Left pos)
-                 TargetingArea rng areaFn -> do
+                 TargetingArea areaFn rng -> do
                    if cannotHit rng then ignore else do
                    let targets = areaFn cs originPos pos
                    if null targets then ignore else do
                    execute $ sfn (pos, targets)
-                 TargetingMulti rng n ps ->
+                 TargetingMulti n rng ps ->
                    if pos `elem` ps then switch (delete pos ps) else
                      if cannotHit rng then ignore else
                        let ps' = pos : ps
@@ -286,7 +295,7 @@ newCombatMode resources modes initState = do
                      switch ps' = SameMode <$ writeIORef stateRef cs
                                   { csPhase = TargetingPhase CombatTargeting
                                     { ctCastingCost = cost, ctCommander = cc,
-                                      ctTargeting = TargetingMulti rng n ps',
+                                      ctTargeting = TargetingMulti n rng ps',
                                       ctScriptFn = sfn } }
                  TargetingSingle rng ->
                    if cannotHit rng then ignore else execute (sfn pos)
@@ -336,9 +345,9 @@ newCombatMode resources modes initState = do
     switchToTargetingPhase cc cs cost tk sfn = do
       case tk of
         AllyTarget r -> setTargeting (TargetingAlly r)
-        AreaTarget r f -> setTargeting (TargetingArea r f)
+        AreaTarget f r -> setTargeting (TargetingArea f r)
         AutoTarget -> executeCommand cs cc cost maxActionPoints $ sfn ()
-        MultiTarget r n -> setTargeting (TargetingMulti r n [])
+        MultiTarget n r -> setTargeting (TargetingMulti n r [])
         SingleTarget r -> setTargeting (TargetingSingle r)
       where setTargeting targeting =
               changeState cs { csPhase = TargetingPhase CombatTargeting

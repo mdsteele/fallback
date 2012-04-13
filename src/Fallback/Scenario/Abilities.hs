@@ -317,7 +317,7 @@ getAbility characterClass abilityNumber rank =
           Left pos -> healDamage [(HitPosition pos, healAmount)]
           Right charNum -> healDamage [(HitCharacter charNum, healAmount)]
     Disruption ->
-      combat (ManaCost 6) (MultiTarget 4 (ranked 1 3 3)) $
+      combat (ManaCost 6) (MultiTarget (ranked 1 3 3) 4) $
       \caster power targets -> do
         characterBeginOffensiveAction caster (head targets)
         startPos <- areaGet (arsCharacterPosition caster)
@@ -399,7 +399,7 @@ getAbility characterClass abilityNumber rank =
         addBoomDoodadAtPosition EnergyBoom 3 endPos >> wait 12
         dealDamage [(HitPosition endPos, EnergyDamage, damage)] >> wait 12
     IceBolts ->
-      combat (ManaCost 5) (MultiTarget 4 (ranked 2 3 4)) $
+      combat (ManaCost 5) (MultiTarget (ranked 2 3 4) 4) $
       \caster power targets -> do
         characterBeginOffensiveAction caster (head targets)
         startPos <- areaGet (arsCharacterPosition caster)
@@ -654,7 +654,7 @@ abilityDescription Subsume =
   \At rank 2, steals fully half the amount of damage you inflict.\n\
   \At rank 3, steals {i}all{_} of the damage you inflict."
 abilityDescription Illusion =
-  "Creates an illusory copy of yourself, to distract enemies from attacking\
+  "Create an illusory copy of yourself, to distract enemies from attacking\
   \ the real you.\n\
   \At rank 2, creates two illusions.\n\
   \At rank 3, creates three illusions."
@@ -663,15 +663,15 @@ abilityDescription Alacrity =
   \At rank 2, the increase rises to 10%.\n\
   \At rank 3, the increase rises to 20%."
 abilityDescription BeastCall =
-  "Summons a wild animal to fight at your side.\n\
+  "Summon a wild animal to fight at your side.\n\
   \At rank 2, summons a stronger animal.\n\
   \At rank 3, summons {i}two{_} animals."
 abilityDescription FireShot =
-  "Adds additional fire damage to your next ranged weapon attack.\n\
+  "Add additional fire damage to your next ranged weapon attack.\n\
   \At rank 2, adds more damage.\n\
   \At rank 3, also sets the target on fire."
 abilityDescription Entangle =
-  "Entangles a single target, causing them to walk slower for a short time.\n\
+  "Entangle a single target, causing them to walk slower for a short time.\n\
   \At rank 2, entangles a whole area.\n\
   \At rank 3, also deals a small amount of physical damage."
 abilityDescription Recuperation =
@@ -680,11 +680,11 @@ abilityDescription Recuperation =
   \At rank 2, the increase rises to 20%.\n\
   \At rank 3, the increase rises to 40%."
 abilityDescription PoisonShot =
-  "Poisons the target of your next ranged weapon attack.\n\
+  "Poison the target of your next ranged weapon attack.\n\
   \At rank 2, also deals additional acid damage.\n\
   \At rank 3, deals even more damage."
 abilityDescription Charm =
-  "Confuses a single enemy, so that it will sometimes attack its own allies.\n\
+  "Confuse a single enemy, so that it will sometimes attack its own allies.\n\
   \At rank 2, charms the target, so that it always attacks its allies.\n\
   \At rank 3, if the target resists being charmed, it takes damage."
 abilityDescription EagleEye =
@@ -692,45 +692,45 @@ abilityDescription EagleEye =
   \At rank 2, also increases your ranged attack damage by 15%.\n\
   \At rank 3, also increases the maximum range of all your ranged attacks."
 abilityDescription CurseShot =
-  "Curses the target of your next ranged weapon attack.\n\
+  "Curse the target of your next ranged weapon attack.\n\
   \At rank 2, also slows the target.\n\
   \At rank 3, also lowers the target's defense."
 abilityDescription Summon =
-  "Brings a single, powerful creature into existence to fight at your side.\n\
+  "Bring a single, powerful creature into existence to fight at your side.\n\
   \At rank 2, summons a more powerful kind of creature.\n\
   \At rank 3, summons a truly deadly creature."
 abilityDescription FrostShot =
   "Your next ranged weapon attack deals extra cold damage to a small area.\n\
   \At rank 2, also covers the area in ice.\n\
   \At rank 3, also stuns everything in the area."
-abilityDescription Cure = "Restores some health for one target.\n\
+abilityDescription Cure = "Restore some health for one target.\n\
   \At rank 2, heals more damage, and also reduces poison.\n\
   \At rank 3, heals even more damage."
 abilityDescription Conflagration =
-  "Sets an area on fire, continuously damaging those within.\n\
+  "Set an area on fire, continuously damaging those within.\n\
   \At rank 2, affects a larger area.\n\
   \At rank 3, also deals an initial burst of damage to the area."
 abilityDescription PoisonGas =
-  "Fills an area with a cloud of poisonous gas, continuously poisoning those\
+  "Fill an area with a cloud of poisonous gas, continuously poisoning those\
   \ within.\n\
   \At rank 2, the gas is even more poisonous.\n\
   \At rank 3, the range of the spell is increased."
 abilityDescription Drain =
-  "Drains the health of all creatures in an area, and distributes the stolen\
+  "Drain the health of all creatures in an area, and distribute the stolen\
   \ health among all allies.\n\
   \At rank 2, drains more health to give to allies.\n\
   \At rank 3, also drains helpful status effects, giving them instead to\
   \ allies."
 abilityDescription Detonate =
-  "Causes an explosion, dealing fire damage to an area.\n\
+  "Cause an explosion, dealing fire damage to an area.\n\
   \At rank 2, the explosion deals more damage.\n\
   \At rank 3, the explosion deals even more damage."
 abilityDescription AdrenalineRush =
-  "Instantly increases adrenaline for you and all adjacent allies.\n\
+  "Instantly increase adrenaline for you and all adjacent allies.\n\
   \At rank 2, adds more adrenaline.\n\
   \At rank 3, affects all allies, nearby or not."
 abilityDescription Rainbow =
-  "Grants a random beneficial status effect to every ally.\n\
+  "Grant a random beneficial status effect to every ally.\n\
   \At rank 2, also inflicts a random harmful status effect on every enemy.\n\
   \At rank 3, grants/inflicts {i}two{_} status effects on every ally/enemy."
 abilityDescription Healing = "Restores some health for one target.\n\
@@ -740,7 +740,7 @@ abilityDescription Disruption = "Deals major damage to an undead target.\n\
   \At rank 2, hits up to three targets.\n\
   \At rank 3, also damages daemonic targets."
 abilityDescription Hinder =
-  "Slows several targets, causing them to take turns less often.\n\
+  "Slow several targets, causing them to take turns less often.\n\
   \At rank 2, also ensnares the targets, causing them to walk slower.\n\
   \At rank 3, also has a chance to daze the targets."
 abilityDescription Clarity =
@@ -748,29 +748,29 @@ abilityDescription Clarity =
   \At rank 2, the increase rises to 40%.\n\
   \At rank 3, the increase rises to 70%."
 abilityDescription Revive =
-  "Revives a party member from unconsciousness during combat, restoring a\
+  "Revive a party member from unconsciousness during combat, restoring a\
   \ small portion of their health.\n\
   \At rank 2, restores more of the target's health.\n\
   \At rank 3, also restores some of the target's mana/focus."
-abilityDescription GroupHeal = "Restores some health for all allies.\n\
+abilityDescription GroupHeal = "Restore some health for all allies.\n\
   \At rank 2, heals more damage.\n\
   \At rank 3, heals even more damage."
 abilityDescription LucentShield =
-  "Shields a single ally from magical damage for a short time.\n\
+  "Shield a single ally from magical damage for a short time.\n\
   \At rank 2, the effect lasts longer.\n\
   \At rank 3, all allies are shielded."
 abilityDescription Sunbeam =
-  "Shoots an intense beam of heat and light, searing everything in its path. \
+  "Shoot an intense beam of heat and light, searing everything in its path. \
   \ Deals additional disruption damage to undead enemies.\n\
   \At rank 2, deals more damage, and disrupts daemonic enemies as well.\n\
   \At rank 3, deals massive damage."
-abilityDescription Shock = "Strikes a single target with energy damage.\n\
+abilityDescription Shock = "Strike a single target with energy damage.\n\
   \At rank 2, also slows the target.\n\
   \At rank 3, also curses the target."
-abilityDescription IceBolts = "Deals cold damage to multiple targets.\n\
+abilityDescription IceBolts = "Deal cold damage to multiple targets.\n\
   \At rank 2, hits up to three targets.\n\
   \At rank 3, hits up to four targets."
-abilityDescription Vitriol = "Splashes a small area with damaging acid.\n\
+abilityDescription Vitriol = "Splash a small area with damaging acid.\n\
   \At rank 2, deals more damage.\n\
   \At rank 3, also poisons the targets."
 abilityDescription Invisibility =
@@ -779,26 +779,26 @@ abilityDescription Invisibility =
   \At rank 2, the target stays invisible even if attacked.\n\
   \At rank 3, also blesses the target."
 abilityDescription Lightning =
-  "Strikes a target with energy damage and then forks to hit two other, nearby\
+  "Strike a target with energy damage and then fork to hit two other, nearby\
   \ targets.\n\
   \At rank 2, forks a second time, hitting more targets.\n\
   \At rank 3, forks a third time, hitting even more targets."
 abilityDescription Hasten =
-  "Hastens a single ally, so that they take turns more often.\n\
+  "Hasten a single ally, so that they take turns more often.\n\
   \At rank 2, the effect lasts longer.\n\
   \At rank 3, hastens the caster as well as the target."
 abilityDescription Freeze =
-  "Deals cold damage to a small area, and covers it in ice.\n\
+  "Deal cold damage to a small area, and cover it in ice.\n\
   \At rank 2, deals more damage.\n\
   \At rank 3, deals even more damage and also slows the targets."
 abilityDescription Disjunction =
-  "Purges fields and reduces status effects from an area.\n\
+  "Purge fields and reduce status effects from an area.\n\
   \At rank 2, harmful status effects on enemies will remain.\n\
   \At rank 3, helpful status effects on allies will also remain."
-abilityDescription AcidRain = "Sprays all nearby enemies with damaging acid.\n\
+abilityDescription AcidRain = "Spray all nearby enemies with damaging acid.\n\
   \At rank 2, deals more damage.\n\
   \At rank 3, also poisons the targets."
-abilityDescription Luminaire = "Deals major energy damage to a wide area.\n\
+abilityDescription Luminaire = "Deal major energy damage to a wide area.\n\
   \At rank 2, deals even more damage.\n\
   \At rank 3, deals massive damage."
 abilityDescription _ = "FIXME abilityDescription"

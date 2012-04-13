@@ -283,14 +283,14 @@ paintTargeting cameraTopleft mbMousePt ars charNum targeting = do
       let targetable = getRegionOfRadius radius
       paintRegion targetable
       paintMouseTarget targetable
-    TargetingArea radius areaFn -> do
+    TargetingArea areaFn radius -> do
       let targetable = getRegionOfRadius radius
       paintRegion targetable
       whenMouse $ \targetPos -> do
         if targetPos `Set.notMember` targetable then paintX targetPos else do
           let targets = areaFn ars originPos targetPos
           if null targets then paintX targetPos else mapM_ paintTile targets
-    TargetingMulti radius _ targets -> do
+    TargetingMulti _ radius targets -> do
       let targetable = getRegionOfRadius radius
       paintRegion targetable
       mapM_ paintTile targets

@@ -205,11 +205,11 @@ newTownMode resources modes initState = do
                                               TownTargeting cost sfn' targ }
                             (case target of
                                AllyTarget r -> setTarget (TargetingAlly r)
-                               AreaTarget r f -> setTarget (TargetingArea r f)
+                               AreaTarget f r -> setTarget (TargetingArea f r)
                                AutoTarget -> changeState ts
                                  { tsPhase = ScriptPhase $ sfn' () }
-                               MultiTarget r n ->
-                                 setTarget (TargetingMulti r n [])
+                               MultiTarget n r ->
+                                 setTarget (TargetingMulti n r [])
                                SingleTarget r ->
                                  setTarget (TargetingSingle r)) :: IO NextMode
                           CombatAbility _ _ -> Nothing
@@ -309,12 +309,12 @@ newTownMode resources modes initState = do
                case targeting of
                  TargetingAlly rng ->
                    if cannotHit rng then ignore else execute (sfn $ Left pos)
-                 TargetingArea rng areaFn -> do
+                 TargetingArea areaFn rng -> do
                    if cannotHit rng then ignore else do
                    let targets = areaFn ts originPos pos
                    if null targets then ignore else do
                    execute $ sfn (pos, targets)
-                 TargetingMulti rng n ps ->
+                 TargetingMulti n rng ps ->
                    if pos `elem` ps then switch (delete pos ps) else
                      if cannotHit rng then ignore else
                        let ps' = pos : ps
@@ -323,7 +323,7 @@ newTownMode resources modes initState = do
                    where
                      switch ps' = SameMode <$ writeIORef stateRef ts
                        { tsPhase = TargetingPhase TownTargeting
-                         { ttTargeting = TargetingMulti rng n ps',
+                         { ttTargeting = TargetingMulti n rng ps',
                            ttCastingCost = cost, ttScriptFn = sfn } }
                  TargetingSingle rng ->
                    if cannotHit rng then ignore

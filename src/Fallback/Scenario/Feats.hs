@@ -37,10 +37,10 @@ import Fallback.State.Tags (FeatTag(..))
 featEffect :: FeatTag -> FeatEffect
 featEffect Offering = MetaAbility ZeroCost 3
 featEffect SolarFlare =
-  StandardFeat (MultiTarget 6 3) $ \_caster _targets -> do
+  StandardFeat (MultiTarget 3) $ \_caster _targets -> do
     return ()  -- FIXME
 featEffect Energize =
-  StandardFeat AutoTarget $ \caster () -> do
+  StandardFeat autoTarget $ \caster () -> do
     charNums <- getAllConsciousCharacters
     playSound SndHeal
     forM_ charNums $ \charNum -> do
@@ -49,7 +49,7 @@ featEffect Energize =
       unless (charNum == caster) $ do
         alterAdrenaline charNum (const maxAdrenaline)
 featEffect Zodiac =
-  StandardFeat AutoTarget $ \_ () -> do
+  StandardFeat autoTarget $ \_ () -> do
     entries <- randomPermutation =<< getAllEnemyMonsters
     forM_ entries $ \entry -> do
       damage <- getRandomR 40 60 -- TODO how much damage?
@@ -57,12 +57,22 @@ featEffect Zodiac =
       -- TODO doodad/sound
       wait 3
 featEffect Eclipse =
-  StandardFeat AutoTarget $ \_caster () -> do
+  StandardFeat autoTarget $ \_caster () -> do
     hitTargets <- getAllAllyTargets
     playSound SndIllusion
     forM_ hitTargets $ \hitTarget -> do
       -- TODO add doodad and wait
       grantInvisibility hitTarget MajorInvisibility
+featEffect Shortshot =
+  StandardFeat (SingleTarget . (subtract 1)) $ \_caster _target -> do
+    return () -- FIXME
+featEffect Longshot =
+  StandardFeat (SingleTarget . (+ 3)) $ \_caster _target -> do
+    return () -- FIXME
+featEffect Glow = MetaAbility OneThirdCost 1
+featEffect Amplify = MetaAbility NormalCost 1.5
+featEffect Radiate = MetaAbility ZeroCost 1
+featEffect Resonate = MetaAbility NormalCost 2
 featEffect _ = MetaAbility NormalCost 1.1 -- FIXME
 
 -------------------------------------------------------------------------------
@@ -109,7 +119,13 @@ featDescription Avatar =
   \ cures you of all negative effects."
 featDescription AllCreation =
   "Summon a multitude of wild animals and beasts to attack your enemies."
+featDescription Shortshot =
+  "Fire an arrow at reduced range, but with +50% damage."
 featDescription Longshot = "Fire an arrow at +3 range and +25% damage."
+featDescription Glow = "Use any one ability for one third of its normal cost."
+featDescription Amplify = "Use any one ability, at 1.5x power."
+featDescription Radiate = "Use any one ability for free."
+featDescription Resonate = "Use any one ability, at double power."
 featDescription _ = "??? FIXME ???"
 
 featIconCoords :: FeatTag -> (Int, Int)
@@ -130,118 +146,8 @@ featIconCoords Multishot = (7, 3)
 featIconCoords _ = (6, 3) -- FIXME
 
 -------------------------------------------------------------------------------
-{-
-getFeat :: FeatTag -> CombatFeat
-getFeat Concentrate = CombatFeat
-  { cfName = "Concentrate",
-    cfDescription = "Use an ability at 110% power",
-    cfIconCoords = (0, 0), -- FIXME
-    cfCastingCost = (AdrenalineCost 100),
-    cfEffect = MetaAbility NormalCost 1.1 }
-getFeat Offering = CombatFeat
-  { cfName = "Offering",
-    cfDescription = "Use an ability for free, at triple power",
-    cfIconCoords = (9, 0),
-    cfCastingCost = AdrenalineCost 10,
-    cfEffect = MetaAbility ZeroCost 3.0 }
-getFeat SolarFlare = CombatFeat
-  { cfName = "Solar Flare",
-    cfDescription = "Deal massive damage to three targets",
-    cfIconCoords = (9, 1),
-    cfCastingCost = AdrenalineCost 30,
-    cfEffect = StandardFeat (MultiTarget 6 3) $ \_ _ -> do
-      return () } -- TODO
-getFeat Energize = CombatFeat
-  { cfName = "Energize",
-    cfDescription = "Restore mana/focus/adrenaline for all allies",
-    cfIconCoords = (9, 2),
-    cfCastingCost = AdrenalineCost 100,
-    cfEffect = StandardFeat AutoTarget $ \caster () -> do
-      -- TODO add doodads
-      playSound SndHeal
-      forM_ [minBound .. maxBound] $ \charNum -> do
-        restoreMojoToFull charNum
-        unless (charNum == caster) $ do
-          alterAdrenaline charNum (const maxAdrenaline) }
-getFeat StarShield = CombatFeat
-  { cfName = "Star Shield",
-    cfDescription = "Put a powerful shield around all allies",
-    cfIconCoords = (8, 0),
-    cfCastingCost = AdrenalineCost 25,
-    cfEffect = StandardFeat AutoTarget $ \_ () -> do
-      return () } -- TODO
-getFeat Zodiac = CombatFeat
-  { cfName = "Zodiac",
-    cfDescription = "Deal energy damage to all enemies",
-    cfIconCoords = (8, 1),
-    cfCastingCost = AdrenalineCost 50,
-    cfEffect = StandardFeat AutoTarget $ \_ () -> do
-      entries <- randomPermutation =<< getAllEnemyMonsters
-      forM_ entries $ \entry -> do
-        damage <- getRandomR 40 60 -- TODO how much damage?
-        dealDamage [(HitMonster (Grid.geKey entry), EnergyDamage, damage)]
-        -- TODO doodad/sound
-        wait 3
-      return () } -- TODO
-getFeat Imprison = CombatFeat
-  { cfName = "Imprison",
-    cfDescription = "Trap a group of enemies within a barrier",
-    cfIconCoords = (8, 2),
-    cfCastingCost = AdrenalineCost 100,
-    cfEffect = StandardFeat AutoTarget $ \_ () -> do
-      return () } -- TODO
-getFeat TidalForce = CombatFeat
-  { cfName = "Tidal Force",
-    cfDescription = "Damage and daze everything in an area",
-    cfIconCoords = (7, 0),
-    cfCastingCost = AdrenalineCost 40,
-    cfEffect = StandardFeat (aoeTarget 7 (ofRadius 2)) $
-      \_ _ -> do
-        return () } -- TODO
-getFeat Eclipse = CombatFeat
-  { cfName = "Eclipse",
-    cfDescription = "Grant major invisibility to the whole party",
-    cfIconCoords = (7, 1),
-    cfCastingCost = AdrenalineCost 60,
-    cfEffect = StandardFeat AutoTarget $ \_ () -> do
-      -- TODO add doodads
-      playSound SndIllusion
-      mapM_ (\charNum -> grantInvisibility (HitCharacter charNum)
-                                           MajorInvisibility)
-            [minBound .. maxBound] }
-getFeat LunarBeam = CombatFeat
-  { cfName = "Lunar Beam",
-    cfDescription = "Shoot a devastating beam of ice",
-    cfIconCoords = (7, 2),
-    cfCastingCost = AdrenalineCost 100,
-    cfEffect = StandardFeat beamTarget $ \_ _ -> do
-      return () } -- TODO
-getFeat PulseOfLife = CombatFeat
-  { cfName = "Pulse of Life",
-    cfDescription = "Revive and heal one ally",
-    cfIconCoords = (6, 0),
-    cfCastingCost = AdrenalineCost 50,
-    cfEffect = StandardFeat AutoTarget $ \_ () -> do
-      return () } -- TODO
-getFeat Avatar = CombatFeat
-  { cfName = "Avatar",
-    cfDescription = "Become a mighty warrior",
-    cfIconCoords = (6, 1),
-    cfCastingCost = AdrenalineCost 80,
-    cfEffect = StandardFeat AutoTarget $ \_ () -> do
-      return () } -- TODO
-getFeat AllCreation = CombatFeat
-  { cfName = "All Creation",
-    cfDescription = "Summon a multitude of creatures",
-    cfIconCoords = (6, 2),
-    cfCastingCost = AdrenalineCost 100,
-    cfEffect = StandardFeat AutoTarget $ \_ () -> do
-      return () } -- TODO
-getFeat _ = CombatFeat -- TODO
-  { cfName = "Do Nothing",
-    cfDescription = "Really, do nothing",
-    cfIconCoords = (9, 0),
-    cfCastingCost = NoCost,
-    cfEffect = StandardFeat AutoTarget $ \_ () -> debug "I did nothing." }
--}
+
+autoTarget :: Int -> TargetKind ()
+autoTarget = const AutoTarget
+
 -------------------------------------------------------------------------------

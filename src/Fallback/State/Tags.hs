@@ -227,7 +227,7 @@ data FeatTag = Concentrate
              -- For throwing stars:
              | Pierce | NeutronBomb
              -- For bows:
-             | Longshot | Multishot
+             | Shortshot | Longshot | Multishot
              -- For wands:
              | Glow | Amplify | Radiate | Resonate
   deriving (Eq, Show)

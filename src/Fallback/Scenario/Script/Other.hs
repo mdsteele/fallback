@@ -723,14 +723,14 @@ circleArea dist center =
      range (center `pSub` corner, center `pAdd` corner)
 
 aoeTarget :: Int -> SqDist -> TargetKind (Position, [Position])
-aoeTarget maxRange blastRadiusSquared = AreaTarget maxRange fn
+aoeTarget maxRange blastRadiusSquared = AreaTarget fn maxRange
   where fn _ars _origin target = circleArea blastRadiusSquared target
 
 beamTarget :: TargetKind (Position, [Position])
-beamTarget = AreaTarget sightRange arsBeamPositions
+beamTarget = AreaTarget arsBeamPositions sightRange
 
 splashTarget :: Int -> TargetKind (Position, [Position])
-splashTarget maxRange = AreaTarget maxRange fn where
+splashTarget maxRange = AreaTarget fn maxRange where
   fn ars origin target =
     if origin == target || cannotSeeThrough (arsTerrainOpenness target ars)
     then [target] else
@@ -739,7 +739,7 @@ splashTarget maxRange = AreaTarget maxRange fn where
           target `plusDir` succ dir]
 
 wallTarget :: Int -> Int -> TargetKind (Position, [Position])
-wallTarget maxRange radius = AreaTarget maxRange fn where
+wallTarget maxRange radius = AreaTarget fn maxRange where
   fn ars origin target =
     if origin == target || blocked target then [] else
       let (d1, d2, d3, d4) =
