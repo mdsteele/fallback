@@ -286,6 +286,7 @@ newTownMode resources modes initState = do
                       concurrentAny (Grid.entries $ acsMonsters acs) $
                       monsterTownStep
                     inflictAllPeriodicDamage
+                    -- TODO decay status effects by one round
                     when startCombat $ emitEffect EffStartCombat
               changeState ts { tsCommon = acs { acsFields = fields' },
                                tsPhase = ScriptPhase script }

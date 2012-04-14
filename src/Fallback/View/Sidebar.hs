@@ -373,12 +373,12 @@ newStatusEffectsView resources = do
     paint (se, health) = do
       let blit x i = blitTopleft (rsrcStatusIcons resources ! i) $
                      Point (13 * x) (0 :: Int)
-      let blitOrdering x _ i LT = blit x i
-          blitOrdering _ _ _ EQ = return ()
-          blitOrdering x i _ GT = blit x i
-      blitOrdering 0 0 1 (seBlessingOrdering se)
-      blitOrdering 1 2 3 (seDefenseOrdering se)
-      blitOrdering 2 4 5 (seHasteOrdering se)
+      let blitHarmOrBenefit x _ i (Harmful _) = blit x i
+          blitHarmOrBenefit _ _ _ Unaffected = return ()
+          blitHarmOrBenefit x i _ (Beneficial _) = blit x i
+      blitHarmOrBenefit 0 0 1 (seBlessing se)
+      blitHarmOrBenefit 1 2 3 (seDefense se)
+      blitHarmOrBenefit 2 4 5 (seHaste se)
       when (sePoison se > 0) $ blit 3 $ if sePoison se >= health then 7 else 6
       maybeM (seMentalEffect se) $ \(eff, _) -> blit 4 $
         case eff of

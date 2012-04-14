@@ -209,7 +209,7 @@ data Field = BarrierWall Int -- duration in frames
            | IceWall Double -- base damage per round
            | PoisonCloud Double -- base poison damage per round
            | SmokeScreen Double -- half-life in frames
-           | Webbing Double -- entanglement to impart
+           | Webbing Double -- duration of entanglement, in rounds
   deriving (Eq, Read, Show)
 
 -------------------------------------------------------------------------------

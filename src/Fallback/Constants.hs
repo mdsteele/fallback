@@ -87,10 +87,12 @@ baseMomentsPerFrame =
   round (fromIntegral momentsPerActionPoint * secondsPerFrame /
          baseSecondsPerActionPoint) where baseSecondsPerActionPoint = 1.0
 
+baseActionPointsPerFrame :: Double
+baseActionPointsPerFrame =
+  fromIntegral baseMomentsPerFrame / fromIntegral momentsPerActionPoint
+
 baseFramesPerActionPoint :: Int
-baseFramesPerActionPoint =
-  round (fromIntegral momentsPerActionPoint /
-         fromIntegral baseMomentsPerFrame :: Double)
+baseFramesPerActionPoint = round (recip baseActionPointsPerFrame)
 
 maxActionPoints :: Int
 maxActionPoints = 4

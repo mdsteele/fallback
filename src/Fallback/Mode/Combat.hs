@@ -32,8 +32,8 @@ import Data.Maybe (fromMaybe, isJust)
 import qualified Data.Set as Set
 
 import Fallback.Constants
-  (baseFramesPerActionPoint, baseMomentsPerFrame, combatCameraOffset,
-   maxActionPoints, momentsPerActionPoint)
+  (baseActionPointsPerFrame, baseFramesPerActionPoint, baseMomentsPerFrame,
+   combatCameraOffset, maxActionPoints, momentsPerActionPoint)
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Data.TotalMap (TotalMap, makeTotalMap, tmAlter, tmGet)
@@ -546,7 +546,8 @@ tickWaiting cs = do
     tickPartyWaiting party =
       party { partyCharacters = tickCharWaiting <$> partyCharacters party }
     tickCharWaiting char =
-      char { chrStatus = decayStatusEffects (chrStatus char) }
+      char { chrStatus = decayStatusEffects baseActionPointsPerFrame
+                                            (chrStatus char) }
     tickCharStatesWaiting ccss =
       makeTotalMap $ \charNum ->
         tickCharStateWaiting (arsGetCharacter charNum cs) (tmGet charNum ccss)
@@ -658,7 +659,7 @@ tickMonsterWaiting entry = (monst', mbScript) where
              round (mtSpeed mtype * seSpeedMultiplier status *
                     fromIntegral baseMomentsPerFrame) + moments
   moments = monstMoments monst
-  status' = decayStatusEffects status
+  status' = decayStatusEffects baseActionPointsPerFrame status
   mtype = monstType monst
   status = monstStatus monst
 

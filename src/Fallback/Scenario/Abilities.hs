@@ -44,7 +44,8 @@ import Fallback.State.Item (WeaponData(..), unarmedWeaponData)
 import Fallback.State.Party
 import Fallback.State.Resources (ProjTag(..), SoundTag(..), StripTag(..))
 import Fallback.State.Simple
-import Fallback.State.Status (Invisibility(..), seApplyArmor)
+import Fallback.State.Status
+  (HarmOrBenefit(..), Invisibility(..), seApplyDefense)
 import Fallback.State.Tags
   (AbilityTag(..), MonsterTag(..), abilityClassAndNumber, abilityName,
    classAbility)
@@ -257,8 +258,8 @@ getAbility characterClass abilityNumber rank =
         concurrent_ hitTargets $ \hitTarget -> do
           randMult <- getRandomR 0.9 1.1
           -- TODO: add doodad, maybe wait a bit before applying status
-          let armor = randMult * power * intBonus * ranked 0.2 0.4 0.6
-          alterStatus hitTarget (seApplyArmor armor)
+          let rounds = randMult * power * intBonus * ranked 8 10 14
+          alterStatus hitTarget $ seApplyDefense $ Beneficial rounds
     Barrier ->
       general (mix Mandrake Naphtha) (wallTarget 5 $ ranked 1 2 3) $
       \caster power (endPos, targets) -> do
@@ -715,6 +716,11 @@ abilityDescription PoisonGas =
   \ within.\n\
   \At rank 2, the gas is even more poisonous.\n\
   \At rank 3, the range of the spell is increased."
+abilityDescription ArmorAura =
+  "Increase the armor of all allies for a short time, reducing physical damage\
+  \ taken by 25%.\n\
+  \At rank 2, the effect lasts longer.\n\
+  \At rank 3, the effect lasts a very long time."
 abilityDescription Drain =
   "Drain the health of all creatures in an area, and distribute the stolen\
   \ health among all allies.\n\

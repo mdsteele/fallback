@@ -177,8 +177,8 @@ paintStatusDecorations resources cameraTopleft clock prect status = do
   let centerPlus x y = rectCenter rect `pAdd` Point x y
   let spinTheta = fromIntegral (clockMod 60 1 clock) * (pi / 30)
   -- TODO decoration for bless/curse
-  case seDefenseOrdering status of
-    LT -> do
+  case seDefense status of
+    Harmful _ -> do
       let offset = 3 + clockZigzag 4 5 clock
       let offsetX = fromIntegral (offset * rectW prect)
           offsetY = fromIntegral (offset * rectH prect)
@@ -190,23 +190,23 @@ paintStatusDecorations resources cameraTopleft clock prect status = do
       paint 1 1 (pi / 2)
       paint (negate 1) 1 pi
       paint (negate 1) (negate 1) (3 * pi / 2)
-    EQ -> return ()
-    GT -> do
+    Unaffected -> return ()
+    Beneficial _ -> do
       let paint th =
             blitRotateTinted (Tint 255 255 255 192) (sdDefenseSprite decor)
               (centerPlus ((halfW - 2) * cos th) ((halfH - 2) * sin th)) th
       mapM_ paint [spinTheta, spinTheta + pi/2, spinTheta + pi,
                    spinTheta - pi/2]
-  case seHasteOrdering status of
-    LT -> do
+  case seHaste status of
+    Harmful _ -> do
       let offsetX = fromIntegral ((4 + clockZigzag 4 5 clock) * rectW prect)
       let paint signx theta =
             blitRotate (sdSlowSprite decor)
             (centerPlus (signx * (halfW - offsetX)) 0) theta
       paint 1 pi
       paint (negate 1) 0
-    EQ -> return ()
-    GT -> do
+    Unaffected -> return ()
+    Beneficial _ -> do
       forM_ [0 .. 15] $ \index -> do
         let radius = (index + clockMod 16 2 clock) `mod` 16
         when (radius < 8) $ do

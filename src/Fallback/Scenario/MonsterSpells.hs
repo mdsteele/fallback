@@ -30,7 +30,6 @@ import Fallback.Scenario.Script
 import Fallback.State.Area
 import Fallback.State.Resources (StripTag(..))
 import Fallback.State.Simple
-import Fallback.State.Status
 import Fallback.State.Tags (MonsterSpellTag(..))
 import Fallback.Utility (flip3)
 
@@ -57,11 +56,7 @@ tryMonsterSpell FireSpray ge = do
     wait 4
     dealDamage [(HitPosition target, FireDamage, 30)]
     wait 20
-tryMonsterSpell IceBomb ge = do
-  ifRandom 0.5 $ do
-  alterStatus (HitMonster $ Grid.geKey ge)
-              (seApplyArmor (-10) . seApplyHaste (10))
-  --alterStatus (HitMonster $ geKey ge) (seApplyArmor (-10) . seApplyMagicShield 10)
+tryMonsterSpell IceBomb _ge = do return False -- FIXME
 
 -------------------------------------------------------------------------------
 

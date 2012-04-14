@@ -687,9 +687,9 @@ inflictAllPeriodicDamage = do
         poison <- (basePoison *) <$> getRandomR 0.8 1.2
         Nothing <$ inflictPoison (HitPosition pos) poison
       SmokeScreen _ -> return Nothing
-      Webbing ent -> do
+      Webbing rounds -> do
         -- FIXME if something's there, remove the webbing
-        Nothing <$ alterStatus (HitPosition pos) (seApplyEntanglement ent)
+        Nothing <$ alterStatus (HitPosition pos) (seApplyEntanglement rounds)
   charNums <- getAllConsciousCharacters
   party <- areaGet arsParty
   charPoisonDamages <- fmap catMaybes $ forM charNums $ \charNum -> do

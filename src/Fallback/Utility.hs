@@ -61,7 +61,7 @@ foreign import ccall unsafe "math.h hypot" c_hypot ::
   CDouble -> CDouble -> CDouble
 
 -- | Return 'True' if the number is non-infinite and non-NaN, 'False'
---   otherwise.
+-- otherwise.
 isFinite :: Double -> Bool
 isFinite x = not (isNaN x || isInfinite x)
 

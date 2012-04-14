@@ -18,99 +18,137 @@
 ============================================================================ -}
 
 module Fallback.State.Status
-  (StatusEffects, initStatusEffects, decayStatusEffects,
+  (HarmOrBenefit(..),
+   StatusEffects, initStatusEffects, decayStatusEffects,
    -- * Getters
-   seBlessingOrdering, --seBlessingMultiplier,
-   seDefenseOrdering, seArmorMultiplier,
-   seHasteOrdering, seSpeedMultiplier,
+   seBlessing, --seBlessingMultiplier,
+   seDefense, seArmorMultiplier,
+   seHaste, seSpeedMultiplier,
    sePoison,
    seInvisibility, Invisibility(..),
    seMentalEffect, MentalEffect(..),
    seIsEntangled,
    seIsShielded, seMagicShieldMultiplier,
    -- * Setters and modifiers
-   seAlterPoison, seApplyArmor, seApplyEntanglement, seApplyHaste,
-   seApplyMagicShield, seSetInvisibility, seWakeFromDaze,
+   seAlterPoison, seApplyBlessing, seApplyDefense, seApplyEntanglement,
+   seApplyHaste, seApplyMagicShield, seSetInvisibility, seWakeFromDaze,
    -- * Utilities
    compress, townifyStatus)
 where
 
-import Fallback.Constants (secondsPerFrame)
+import Control.Exception (assert)
+import Data.Maybe (isJust)
+
+import Fallback.Utility (isFinite)
+
+-------------------------------------------------------------------------------
+
+-- | Represents the state of a status effect that can be negative (harmful) or
+-- postitive (beneficial).  The 'Double' represents the time remaining, in
+-- combat rounds, of the effect, and must always be finite and positive.
+data HarmOrBenefit = Harmful Double
+                   | Unaffected
+                   | Beneficial Double
+  deriving (Read, Show)
+
+mergeHarmOrBenefit :: HarmOrBenefit -> HarmOrBenefit -> HarmOrBenefit
+mergeHarmOrBenefit hb1 hb2 = merge (validate hb1) (validate hb2) where
+  merge hb Unaffected = hb
+  merge Unaffected hb = hb
+  merge (Harmful h) (Beneficial b) = counter h b
+  merge (Beneficial b) (Harmful h) = counter h b
+  merge (Harmful x) (Harmful y) = Harmful (stack x y)
+  merge (Beneficial x) (Beneficial y) = Beneficial (stack x y)
+
+  counter harm bene =
+    case compare harm bene of
+      GT -> Harmful (harm - bene)
+      EQ -> Unaffected
+      LT -> Beneficial (bene - harm)
+
+  -- When stacking two harms (or two benefits), the resulting duration is the
+  -- geometric mean of the max and the sum.  Thus, if one of the effects is
+  -- zero (or rather, nearly zero), you get the full effect of the other, but
+  -- otherwise you get a reduced effect.
+  stack a b = sqrt (max a b * (a + b))
+
+  validate (Harmful a) = assert (isFinite a && a > 0) (Harmful a)
+  validate Unaffected = Unaffected
+  validate (Beneficial a) = assert (isFinite a && a > 0) (Beneficial a)
+
+mergeMaybe :: Double -> Maybe Double -> Maybe Double
+mergeMaybe a Nothing = Just a
+mergeMaybe a (Just b) =
+  assert (isFinite b && b > 0) $ Just $ sqrt (max a b * (a + b))
 
 -------------------------------------------------------------------------------
 
 data StatusEffects = StatusEffects
-  { seEntanglement :: Double {-seconds remaining-},
+  { seBlessing :: HarmOrBenefit,
+    seDefense :: HarmOrBenefit,
+    seEntanglement :: Maybe Double, -- rounds remaining
+    seHaste :: HarmOrBenefit,
     seInvisibility :: Maybe Invisibility,
-    seMentalEffect :: Maybe (MentalEffect, Double {-seconds remaining-}),
-    sePoison :: Int, -- damage remaining
-    seRawBlessing :: Double,
-    seRawDefense :: Double,
-    seRawHaste :: Double,
-    seRawMagicShield :: Double }
+    seMagicShield :: Maybe Double, -- rounds remaining
+    seMentalEffect :: Maybe (MentalEffect, Double {-rounds remaining-}),
+    sePoison :: Int } -- damage remaining
   deriving (Read, Show)
 
 initStatusEffects :: StatusEffects
 initStatusEffects = StatusEffects
-  { seEntanglement = 0,
+  { seBlessing = Unaffected,
+    seDefense = Unaffected,
+    seEntanglement = Nothing,
+    seHaste = Unaffected,
     seInvisibility = Nothing,
+    seMagicShield = Nothing,
     seMentalEffect = Nothing,
-    sePoison = 0,
-    seRawBlessing = 0,
-    seRawDefense = 0,
-    seRawHaste = 0,
-    seRawMagicShield = 0 }
+    sePoison = 0 }
 
-decayStatusEffects :: StatusEffects -> StatusEffects
-decayStatusEffects se =
-  se { seEntanglement = max 0 (seEntanglement se - secondsPerFrame),
+decayStatusEffects :: Double -> StatusEffects -> StatusEffects
+decayStatusEffects rounds se =
+  se { seBlessing = decayHarmOrBenefit (seBlessing se),
+       seDefense = decayHarmOrBenefit (seDefense se),
+       seEntanglement = decayMaybe (seEntanglement se),
+       seHaste = decayHarmOrBenefit (seHaste se),
+       seMagicShield = decayMaybe (seMagicShield se),
        seMentalEffect =
          case seMentalEffect se of
            Nothing -> Nothing
-           Just (eff, t) ->
-             let t' = t - secondsPerFrame
-             in if t' <= 0 then Nothing else Just (eff, t'),
-       seRawBlessing = decay 2 (seRawBlessing se),
-       seRawDefense = decay 2 (seRawDefense se),
-       seRawHaste = decay 2 (seRawHaste se),
-       seRawMagicShield = decay 2 (seRawMagicShield se) }
-  where decay halflife x = if abs x < 0.001 then 0
-                           else x * exp (secondsPerFrame * log 0.5 / halflife)
+           Just (eff, t) -> decay (Just . (,) eff) Nothing t }
+  where
+    decayMaybe = (>>= decay Just Nothing)
+    decayHarmOrBenefit (Harmful x) = decay Harmful Unaffected x
+    decayHarmOrBenefit Unaffected = Unaffected
+    decayHarmOrBenefit (Beneficial x) = decay Beneficial Unaffected x
+    decay just none x = if x > rounds then just (x - rounds) else none
 
 -------------------------------------------------------------------------------
 -- Getters:
 
--- | Return 'GT' if the creature is blessed, 'LT' if the creature is cursed, or
--- 'EQ' for neither.
-seBlessingOrdering :: StatusEffects -> Ordering
-seBlessingOrdering se = compare (seRawBlessing se) 0
-
--- | Return 'GT' if defense is increased, 'LT' if defense is decreased, or 'EQ'
--- for neither.
-seDefenseOrdering :: StatusEffects -> Ordering
-seDefenseOrdering se = compare (seRawDefense se) 0
-
 seArmorMultiplier :: StatusEffects -> Double
-seArmorMultiplier se = 1 - compress 0.75 (seRawDefense se)
-
--- | Return 'GT' if the creature is hasted, 'LT' if the creature is slowed, or
--- 'EQ' for neither.
-seHasteOrdering :: StatusEffects -> Ordering
-seHasteOrdering se = compare (seRawHaste se) 0
+seArmorMultiplier se =
+  case seDefense se of
+    Harmful _ -> 1.25
+    Unaffected -> 1
+    Beneficial _ -> 0.75
 
 seSpeedMultiplier :: StatusEffects -> Double
 seSpeedMultiplier se =
   if fmap fst (seMentalEffect se) == Just DazedEffect then 0 else
-    exp $ compress (log 2) $ seRawHaste se
+    case seHaste se of
+      Harmful _ -> 2/3
+      Unaffected -> 1
+      Beneficial _ -> 1.5
 
 seIsEntangled :: StatusEffects -> Bool
-seIsEntangled se = seEntanglement se > 0
+seIsEntangled = isJust . seEntanglement
 
 seIsShielded :: StatusEffects -> Bool
-seIsShielded se = seRawMagicShield se > 0
+seIsShielded = isJust . seMagicShield
 
 seMagicShieldMultiplier :: StatusEffects -> Double
-seMagicShieldMultiplier se = 1 - compress 0.75 (seRawMagicShield se)
+seMagicShieldMultiplier = maybe 1 (const 0.5) . seMagicShield
 
 -------------------------------------------------------------------------------
 -- Setters:
@@ -118,18 +156,24 @@ seMagicShieldMultiplier se = 1 - compress 0.75 (seRawMagicShield se)
 seAlterPoison :: (Int -> Int) -> StatusEffects -> StatusEffects
 seAlterPoison fn status = status { sePoison = max 0 $ fn (sePoison status) }
 
-seApplyArmor :: Double -> StatusEffects -> StatusEffects
-seApplyArmor delta se = se { seRawDefense = delta + seRawDefense se }
+seApplyBlessing :: HarmOrBenefit -> StatusEffects -> StatusEffects
+seApplyBlessing hb se =
+  se { seBlessing = mergeHarmOrBenefit hb (seBlessing se) }
 
+seApplyDefense :: HarmOrBenefit -> StatusEffects -> StatusEffects
+seApplyDefense hb se = se { seDefense = mergeHarmOrBenefit hb (seDefense se) }
+
+-- | Add (approximately) the given amount of entanglement, in rounds.
 seApplyEntanglement :: Double -> StatusEffects -> StatusEffects
-seApplyEntanglement _ = id -- FIXME
+seApplyEntanglement x se =
+  se { seEntanglement = mergeMaybe x (seEntanglement se) }
 
-seApplyHaste :: Double -> StatusEffects -> StatusEffects
-seApplyHaste delta se = se { seRawHaste = delta + seRawHaste se }
+seApplyHaste :: HarmOrBenefit -> StatusEffects -> StatusEffects
+seApplyHaste hb se = se { seHaste = mergeHarmOrBenefit hb (seHaste se) }
 
 seApplyMagicShield :: Double -> StatusEffects -> StatusEffects
-seApplyMagicShield delta se =
-  se { seRawMagicShield = delta + seRawMagicShield se }
+seApplyMagicShield x se =
+  se { seMagicShield = mergeMaybe x (seMagicShield se) }
 
 seSetInvisibility :: Maybe Invisibility -> StatusEffects -> StatusEffects
 seSetInvisibility mbInvis se = se { seInvisibility = mbInvis }
@@ -162,8 +206,7 @@ compress limit value = 2 * limit / (1 + exp (-2 * value / limit)) - limit
 
 townifyStatus :: StatusEffects -> StatusEffects
 townifyStatus status = status
-  { seEntanglement = 0,
-    seInvisibility = Nothing,
+  { seInvisibility = Nothing,
     seMentalEffect = Nothing }
 
 -------------------------------------------------------------------------------
