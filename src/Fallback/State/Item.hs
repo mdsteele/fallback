@@ -45,6 +45,13 @@ itemName (InertItemTag tag) = inertName tag
 
 weaponName :: WeaponItemTag -> String
 weaponName ThrowingStar = "Throwing Star"
+weaponName RazorStar = "Razor Star"
+weaponName NeutronStar = "Neutron Star"
+weaponName SilverWand = "Silver Wand"
+weaponName JeweledRod = "Jeweled Rod"
+weaponName GoldenWand = "Golden Wand"
+weaponName DiamondRod = "Diamond Rod"
+weaponName ChronosScepter = "Chronos Scepter"
 weaponName tag = show tag
 
 armorName :: ArmorItemTag -> String
@@ -81,6 +88,12 @@ weaponIconCoords Dagger = (3, 3)
 weaponIconCoords Shortsword = (3, 4)
 weaponIconCoords Quarterstaff = (3, 5)
 weaponIconCoords Shortbow = (3, 6)
+weaponIconCoords Longbow = (3, 7)
+weaponIconCoords SilverWand = (4, 0)
+weaponIconCoords JeweledRod = (4, 1)
+weaponIconCoords GoldenWand = (4, 2)
+weaponIconCoords DiamondRod = (4, 3)
+weaponIconCoords ChronosScepter = (4, 4)
 weaponIconCoords _ = (0, 5) -- FIXME
 
 armorIconCoords :: ArmorItemTag -> (Int, Int)
@@ -299,7 +312,7 @@ data DamageModifier = ZeroDamage | NormalDamage | DoubleDamage | InstantKill
 getWeaponData :: WeaponItemTag -> WeaponData
 getWeaponData Sunrod = baseWeaponData
   { wdAppearance = WandAttack,
-    wdDamageBonus = 40,
+    wdDamageBonus = 20,
     wdDamageRange = (1, 6),
     wdElement = FireAttack,
     wdFeats = [Offering, SolarFlare, Energize],
@@ -317,7 +330,7 @@ getWeaponData Starspear = baseWeaponData
 getWeaponData Moonbow = baseWeaponData
   { wdAppearance = BowAttack,
     wdBonuses = (Agility += 10),
-    wdDamageBonus = 10,
+    wdDamageBonus = 7,
     wdDamageRange = (1, 7),
     wdEffects = [ExtraIceDamage 0.5],
     wdFeats = [TidalForce, Eclipse, LunarBeam],
@@ -363,9 +376,48 @@ getWeaponData Shortbow = baseWeaponData
   { wdAppearance = BowAttack,
     wdDamageBonus = 2,
     wdDamageRange = (1, 4),
-    wdFeats = [Amplify, Resonate], -- FIXME
+    wdFeats = [Shortshot],
     wdRange = Ranged 4,
     wdUsableBy = archersOnly }
+getWeaponData Longbow = baseWeaponData
+  { wdAppearance = BowAttack,
+    wdDamageBonus = 2,
+    wdDamageRange = (1, 5),
+    wdFeats = [Longshot],
+    wdRange = Ranged 5,
+    wdUsableBy = archersOnly }
+getWeaponData SilverWand = baseWeaponData
+  { wdAppearance = WandAttack,
+    wdDamageBonus = 1,
+    wdDamageRange = (1, 4),
+    wdElement = IceAttack,
+    wdFeats = [Glow],
+    wdRange = Ranged 4,
+    wdUsableBy = manaUsersOnly }
+getWeaponData JeweledRod = baseWeaponData
+  { wdAppearance = WandAttack,
+    wdDamageBonus = 1,
+    wdDamageRange = (1, 4),
+    wdElement = EnergyAttack,
+    wdFeats = [Amplify],
+    wdRange = Ranged 4,
+    wdUsableBy = castersOnly }
+getWeaponData GoldenWand = baseWeaponData
+  { wdAppearance = WandAttack,
+    wdDamageBonus = 2,
+    wdDamageRange = (1, 4),
+    wdElement = FireAttack,
+    wdFeats = [Radiate],
+    wdRange = Ranged 4,
+    wdUsableBy = manaUsersOnly }
+getWeaponData DiamondRod = baseWeaponData
+  { wdAppearance = WandAttack,
+    wdDamageBonus = 2,
+    wdDamageRange = (1, 4),
+    wdElement = EnergyAttack,
+    wdFeats = [Resonate],
+    wdRange = Ranged 4,
+    wdUsableBy = manaUsersOnly }
 getWeaponData _ = unarmedWeaponData -- FIXME
 
 -- | 'WeaponData' for unarmed attacks.
@@ -452,8 +504,15 @@ sumBonuses = foldl' addBonuses nullBonuses
 usableByAll :: TotalMap CharacterClass Bool
 usableByAll = makeTotalMap (const True)
 
+castersOnly :: TotalMap CharacterClass Bool
+castersOnly = makeTotalMap $ \c ->
+  c == AlchemistClass || c == ClericClass || c == MagusClass
+
 archersOnly :: TotalMap CharacterClass Bool
 archersOnly = makeTotalMap $ \c -> c == RogueClass || c == HunterClass
+
+manaUsersOnly :: TotalMap CharacterClass Bool
+manaUsersOnly = makeTotalMap $ \c -> c == ClericClass || c == MagusClass
 
 warriorsOnly :: TotalMap CharacterClass Bool
 warriorsOnly = makeTotalMap (== WarriorClass)

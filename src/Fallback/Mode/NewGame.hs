@@ -146,7 +146,7 @@ newParty spec = do
           partyFoundAreas = Set.empty,
           partyIngredients =
             makeTotalMap ((numHAs *) . ingredientStartQuantity),
-          partyItems = IntMap.fromList $ zip [0..] ([PotionItemTag HealingTincture, InertItemTag IronKey, ArmorItemTag AdamantPlate, AccessoryItemTag TitanFists] ++ map WeaponItemTag [Sunrod, Starspear, Moonbow, Lifeblade]), -- FIXME
+          partyItems = IntMap.fromList $ zip [0..] ([PotionItemTag HealingTincture, InertItemTag IronKey, ArmorItemTag AdamantPlate, AccessoryItemTag TitanFists] ++ map WeaponItemTag [Sunrod, Starspear, Moonbow, Lifeblade, Longbow]), -- FIXME
           partyLevel = 1,
           partyProgress = initialProgress }
   let healChar char = char { chrHealth = chrMaxHealth party char,

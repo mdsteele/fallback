@@ -27,6 +27,8 @@ import Fallback.Constants (maxAdrenaline)
 import qualified Fallback.Data.Grid as Grid (geKey)
 import Fallback.Scenario.Script
 import Fallback.State.Action
+import Fallback.State.Area (arsGetCharacter)
+import Fallback.State.Party (chrEquippedWeaponData)
 import Fallback.State.Resources
 import Fallback.State.Simple
 import Fallback.State.Status (Invisibility(..))
@@ -64,11 +66,21 @@ featEffect Eclipse =
       -- TODO add doodad and wait
       grantInvisibility hitTarget MajorInvisibility
 featEffect Shortshot =
-  StandardFeat (SingleTarget . (subtract 1)) $ \_caster _target -> do
-    return () -- FIXME
+  StandardFeat (SingleTarget . (subtract 1)) $ \caster target -> do
+    char <- areaGet (arsGetCharacter caster)
+    let wd = chrEquippedWeaponData char
+    characterWeaponInitialAnimation caster target wd
+    (critical, damage) <- characterWeaponChooseCritical char =<<
+                          characterWeaponBaseDamage char wd
+    characterWeaponHit wd target critical (damage * 1.5)
 featEffect Longshot =
-  StandardFeat (SingleTarget . (+ 3)) $ \_caster _target -> do
-    return () -- FIXME
+  StandardFeat (SingleTarget . (+ 3)) $ \caster target -> do
+    char <- areaGet (arsGetCharacter caster)
+    let wd = chrEquippedWeaponData char
+    characterWeaponInitialAnimation caster target wd
+    (critical, damage) <- characterWeaponChooseCritical char =<<
+                          characterWeaponBaseDamage char wd
+    characterWeaponHit wd target critical (damage * 1.25)
 featEffect Glow = MetaAbility OneThirdCost 1
 featEffect Amplify = MetaAbility NormalCost 1.5
 featEffect Radiate = MetaAbility ZeroCost 1
@@ -141,6 +153,7 @@ featIconCoords LunarBeam = (8, 2)
 featIconCoords PulseOfLife = (9, 0)
 featIconCoords Avatar = (9, 1)
 featIconCoords AllCreation = (9, 2)
+featIconCoords Shortshot = (7, 5)
 featIconCoords Longshot = (7, 4)
 featIconCoords Multishot = (7, 3)
 featIconCoords _ = (6, 3) -- FIXME
