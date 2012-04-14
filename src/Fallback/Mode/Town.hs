@@ -52,7 +52,7 @@ import Fallback.Scenario.Areas (enterPartyIntoArea)
 import Fallback.Scenario.MonsterAI (monsterTownStep)
 import Fallback.Scenario.Potions (runPotionAction)
 import Fallback.Scenario.Script
-  (alsoWith, alterAdrenaline, concurrentAny, grantExperience,
+  (also_, alsoWith, alterAdrenaline, concurrentAny, grantExperience,
    inflictAllPeriodicDamage, partyWalkTo, setMessage, teleport)
 import Fallback.Sound (playSound)
 import Fallback.State.Action
@@ -509,6 +509,8 @@ executeEffect ts eff sfn =
         EffAreaCommon eff'' -> do
           (result, ts') <- executeAreaCommonEffect eff'' ts
           return (ts', Right $ sfn result)
+        EffFork script ->
+          return (ts, Right (mapEffect EffTownArea script `also_` sfn ()))
         EffGameOver -> return (ts, Left DoGameOver)
         EffIfCombat _ script -> return (ts, Right (script >>= sfn))
         EffMultiChoice text choices cancel ->

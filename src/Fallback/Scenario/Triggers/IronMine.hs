@@ -150,8 +150,8 @@ compileIronMine globals = compileArea IronMine Nothing $ do
             shakeCamera 20 20
             playSound SndBoomBig
             let pt = positionCenter (Point 26 26) `pSub` Point 0 18
-            also_ (doExplosionDoodad FireBoom pt)
-                  (wait 5 >> resetTerrain wallPositions)
+            forkScript $ doExplosionDoodad FireBoom pt
+            wait 5 >> resetTerrain wallPositions
     let desc = if not cartFull then "It is currently empty."
                else "It is currently full of very heavy boulders."
     let canFill = cartLoc == 4 && not cartFull

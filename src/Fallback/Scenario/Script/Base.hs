@@ -24,7 +24,7 @@ module Fallback.Scenario.Script.Base
    FromAreaEffect(..), ToAreaEffect(..), emitAreaEffect, areaGet,
    -- * Control
    wait, alsoWith, also_, concurrent, concurrent_, concurrentAny,
-   whenCombat, unlessCombat, whenDifficulty,
+   forkScript, whenCombat, unlessCombat, whenDifficulty,
    -- * Query
    HitTarget(..), getHitTargetOccupant,
    lookupMonsterEntry, demandMonsterEntry, withMonsterEntry,
@@ -139,6 +139,13 @@ concurrent_ list fn = foldr also_ (return ()) $ map fn list
 concurrentAny :: (FromAreaEffect f) => [a] -> (a -> Script f Bool)
               -> Script f Bool
 concurrentAny list fn = foldr (alsoWith (||)) (return False) $ map fn list
+
+-- TODO: It'd be nice to generalize this to Script f () -> Script f ().  The
+-- problem is that we'd probably need to use EffIfCombat, which breaks
+-- concurrency.  See the comment next to the declaration for EffIfCombat.
+-- | Run the given sub-script in parallel with the rest of the script.
+forkScript :: (FromAreaEffect f) => Script AreaEffect () -> Script f ()
+forkScript = emitAreaEffect . EffFork
 
 -- | Run the given script if we are in town mode, otherwise do nothing.
 unlessCombat :: (FromAreaEffect f) => Script TownEffect () -> Script f ()

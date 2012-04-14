@@ -607,6 +607,8 @@ executeEffect cs eff sfn =
         EffAreaCommon eff'' -> do
           (result, cs') <- executeAreaCommonEffect eff'' cs
           return (cs', sfn result, Nothing)
+        EffFork script ->
+          return (cs, mapEffect EffCombatArea script `also_` sfn (), Nothing)
         EffGameOver -> return (cs, sfn (), Just DoGameOver)
         EffIfCombat script _ -> return (cs, script >>= sfn, Nothing)
         EffMultiChoice _ _ _ ->

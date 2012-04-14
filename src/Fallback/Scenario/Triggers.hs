@@ -41,7 +41,6 @@ import Fallback.State.Progress (Progress)
 import Fallback.State.Resources
 import Fallback.State.Simple
 import Fallback.State.Tags
-import Fallback.State.Terrain (terrainGetTile)
 import Fallback.Utility (firstJust, flip3, maybeM, whenM)
 
 -------------------------------------------------------------------------------
@@ -157,8 +156,6 @@ scenarioTriggers = compileScenario $ do
         \ beginning to set over the western peaks.\n\n\
         \You know very little about this village, but it's a remote town in\
         \ dangerous territory; surely {i}they'll{_} have some quests for you!"
-      tile <- areaGet (terrainGetTile (Point 10 10) . arsTerrain)
-      emitAreaEffect $ EffSetTerrain [(Point 20 5, tile)]
 
     once 741589 (isSecondTimeThroughLongvale `andP`
                  walkOff startingPosition) $ do

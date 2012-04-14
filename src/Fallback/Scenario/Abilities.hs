@@ -306,8 +306,8 @@ getAbility characterClass abilityNumber rank =
             return ()
         shakeCamera 20 20
         playSound SndBoomBig
-        also_ (doExplosionDoodad FireBoom $ positionCenter endPos)
-              (wait 5 >> dealDamage hits)
+        forkScript $ doExplosionDoodad FireBoom $ positionCenter endPos
+        wait 5 >> dealDamage hits
     Healing ->
       general (ManaCost 4) (AllyTarget 8) $ \caster power eith -> do
         intBonus <- getIntellectBonus caster
@@ -427,11 +427,11 @@ getAbility characterClass abilityNumber rank =
                 inflictPoison (HitPosition target) poison
               dealDamage [(HitPosition target, AcidDamage, damage)]
               wait 12
-        also_ (hit center) $ do
-          concurrent_ (delete center targets) $ \target -> do
-            speed <- getRandomR 150 250
-            addBallisticDoodad AcidProj center target speed >>= wait
-            hit target
+        forkScript $ hit center
+        concurrent_ (delete center targets) $ \target -> do
+          speed <- getRandomR 150 250
+          addBallisticDoodad AcidProj center target speed >>= wait
+          hit target
     Invisibility ->
       combat (ManaCost 5) (AllyTarget 6) $
       \_caster _power eith -> do

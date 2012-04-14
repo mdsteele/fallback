@@ -420,7 +420,12 @@ data AreaCommonEffect :: * -> * where
 data AreaEffect :: * -> * where
   EffAreaCommon :: AreaCommonEffect a -> AreaEffect a
 --   EffConversation :: Script TalkEffect a -> AreaEffect a
+  EffFork :: Script AreaEffect () -> AreaEffect ()
   EffGameOver :: AreaEffect ()
+  -- TODO: As currently implemented, EffIfCombat breaks concurrency.  That is,
+  -- we stop the world and execute the sub-script, with other "threads" unable
+  -- to continue until the sub-script finishes, even if the sub-script contains
+  -- EffWait.  Is it possible to make these two play nice together?
   EffIfCombat :: Script CombatEffect a -> Script TownEffect a -> AreaEffect a
   EffMultiChoice :: String -> [(String, a)] -> Maybe a -> AreaEffect a
   EffNarrate :: String -> AreaEffect ()
