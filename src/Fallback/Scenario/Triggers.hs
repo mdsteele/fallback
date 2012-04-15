@@ -857,23 +857,51 @@ scenarioTriggers = compileScenario $ do
     return ()
 
   compileArea SewerCaves Nothing $ do
-    makeExit 762040 Holmgare (Rect 20 42 5 2) (Point 21 40)
+    makeExit 762040 Holmgare (Rect 30 42 5 2) (Point 32 40)
 
   compileArea PerilousRoad Nothing $ do
-    makeExit 962886 Holmgare (Rect 0 18 2 15) (Point 3 25)
+    makeExit 962886 Holmgare (Rect 0 4 2 5) (Point 3 6)
+    makeExit 244612 StoneBridge (Rect 13 4 2 5) (Point 11 6)
+    makeExit 289083 IcyConfluence (Rect 8 0 5 2) (Point 10 3)
 
-  compileArea StoneBridge Nothing $ return ()
-  compileArea Tragorda Nothing $ return ()
-  compileArea WhistlingWoods Nothing $ return ()
-  compileArea IcyConfluence Nothing $ return ()
-  compileArea Marata Nothing $ return ()
+  compileArea StoneBridge Nothing $ do
+    makeExit 754308 PerilousRoad (Rect 0 4 2 5) (Point 3 6)
+    makeExit 651111 Tragorda (Rect 13 4 2 5) (Point 11 6)
+
+  compileArea Tragorda Nothing $ do
+    makeExit 420006 StoneBridge (Rect 0 2 2 40) (Point 3 22)
+    makeExit 473842 WhistlingWoods (Rect 2 0 51 2) (Point 19 3)
+    makeExit 366747 Duskwood (Rect 53 2 2 40) (Point 51 20)
+
+  compileArea WhistlingWoods Nothing $ do
+    makeExit 434231 IcyConfluence (Rect 0 3 2 5) (Point 3 5)
+    makeExit 598625 Tragorda (Rect 5 10 5 2) (Point 7 8)
+    makeExit 495591 Duskwood (Rect 13 3 2 5) (Point 11 5)
+
+  compileArea IcyConfluence Nothing $ do
+    makeExit 487271 PerilousRoad (Rect 0 3 2 6) (Point 3 6)
+    makeExit 009036 Marata (Rect 4 0 7 2) (Point 7 3)
+    makeExit 005531 WhistlingWoods (Rect 13 3 2 6) (Point 11 6)
+
+  compileArea Marata Nothing $ do
+    makeExit 806315 IcyConfluence (Rect 9 42 6 2) (Point 11 40)
+    makeExit 783351 IronMine (Rect 38 0 8 2) (Point 41 3)
+    makeExit 653092 NorthernTundra (Rect 53 11 2 12) (Point 51 16)
 
   compileIronMine globals
 
-  compileArea NorthernTundra Nothing $ return ()
-  compileArea Duskwood Nothing $ return ()
+  compileArea NorthernTundra Nothing $ do
+    makeExit 171407 Marata (Rect 0 3 2 5) (Point 3 5)
+    makeExit 171095 Duskwood (Rect 13 3 2 5) (Point 11 5)
+
+  compileArea Duskwood Nothing $ do
+    makeExit 947379 WhistlingWoods (Rect 0 3 2 5) (Point 3 5)
+    makeExit 903733 Icehold (Rect 13 3 2 5) (Point 11 5)
+    makeExit 365950 NorthernTundra (Rect 5 0 5 2) (Point 7 3)
+    makeExit 898699 Tragorda (Rect 5 10 5 2) (Point 7 8)
 
   compileArea Icehold Nothing $ do
+    makeExit 092923 Duskwood (Rect 0 42 50 2) (Point 25 40)
     onStartDaily 789321 $ do
       addDevice_ (gStoneDoor globals) (Point 30 27)
     trigger 182832 (walkOn (Point 25 27)) $ do
@@ -926,9 +954,6 @@ setAreaCleared :: (FromAreaEffect f) => AreaTag -> Bool -> Script f ()
 setAreaCleared tag cleared = emitAreaEffect $ EffSetAreaCleared tag cleared
 
 -- 400278, 372710, 262175, 115489, 648882, 642527, 643253, 035698, 904223,
--- 915362, 041045, 514224, 762406, 999849, 390882, 028595, 542093, 092923,
--- 898699, 365950, 903733, 947379, 171095, 171407, 653092, 783351, 806315,
--- 005531, 009036, 487271, 495591, 598625, 434231, 366747, 473842, 420006,
--- 651111, 754308, 289083, 244612, 352173
+-- 915362, 041045, 514224, 762406, 999849, 390882, 028595, 542093
 
 -------------------------------------------------------------------------------

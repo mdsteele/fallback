@@ -103,11 +103,11 @@ newRegionMapView bgPath = do
       blitLoc (selectedNodeStrip ! clockZigzag 4 2 (rsClock state)) $
         LocCenter $ areaLocation $ selected
 
-    handler state (EvMouseDown pt) =
+    handler state (EvMouseDown pt) = do
       let hit tag = pDist (fromIntegral <$> pt)
                           (fromIntegral <$> areaLocation tag) <= (20 :: Double)
-      in return $ maybe Ignore Action $ fmap SelectAreaNode $ find hit $
-         regionAreas $ rsRegion state
+      return $ maybe Ignore Action $ fmap SelectAreaNode $ find hit $
+        regionAreas $ rsRegion state
     handler _ _ = return Ignore
 
   return $ View paint handler

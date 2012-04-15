@@ -57,6 +57,15 @@ areaLocation FrozenPass = Point 110 130
 areaLocation Holmgare = Point 175 170
 areaLocation SewerCaves = Point 175 130
 areaLocation PerilousRoad = Point 255 255
+areaLocation StoneBridge = Point 303 328
+areaLocation Tragorda = Point 412 335
+areaLocation WhistlingWoods = Point 386 261
+areaLocation IcyConfluence = Point 340 215
+areaLocation Marata = Point 332 164
+areaLocation IronMine = Point 351 100
+areaLocation NorthernTundra = Point 406 162
+areaLocation Duskwood = Point 473 261
+areaLocation Icehold = Point 532 184
 areaLocation _ = Point 100 100 -- FIXME
 
 areaTerrain :: Party -> AreaTag -> String

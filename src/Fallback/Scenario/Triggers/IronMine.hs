@@ -42,6 +42,9 @@ import Fallback.Utility (maybeM)
 
 compileIronMine :: Globals -> CompileScenario ()
 compileIronMine globals = compileArea IronMine Nothing $ do
+
+  makeExit 352173 Marata (Rect 42 58 10 2) (Point 46 56)
+
   -- The standard interaction radius for signs/placards:
   let signRadius = 3 :: Int
 
