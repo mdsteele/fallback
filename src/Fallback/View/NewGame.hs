@@ -59,7 +59,7 @@ initialNewGameSpec = NewGameSpec
   { ngsDifficulty = Casual,
     ngsCharacters = makeTotalMap $ \charNum ->
       case charNum of
-        Character0 -> makeNCS "Erika" WarriorClass
+        Character0 -> makeNCS "Ellen" WarriorClass
         Character1 -> makeNCS "Aedrus" HunterClass
         Character2 -> makeNCS "Daria" ClericClass
         Character3 -> makeNCS "Xoid" MagusClass }

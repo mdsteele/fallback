@@ -218,6 +218,57 @@ autoPaintTile tileset tmap pos = get $
             | all wall [c, e, s, w, n, se, sw, nw] && not (wall ne) -> 5750
             | all wall [c, e, s, w, n, sw, nw, ne] && not (wall se) -> 1212
             | otherwise -> ignore
+      | grassWall c ->
+        case nearbyTileIds of
+          (e, s, w, n, se, sw, nw, ne)
+            | all wall [e, s, w, n, se, sw, nw, ne] -> 2851
+            | all wall [c, e, w, n] && none wall [s] -> 4461
+            | all wall [c, w, n] && none wall [e, s] -> 8920
+            | all wall [c, s, w, n] && none wall [e] -> 5255
+            | all wall [c, s, w] && none wall [e, n] -> 3054
+            | all wall [c, e, s, w] && none wall [n] -> 5504
+            | all wall [c, e, s] && none wall [n, w] -> 1491
+            | all wall [c, e, s, n] && none wall [w] -> 1825
+            | all wall [c, e, n] && none wall [s, w] -> 6055
+            | all wall [c, e, s, w, n, se, nw, ne] && not (wall sw) -> 3302
+            | all wall [c, e, s, w, n, se, sw, ne] && not (wall nw) -> 3597
+            | all wall [c, e, s, w, n, se, sw, nw] && not (wall ne) -> 6745
+            | all wall [c, e, s, w, n, sw, nw, ne] && not (wall se) -> 3394
+            | otherwise -> ignore
+      | snowWall c ->
+        case nearbyTileIds of
+          (e, s, w, n, se, sw, nw, ne)
+            | all wall [e, s, w, n, se, sw, nw, ne] -> 5203
+            | all wall [c, e, w, n] && none wall [s] -> 1455
+            | all wall [c, w, n] && none wall [e, s] -> 6668
+            | all wall [c, s, w, n] && none wall [e] -> 6722
+            | all wall [c, s, w] && none wall [e, n] -> 0245
+            | all wall [c, e, s, w] && none wall [n] -> 2645
+            | all wall [c, e, s] && none wall [n, w] -> 0059
+            | all wall [c, e, s, n] && none wall [w] -> 8854
+            | all wall [c, e, n] && none wall [s, w] -> 0941
+            | all wall [c, e, s, w, n, se, nw, ne] && not (wall sw) -> 4238
+            | all wall [c, e, s, w, n, se, sw, ne] && not (wall nw) -> 1331
+            | all wall [c, e, s, w, n, se, sw, nw] && not (wall ne) -> 7167
+            | all wall [c, e, s, w, n, sw, nw, ne] && not (wall se) -> 7043
+            | otherwise -> ignore
+      | darkGrass c ->
+        case nearbyTileIds of
+          (e, s, w, n, se, sw, nw, ne)
+            | all darkg [e, s, w, n, se, sw, nw, ne] -> 3404
+            | all darkg [c, e, w, n] && none darkg [s] -> 1783
+            | all darkg [c, w, n] && none darkg [e, s] -> 8052
+            | all darkg [c, s, w, n] && none darkg [e] -> 6875
+            | all darkg [c, s, w] && none darkg [e, n] -> 2628
+            | all darkg [c, e, s, w] && none darkg [n] -> 1435
+            | all darkg [c, e, s] && none darkg [n, w] -> 3002
+            | all darkg [c, e, s, n] && none darkg [w] -> 7912
+            | all darkg [c, e, n] && none darkg [s, w] -> 3602
+            | all darkg [c, e, s, w, n, se, nw, ne] && not (darkg sw) -> 7088
+            | all darkg [c, e, s, w, n, se, sw, ne] && not (darkg nw) -> 3632
+            | all darkg [c, e, s, w, n, se, sw, nw] && not (darkg ne) -> 7401
+            | all darkg [c, e, s, w, n, sw, nw, ne] && not (darkg se) -> 8417
+            | otherwise -> ignore
       | openWater c ->
         case nearbyTileIds of
           (e, s, w, n, _, _, _, _)
@@ -267,7 +318,8 @@ autoPaintTile tileset tmap pos = get $
             | otherwise -> ignore
       | otherwise -> ignore
   where
-    wall tid = caveWall tid || buildingWall tid
+    wall tid = caveWall tid || buildingWall tid || grassWall tid ||
+               snowWall tid
     caveWall = (`elem` [1422, 8648, 7655, 7069, 9022, 9090, 2636, 8111, 5652,
                         2680, 9166, 5750, 1212, 0000])
     buildingWall = (`elem` [7292, 3112, 5588, 0983, 2330, 5719, 3254, 6250,
@@ -275,6 +327,13 @@ autoPaintTile tileset tmap pos = get $
                             0865, 7148, 9011, 6051, 6455, 0170, 1752, 5489,
                             3891, 2993, 8625, 0605, 0364, 7185, 1814, 3403,
                             5216])
+    grassWall = (`elem` [2851, 4461, 8920, 5255, 3054, 5504, 1491, 1825, 6055,
+                         3302, 3597, 6745, 3394])
+    snowWall = (`elem` [5203, 1455, 6668, 6722, 0245, 2645, 0059, 8854, 0941,
+                        4238, 1331, 7167, 7043])
+    darkGrass = (`elem` [3404, 1783, 8052, 6875, 2628, 1435, 3002, 7912, 3602,
+                         7088, 3632, 7401, 8417])
+    darkg tid = darkGrass tid || grassWall tid || tid `elem` [1953, 8040]
     caveFloor = (`elem` [1171, 6498, 8959, 4581, 9760, 1376, 0772, 0179, 6341,
                          5892, 6109, 6914, 7234, 5653, 5073, 6814, 3086, 6852,
                          0545, 5306, 4196, 3431, 4408, 3899, 0486, 2317, 9224,

@@ -160,9 +160,9 @@ tilesList = [
 
  Tile 3404 (Still 3 4) TerrainOpen darkgreen, -- dark grass
  Tile 1953 (Still 3 5) TerrainWindow gray, -- w/ rocks
+ Tile 8040 (Still 37 7) TerrainWindow gray, -- w/ boulder
 
  Tile 2851 (Still 1 10) TerrainSolid brown, -- grass wall
- Tile 5871 (Still 1 11) TerrainSolid brown,
  Tile 4461 (Still 2 2) TerrainSolid brown,
  Tile 8920 (Still 2 3) TerrainSolid brown,
  Tile 5255 (Still 2 4) TerrainSolid brown,
@@ -266,12 +266,16 @@ tilesList = [
  Tile 7551 (Still 13 5) TerrainWindow gray, -- statue
  Tile 2983 (Still 13 7) TerrainSolid brown, -- bookcase
  Tile 7576 (Still 25 4) TerrainWindow gray, -- shelving
- Tile 9720 (Still 12 9) TerrainWindow gray, -- table (east end)
- Tile 9689 (Still 12 10) TerrainWindow gray, -- table (east/west)
- Tile 8593 (Still 12 11) TerrainWindow gray, -- table (west end)
- Tile 8590 (Still 15 2) TerrainWindow gray, -- table (north end)
- Tile 9381 (Still 15 3) TerrainWindow gray, -- table (north/south)
- Tile 4094 (Still 15 4) TerrainWindow gray, -- table (south end)
+ Tile 9720 (Still 12 9) TerrainWindow gray, -- counter (east end)
+ Tile 9689 (Still 12 10) TerrainWindow gray, -- counter (east/west)
+ Tile 8593 (Still 12 11) TerrainWindow gray, -- counter (west end)
+ Tile 8590 (Still 15 2) TerrainWindow gray, -- counter (north end)
+ Tile 9381 (Still 15 3) TerrainWindow gray, -- counter (north/south)
+ Tile 4094 (Still 15 4) TerrainWindow gray, -- counter (south end)
+ Tile 8601 (Still 14 11) TerrainWindow gray, -- table (east/west)
+ Tile 5275 (Still 14 10) TerrainWindow gray, -- table (north/south)
+ Tile 0636 (Still 14 9) TerrainWindow gray, -- table w/ plates (east/west)
+ Tile 8011 (Still 14 8) TerrainWindow gray, -- table w/ plates (north/south)
  Tile 2367 (Still 13 10) TerrainWindow gray, -- chest
  Tile 9475 (Still 13 11) TerrainOpen gray, -- chair
  Tile 2060 (Still 14 2) TerrainOpen gray, -- chair
@@ -281,6 +285,7 @@ tilesList = [
  Tile 4530 (Still 23 2) TerrainWindow gray, -- bed w/ person
  Tile 8329 (Still 14 6) TerrainWindow gray, -- throne
  Tile 1231 (Still 14 7) TerrainWindow gray, -- dresser
+ Tile 3432 (Still 15 1) TerrainWindow gray, -- wardrobe
  Tile 9028 (Still 15 5) TerrainWindow gray, -- cauldron
  Tile 1969 (Still 15 7) TerrainOpen gray, -- rug
  Tile 7555 (Still 15 8) TerrainWindow gray, -- anvil
@@ -289,8 +294,10 @@ tilesList = [
  Tile 4682 (Still 44 11) TerrainWindow gray, -- wheel
  Tile 3813 (Still 12 1) TerrainOpen gray, -- stone floor w/ snow
 
- Tile 0040 (Still 15 9) TerrainOpen gray, -- white tile floor
- Tile 6711 (Still 16 4) TerrainWindow gray, -- column
+ Tile 0040 (Still 15 9) TerrainOpen lightgray, -- white tile floor
+ Tile 6711 (Still 16 4) TerrainWindow lightgray, -- column
+ Tile 5268 (Still 15 10) TerrainWindow lightgray, -- white alter
+ Tile 6392 (Still 16 3) TerrainWindow lightgray, -- throne
 
  Tile 4252 (Still 16 5) TerrainOpen green, -- green tile floor
  Tile 5404 (Still 16 8) TerrainOpen green, -- rug
@@ -322,6 +329,7 @@ tilesList = [
  Tile 9456 (Still 18 4) TerrainOpen lightgray, -- red trash
  Tile 1287 (Still 18 5) TerrainWindow lightgray, -- signpost
  Tile 4556 (Still 18 6) TerrainWindow lightgray, -- obelisk
+ Tile 8284 (Still 18 8) TerrainWindow lightgray, -- statue
  Tile 0563 (Anim 46 8 4 NoOverlay) TerrainWindow orange, -- campfire
  Tile 5643 (Still 23 7) TerrainWindow lightgray, -- stalagmites
 
@@ -477,7 +485,6 @@ tilesList = [
     purple = Color 64 16 32
     white = whiteColor
 
--- 0073, 3848, 4061, 6450, 8474, 2206, 2885, 2776, 3432, 8040, 8284, 6392,
--- 5268, 0636, 8011, 5275, 8601
+-- 0073, 3848, 4061, 6450, 8474, 2206, 2885, 2776
 
 -------------------------------------------------------------------------------
