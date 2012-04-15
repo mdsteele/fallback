@@ -38,8 +38,8 @@ module Fallback.Scenario.Script.Other
    -- ** Camera motion
    shakeCamera,
    -- ** Creature animation
-   faceCharacterToward, faceMonsterToward, facePartyToward,
-   setCharacterAnim, setMonsterAnim, setPartyAnim,
+   faceCharacterToward, faceMonsterToward, faceMonsterAwayFrom,
+   facePartyToward, setCharacterAnim, setMonsterAnim, setPartyAnim,
    getMonsterHeadPos,
 
    -- * UI
@@ -70,7 +70,7 @@ import Data.Array (range)
 import qualified Data.Foldable as Fold (any)
 import Data.List (foldl1')
 import qualified Data.Map as Map
-import Data.Maybe (catMaybes, fromMaybe, isJust, isNothing)
+import Data.Maybe (catMaybes, fromMaybe, isNothing)
 import qualified Data.Set as Set
 
 import Fallback.Constants (maxAdrenaline, momentsPerActionPoint, sightRange)
@@ -464,6 +464,17 @@ faceMonsterToward key pos = do
       emitAreaEffect $ EffReplaceMonster key $
         Just (Grid.geValue entry) { monstFaceDir = dir }
 
+faceMonsterAwayFrom :: (FromAreaEffect f) => Grid.Key Monster -> Position
+                    -> Script f ()
+faceMonsterAwayFrom key pos = do
+  faceMonsterToward key pos
+  withMonsterEntry key $ \entry -> do
+    let monst = Grid.geValue entry
+    let dir = case monstFaceDir monst of FaceLeft -> FaceRight
+                                         FaceRight -> FaceLeft
+    emitAreaEffect $ EffReplaceMonster key $
+      Just monst { monstFaceDir = dir }
+
 facePartyToward :: Position -> Script TownEffect ()
 facePartyToward pos = do
   deltaX <- pointX . (pos `pSub`) <$> getPartyPosition
@@ -752,7 +763,7 @@ wallTarget maxRange radius = AreaTarget fn maxRange where
     where
       dir = ipointDir (target `pSub` origin)
       blocked pos =
-        isJust (arsOccupant pos ars) ||
+        arsOccupied pos ars ||
         case arsTerrainOpenness pos ars of
           TerrainOpen -> False
           TerrainHover -> False

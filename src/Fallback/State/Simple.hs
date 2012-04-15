@@ -286,9 +286,14 @@ cannotSeeThrough = not . canSeeThrough
 cannotFlyOver :: TerrainOpenness -> Bool
 cannotFlyOver t = t == TerrainSolid || t == TerrainWindow
 
-cannotWalkOn :: TerrainOpenness -> Bool
-cannotWalkOn t = t /= TerrainOpen && t /= TerrainSmoke
+canWalkOn :: TerrainOpenness -> Bool
+canWalkOn t = t == TerrainOpen || t == TerrainSmoke
 
+cannotWalkOn :: TerrainOpenness -> Bool
+cannotWalkOn = not . canWalkOn
+
+-- | Change a 'TerrainOpenness' to one that cannot be seen through (but is
+-- otherwise the same).
 smokifyOpenness :: TerrainOpenness -> TerrainOpenness
 smokifyOpenness TerrainHover = TerrainHoverSmoke
 smokifyOpenness TerrainHoverSmoke = TerrainHoverSmoke

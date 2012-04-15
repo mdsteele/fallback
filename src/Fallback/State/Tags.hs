@@ -293,6 +293,9 @@ data MonsterTag = Revenant | Revenantor | MasterRevenant
                 | Vampire | Vhaegyst
                 -- Townspeople:
                 | TownManApron | TownManRed | TownWomanBlue
+                -- Rogue illusions:
+                | RogueIllusion0 | RogueIllusion1
+                | RogueIllusion2 | RogueIllusion3
   deriving (Bounded, Enum, Eq, Ix, Ord, Read, Show)
 
 data MonsterSpellTag = FireSpray | IceBomb

@@ -128,10 +128,10 @@ newResources = do
 loadMonsterImages :: CreatureSize -> IO (Array Int CreatureImages)
 loadMonsterImages size =
   case size of
-    SizeSmall -> load "monsters/small.png" 20
-    SizeWide -> load "monsters/wide.png" 1
-    SizeTall -> load "monsters/tall.png" 1
-    SizeHuge -> load "monsters/huge.png" 1
+    SizeSmall -> load "monsters/small.png" 24
+    SizeWide -> load "monsters/wide.png" 4
+    SizeTall -> load "monsters/tall.png" 3
+    SizeHuge -> load "monsters/huge.png" 2
   where
     load name rows = do
       sheet <- loadSheet name (rows, 4)

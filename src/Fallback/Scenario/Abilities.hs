@@ -35,17 +35,18 @@ import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import qualified Fallback.Data.Queue as Queue
 import Fallback.Data.TotalMap (makeTotalMap)
+import Fallback.Scenario.Monsters (makeMonster)
 import Fallback.Scenario.Script
 import Fallback.State.Action
 import Fallback.State.Area
-import Fallback.State.Creature (CreatureAnim(..), mtIsDaemonic, mtIsUndead)
+import Fallback.State.Creature
+  (CreatureAnim(..), MonsterTownAI(ChaseAI), mtIsDaemonic, mtIsUndead)
 import Fallback.State.FOV (fieldOfView)
 import Fallback.State.Item (WeaponData(..), unarmedWeaponData)
 import Fallback.State.Party
 import Fallback.State.Resources (ProjTag(..), SoundTag(..), StripTag(..))
 import Fallback.State.Simple
 import Fallback.State.Status
-  (HarmOrBenefit(..), Invisibility(..), seApplyDefense)
 import Fallback.State.Tags
   (AbilityTag(..), MonsterTag(..), abilityClassAndNumber, abilityName,
    classAbility)
@@ -171,6 +172,32 @@ getAbility characterClass abilityNumber rank =
                         prectPositions $ Grid.geRect entry') $ \_hitPos -> do
                   return () -- FIXME slash monster at hitPos
     Dodge -> PassiveAbility
+    Illusion ->
+      combat (FocusCost 1) AutoTarget $ \caster _power () -> do
+        startPos <- areaGet (arsCharacterPosition caster)
+        monsterTag <- do
+          char <- areaGet (arsGetCharacter caster)
+          return $ case chrAppearance char of
+                     Appearance0 -> RogueIllusion0
+                     Appearance1 -> RogueIllusion1
+                     Appearance2 -> RogueIllusion2
+                     Appearance3 -> RogueIllusion3
+        spots <- do
+          isOccupied <- areaGet (flip arsOccupied)
+          let okSpot pos = pos == startPos || not (isOccupied pos)
+          randomPermutation =<< take (ranked 2 3 4) . filter okSpot <$>
+            areaGet (arsAccessiblePositions startPos)
+        playSound SndIllusion
+        also_ (charWalkTo caster (head spots) >>= wait) $ do
+          concurrent_ (tail spots) $ \spot -> do
+            let monster = (makeMonster monsterTag)
+                  { monstAnim = WalkAnim 4 4 startPos,
+                    monstIsAlly = True,
+                    monstTownAI = ChaseAI }
+            mbEntry <- tryAddMonster spot monster
+            maybeM (Grid.geKey <$> mbEntry) $ \key -> do
+              faceMonsterAwayFrom key startPos
+              wait 4
     Alacrity -> PassiveAbility
     BeastCall ->
       combat (mix AquaVitae AquaVitae) AutoTarget $
@@ -211,13 +238,13 @@ getAbility characterClass abilityNumber rank =
         characterWeaponHit wd' endPos critical damage
     EagleEye -> PassiveAbility
     Fireball ->
-      combat (mix AquaVitae Naphtha) (SingleTarget 5) $
+      combat (mix AquaVitae Naphtha) (SingleTarget $ ranked 5 5 7) $
       \caster power endPos -> do
         characterBeginOffensiveAction caster endPos
         startPos <- areaGet (arsCharacterPosition caster)
         intBonus <- getIntellectBonus caster
         randMult <- getRandomR 0.9 1.1
-        let damage = ranked 10 20 35 * power * intBonus * randMult
+        let damage = ranked 10 20 30 * power * intBonus * randMult
         addBallisticDoodad FireProj startPos endPos 300.0 >>= wait
         playSound SndFireDamage
         addBoomDoodadAtPosition FireBoom 3 endPos >> wait 8
@@ -243,13 +270,15 @@ getAbility characterClass abilityNumber rank =
         setFields (FireWall damagePerRound) targets
         wait 8
     PoisonGas ->
-      combat (mix Potash AquaVitae) (aoeTarget (ranked 3 3 5) $ ofRadius 1) $
+      combat (mix Potash AquaVitae) (aoeTarget 4 $ ofRadius 1) $
       \caster power (endPos, targets) -> do
         characterBeginOffensiveAction caster endPos
         intBonus <- getIntellectBonus caster
         randMult <- getRandomR 0.9 1.1
         let damagePerRound = (ranked 16 28 36) * power * intBonus * randMult
         setFields (PoisonCloud damagePerRound) targets
+        when (rank >= Rank3) $ do
+          return () -- TODO inflict curse on the area
     ArmorAura ->
       combat (mix DryIce Limestone) AutoTarget $ \caster power () -> do
         intBonus <- getIntellectBonus caster
@@ -314,9 +343,7 @@ getAbility characterClass abilityNumber rank =
         randMult <- getRandomR 0.9 1.1
         let healAmount = randMult * intBonus * power * ranked 20 35 55
         playSound SndHeal
-        case eith of
-          Left pos -> healDamage [(HitPosition pos, healAmount)]
-          Right charNum -> healDamage [(HitCharacter charNum, healAmount)]
+        healDamage [(either HitPosition HitCharacter eith, healAmount)]
     Disruption ->
       combat (ManaCost 6) (MultiTarget (ranked 1 3 3) 4) $
       \caster power targets -> do
@@ -353,6 +380,22 @@ getAbility characterClass abilityNumber rank =
           randMult <- getRandomR 0.9 1.1
           healDamage [(target, randMult * baseHealAmount)]
           wait 1
+    LucentShield | rank < Rank3 ->
+      combat cost (AllyTarget 6) $ \caster power eith -> do
+        doSpell caster power [either HitPosition HitCharacter eith]
+                 | otherwise ->
+      combat cost AutoTarget $ \caster power () -> do
+        doSpell caster power =<< getAllAllyTargets
+      where
+        cost = ManaCost 1
+        doSpell caster power hitTargets = do
+          intBonus <- getIntellectBonus caster
+          playSound SndShielding
+          concurrent_ hitTargets $ \hitTarget -> do
+            randMult <- getRandomR 0.9 1.1
+            -- TODO: add doodad, maybe wait a bit before applying status
+            let rounds = randMult * power * intBonus * ranked 6 8 8
+            alterStatus hitTarget $ seApplyMagicShield rounds
     Sunbeam ->
       combat (ManaCost 1) beamTarget $ \caster power (endPos, targets) -> do
         characterBeginOffensiveAction caster endPos
@@ -704,6 +747,10 @@ abilityDescription FrostShot =
   "Your next ranged weapon attack deals extra cold damage to a small area.\n\
   \At rank 2, also covers the area in ice.\n\
   \At rank 3, also stuns everything in the area."
+abilityDescription Fireball =
+  "Hurl a ball of fire at a single target.\n\
+  \At rank 2, the fireball does more damage.\n\
+  \At rank 3, the fireball does even more damage and has a longer range."
 abilityDescription Cure = "Restore some health for one target.\n\
   \At rank 2, heals more damage, and also reduces poison.\n\
   \At rank 3, heals even more damage."
@@ -715,7 +762,7 @@ abilityDescription PoisonGas =
   "Fill an area with a cloud of poisonous gas, continuously poisoning those\
   \ within.\n\
   \At rank 2, the gas is even more poisonous.\n\
-  \At rank 3, the range of the spell is increased."
+  \At rank 3, also curses everything within the area."
 abilityDescription ArmorAura =
   "Increase the armor of all allies for a short time, reducing physical damage\
   \ taken by 25%.\n\
