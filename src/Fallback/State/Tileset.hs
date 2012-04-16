@@ -373,7 +373,7 @@ tilesList = [
  Tile 6025 (Still 32 11) TerrainOpen lightgray,
  Tile 7303 (Still 33 2) TerrainOpen lightgray,
  Tile 5329 (Still 33 3) TerrainOpen lightgray,
- Tile 7042 (Still 34 9) TerrainOpen lightgray, -- stalagmites
+ Tile 7042 (Still 34 9) TerrainWindow lightgray, -- stalagmites
 
  Tile 1171 (Still 26 8) TerrainOpen bluegreen, -- cave floor
  Tile 6498 (Still 26 9) TerrainOpen bluegreen, -- w/ shrooms

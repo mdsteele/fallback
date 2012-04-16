@@ -30,7 +30,7 @@ import Fallback.Data.Point
 import Fallback.Draw.Base (blitTopleft)
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
-import Fallback.Scenario.Triggers.Globals (Globals(..))
+import Fallback.Scenario.Triggers.Globals (Globals(..), signRadius)
 import Fallback.State.Area
 import Fallback.State.Resources
 import Fallback.State.Tags
@@ -44,9 +44,6 @@ compileIronMine :: Globals -> CompileScenario ()
 compileIronMine globals = compileArea IronMine Nothing $ do
 
   makeExit Marata [Rect 42 58 10 2] (Point 46 56)
-
-  -- The standard interaction radius for signs/placards:
-  let signRadius = 3 :: Int
 
   onStartDaily 244106 $ do
     addDevice_ (gAdobeDoor globals) (Point 39 29)
@@ -63,21 +60,20 @@ compileIronMine globals = compileArea IronMine Nothing $ do
       \      {i}RECORDS OFFICE{_}"
 
   once 807555 (walkIn (Rect 18 18 3 2)) $ do
-    narrate "Ulgghh.  It appears that the miners used this narrow tunnel as\
-      \ a latrine, to save them the trouble of walking all the way back\
-      \ outside the mine.  The smell of urine and garbage back here is\
-      \ awful."
+    narrate "Ulgghh.  It appears that the miners used this narrow tunnel as a\
+      \ latrine, to save themselves the trouble of walking all the way back\
+      \ outside the mine.  The smell of urine and garbage back here is awful."
 
   once 799563 (walkIn (Rect 9 1 12 9)) $ do
-    narrate "Looking upwards, you see that the miners cut a ventilation\
-      \ shaft in the ceiling of the cave here leading up to the surface\
-      \ above.  Snow has drifted down the shaft from the outside, eventually\
-      \ building up over a small patch of this chamber.\n\n\
+    narrate "Looking upwards, you see that the miners cut a ventilation shaft\
+      \ in the ceiling of the cave here leading up to the surface above.  Snow\
+      \ has drifted down the shaft from the outside, eventually building up\
+      \ over a small patch of this chamber.\n\n\
       \The air is remarkably fresh and crisp in here.  Between the snow and\
       \ the cold air, you imagine that this chamber makes a lovely nest for\
-      \ the wild ice lizard that has somehow gotten in here.  It looks up at\
-      \ you from its nap, evidentally deciding that you will make a nice\
-      \ meal."
+      \ the two wild ice lizards that have somehow gotten in here.  They look\
+      \ up at you from their nap, evidentally deciding that you will make a\
+      \ nice meal."
     -- TODO make lizard chase you (change to wide-radius guard AI)
 
   -- Mine tracks/cart state:

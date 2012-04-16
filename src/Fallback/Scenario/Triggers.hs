@@ -32,8 +32,10 @@ import qualified Data.Set as Set
 import Fallback.Data.Point
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
-import Fallback.Scenario.Triggers.Globals (Globals(..), compileGlobals)
+import Fallback.Scenario.Triggers.Globals
 import Fallback.Scenario.Triggers.IronMine (compileIronMine)
+import Fallback.Scenario.Triggers.Script
+import Fallback.Scenario.Triggers.Tragorda (compileTragorda)
 import Fallback.State.Area --(arsGetCharacter)
 import Fallback.State.Creature (MonsterTownAI(..))
 import Fallback.State.Party (chrClass)
@@ -58,11 +60,6 @@ initialProgress = scenarioInitialProgress scenarioTriggers
 
 scenarioTriggers :: ScenarioTriggers
 scenarioTriggers = compileScenario $ do
-
-  ---------------------------------- Devices ----------------------------------
-
-  -- The standard interaction radius for signs/placards:
-  let signRadius = 3 :: Int
 
   globals <- compileGlobals
 
@@ -698,7 +695,7 @@ scenarioTriggers = compileScenario $ do
         \ shambling around.  Get used to it--there's likely to be more in the\
         \ near future.\n\n\
         \Zombies are pretty stupid, but they're dangerous.  All undead are. \
-        \ They don't feel pain, they don't feel fear, and they {i}always{_}\
+        \ They don't feel fear, they don't feel pain, and they {i}always{_}\
         \ feel hunger for mortal flesh.  Even a smallish pack of zombies would\
         \ be perilous foes for warriors as inexperienced as yourselves, but\
         \ with three out of the four Astral Weapons still in your hands, you\
@@ -776,7 +773,7 @@ scenarioTriggers = compileScenario $ do
             \ then..."
           wait 6
           pos <- areaGet (arsCharacterPosition charNum)
-          -- TODO boom sound, maybe a scream?
+          playSound SndFreeze
           addBoomDoodadAtPosition IceBoom 1 pos
           dealDamage [(HitCharacter charNum, ColdDamage, 150)]
           wait 10
@@ -868,10 +865,7 @@ scenarioTriggers = compileScenario $ do
     makeExit PerilousRoad [Rect 0 4 2 5] (Point 3 6)
     makeExit Tragorda [Rect 13 4 2 5] (Point 11 6)
 
-  compileArea Tragorda Nothing $ do
-    makeExit StoneBridge [Rect 0 2 2 40] (Point 3 22)
-    makeExit WhistlingWoods [Rect 2 0 51 2] (Point 19 3)
-    makeExit Duskwood [Rect 53 2 2 40] (Point 51 20)
+  compileTragorda globals
 
   compileArea WhistlingWoods Nothing $ do
     makeExit IcyConfluence [Rect 0 3 2 5] (Point 3 5)
@@ -949,9 +943,6 @@ scenarioTriggers = compileScenario $ do
 -}
 
 -------------------------------------------------------------------------------
-
-setAreaCleared :: (FromAreaEffect f) => AreaTag -> Bool -> Script f ()
-setAreaCleared tag cleared = emitAreaEffect $ EffSetAreaCleared tag cleared
 
 -- 400278, 372710, 262175, 115489, 648882, 642527, 643253, 035698, 904223,
 -- 915362, 041045, 514224, 762406, 999849, 390882, 028595, 542093

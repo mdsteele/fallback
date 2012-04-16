@@ -20,7 +20,7 @@
 {-# LANGUAGE DoRec #-}
 
 module Fallback.Scenario.Triggers.Globals
-  (Globals(..), compileGlobals)
+  (Globals(..), compileGlobals, signRadius)
 where
 
 import qualified Fallback.Data.Grid as Grid
@@ -38,6 +38,10 @@ data Globals = Globals
   { gAdobeDoor :: Device,
     gBasaltDoor :: Device,
     gStoneDoor :: Device }
+
+-- | The standard interaction radius for signs/placards:
+signRadius :: Int
+signRadius = 3
 
 -------------------------------------------------------------------------------
 

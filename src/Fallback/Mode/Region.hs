@@ -97,8 +97,7 @@ trySelectAreaNode :: RegionState -> AreaTag -> Maybe AreaTag
 trySelectAreaNode state dest =
   let found = rsFoundAreas state
       party = rsParty state
-      -- Is there a better way to code up pure functional BFS?  Or, I suppose I
-      -- could always use the ST monad.
+      -- TODO: Use Queue type instead of list here
       bfs visited ((prev, curr) : queue) =
         if curr == dest then Just prev else
           let visited' = Set.insert curr visited
