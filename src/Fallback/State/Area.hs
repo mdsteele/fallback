@@ -118,6 +118,9 @@ arsCamera = acsCamera . arsCommon
 arsClock :: (AreaState a) => a -> Clock
 arsClock = acsClock . arsCommon
 
+arsCurrentArea :: (AreaState a) => a -> AreaTag
+arsCurrentArea = partyCurrentArea . acsParty . arsCommon
+
 arsDevices :: (AreaState a) => a -> Grid.Grid Device
 arsDevices = acsDevices . arsCommon
 
@@ -277,6 +280,12 @@ arsOccupied pos ars = isJust (arsOccupant pos ars)
 arsSetMessage :: (AreaState a) => String -> a -> a
 arsSetMessage text ars =
   arsSetCommon ars (arsCommon ars) { acsMessage = Just (makeMessage text) }
+
+-------------------------------------------------------------------------------
+
+data AreaExit = AreaExit
+  { aeDestination :: AreaTag,
+    aeRects :: [PRect] }
 
 -------------------------------------------------------------------------------
 

@@ -33,6 +33,7 @@ import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Draw
 import Fallback.Event
+import Fallback.Scenario.Triggers (getAreaExits, scenarioTriggers)
 import Fallback.State.Area
 import Fallback.State.Camera (camTopleft)
 import Fallback.State.Creature (animOffset, ciStand)
@@ -45,8 +46,6 @@ import Fallback.Utility (flip3, maybeM)
 import Fallback.View.Abilities
 import Fallback.View.Base
 import Fallback.View.Camera
-  (paintFields, paintMessage, paintMonsters, paintTargeting, paintTerrain,
-   tintNonVisibleTiles)
 import Fallback.View.Hover
 import Fallback.View.Inventory
 import Fallback.View.Sidebar
@@ -112,9 +111,10 @@ newTownMapView resources cursorSink = do
     paint ts = do
       let acs = tsCommon ts
       let cameraTopleft = camTopleft $ acsCamera acs
-      let explored = arsExploredMap ts
       -- TODO factor out duplicated code from here and Fallback.View.Combat
       paintTerrain acs
+      paintAreaExits cameraTopleft $ getAreaExits scenarioTriggers $
+        arsCurrentArea ts
       paintDoodads cameraTopleft LowDood (acsDoodads acs)
       paintFields resources cameraTopleft (acsVisible acs) (acsClock acs)
                   (acsFields acs)
@@ -122,7 +122,7 @@ newTownMapView resources cursorSink = do
                     [tsPartyPosition ts] (Grid.entries $ acsMonsters acs)
       paintParty resources cameraTopleft ts
       paintDoodads cameraTopleft MidDood (acsDoodads acs)
-      tintNonVisibleTiles cameraTopleft explored (acsVisible acs)
+      tintNonVisibleTiles acs
       paintDoodads cameraTopleft HighDood (acsDoodads acs)
       -- Paint the targeting display, if any:
       case tsPhase ts of

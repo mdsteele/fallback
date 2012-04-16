@@ -114,7 +114,7 @@ newCombatMapView resources = do
       paintCharacters resources cameraTopleft cs
       paintHealthBars cs
       paintDoodads cameraTopleft MidDood (acsDoodads acs)
-      tintNonVisibleTiles cameraTopleft (arsExploredMap cs) (acsVisible acs)
+      tintNonVisibleTiles acs
       paintDoodads cameraTopleft HighDood (acsDoodads acs)
       let paintRange cc = do
             let charNum = ccCharacterNumber cc

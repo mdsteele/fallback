@@ -431,8 +431,7 @@ newCombatMode resources modes initState = do
                 center = foldl' pAdd pZero $ map (fmap fromIntegral) positions
             in minimumKey (pDist center . fmap fromIntegral) positions
       let acs = csCommon cs
-      let townTriggers =
-            getAreaTriggers scenarioTriggers $ partyCurrentArea $ acsParty acs
+      let townTriggers = getAreaTriggers scenarioTriggers $ arsCurrentArea cs
       let wasFired = flip Set.member (csTownFiredTriggerIds cs) . triggerId
       let (monsters, extraMonsters) =
             Grid.merge (csMonstersNotInArena cs)

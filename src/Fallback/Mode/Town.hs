@@ -25,7 +25,7 @@ where
 
 import Control.Applicative ((<$), (<$>))
 import Control.Monad (forM_, guard, when)
-import Data.List (delete, partition)
+import Data.List (delete, find, partition)
 import Data.Maybe (fromMaybe, isNothing, isJust)
 import Data.IORef
 import qualified Data.Set as Set
@@ -36,7 +36,8 @@ import Fallback.Constants
 import Fallback.Control.Script
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
-  (Point(Point), Position, half, makeRect, ofRadius, plusDir, pSqDist, pSub)
+  (Point(Point), Position, half, makeRect, ofRadius, plusDir, pSqDist, pSub,
+   rectContains)
 import qualified Fallback.Data.SparseMap as SM
 import Fallback.Data.TotalMap (tmGet, unfoldTotalMap)
 import Fallback.Draw (handleScreen, paintScreen)
@@ -54,6 +55,7 @@ import Fallback.Scenario.Potions (runPotionAction)
 import Fallback.Scenario.Script
   (also_, alsoWith, alterAdrenaline, concurrentAny, grantExperience,
    inflictAllPeriodicDamage, partyWalkTo, setMessage, teleport)
+import Fallback.Scenario.Triggers (getAreaExits, scenarioTriggers)
 import Fallback.Sound (playSound)
 import Fallback.State.Action
 import Fallback.State.Area
@@ -475,8 +477,15 @@ executeTriggers ts = do
       let ts' = ts { tsTriggersFired = activeTrigger : stillFired,
                      tsTriggersReady = inactive ++ remaining ++ newlyReady }
       in executeScript executeTriggers ts' (triggerAction activeTrigger)
-    [] -> return (ts { tsTriggersFired = stillFired,
-                       tsTriggersReady = inactive ++ newlyReady }, Nothing)
+    [] -> return $ checkForAreaExit $
+          ts { tsTriggersFired = stillFired,
+               tsTriggersReady = inactive ++ newlyReady }
+
+checkForAreaExit :: TownState -> (TownState, Maybe Interrupt)
+checkForAreaExit ts =
+  let isActive = any (flip rectContains $ tsPartyPosition ts) . aeRects
+  in (ts, fmap (DoExit . aeDestination) $ find isActive $
+          getAreaExits scenarioTriggers $ arsCurrentArea ts)
 
 executeScript :: (TownState -> IO (TownState, Maybe Interrupt)) -> TownState
               -> Script TownEffect () -> IO (TownState, Maybe Interrupt)

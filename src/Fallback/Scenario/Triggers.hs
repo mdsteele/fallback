@@ -19,7 +19,7 @@
 
 module Fallback.Scenario.Triggers
   (startingArea, startingPosition, scenarioTriggers, initialProgress,
-   getAreaDevice, getAreaEntrance, getAreaLinks, getAreaTerrain,
+   getAreaDevice, getAreaEntrance, getAreaExits, getAreaLinks, getAreaTerrain,
    getAreaTriggers, getRegionBackground)
 where
 
@@ -124,7 +124,7 @@ scenarioTriggers = compileScenario $ do
 
   compileArea MountainPath Nothing $ do
 
-    makeExit 293832 Corenglen (Rect 35 41 5 5) (Point 32 40)
+    makeExit Corenglen [Rect 35 41 5 5] (Point 32 40)
 
     trigger 908784 (walkIn (Rect 0 0 9 2) `orP` walkIn (Rect 0 0 3 9)) $ do
       whenM (getP isFirstTimeThroughLongvale) $ do
@@ -297,7 +297,7 @@ scenarioTriggers = compileScenario $ do
 
   compileArea Corenglen Nothing $ do
 
-    makeExit 102938 MountainPath (Rect 0 10 2 12) (Point 2 16)
+    makeExit MountainPath [Rect 0 10 2 12] (Point 2 16)
 
     alwaysLockedDoor <- newDevice 963970 1 $ \_ _ -> do
       setMessage "The door is locked."
@@ -604,7 +604,7 @@ scenarioTriggers = compileScenario $ do
 
   compileArea FrozenPass Nothing $ do
 
-    makeExit 593047 Holmgare (Rect 53 37 2 5) (Point 51 38)
+    makeExit Holmgare [Rect 53 37 2 5] (Point 51 38)
 
     -- Devices:
     onStartDaily 028371 $ do
@@ -796,9 +796,9 @@ scenarioTriggers = compileScenario $ do
 
   compileArea Holmgare Nothing $ do
 
-    makeExit 181915 FrozenPass (Rect 0 3 2 8) (Point 3 7)
-    makeExit 965783 SewerCaves (Rect 34 0 3 2) (Point 36 3)
-    makeExit 555634 PerilousRoad (Rect 53 18 2 15) (Point 51 25)
+    makeExit FrozenPass [Rect 0 0 2 13, Rect 2 0 5 2] (Point 3 7)
+    makeExit SewerCaves [Rect 33 0 6 2] (Point 36 3)
+    makeExit PerilousRoad [Rect 53 17 2 17] (Point 51 25)
 
     onStartDaily 472927 $ do
       setAreaCleared Holmgare True
@@ -857,51 +857,51 @@ scenarioTriggers = compileScenario $ do
     return ()
 
   compileArea SewerCaves Nothing $ do
-    makeExit 762040 Holmgare (Rect 30 42 5 2) (Point 32 40)
+    makeExit Holmgare [Rect 29 42 7 2] (Point 32 40)
 
   compileArea PerilousRoad Nothing $ do
-    makeExit 962886 Holmgare (Rect 0 4 2 5) (Point 3 6)
-    makeExit 244612 StoneBridge (Rect 13 4 2 5) (Point 11 6)
-    makeExit 289083 IcyConfluence (Rect 8 0 5 2) (Point 10 3)
+    makeExit Holmgare [Rect 0 4 2 5] (Point 3 6)
+    makeExit StoneBridge [Rect 13 4 2 5] (Point 11 6)
+    makeExit IcyConfluence [Rect 8 0 5 2] (Point 10 3)
 
   compileArea StoneBridge Nothing $ do
-    makeExit 754308 PerilousRoad (Rect 0 4 2 5) (Point 3 6)
-    makeExit 651111 Tragorda (Rect 13 4 2 5) (Point 11 6)
+    makeExit PerilousRoad [Rect 0 4 2 5] (Point 3 6)
+    makeExit Tragorda [Rect 13 4 2 5] (Point 11 6)
 
   compileArea Tragorda Nothing $ do
-    makeExit 420006 StoneBridge (Rect 0 2 2 40) (Point 3 22)
-    makeExit 473842 WhistlingWoods (Rect 2 0 51 2) (Point 19 3)
-    makeExit 366747 Duskwood (Rect 53 2 2 40) (Point 51 20)
+    makeExit StoneBridge [Rect 0 2 2 40] (Point 3 22)
+    makeExit WhistlingWoods [Rect 2 0 51 2] (Point 19 3)
+    makeExit Duskwood [Rect 53 2 2 40] (Point 51 20)
 
   compileArea WhistlingWoods Nothing $ do
-    makeExit 434231 IcyConfluence (Rect 0 3 2 5) (Point 3 5)
-    makeExit 598625 Tragorda (Rect 5 10 5 2) (Point 7 8)
-    makeExit 495591 Duskwood (Rect 13 3 2 5) (Point 11 5)
+    makeExit IcyConfluence [Rect 0 3 2 5] (Point 3 5)
+    makeExit Tragorda [Rect 5 10 5 2] (Point 7 8)
+    makeExit Duskwood [Rect 13 3 2 5] (Point 11 5)
 
   compileArea IcyConfluence Nothing $ do
-    makeExit 487271 PerilousRoad (Rect 0 3 2 6) (Point 3 6)
-    makeExit 009036 Marata (Rect 4 0 7 2) (Point 7 3)
-    makeExit 005531 WhistlingWoods (Rect 13 3 2 6) (Point 11 6)
+    makeExit PerilousRoad [Rect 0 3 2 6] (Point 3 6)
+    makeExit Marata [Rect 4 0 7 2] (Point 7 3)
+    makeExit WhistlingWoods [Rect 13 3 2 6] (Point 11 6)
 
   compileArea Marata Nothing $ do
-    makeExit 806315 IcyConfluence (Rect 9 42 6 2) (Point 11 40)
-    makeExit 783351 IronMine (Rect 38 0 8 2) (Point 41 3)
-    makeExit 653092 NorthernTundra (Rect 53 11 2 12) (Point 51 16)
+    makeExit IcyConfluence [Rect 9 42 8 2] (Point 11 40)
+    makeExit IronMine [Rect 37 0 9 2] (Point 41 3)
+    makeExit NorthernTundra [Rect 53 11 2 12] (Point 51 16)
 
   compileIronMine globals
 
   compileArea NorthernTundra Nothing $ do
-    makeExit 171407 Marata (Rect 0 3 2 5) (Point 3 5)
-    makeExit 171095 Duskwood (Rect 13 3 2 5) (Point 11 5)
+    makeExit Marata [Rect 0 3 2 5] (Point 3 5)
+    makeExit Duskwood [Rect 13 3 2 5] (Point 11 5)
 
   compileArea Duskwood Nothing $ do
-    makeExit 947379 WhistlingWoods (Rect 0 3 2 5) (Point 3 5)
-    makeExit 903733 Icehold (Rect 13 3 2 5) (Point 11 5)
-    makeExit 365950 NorthernTundra (Rect 5 0 5 2) (Point 7 3)
-    makeExit 898699 Tragorda (Rect 5 10 5 2) (Point 7 8)
+    makeExit WhistlingWoods [Rect 0 3 2 5] (Point 3 5)
+    makeExit Icehold [Rect 13 3 2 5] (Point 11 5)
+    makeExit NorthernTundra [Rect 5 0 5 2] (Point 7 3)
+    makeExit Tragorda [Rect 5 10 5 2] (Point 7 8)
 
   compileArea Icehold Nothing $ do
-    makeExit 092923 Duskwood (Rect 0 42 50 2) (Point 25 40)
+    makeExit Duskwood [Rect 0 42 50 2] (Point 25 40)
     onStartDaily 789321 $ do
       addDevice_ (gStoneDoor globals) (Point 30 27)
     trigger 182832 (walkOn (Point 25 27)) $ do

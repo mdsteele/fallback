@@ -42,7 +42,7 @@ import Fallback.Draw (Sprite, loadSprite)
 import Fallback.Scenario.Triggers
   (getAreaDevice, getAreaTriggers, scenarioTriggers)
 import Fallback.State.Area
-  (AreaCommonState(..), arsParty, devId, emptyDoodads, triggerId)
+  (AreaCommonState(..), arsCurrentArea, devId, emptyDoodads, triggerId)
 import Fallback.State.Camera (makeCameraWithCenter)
 import Fallback.State.Minimap (newMinimapFromTerrain)
 import Fallback.State.Party (Party(..), partyExploredMap)
@@ -71,8 +71,7 @@ data SavedGame = SavedRegionState RegionState
 -- region that the party is currently in.
 savedGameLocation :: SavedGame -> String
 savedGameLocation (SavedRegionState rs) = regionName $ rsRegion rs
-savedGameLocation (SavedTownState ts) =
-  areaName $ partyCurrentArea $ arsParty ts
+savedGameLocation (SavedTownState ts) = areaName $ arsCurrentArea ts
 
 -------------------------------------------------------------------------------
 

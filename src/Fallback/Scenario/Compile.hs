@@ -22,7 +22,7 @@
 module Fallback.Scenario.Compile
   (-- * Reading the scenario
    ScenarioTriggers, scenarioInitialProgress,
-   getAreaDevice, getAreaEntrance, getAreaLinks, getAreaTerrain,
+   getAreaDevice, getAreaEntrance, getAreaExits, getAreaLinks, getAreaTerrain,
    getAreaTriggers, getRegionBackground,
    -- * Defining the scenario
    CompileScenario, compileScenario, newGlobalVar, compileRegion, compileArea,
@@ -74,6 +74,7 @@ data ScenarioTriggers = ScenarioTriggers
 data AreaSpec = AreaSpec
   { aspecDevices :: Map.Map DeviceId Device,
     aspecEntrances :: Map.Map AreaTag Position,
+    aspecExits :: [AreaExit],
     aspecMonsterScripts :: Map.Map MonsterScriptId MonsterScript,
     aspecTerrain :: Party -> String,
     aspecTriggers :: [Trigger TownState TownEffect] }
@@ -86,6 +87,9 @@ getAreaEntrance :: ScenarioTriggers -> AreaTag -> AreaTag -> Position
 getAreaEntrance scenario tag from =
   Map.findWithDefault pZero from $ aspecEntrances $ tmGet tag $
   scenarioAreas scenario
+
+getAreaExits :: ScenarioTriggers -> AreaTag -> [AreaExit]
+getAreaExits scenario tag = aspecExits $ tmGet tag $ scenarioAreas scenario
 
 getAreaLinks :: ScenarioTriggers -> AreaTag -> [AreaTag]
 getAreaLinks scenario tag =
@@ -166,8 +170,11 @@ compileArea tag mbTerraFn (CompileArea compile) = CompileScenario $ do
                 casProgress = cssProgress css, casTriggers = [] }
   unless (Map.keysSet (casDevices cas) `Set.isSubsetOf` casDeviceIds cas) $ do
     fail ("Internal error: devices is not subset of device IDs: " ++ show tag)
+  let mkExit (dest, (prects, _)) =
+        AreaExit { aeDestination = dest, aeRects = prects }
   let aspec = AreaSpec { aspecDevices = casDevices cas,
-                         aspecEntrances = casEntrances cas,
+                         aspecEntrances = fmap snd $ casEntrances cas,
+                         aspecExits = map mkExit $ Map.assocs $ casEntrances cas,
                          aspecMonsterScripts = casMonsterScripts cas,
                          aspecTerrain = fromMaybe (const $ show tag) mbTerraFn,
                          aspecTriggers = casTriggers cas }
@@ -185,7 +192,7 @@ newtype CompileArea a = CompileArea (State.State CompileAreaState a)
 data CompileAreaState = CompileAreaState
   { casDeviceIds :: Set.Set DeviceId,
     casDevices :: Map.Map DeviceId Device,
-    casEntrances :: Map.Map AreaTag Position,
+    casEntrances :: Map.Map AreaTag ([PRect], Position),
     casMonsterScriptIds :: Set.Set MonsterScriptId,
     casMonsterScripts :: Map.Map MonsterScriptId MonsterScript,
     casProgress :: Progress,
@@ -207,14 +214,13 @@ newTransientVar vseed value = do
   onStartDaily vseed'' $ writeVar var value
   return var
 
-makeExit :: VarSeed -> AreaTag -> PRect -> Position -> CompileArea ()
-makeExit vseed tag rect pos =
-  trigger vseed (walkIn rect) (exitTo tag) >> entrance where
-    entrance = CompileArea $ do
-      cas <- State.get
-      when (Map.member tag $ casEntrances cas) $ do
-        fail ("Repeated exit: " ++ show tag)
-      State.put cas { casEntrances = Map.insert tag pos (casEntrances cas) }
+makeExit :: AreaTag -> [PRect] -> Position -> CompileArea ()
+makeExit tag rects pos = CompileArea $ do
+  cas <- State.get
+  let entrances = casEntrances cas
+  when (Map.member tag entrances) $ do
+    fail ("Repeated exit: " ++ show tag)
+  State.put cas { casEntrances = Map.insert tag (rects, pos) entrances }
 
 simpleMonster :: VarSeed -> MonsterTag -> Position -> MonsterTownAI
               -> CompileArea ()

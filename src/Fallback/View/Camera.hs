@@ -25,7 +25,7 @@ module Fallback.View.Camera
    -- * Painting fields and creatures
    paintFields, paintMonsters, paintStatusDecorations, paintHealthBars,
    -- * Painting GUI elements
-   paintMessage, paintTargeting, paintWeaponRange,
+   paintMessage, paintTargeting, paintWeaponRange, paintAreaExits,
    -- * Utility views
    newFadeToBlackView)
 where
@@ -62,34 +62,40 @@ paintTerrain acs = paintTiles (acsResources acs) (camTopleft $ acsCamera acs)
                               getTile (acsClock acs)
   where
     getTile pos = if exmap `hasExplored` pos
-                  then terrainGetTile pos terrain else terrainOffTile terrain
+                  then Just (terrainGetTile pos terrain) else Nothing
     exmap = partyExploredMap (acsTerrain acs) (acsParty acs)
     terrain = acsTerrain acs
 
 paintTerrainFullyExplored :: Resources -> IPoint -> TerrainMap -> Clock
                           -> Paint ()
 paintTerrainFullyExplored resources cameraTopleft tmap clock =
-  paintTiles resources cameraTopleft (tmapGet tmap) clock
+  paintTiles resources cameraTopleft (Just . tmapGet tmap) clock
 
-tintNonVisibleTiles :: IPoint -> ExploredMap -> Set.Set Position -> Paint ()
-tintNonVisibleTiles cameraTopleft exmap visible =
-  paintCells paintCell cameraTopleft where
-    paintCell pos rect =
-      when (exmap `hasExplored` pos && Set.notMember pos visible) $
-      tintRect (Tint 0 0 0 128) rect
+tintNonVisibleTiles :: AreaCommonState -> Paint ()
+tintNonVisibleTiles acs = do
+  let cameraTopleft = camTopleft $ acsCamera acs
+  let exmap = partyExploredMap (acsTerrain acs) (acsParty acs)
+  let offTile = terrainOffTile $ acsTerrain acs
+  let getTile pos = if exmap `hasExplored` pos then Nothing else Just offTile
+  paintTiles (acsResources acs) cameraTopleft getTile (acsClock acs)
+  let visible = acsVisible acs
+  let paintCell pos rect =
+        when (exmap `hasExplored` pos && Set.notMember pos visible) $
+        tintRect (Tint 0 0 0 128) rect
+  paintCells paintCell cameraTopleft
 
-paintTiles :: Resources -> IPoint -> (Position -> TerrainTile) -> Clock
+paintTiles :: Resources -> IPoint -> (Position -> Maybe TerrainTile) -> Clock
            -> Paint ()
 paintTiles resources cameraTopleft getTile clock = do
-  let paintTile pos rect = do
+  let paintTile pos rect = maybeM (getTile pos) $ \tile -> do
         let (row, col) =
-              case ttAppearance (getTile pos) of
+              case ttAppearance tile of
                 Still r c -> (r, c)
                 Anim r c0 slowdown _ -> (r, c0 + clockMod 4 slowdown clock)
         blitStretch (rsrcTerrainSprite resources (row, col)) rect
   paintCells paintTile cameraTopleft
-  let paintOverlay pos rect = do
-        case ttAppearance (getTile pos) of
+  let paintOverlay pos rect = maybeM (getTile pos) $ \tile -> do
+        case ttAppearance tile of
           Anim _ _ _ (Overlay row col) -> do
             blitStretch (rsrcTerrainOverlaySprite resources row col) rect
           _ -> return ()
@@ -353,6 +359,12 @@ paintTargetingRegion tint1 cameraTopleft positions = do
       gradientPolygon [(tint1, Point xL yB), (tint1, Point xR yB),
                        (tint2, Point xR y'), (tint2, Point xL y')]
 
+paintAreaExits :: IPoint -> [AreaExit] -> Paint ()
+paintAreaExits cameraTopleft exits = mapM_ paintExit exits where
+  paintExit = mapM_ paintExitRect . aeRects
+  paintExitRect prect = do
+    tintRect (Tint 128 64 255 96) $ prectRect prect `rectMinus` cameraTopleft
+
 -------------------------------------------------------------------------------
 
 newFadeToBlackView :: (MonadDraw m) => m (View Double a)
@@ -361,18 +373,5 @@ newFadeToBlackView = do
     paint opacity = do
       tintCanvas $ Tint 0 0 0 $ round $ (255 *) $ max 0 $ min 1 $ opacity
   return (inertView paint)
-
--------------------------------------------------------------------------------
-
--- paintSpeechBubble :: Resources -> String -> Draw z (Double -> Paint ())
--- paintSpeechBubble resources text = do
---   let width = 200
---       spacing = 20
---       margin = 8
---   strings <- textWrap font width text
---   let height = spacing * length strings + 2 * margin
---   let rect = Rect 0 0 width height -- FIXME
---   return $ \time -> do
---     return () -- FIXME
 
 -------------------------------------------------------------------------------
