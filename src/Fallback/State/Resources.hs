@@ -95,7 +95,7 @@ newResources = do
   statusIcons <- loadVStrip "gui/status-icons.png" 16
   strips <- makeTotalMapA (uncurry loadVStrip . stripSpec)
   terrainSheet <- loadSheet "terrain.png" (50, 12)
-  terrainOverlaySheet <- loadSheet "terrain-overlays.png" (6, 8)
+  terrainOverlaySheet <- loadSheet "terrain-overlays.png" (7, 8)
   tileset <- loadTileset
   digitsWords <- loadTexture "big-digits.png"
   return Resources

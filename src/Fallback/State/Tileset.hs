@@ -466,6 +466,14 @@ tilesList = [
  Tile 4921 (Anim 45 0 15 $ Overlay 4 5) TerrainHover blue,
  Tile 3361 (Anim 45 0 15 $ Overlay 4 6) TerrainHover blue,
  Tile 2212 (Anim 45 0 15 $ Overlay 4 7) TerrainHover blue,
+ Tile 2776 (Anim 45 0 15 $ Overlay 5 0) TerrainHover blue, -- w/ snow
+ Tile 2885 (Anim 45 0 15 $ Overlay 5 1) TerrainHover blue,
+ Tile 2206 (Anim 45 0 15 $ Overlay 5 2) TerrainHover blue,
+ Tile 8474 (Anim 45 0 15 $ Overlay 5 3) TerrainHover blue,
+ Tile 6450 (Anim 45 0 15 $ Overlay 5 4) TerrainHover blue,
+ Tile 4061 (Anim 45 0 15 $ Overlay 5 5) TerrainHover blue,
+ Tile 3848 (Anim 45 0 15 $ Overlay 5 6) TerrainHover blue,
+ Tile 0073 (Anim 45 0 15 $ Overlay 5 7) TerrainHover blue,
 
  Tile 0285 (Anim 49 0 6 NoOverlay) TerrainHover orange] -- lava
 
@@ -484,7 +492,5 @@ tilesList = [
     orange = Color 255 128 0
     purple = Color 64 16 32
     white = whiteColor
-
--- 0073, 3848, 4061, 6450, 8474, 2206, 2885, 2776
 
 -------------------------------------------------------------------------------

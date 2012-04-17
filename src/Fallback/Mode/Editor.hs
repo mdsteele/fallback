@@ -299,6 +299,14 @@ autoPaintTile tileset tmap pos = get $
             | all water [e, n] && all caveWall [s, w] -> 4648
             | all water [e, s] && all caveWall [n, w] -> 9755
             | all water [s, w] && all caveWall [n, e] -> 8118
+            | all water [s, w, n] && snowFloor e -> 2776
+            | all water [e, w, n] && snowFloor s -> 2885
+            | all water [e, s, n] && snowFloor w -> 2206
+            | all water [e, s, w] && snowFloor n -> 8474
+            | all water [w, n] && all snowFloor [e, s] -> 6450
+            | all water [e, n] && all snowFloor [s, w] -> 4061
+            | all water [e, s] && all snowFloor [n, w] -> 3848
+            | all water [s, w] && all snowFloor [n, e] -> 0073
             | otherwise -> ignore
       | waterVBridge c ->
         case nearbyTileIds of
@@ -338,12 +346,16 @@ autoPaintTile tileset tmap pos = get $
                          5892, 6109, 6914, 7234, 5653, 5073, 6814, 3086, 6852,
                          0545, 5306, 4196, 3431, 4408, 3899, 0486, 2317, 9224,
                          3915, 8591, 6079, 9108, 3895, 8300, 5199, 3187, 3525])
+    snowFloor = (`elem` [5709, 3930, 7591, 6995, 2571, 1332, 7122, 0781, 3384,
+                         3236, 2011, 8721, 5390, 9409, 9456, 1287, 4556, 8284,
+                         0563, 5643])
     water tid = openWater tid || waterVBridge tid || waterHBridge tid ||
                 tid `elem` [5658, 4863]
     openWater = (`elem` [2937, 5658, 4863, 0295, 6760, 2443, 6996, 9878, 4701,
                          6921, 3235, 1701, 5376, 2494, 2431, 3058, 0367, 2864,
                          4648, 9755, 8118, 5153, 5183, 5641, 8290, 3530, 4921,
-                         3361, 2212])
+                         3361, 2212, 2776, 2885, 2206, 8474, 6450, 4061, 3848,
+                         0073])
     waterVBridge = (`elem` [7629, 7108, 7264, 7739])
     waterHBridge = (`elem` [1917, 5497, 6446, 8790])
 
