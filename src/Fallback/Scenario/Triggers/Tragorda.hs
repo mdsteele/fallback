@@ -25,7 +25,7 @@ import Fallback.Data.Point
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Globals (Globals(..), signRadius)
-import Fallback.Scenario.Triggers.Script
+import Fallback.Scenario.Triggers.Script (setAreaCleared)
 import Fallback.State.Tags (AreaTag(..))
 
 -------------------------------------------------------------------------------
@@ -68,36 +68,36 @@ compileTragorda globals = compileArea Tragorda Nothing $ do
 
   uniqueDevice 277292 (Point 9 24) signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
-            \      {b}THE WELCOME TRAVELER TAVERN{_}"
+      \      {b}THE WELCOME TRAVELER TAVERN{_}"
   uniqueDevice 915293 (Point 13 20) signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
-            \      {b}APOTHECARY{_}"
+      \      {b}APOTHECARY{_}"
   uniqueDevice 884670 (Point 26 30) signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
-            \      {b}TRAGORDA MARKETPLACE{_}"
+      \      {b}TRAGORDA MARKETPLACE{_}"
   uniqueDevice 285872 (Point 29 13) signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
-            \      {b}TRAGORDA CITY HALL{_}"
+      \      {b}TRAGORDA CITY HALL{_}"
   uniqueDevice 642104 (Point 29 36) signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
-            \          {b}Bisla Gruer Fine Jewelry{_}\n\
-            \      {i}Ornaments magical and mundane.{_}\n\
-            \                           {i}Est. 1136{_}\n\
-            \                   {i}A family business.{_}"
+      \          {b}Bisla Gruer Fine Jewelry{_}\n\
+      \      {i}Ornaments magical and mundane.{_}\n\
+      \                           {i}Est. 1136{_}\n\
+      \                   {i}A family business.{_}"
   uniqueDevice 320769 (Point 32 12) signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
-            \      {b}OFFICE OF THE CLERK{_}"
+      \      {b}OFFICE OF THE CLERK{_}"
   uniqueDevice 157924 (Point 39 36) signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
-            \      {b}SVENGAARD MINERS' UNION{_}"
+      \      {b}SVENGAARD MINERS' UNION{_}"
   uniqueDevice 802766 (Point 40 31) signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
-            \      {i}CHURCH OF THE RESCUED SOUL{_}"
+      \      {i}CHURCH OF THE RESCUED SOUL{_}"
   uniqueDevice 705513 (Point 42 8) signRadius $ \_ _ -> do
     narrate "The sign tacked to the wall reads:\n\n\
-            \      {i}Sage Bora: Scholar and Artificer{_}"
+      \      {i}Sage Bora: Scholar and Artificer{_}"
   uniqueDevice 912708 (Point 42 15) signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
-            \      {b}VECHAR MEMORIAL LIBRARY{_}"
+      \      {b}VECHAR MEMORIAL LIBRARY{_}"
 
 -------------------------------------------------------------------------------

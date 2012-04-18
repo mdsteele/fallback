@@ -35,6 +35,7 @@ import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Globals
 import Fallback.Scenario.Triggers.IronMine (compileIronMine)
 import Fallback.Scenario.Triggers.Script
+import Fallback.Scenario.Triggers.StoneBridge (compileStoneBridge)
 import Fallback.Scenario.Triggers.Tragorda (compileTragorda)
 import Fallback.State.Area --(arsGetCharacter)
 import Fallback.State.Creature (MonsterTownAI(..))
@@ -861,10 +862,7 @@ scenarioTriggers = compileScenario $ do
     makeExit StoneBridge [Rect 13 4 2 5] (Point 11 6)
     makeExit IcyConfluence [Rect 8 0 5 2] (Point 10 3)
 
-  compileArea StoneBridge Nothing $ do
-    makeExit PerilousRoad [Rect 0 4 2 5] (Point 3 6)
-    makeExit Tragorda [Rect 13 4 2 5] (Point 11 6)
-
+  compileStoneBridge globals
   compileTragorda globals
 
   compileArea WhistlingWoods Nothing $ do

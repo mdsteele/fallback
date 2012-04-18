@@ -316,7 +316,7 @@ tilesList = [
  Tile 3930 (Still 0 3) TerrainOpen lightgray, -- snow w/ three mushrooms
  Tile 7591 (Still 7 4) TerrainOpen lightgray, -- snow w/ five mushrooms
  Tile 6995 (Still 7 3) TerrainWindow lightgray, -- dead shrubs
- Tile 2571 (Still 7 2) TerrainWindow lightgray, -- dead tree
+ Tile 2571 (Still 7 2) TerrainWindow brown, -- dead tree
  Tile 1332 (Still 1 0) TerrainSolid brown, -- big dead tree
  Tile 7122 (Still 1 1) TerrainWindow green, -- three evergreens
  Tile 0781 (Still 2 0) TerrainSolid darkgreen, -- dense evergreens

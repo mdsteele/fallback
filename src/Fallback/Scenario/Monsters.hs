@@ -120,14 +120,11 @@ getMonsterType MasterRevenant = baseMonsterType
     mtWalksFast = True }
 getMonsterType Wolf = baseMonsterType
   { mtAgility = 40,
-    mtAttacks = [MonsterAttack
+    mtAttacks = [baseMonsterAttack
       { maAppearance = ClawAttack,
         maCriticalChance = 0.1,
         maDamageCount = 6,
-        maDamageRange = (1, 8),
-        maElement = PhysicalAttack,
-        maEffects = [],
-        maRange = Melee }],
+        maDamageRange = (1, 8) }],
     mtExperienceValue = 12,
     mtImageRow = 9,
     mtLevel = 4,
@@ -136,14 +133,11 @@ getMonsterType Wolf = baseMonsterType
     mtSpeed = 2 }
 getMonsterType DemonWolf = baseMonsterType
   { mtAgility = 60,
-    mtAttacks = [MonsterAttack
+    mtAttacks = [baseMonsterAttack
       { maAppearance = ClawAttack,
         maCriticalChance = 0.15,
         maDamageCount = 8,
-        maDamageRange = (1, 10),
-        maElement = PhysicalAttack,
-        maEffects = [],
-        maRange = Melee }, MonsterAttack
+        maDamageRange = (1, 10) }, MonsterAttack
       { maAppearance = BreathAttack,
         maCriticalChance = 0.05,
         maDamageCount = 8,
@@ -162,14 +156,11 @@ getMonsterType DemonWolf = baseMonsterType
     mtSpells = [FireSpray] }
 getMonsterType Ghoul = baseMonsterType
   { mtAgility = 35,
-    mtAttacks = [MonsterAttack
+    mtAttacks = [baseMonsterAttack
       { maAppearance = BiteAttack,
         maCriticalChance = 0.2,
         maDamageCount = 15,
-        maDamageRange = (1, 10),
-        maElement = PhysicalAttack,
-        maEffects = [],
-        maRange = Melee }],
+        maDamageRange = (1, 10) }],
     mtExperienceValue = 120,
     mtImageRow = 6,
     mtIsUndead = True,
@@ -179,14 +170,11 @@ getMonsterType Ghoul = baseMonsterType
     mtSpeed = 1.2 }
 getMonsterType Zombie = baseMonsterType
   { mtAgility = 25,
-    mtAttacks = [MonsterAttack
+    mtAttacks = [baseMonsterAttack
       { maAppearance = BluntAttack,
         maCriticalChance = 0.05,
         maDamageCount = 10,
-        maDamageRange = (1, 10),
-        maElement = PhysicalAttack,
-        maEffects = [],
-        maRange = Melee }],
+        maDamageRange = (1, 10) }],
     mtExperienceValue = 100,
     mtImageRow = 4,
     mtIsUndead = True,
@@ -197,6 +185,18 @@ getMonsterType Zombie = baseMonsterType
 getMonsterType TownManRed = townsperson { mtImageRow = 10 }
 getMonsterType TownManApron = townsperson { mtImageRow = 14 }
 getMonsterType TownWomanBlue = townsperson { mtImageRow = 17 }
+getMonsterType GuardArcher = baseMonsterType
+  { mtAgility = 30,
+    mtAttacks = [baseMonsterAttack
+      { maAppearance = BowAttack,
+        maCriticalChance = 0.03,
+        maDamageCount = 8,
+        maDamageRange = (1, 5),
+        maRange = Ranged 5 }],
+    mtImageRow = 27,
+    mtMaxHealth = 150,
+    mtName = "Guard",
+    mtResistances = (Armor =% 30) }
 getMonsterType RogueIllusion0 = rogueillusion { mtImageRow = 20 }
 getMonsterType RogueIllusion1 = rogueillusion { mtImageRow = 21 }
 getMonsterType RogueIllusion2 = rogueillusion { mtImageRow = 22 }
@@ -223,6 +223,16 @@ baseMonsterType = MonsterType
     mtSpells = [],
     mtWalksFast = False }
 
+baseMonsterAttack :: MonsterAttack
+baseMonsterAttack = MonsterAttack
+  { maAppearance = BladeAttack,
+    maCriticalChance = 0,
+    maDamageCount = 1,
+    maDamageRange = (1, 1),
+    maElement = PhysicalAttack,
+    maEffects = [],
+    maRange = Melee }
+
 townsperson :: MonsterType
 townsperson = baseMonsterType
   { mtExperienceValue = 100,
@@ -233,14 +243,10 @@ townsperson = baseMonsterType
 rogueillusion :: MonsterType
 rogueillusion = baseMonsterType
   { mtAgility = 80,
-    mtAttacks = [MonsterAttack
+    mtAttacks = [baseMonsterAttack
       { maAppearance = BladeAttack,
-        maCriticalChance = 0,
         maDamageCount = 1,
-        maDamageRange = (1, 3),
-        maElement = PhysicalAttack,
-        maEffects = [],
-        maRange = Melee }],
+        maDamageRange = (1, 3) }],
     mtMaxHealth = 100,
     mtName = "Illusion",
     mtResistances = (ResistMental =% 100),

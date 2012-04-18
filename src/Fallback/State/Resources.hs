@@ -128,7 +128,7 @@ newResources = do
 loadMonsterImages :: CreatureSize -> IO (Array Int CreatureImages)
 loadMonsterImages size =
   case size of
-    SizeSmall -> load "monsters/small.png" 24
+    SizeSmall -> load "monsters/small.png" 28
     SizeWide -> load "monsters/wide.png" 4
     SizeTall -> load "monsters/tall.png" 3
     SizeHuge -> load "monsters/huge.png" 2
