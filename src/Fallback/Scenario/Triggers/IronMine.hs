@@ -55,7 +55,7 @@ compileIronMine globals = compileArea IronMine Nothing $ do
   uniqueDevice 895064 (Point 38 29) signRadius $ \_ _ -> do
     narrate "The sign tacked to the wall reads:\n\n\
       \      {i}SWITCHING STATION{_}"
-  uniqueDevice 895064 (Point 23 6) signRadius $ \_ _ -> do
+  uniqueDevice 208934 (Point 23 6) signRadius $ \_ _ -> do
     narrate "The sign tacked to the wall reads:\n\n\
       \      {i}RECORDS OFFICE{_}"
 

@@ -21,7 +21,8 @@ module Fallback.State.Progress
   (-- * Progress
    Progress, emptyProgress, HasProgress(..),
    -- * Vars
-   VarSeed, splitVarSeed, Var, makeVar,
+   VarSeed, HasVarSeeds(..), splitVarSeed,
+   Var, makeVar,
    DeviceId, makeDeviceId,
    MonsterScriptId, makeMonsterScriptId,
    TriggerId, makeTriggerId,
@@ -60,8 +61,13 @@ instance Num VarSeed where
   negate = error "VarSeed.negate"
   signum = error "VarSeed.signum"
 
-splitVarSeed :: VarSeed -> (VarSeed, VarSeed)
-splitVarSeed (VarSeed n m) = (VarSeed n (2 * m), VarSeed n (2 * m + 1))
+class (Monad m) => HasVarSeeds m where
+  useVarSeed :: VarSeed -> m ()
+
+splitVarSeed :: (HasVarSeeds m) => VarSeed -> m (VarSeed, VarSeed)
+splitVarSeed vseed@(VarSeed n m) = do
+  useVarSeed vseed
+  return (VarSeed n (2 * m), VarSeed n (2 * m + 1))
 
 -------------------------------------------------------------------------------
 

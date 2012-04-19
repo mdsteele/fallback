@@ -49,7 +49,7 @@ compileGlobals :: CompileScenario Globals
 compileGlobals = do
 
   let newUnlockedDoor vseed cTag oTag = do
-        let (cSeed, oSeed) = splitVarSeed vseed
+        (cSeed, oSeed) <- splitVarSeed vseed
         rec closed <- newDevice cSeed 1 $ \ge _ -> do
               tile <- getTerrainTile oTag
               setTerrain [(rectTopleft $ Grid.geRect ge, tile)]

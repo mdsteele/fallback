@@ -116,10 +116,9 @@ newtype CompileScenario a =
   deriving (Functor, Monad, MonadFix)
 
 data CompileScenarioState = CompileScenarioState
-  { cssAreas :: Map.Map AreaTag AreaSpec,
-    cssDeviceIds :: Set.Set DeviceId,
+  { cssAllVarSeeds :: Set.Set VarSeed,
+    cssAreas :: Map.Map AreaTag AreaSpec,
     cssDevices :: Map.Map DeviceId Device,
-    cssMonsterScriptIds :: Set.Set MonsterScriptId,
     cssMonsterScripts :: Map.Map MonsterScriptId MonsterScript,
     cssProgress :: Progress,
     cssRegions :: Map.Map RegionTag (Party -> String) }
@@ -127,9 +126,8 @@ data CompileScenarioState = CompileScenarioState
 compileScenario :: CompileScenario () -> ScenarioTriggers
 compileScenario (CompileScenario compile) =
   let css = State.execState compile CompileScenarioState
-              { cssAreas = Map.empty,
-                cssDeviceIds = Set.empty, cssDevices = Map.empty,
-                cssMonsterScriptIds = Set.empty, cssMonsterScripts = Map.empty,
+              { cssAllVarSeeds = Set.empty, cssAreas = Map.empty,
+                cssDevices = Map.empty, cssMonsterScripts = Map.empty,
                 cssProgress = emptyProgress, cssRegions = Map.empty }
       getArea tag = fromMaybe (error $ "Missing area: " ++ show tag) $
                     Map.lookup tag $ cssAreas css
@@ -141,7 +139,7 @@ compileScenario (CompileScenario compile) =
                         scenarioInitialProgress = cssProgress css }
 
 newGlobalVar :: (VarType a) => VarSeed -> a -> CompileScenario (Var a)
-newGlobalVar vseed value = CompileScenario $ do
+newGlobalVar vseed value = (useVarSeed vseed >>) $ CompileScenario $ do
   css <- State.get
   let var = makeVar vseed
   maybe (fail $ "Repeated Var: " ++ show var)
@@ -163,24 +161,21 @@ compileArea tag mbTerraFn (CompileArea compile) = CompileScenario $ do
   when (Map.member tag $ cssAreas css) $ do
     fail ("Repeated area: " ++ show tag)
   let cas = State.execState compile CompileAreaState
-              { casDeviceIds = cssDeviceIds css, casDevices = cssDevices css,
-                casEntrances = Map.empty,
+              { casAllVarSeeds = cssAllVarSeeds css,
+                casDevices = cssDevices css, casEntrances = Map.empty,
                 casMonsterScripts = cssMonsterScripts css,
-                casMonsterScriptIds = cssMonsterScriptIds css,
                 casProgress = cssProgress css, casTriggers = [] }
-  unless (Map.keysSet (casDevices cas) `Set.isSubsetOf` casDeviceIds cas) $ do
-    fail ("Internal error: devices is not subset of device IDs: " ++ show tag)
   let mkExit (dest, (prects, _)) =
         AreaExit { aeDestination = dest, aeRects = prects }
   let aspec = AreaSpec { aspecDevices = casDevices cas,
                          aspecEntrances = fmap snd $ casEntrances cas,
-                         aspecExits = map mkExit $ Map.assocs $ casEntrances cas,
+                         aspecExits = map mkExit $ Map.assocs $
+                                      casEntrances cas,
                          aspecMonsterScripts = casMonsterScripts cas,
                          aspecTerrain = fromMaybe (const $ show tag) mbTerraFn,
                          aspecTriggers = casTriggers cas }
-  State.put css { cssAreas = Map.insert tag aspec (cssAreas css),
-                  cssDeviceIds = casDeviceIds cas,
-                  cssMonsterScriptIds = casMonsterScriptIds cas,
+  State.put css { cssAllVarSeeds = casAllVarSeeds cas,
+                  cssAreas = Map.insert tag aspec (cssAreas css),
                   cssProgress = casProgress cas }
 
 -------------------------------------------------------------------------------
@@ -190,16 +185,15 @@ newtype CompileArea a = CompileArea (State.State CompileAreaState a)
   deriving (Functor, Monad, MonadFix)
 
 data CompileAreaState = CompileAreaState
-  { casDeviceIds :: Set.Set DeviceId,
+  { casAllVarSeeds :: Set.Set VarSeed,
     casDevices :: Map.Map DeviceId Device,
     casEntrances :: Map.Map AreaTag ([PRect], Position),
-    casMonsterScriptIds :: Set.Set MonsterScriptId,
     casMonsterScripts :: Map.Map MonsterScriptId MonsterScript,
     casProgress :: Progress,
     casTriggers :: [Trigger TownState TownEffect] }
 
 newPersistentVar :: (VarType a) => VarSeed -> a -> CompileArea (Var a)
-newPersistentVar vseed value = CompileArea $ do
+newPersistentVar vseed value = (useVarSeed vseed >>) $ CompileArea $ do
   cas <- State.get
   let var = makeVar vseed
   maybe (fail $ "Repeated Var: " ++ show var)
@@ -209,7 +203,7 @@ newPersistentVar vseed value = CompileArea $ do
 
 newTransientVar :: (VarType a) => VarSeed -> a -> CompileArea (Var a)
 newTransientVar vseed value = do
-  let (vseed', vseed'') = splitVarSeed vseed
+  (vseed', vseed'') <- splitVarSeed vseed
   var <- newPersistentVar vseed' value
   onStartDaily vseed'' $ writeVar var value
   return var
@@ -225,7 +219,7 @@ makeExit tag rects pos = CompileArea $ do
 simpleMonster :: VarSeed -> MonsterTag -> Position -> MonsterTownAI
               -> CompileArea ()
 simpleMonster vseed tag pos ai = do
-  let (vseed', vseed'') = splitVarSeed vseed
+  (vseed', vseed'') <- splitVarSeed vseed
   isDeadVar <- newPersistentVar vseed' False
   onStartDaily vseed'' $ do
     isDead <- readVar isDeadVar
@@ -236,7 +230,7 @@ simpleTownsperson :: VarSeed -> MonsterTag -> Position -> MonsterTownAI
                   -> (Grid.Entry Monster -> Script TownEffect ())
                   -> CompileArea ()
 simpleTownsperson vseed tag pos ai sfn = do
-  let (vseed', vseed'') = splitVarSeed vseed
+  (vseed', vseed'') <- splitVarSeed vseed
   mscript <- newMonsterScript vseed' sfn
   onStartDaily vseed'' $ do
     let mtype = getMonsterType tag
@@ -256,9 +250,26 @@ simpleTownsperson vseed tag pos ai sfn = do
         monstType = mtype }
 
 -------------------------------------------------------------------------------
+-- Checking VarSeeds:
+
+instance HasVarSeeds CompileScenario where
+  useVarSeed vseed = CompileScenario $ do
+    varSeeds <- State.gets cssAllVarSeeds
+    when (Set.member vseed varSeeds) $ do
+      fail ("Repeated VarSeed: " ++ show vseed)
+    State.modify $ \css -> css { cssAllVarSeeds = Set.insert vseed varSeeds }
+
+instance HasVarSeeds CompileArea where
+  useVarSeed vseed = CompileArea $ do
+    varSeeds <- State.gets casAllVarSeeds
+    when (Set.member vseed varSeeds) $ do
+      fail ("Repeated VarSeed: " ++ show vseed)
+    State.modify $ \cas -> cas { casAllVarSeeds = Set.insert vseed varSeeds }
+
+-------------------------------------------------------------------------------
 -- Defining triggers:
 
-class DefineTrigger m where
+class (HasVarSeeds m) => DefineTrigger m where
   type TriggerState m :: *
   type TriggerEffect m :: * -> *
   trigger :: VarSeed -> Predicate
@@ -267,21 +278,14 @@ class DefineTrigger m where
 instance DefineTrigger CompileArea where
   type TriggerState CompileArea = TownState
   type TriggerEffect CompileArea = TownEffect
-  trigger vseed (Predicate predicate) action = CompileArea $ do
-    cas <- State.get
-    let trig = Trigger { triggerId = makeTriggerId vseed,
-                         triggerPredicate = predicate, triggerAction = action }
-    -- TODO verify uniqueness of trigger ID
-    State.put cas { casTriggers = trig : casTriggers cas }
-
--- trigger :: VarSeed -> (TownState -> Bool) -> Script TownEffect ()
---         -> CompileArea ()
--- trigger vseed predicate action = CompileArea $ do
---   cas <- State.get
---   let trig = Trigger { triggerId = makeTriggerId vseed,
---                        triggerPredicate = predicate, triggerAction = action }
---   -- TODO verify uniqueness of trigger ID
---   State.put cas { casTriggers = trig : casTriggers cas }
+  trigger vseed (Predicate predicate) action = do
+    useVarSeed vseed
+    CompileArea $ do
+      cas <- State.get
+      let trig = Trigger { triggerId = makeTriggerId vseed,
+                           triggerPredicate = predicate,
+                           triggerAction = action }
+      State.put cas { casTriggers = trig : casTriggers cas }
 
 onStartDaily :: VarSeed -> Script TownEffect () -> CompileArea ()
 onStartDaily vseed = trigger vseed (Predicate $ const True)
@@ -289,18 +293,16 @@ onStartDaily vseed = trigger vseed (Predicate $ const True)
 onStartOnce :: VarSeed -> Script TownEffect () -> CompileArea ()
 onStartOnce vseed = once vseed (Predicate $ const True)
 
-daily :: VarSeed -> Predicate -> Script TownEffect ()
-      -> CompileArea ()
+daily :: VarSeed -> Predicate -> Script TownEffect () -> CompileArea ()
 daily vseed predicate script = do
-  let (vseed', vseed'') = splitVarSeed vseed
+  (vseed', vseed'') <- splitVarSeed vseed
   canFire <- newTransientVar vseed' True
   trigger vseed'' (varTrue canFire `andP` predicate) $ do
     writeVar canFire False >> script
 
-once :: VarSeed -> Predicate -> Script TownEffect ()
-     -> CompileArea ()
+once :: VarSeed -> Predicate -> Script TownEffect () -> CompileArea ()
 once vseed predicate script = do
-  let (vseed', vseed'') = splitVarSeed vseed
+  (vseed', vseed'') <- splitVarSeed vseed
   canFire <- newPersistentVar vseed' True
   trigger vseed'' (varTrue canFire `andP` predicate) $ do
     writeVar canFire False >> script
@@ -308,58 +310,52 @@ once vseed predicate script = do
 -------------------------------------------------------------------------------
 -- Defining devices:
 
-class DefineDevice m where
+class (HasVarSeeds m) => DefineDevice m where
   newDevice :: VarSeed -> Int
             -> (Grid.Entry Device -> CharacterNumber -> Script AreaEffect ())
             -> m Device
 
 instance DefineDevice CompileScenario where
-  newDevice vseed radius sfn = CompileScenario $ do
+  newDevice vseed radius sfn = (useVarSeed vseed >>) $ CompileScenario $ do
     css <- State.get
     let di = makeDeviceId vseed
-    when (Set.member di (cssDeviceIds css)) $ do
-      fail ("Repeated device ID: " ++ show di)
+    when (Map.member di (cssDevices css)) $ do
+      fail ("Internal error: Repeated device ID: " ++ show di)
     let device = Device { devId = di, devInteract = sfn, devRadius = radius }
-    State.put css { cssDeviceIds = Set.insert di (cssDeviceIds css),
-                    cssDevices = Map.insert di device (cssDevices css) }
+    State.put css { cssDevices = Map.insert di device (cssDevices css) }
     return device
 
 instance DefineDevice CompileArea where
-  newDevice vseed radius sfn = CompileArea $ do
+  newDevice vseed radius sfn = (useVarSeed vseed >>) $ CompileArea $ do
     cas <- State.get
     let di = makeDeviceId vseed
-    when (Set.member di $ casDeviceIds cas) $ do
-      fail ("Repeated device ID: " ++ show di)
+    when (Map.member di $ casDevices cas) $ do
+      fail ("Internal error: Repeated device ID: " ++ show di)
     let device = Device { devId = di, devInteract = sfn, devRadius = radius }
-    State.put cas { casDeviceIds = Set.insert di (casDeviceIds cas),
-                    casDevices = Map.insert di device (casDevices cas) }
+    State.put cas { casDevices = Map.insert di device (casDevices cas) }
     return device
 
 uniqueDevice :: VarSeed -> Position -> Int
              -> (Grid.Entry Device -> CharacterNumber -> Script AreaEffect ())
              -> CompileArea ()
 uniqueDevice vseed position radius sfn = do
-  let (vseed', vseed'') = splitVarSeed vseed
+  (vseed', vseed'') <- splitVarSeed vseed
   device <- newDevice vseed' radius sfn
   onStartDaily vseed'' $ addDevice_ device position
 
 -------------------------------------------------------------------------------
 -- Defining monster scripts:
 
-class DefineMonsterScript m where
+class (HasVarSeeds m) => DefineMonsterScript m where
   newMonsterScript :: VarSeed -> (Grid.Entry Monster -> Script TownEffect ())
                    -> m MonsterScript
 
 instance DefineMonsterScript CompileArea where
-  newMonsterScript vseed sfn = CompileArea $ do
+  newMonsterScript vseed sfn = (useVarSeed vseed >>) $ CompileArea $ do
     cas <- State.get
     let msi = makeMonsterScriptId vseed
-    when (Set.member msi $ casMonsterScriptIds cas) $ do
-      fail ("Repeated monster script ID: " ++ show msi)
     let mscript = MonsterScript { mscriptId = msi, mscriptScriptFn = sfn }
-    State.put cas { casMonsterScriptIds =
-                      Set.insert msi (casMonsterScriptIds cas),
-                    casMonsterScripts =
+    State.put cas { casMonsterScripts =
                       Map.insert msi mscript (casMonsterScripts cas) }
     return mscript
 
@@ -418,22 +414,4 @@ walkOff = notP . walkOn
 walkIn :: PRect -> Predicate
 walkIn rect = Predicate (\s -> any (rectContains rect) (arsPartyPositions s))
 
-{-
-walkOn :: (AreaState s) => Position -> s -> Bool
-walkOn pos ars = any (pos ==) (arsPartyPositions ars)
-
-walkOff :: (AreaState s) => Position -> s -> Bool
-walkOff pos ars = not (walkOn pos ars)
-
-walkIn :: (AreaState s) => PRect -> s -> Bool
-walkIn rect ars = any (rectContains rect) (arsPartyPositions ars)
-
-infixr 3 #&&#
-(#&&#) :: (s -> Bool) -> (s -> Bool) -> (s -> Bool)
-fn1 #&&# fn2 = \s -> fn1 s && fn2 s
-
-infixr 2 #||#
-(#||#) :: (s -> Bool) -> (s -> Bool) -> (s -> Bool)
-fn1 #||# fn2 = \s -> fn1 s || fn2 s
--}
 -------------------------------------------------------------------------------
