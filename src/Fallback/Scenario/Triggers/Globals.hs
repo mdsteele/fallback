@@ -20,17 +20,22 @@
 {-# LANGUAGE DoRec #-}
 
 module Fallback.Scenario.Triggers.Globals
-  (Globals(..), compileGlobals, signRadius)
+  (Globals(..), compileGlobals, newDoorDevices, signRadius)
 where
+
+import Control.Applicative ((<$>))
+import Control.Monad.Fix (MonadFix)
 
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
-import Fallback.State.Area (Device)
-import Fallback.State.Progress (splitVarSeed)
+import Fallback.State.Area (AreaEffect, Device)
+import Fallback.State.Progress (VarSeed, splitVarSeed)
 import Fallback.State.Resources (SoundTag(..))
+import Fallback.State.Simple (CharacterNumber)
 import Fallback.State.Tileset (TileTag(..))
+import Fallback.Utility (whenM)
 
 -------------------------------------------------------------------------------
 
@@ -49,23 +54,51 @@ compileGlobals :: CompileScenario Globals
 compileGlobals = do
 
   let newUnlockedDoor vseed cTag oTag = do
-        (cSeed, oSeed) <- splitVarSeed vseed
-        rec closed <- newDevice cSeed 1 $ \ge _ -> do
-              tile <- getTerrainTile oTag
-              setTerrain [(rectTopleft $ Grid.geRect ge, tile)]
-              replaceDevice ge open
-              playSound SndDoorOpen
-            open <- newDevice oSeed 1 $ \ge _ -> do
-              tile <- getTerrainTile cTag
-              setTerrain [(rectTopleft $ Grid.geRect ge, tile)]
-              replaceDevice ge closed
-              playSound SndDoorShut
-        return closed
+        let succeed _ _ = return True
+        fst <$> newDoorDevices vseed cTag oTag succeed succeed
+--   let newUnlockedDoor vseed cTag oTag = do
+--         (cSeed, oSeed) <- splitVarSeed vseed
+--         rec closed <- newDevice cSeed 1 $ \ge _ -> do
+--               tile <- getTerrainTile oTag
+--               setTerrain [(rectTopleft $ Grid.geRect ge, tile)]
+--               replaceDevice ge open
+--               playSound SndDoorOpen
+--             open <- newDevice oSeed 1 $ \ge _ -> do
+--               tile <- getTerrainTile cTag
+--               setTerrain [(rectTopleft $ Grid.geRect ge, tile)]
+--               replaceDevice ge closed
+--               playSound SndDoorShut
+--         return closed
   stoneDoor <- newUnlockedDoor 398282 StoneDoorClosedTile StoneDoorOpenTile
   basaltDoor <- newUnlockedDoor 349783 BasaltDoorClosedTile BasaltDoorOpenTile
   adobeDoor <- newUnlockedDoor 109823 AdobeDoorClosedTile AdobeDoorOpenTile
 
   return Globals { gAdobeDoor = adobeDoor, gBasaltDoor = basaltDoor,
                    gStoneDoor = stoneDoor }
+
+-------------------------------------------------------------------------------
+
+newDoorDevices :: (DefineDevice m, MonadFix m) => VarSeed -> TileTag -> TileTag
+               -> (Grid.Entry Device -> CharacterNumber ->
+                   Script AreaEffect Bool)
+               -> (Grid.Entry Device -> CharacterNumber ->
+                   Script AreaEffect Bool)
+               -> m (Device, Device)
+newDoorDevices vseed cTag oTag tryOpen tryClose = do
+  (cSeed, oSeed) <- splitVarSeed vseed
+  rec closed <- newDevice cSeed 1 $ \ge charNum -> do
+        whenM (tryOpen ge charNum) $ do
+          tile <- getTerrainTile oTag
+          setTerrain [(rectTopleft $ Grid.geRect ge, tile)]
+          replaceDevice ge open
+          playSound SndDoorOpen
+      open <- newDevice oSeed 1 $ \ge charNum -> do
+        -- TODO: don't allow door to be closed if enemies are nearby
+        whenM (tryClose ge charNum) $ do
+          tile <- getTerrainTile cTag
+          setTerrain [(rectTopleft $ Grid.geRect ge, tile)]
+          replaceDevice ge closed
+          playSound SndDoorShut
+  return (closed, open)
 
 -------------------------------------------------------------------------------

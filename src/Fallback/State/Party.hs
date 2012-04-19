@@ -22,7 +22,7 @@ module Fallback.State.Party where
 import Control.Applicative ((<$>), (<*>))
 import Control.Exception (assert)
 import Control.Monad (guard)
-import qualified Data.Foldable as Fold (and)
+import qualified Data.Foldable as Fold (and, any)
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes, fromMaybe, isNothing)
@@ -128,12 +128,6 @@ partyRemoveItem (CharAccessorySlot charNum) party =
 partyRemoveItem (PartyItemSlot idx) party =
   party { partyItems = IntMap.delete idx (partyItems party) }
 
--- partySpendStatPoint :: CharacterNumber -> Stat -> Party -> Party
--- partySpendStatPoint charNum stat = partyAlterCharacter charNum fn where
---   fn char = if chrStatPoints char < 1 then char else
---               char { chrBaseStats = tmAlter stat (+1) (chrBaseStats char),
---                      chrStatPoints = chrStatPoints char - 1 }
-
 partySpendUpgrades :: (SM.SparseMap (CharacterNumber, Stat) Int)
                    -> (SM.SparseMap (CharacterNumber, AbilityNumber) Int)
                    -> Party -> Party
@@ -194,24 +188,6 @@ partyTryExchangeItem slot mbTag party =
       Just (getFn eqp, partyAlterCharacter charNum
               (\c -> c {chrEquipment = setFn eqp mbEquipTag}) party)
 
-{-
-partyExchangeItem :: ItemSlot -> Maybe ItemTag -> Party
-                  -> (Maybe ItemTag, Party)
-partyExchangeItem slot mbTag party =
-  case slot of
-    CharItemSlot charNum itemNum ->
-      let items = chrItems $ partyGetCharacter party charNum
-          items' = case mbTag of
-                     Just tag -> Map.insert itemNum (tag, False) items
-                     Nothing -> Map.delete itemNum items
-      in (fst <$> Map.lookup itemNum items,
-          partyAlterCharacter charNum (\c -> c { chrItems = items' }) party)
-    PartyItemSlot index ->
-      let items = partyItems party
-          items' = case mbTag of Just tag -> IntMap.insert index tag items
-                                 Nothing -> IntMap.delete index items
-      in (IntMap.lookup index items, party { partyItems = items' })
--}
 -- | Add experience to the party; if necessary, increase level and stats/skill
 -- points of characters.
 partyGrantExperience :: Int -> Party -> Party
@@ -249,9 +225,14 @@ partyGrantItem tag party =
       index = until (flip IntMap.notMember items) (+1) 0
   in party { partyItems = IntMap.insert index tag items }
 
+-- | Determine if the party possesses at least one copy of the item, either in
+-- the party inventory or worn as equipment by one of the characters.
+partyHasItem :: ItemTag -> Party -> Bool
+partyHasItem tag party =
+  Fold.any (== tag) (partyItems party) ||
+  Fold.any (chrHasItemEquipped tag) (partyCharacters party)
+
 partyItemInSlot :: ItemSlot -> Party -> Maybe ItemTag
--- partyItemInSlot (CharItemSlot charNum itemNum) party =
---   fmap fst $ Map.lookup itemNum $ chrItems $ partyGetCharacter party charNum
 partyItemInSlot (PartyItemSlot index) party =
   IntMap.lookup index $ partyItems party
 partyItemInSlot (CharWeaponSlot charNum) party =
@@ -269,33 +250,7 @@ partyPurgeItem :: ItemTag -> Party -> Party
 partyPurgeItem tag party =
   party { partyCharacters = fmap (chrPurgeItem tag) (partyCharacters party),
           partyItems = IntMap.filter (tag /=) (partyItems party) }
-{-
-partyTryToggleEquipped :: ItemSlot -> Party -> Maybe Party
-partyTryToggleEquipped slot party =
-  case slot of
-    CharItemSlot charNum itemNum -> do
-      let char = partyGetCharacter party charNum
-      (itemTag, _) <- Map.lookup itemNum $ chrItems char
-      let equip sameKind usableBy = do
-            guard $ tmGet (chrClass char) usableBy
-            let itemFn inum (tag, equipped) =
-                  (tag, if inum == itemNum then not equipped else
-                          equipped && not (sameKind $ itemKind $ getItem tag))
-            let charFn char' =
-                  char' { chrItems = Map.mapWithKey itemFn $ chrItems char' }
-            Just $ partyAlterCharacter charNum charFn party
-      case itemKind (getItem itemTag) of
-        AccessoryItem ad -> equip isAccessory (adUsableBy ad)
-        ArmorItem ad -> equip isArmor (adUsableBy ad)
-        WeaponItem wd -> equip isWeapon (wdUsableBy wd)
-        PotionItem _ -> Nothing
-        InertItem -> Nothing
-    PartyItemSlot _ -> Nothing
-  where
-    isAccessory kind = case kind of { AccessoryItem _ -> True; _ -> False }
-    isArmor kind = case kind of { ArmorItem _ -> True; _ -> False }
-    isWeapon kind = case kind of { WeaponItem _ -> True; _ -> False }
--}
+
 -------------------------------------------------------------------------------
 
 data Character = Character
@@ -340,15 +295,6 @@ chrBonusesList char =
              adBonuses . getArmorData <$> eqpArmor eqp,
              adBonuses . getAccessoryData <$> eqpAccessory eqp]
   where eqp = chrEquipment char
--- chrBonusesList char = mapMaybe itemBonuses $ Fold.toList $ chrItems char where
---   itemBonuses (_, False) = Nothing
---   itemBonuses (tag, True) =
---     case itemKind (getItem tag) of
---       AccessoryItem ad -> Just (adBonuses ad)
---       ArmorItem ad -> Just (adBonuses ad)
---       WeaponItem wd -> Just (wdBonuses wd)
---       PotionItem _ -> Nothing
---       InertItem -> Nothing
 
 chrEquippedWeaponData :: Character -> WeaponData
 chrEquippedWeaponData char =
@@ -359,13 +305,17 @@ chrEquippedWeaponData char =
       else wd { wdRange = Ranged (n + 1) }
   where wd = maybe unarmedWeaponData getWeaponData $
              eqpWeapon $ chrEquipment char
--- chrEquippedWeaponData char =
---   let fn (tag, isEquipped) =
---         if not isEquipped then Nothing else
---           case itemKind (getItem tag) of
---             WeaponItem wdata -> Just wdata
---             _ -> Nothing
---   in fromMaybe unarmedWeaponData $ firstJust fn $ Fold.toList $ chrItems char
+
+-- | Determine if the character has a copy of the item equipped.  For
+-- non-equippable items, this always returns 'False'.
+chrHasItemEquipped :: ItemTag -> Character -> Bool
+chrHasItemEquipped (WeaponItemTag tag) char =
+  Just tag == eqpWeapon (chrEquipment char)
+chrHasItemEquipped (ArmorItemTag tag) char =
+  Just tag == eqpArmor (chrEquipment char)
+chrHasItemEquipped (AccessoryItemTag tag) char =
+  Just tag == eqpAccessory (chrEquipment char)
+chrHasItemEquipped _ _ = False
 
 chrIsConscious :: Character -> Bool
 chrIsConscious char = chrHealth char > 0
@@ -453,25 +403,5 @@ data Equipment = Equipment
     eqpArmor :: Maybe ArmorItemTag,
     eqpAccessory :: Maybe AccessoryItemTag }
   deriving (Read, Show)
-
--- class EquipmentType a where
---   equippedColor :: a -> Color
---   fromEquipment :: Equipment -> Maybe a
---   toItemTag :: a -> ItemTag
-
--- instance EquipmentType WeaponItemTag where
---   equippedColor = const (Color 192 0 0)
---   fromEquipment = eqpWeapon
---   toItemTag = WeaponItemTag
-
--- instance EquipmentType ArmorItemTag where
---   equippedColor = const (Color 0 0 192)
---   fromEquipment = eqpArmor
---   toItemTag = ArmorItemTag
-
--- instance EquipmentType AccessoryItemTag where
---   equippedColor = const (Color 0 128 0)
---   fromEquipment = eqpAccessory
---   toItemTag = AccessoryItemTag
 
 -------------------------------------------------------------------------------

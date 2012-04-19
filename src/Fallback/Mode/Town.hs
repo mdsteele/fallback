@@ -53,7 +53,7 @@ import Fallback.Scenario.Areas (enterPartyIntoArea)
 import Fallback.Scenario.MonsterAI (monsterTownStep)
 import Fallback.Scenario.Potions (runPotionAction)
 import Fallback.Scenario.Script
-  (also_, alsoWith, alterAdrenaline, concurrentAny, grantExperience,
+  (also_, alsoWith, alterAdrenaline, concurrentAny, grantExperience, grantItem,
    inflictAllPeriodicDamage, partyWalkTo, setMessage, teleport)
 import Fallback.Scenario.Triggers (getAreaExits, scenarioTriggers)
 import Fallback.Sound (playSound)
@@ -400,6 +400,7 @@ newTownMode resources modes initState = do
           let runScript script = do
                 writeIORef stateRef ts { tsPhase = ScriptPhase script }
           case cheat of
+            Gimme tag -> runScript $ grantItem tag
             IAmLeTired -> runScript $ return () -- TODO heal party
             Plugh xp -> runScript $ grantExperience xp
             WhereAmI -> runScript $ setMessage $ show $ tsPartyPosition ts

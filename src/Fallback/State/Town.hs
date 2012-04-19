@@ -98,7 +98,8 @@ tickTownAnimations ts =
 
 -------------------------------------------------------------------------------
 
-data TownCheatCode = IAmLeTired
+data TownCheatCode = Gimme ItemTag
+                   | IAmLeTired
                    | Plugh Int
                    | WhereAmI
                    | Xyzzy AreaTag Int Int

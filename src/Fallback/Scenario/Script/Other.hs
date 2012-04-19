@@ -53,7 +53,7 @@ module Fallback.Scenario.Script.Other
    -- ** Monsters
    addBasicEnemyMonster, summonAllyMonster, tryAddMonster,
    -- ** Items
-   grantAndEquipWeapon,
+   grantAndEquipWeapon, grantItem,
 
    -- * Other
    inflictAllPeriodicDamage,
@@ -586,7 +586,7 @@ grantAndEquipWeapon tag charNum = do
   let mbOldItem = fmap WeaponItemTag $ eqpWeapon $ chrEquipment char
   emitAreaEffect $ EffAlterCharacter charNum (\c -> c { chrEquipment =
     (chrEquipment c) { eqpWeapon = Just tag } })
-  maybeM mbOldItem (emitAreaEffect . EffGrantItem)
+  maybeM mbOldItem grantItem
 
 grantExperience :: (FromAreaEffect f) => Int -> Script f ()
 grantExperience xp = do
@@ -597,6 +597,9 @@ grantExperience xp = do
     setMessage $ "Party is now level " ++ show newLevel ++ "!"
     mapM_ return =<< areaGet arsPartyPositions -- FIXME doodads
     playSound SndLevelUp
+
+grantItem :: (FromAreaEffect f) => ItemTag -> Script f ()
+grantItem = emitAreaEffect . EffGrantItem
 
 removeDevice :: (FromAreaEffect f) => Grid.Key Device -> Script f ()
 removeDevice key = emitAreaEffect $ EffReplaceDevice key Nothing

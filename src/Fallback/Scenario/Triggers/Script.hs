@@ -19,14 +19,18 @@
 
 -- | This module contains Script functions relevant to scripting area triggers.
 module Fallback.Scenario.Triggers.Script
-  (setAreaCleared)
+  (doesPartyHaveItem, setAreaCleared)
 where
 
 import Fallback.Scenario.Script
-import Fallback.State.Area (PartyEffect(EffSetAreaCleared))
-import Fallback.State.Tags (AreaTag)
+import Fallback.State.Area (PartyEffect(EffSetAreaCleared), arsParty)
+import Fallback.State.Party (partyHasItem)
+import Fallback.State.Tags (AreaTag, ItemTag)
 
 -------------------------------------------------------------------------------
+
+doesPartyHaveItem :: (FromAreaEffect f) => ItemTag -> Script f Bool
+doesPartyHaveItem tag = areaGet (partyHasItem tag . arsParty)
 
 setAreaCleared :: (FromAreaEffect f) => AreaTag -> Bool -> Script f ()
 setAreaCleared tag cleared = emitAreaEffect $ EffSetAreaCleared tag cleared
