@@ -299,6 +299,7 @@ data SoundTag = SndArrow
               | SndMiss1 | SndMiss2
               | SndShielding | SndSummon | SndSunbeam
               | SndThrow
+              | SndUnlock
   deriving (Bounded, Eq, Ix, Ord)
 
 soundPath :: SoundTag -> String
@@ -339,6 +340,7 @@ soundPath SndShielding = "shielding-51.wav"
 soundPath SndSummon = "summon-61.wav"
 soundPath SndSunbeam = "sunbeam-25.wav"
 soundPath SndThrow = "throw-14.wav"
+soundPath SndUnlock = "unlock-9.wav"
 
 rsrcSound :: Resources -> SoundTag -> Sound
 rsrcSound rsrc tag = tmGet tag $ rsrcSounds rsrc

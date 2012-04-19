@@ -36,6 +36,7 @@ import Fallback.Scenario.Triggers.FrozenPass (compileFrozenPass)
 import Fallback.Scenario.Triggers.Globals
 import Fallback.Scenario.Triggers.IronMine (compileIronMine)
 import Fallback.Scenario.Triggers.Script
+import Fallback.Scenario.Triggers.SewerCaves (compileSewerCaves)
 import Fallback.Scenario.Triggers.StoneBridge (compileStoneBridge)
 import Fallback.Scenario.Triggers.Tragorda (compileTragorda)
 import Fallback.State.Area --(arsGetCharacter)
@@ -665,8 +666,7 @@ scenarioTriggers = compileScenario $ do
       narrate $ "You chose " ++ show (number :: Int) ++ ", I guess."
     return ()
 
-  compileArea SewerCaves Nothing $ do
-    makeExit Holmgare [Rect 29 42 7 2] (Point 32 40)
+  compileSewerCaves globals
 
   compileArea PerilousRoad Nothing $ do
     makeExit Holmgare [Rect 0 4 2 5] (Point 3 6)

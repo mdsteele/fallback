@@ -28,7 +28,7 @@ import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Globals
   (Globals(..), newDoorDevices, signRadius)
-import Fallback.Scenario.Triggers.Script (doesPartyHaveItem)
+import Fallback.Scenario.Triggers.Script
 import Fallback.State.Area (arsCharacterPosition)
 import Fallback.State.Creature (MonsterTownAI(..))
 import Fallback.State.Resources (SoundTag(SndFreeze), StripTag(IceBoom))
@@ -204,6 +204,7 @@ compileFrozenPass globals = compileArea FrozenPass Nothing $ do
           setMessage "The iron door is still locked.  You still don't have the\
                      \ key."
         if not hasKey then return False else do
+        playDoorUnlockSound
         writeVar ironDoorUnlocked True
         return True
   ironDoorDevice <- fst <$>

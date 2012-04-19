@@ -17,20 +17,28 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
--- | This module contains Script functions relevant to scripting area triggers.
+-- | This module contains 'Script' functions relevant to scripting area
+-- triggers.
 module Fallback.Scenario.Triggers.Script
-  (doesPartyHaveItem, setAreaCleared)
+  (doesPartyHaveItem, playDoorUnlockSound, setAreaCleared)
 where
 
 import Fallback.Scenario.Script
 import Fallback.State.Area (PartyEffect(EffSetAreaCleared), arsParty)
 import Fallback.State.Party (partyHasItem)
+import Fallback.State.Resources (SoundTag(SndUnlock))
 import Fallback.State.Tags (AreaTag, ItemTag)
 
 -------------------------------------------------------------------------------
 
 doesPartyHaveItem :: (FromAreaEffect f) => ItemTag -> Script f Bool
 doesPartyHaveItem tag = areaGet (partyHasItem tag . arsParty)
+
+-- | Play the sound used for unlocking doors, and wait a short bit for the
+-- sound to complete.  This is generally called just before returning from a
+-- @tryOpen@ script passed to @newDoorDevices@.
+playDoorUnlockSound :: (FromAreaEffect f) => Script f ()
+playDoorUnlockSound = playSound SndUnlock >> wait 6
 
 setAreaCleared :: (FromAreaEffect f) => AreaTag -> Bool -> Script f ()
 setAreaCleared tag cleared = emitAreaEffect $ EffSetAreaCleared tag cleared

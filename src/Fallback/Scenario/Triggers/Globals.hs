@@ -56,19 +56,6 @@ compileGlobals = do
   let newUnlockedDoor vseed cTag oTag = do
         let succeed _ _ = return True
         fst <$> newDoorDevices vseed cTag oTag succeed succeed
---   let newUnlockedDoor vseed cTag oTag = do
---         (cSeed, oSeed) <- splitVarSeed vseed
---         rec closed <- newDevice cSeed 1 $ \ge _ -> do
---               tile <- getTerrainTile oTag
---               setTerrain [(rectTopleft $ Grid.geRect ge, tile)]
---               replaceDevice ge open
---               playSound SndDoorOpen
---             open <- newDevice oSeed 1 $ \ge _ -> do
---               tile <- getTerrainTile cTag
---               setTerrain [(rectTopleft $ Grid.geRect ge, tile)]
---               replaceDevice ge closed
---               playSound SndDoorShut
---         return closed
   stoneDoor <- newUnlockedDoor 398282 StoneDoorClosedTile StoneDoorOpenTile
   basaltDoor <- newUnlockedDoor 349783 BasaltDoorClosedTile BasaltDoorOpenTile
   adobeDoor <- newUnlockedDoor 109823 AdobeDoorClosedTile AdobeDoorOpenTile
