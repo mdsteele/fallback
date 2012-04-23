@@ -492,6 +492,7 @@ data TownEffect :: * -> * where
   EffShop :: [Either Ingredient ItemTag] -> TownEffect ()
   EffStartCombat :: TownEffect ()
   EffTeleportToArea :: AreaTag -> Position -> TownEffect ()
+
 {-
 -- | Effects that can only happen during a conversation.
 data TalkEffect :: * -> * where
