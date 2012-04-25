@@ -621,9 +621,9 @@ abilityDescription Bash =
   \At rank 2, stuns the target more heavily.\n\
   \At rank 3, may also daze the target."
 abilityDescription Valiance =
-  "Permanently increases the rate at which you gain adrenaline by 5%.\n\
-  \At rank 2, the increase rises to 10%.\n\
-  \At rank 3, the increase rises to 20%."
+  "Permanently increases the rate at which you gain adrenaline by 10%.\n\
+  \At rank 2, the increase rises to 20%.\n\
+  \At rank 3, the increase rises to 30%."
 abilityDescription SecondWind =
   "Heal yourself of some damage.\n\
   \At rank 2, requires only three action points instead of four.\n\

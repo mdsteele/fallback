@@ -28,7 +28,8 @@ where
 
 import Control.Applicative ((<$>), (<*>))
 import Data.List (foldl', intercalate, partition)
-import Data.Monoid
+import Data.Maybe (maybeToList)
+import Data.Monoid (Monoid(..))
 
 import Fallback.Data.TotalMap (TotalMap, makeTotalMap, tmAssocs, tmGet, tmSet)
 import Fallback.State.Simple
@@ -60,6 +61,7 @@ armorName AdamantPlate = "Adamant Plate"
 
 accessoryName :: AccessoryItemTag -> String
 accessoryName GroundedAmulet = "Grounded Amulet"
+accessoryName MedalOfValor = "Medal of Valor"
 accessoryName TitanFists = "Titan Fists"
 
 potionName :: PotionItemTag -> String
@@ -67,7 +69,8 @@ potionName HealingTincture = "Healing Tincture"
 potionName tag = show tag -- FIXME
 
 inertName :: InertItemTag -> String
-inertName tag = show tag -- FIXME
+inertName IronKey = "Iron Key"
+inertName SilverKey = "Silver Key"
 
 -------------------------------------------------------------------------------
 
@@ -225,9 +228,14 @@ bonusesSubDesc bonuses = if null bonusLines then "" else
                            "Bonuses:\n" ++ concatMap indent bonusLines where
   bonusLines = (map statLine $ filter ((0 /=) . snd) $ tmAssocs $
                 bonusStats bonuses) ++
+               (maybeToList mbAdrenMultLine) ++
                (map resistLine $ filter ((1 /=) . snd) $ tmAssocs $
                 bonusResistances bonuses)
   statLine (stat, delta) = showSignedInt delta ++ " " ++ statName stat ++ "\n"
+  mbAdrenMultLine =
+    let mult = bonusAdrenalineMultiplier bonuses
+    in if mult == 1 then Nothing
+       else Just (showSignedPercent (mult - 1) ++ " adrenaline gain\n")
   resistLine (resist, mult) = showSignedPercent (1 - mult) ++ " " ++
                               resistName resist ++ "\n"
   statName Strength = "strength"
@@ -460,6 +468,9 @@ getAccessoryData :: AccessoryItemTag -> ArmorData
 getAccessoryData GroundedAmulet = ArmorData
   { adBonuses = sumBonuses [ResistEnergy +% 15],
     adUsableBy = usableByAll }
+getAccessoryData MedalOfValor = ArmorData
+  { adBonuses = sumBonuses [adrenMult 1.2, ResistStun +% 10],
+    adUsableBy = usableByAll }
 getAccessoryData TitanFists = ArmorData
   { adBonuses = sumBonuses [Strength += 10, Armor +% 8],
     adUsableBy = warriorsOnly }
@@ -476,7 +487,8 @@ getPotionAction _ = error "FIXME getPotionAction"
 
 -- | Represents the bonuses conferred onto a character for equipping an item.
 data Bonuses = Bonuses
-  { bonusResistances :: Resistances,
+  { bonusAdrenalineMultiplier :: Double,
+    bonusResistances :: Resistances,
     bonusStats :: Stats }
 
 instance Monoid Bonuses where
@@ -487,19 +499,33 @@ instance Monoid Bonuses where
 -- | No bonuses of any kind.
 nullBonuses :: Bonuses
 nullBonuses = Bonuses
-  { bonusResistances = nullResistances,
+  { bonusAdrenalineMultiplier = 1,
+    bonusResistances = nullResistances,
     bonusStats = nullStats }
 
 addBonuses :: Bonuses -> Bonuses -> Bonuses
 addBonuses b1 b2 = Bonuses
-  { bonusResistances = (*) <$> bonusResistances b1 <*> bonusResistances b2,
+  { bonusAdrenalineMultiplier = bonusAdrenalineMultiplier b1 *
+                                bonusAdrenalineMultiplier b2,
+    bonusResistances = (*) <$> bonusResistances b1 <*> bonusResistances b2,
     bonusStats = (+) <$> bonusStats b1 <*> bonusStats b2 }
 
 sumBonuses :: [Bonuses] -> Bonuses
 sumBonuses = foldl' addBonuses nullBonuses
 
 -------------------------------------------------------------------------------
--- Private:
+
+adrenMult :: Double -> Bonuses
+adrenMult x = nullBonuses { bonusAdrenalineMultiplier = x }
+
+(+=) :: Stat -> Int -> Bonuses
+stat += n = nullBonuses { bonusStats = tmSet stat n nullStats }
+
+(+%) :: Resistance -> Double -> Bonuses
+resist +% n =
+  nullBonuses { bonusResistances = tmSet resist (1 - n / 100) nullResistances }
+
+-------------------------------------------------------------------------------
 
 usableByAll :: TotalMap CharacterClass Bool
 usableByAll = makeTotalMap (const True)
@@ -520,14 +546,7 @@ warriorsOnly = makeTotalMap (== WarriorClass)
 roguesOnly :: TotalMap CharacterClass Bool
 roguesOnly = makeTotalMap (== RogueClass)
 
-(+=) :: Stat -> Int -> Bonuses
-stat += n = Bonuses { bonusResistances = nullResistances,
-                      bonusStats = tmSet stat n nullStats }
-
-(+%) :: Resistance -> Double -> Bonuses
-resist +% n = Bonuses
-  { bonusResistances = tmSet resist (1 - n / 100) nullResistances,
-    bonusStats = nullStats }
+-------------------------------------------------------------------------------
 
 showSignedInt :: Int -> String
 showSignedInt i = if i < 0 then show i else '+' : show i

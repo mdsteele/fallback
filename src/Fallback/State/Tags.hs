@@ -271,7 +271,7 @@ data WeaponItemTag = Sunrod | Starspear | Moonbow | Lifeblade
 data ArmorItemTag = LeatherArmor | AdamantPlate
   deriving (Eq, Read, Show)
 
-data AccessoryItemTag = GroundedAmulet | TitanFists
+data AccessoryItemTag = GroundedAmulet | MedalOfValor | TitanFists
   deriving (Eq, Read, Show)
 
 data PotionItemTag = HealingTincture | HealingPotion | HealingElixir

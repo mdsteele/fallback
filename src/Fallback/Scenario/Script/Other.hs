@@ -205,9 +205,11 @@ dealRawDamageToCharacter gentle charNum damage stun = do
   unless gentle $ do
     alterCharacterStatus charNum seWakeFromDaze
     party <- areaGet arsParty
-    let maxHealth = chrMaxHealth party $ partyGetCharacter party charNum
-    -- TODO take Valiance into account
-    alterAdrenaline charNum (+ adrenalineForDamage damage maxHealth)
+    let char = partyGetCharacter party charNum
+    let maxHealth = chrMaxHealth party char
+    let adrenaline = adrenalineForDamage (chrAdrenalineMultiplier char)
+                                         damage maxHealth
+    alterAdrenaline charNum (+ adrenaline)
   -- Do stun (if in combat):
   when (stun > 0) $ whenCombat $ do
     moments <- emitEffect $ EffGetCharMoments charNum
@@ -250,7 +252,7 @@ dealRawDamageToMonster gentle key damage stun = do
   unless gentle $ alterMonsterStatus key seWakeFromDaze
   let adrenaline' = monstAdrenaline monst +
         if gentle then 0 else
-          adrenalineForDamage damage $ mtMaxHealth $ monstType monst
+          adrenalineForDamage 1 damage $ mtMaxHealth $ monstType monst
   -- Do damage and stun:
   let health' = monstHealth monst - damage
   let moments' = max 0 (monstMoments monst -
@@ -275,9 +277,9 @@ dealRawDamageToMonster gentle key damage stun = do
       grantExperience $ mtExperienceValue $ monstType monst
   return damage
 
-adrenalineForDamage :: Int -> Int -> Int
-adrenalineForDamage damage maxHealth =
-  round $ (fromIntegral maxAdrenaline *) $ square $ min 1 $
+adrenalineForDamage :: Double -> Int -> Int -> Int
+adrenalineForDamage multiplier damage maxHealth =
+  round $ (fromIntegral maxAdrenaline * multiplier *) $ square $ min 1 $
   2 * fromIntegral damage / (fromIntegral maxHealth :: Double)
 
 -------------------------------------------------------------------------------

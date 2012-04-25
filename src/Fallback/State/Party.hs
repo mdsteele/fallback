@@ -282,6 +282,11 @@ chrAbilityMultiplier tag m1 m2 m3 char =
     Just Rank2 -> m2
     Just Rank3 -> m3
 
+chrAdrenalineMultiplier :: Character -> Double
+chrAdrenalineMultiplier char =
+  chrAbilityMultiplier Valiance 1.1 1.2 1.3 char *
+  (product $ map bonusAdrenalineMultiplier $ chrBonusesList char)
+
 chrAlterStatus :: (StatusEffects -> StatusEffects) -> Character -> Character
 chrAlterStatus fn char = char { chrStatus = fn (chrStatus char) }
 
