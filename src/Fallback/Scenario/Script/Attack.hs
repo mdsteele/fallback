@@ -64,7 +64,6 @@ characterWeaponAttack charNum target = do
   unless miss $ do
   (critical, damage) <- characterWeaponChooseCritical char =<<
                         characterWeaponBaseDamage char wd
-  -- TODO take EagleEye rank 2 into account for damage
   -- TODO take Backstab into account for damage
   -- TODO take FinalBlow into account somehow
   characterWeaponHit wd target critical damage
@@ -83,8 +82,9 @@ characterWeaponBaseDamage char wd = do
   let rollDice n = sum <$> replicateM n dieRoll
   let strength = chrGetStat Strength char
   extraDie <- (strength `mod` 5 >) <$> getRandomR 0 4
-  fromIntegral <$> rollDice (wdDamageBonus wd + strength `div` 5 +
-                             if extraDie then 1 else 0)
+  damage <- fromIntegral <$>
+    rollDice (wdDamageBonus wd + strength `div` 5 + if extraDie then 1 else 0)
+  return (damage * chrAbilityMultiplier EagleEye 1 1.15 1.15 char)
 
 characterWeaponChooseCritical :: (FromAreaEffect f) => Character -> Double
                               -> Script f (Bool, Double)
@@ -275,7 +275,7 @@ attackHit appearance element effects target critical damage = do
         return ((hitTarget, ColdDamage, mult * damage) : hits)
       InflictPoison mult -> hits <$ inflictPoison hitTarget (mult * damage)
       InflictStun mult -> hits <$ inflictStun hitTarget (mult * damage)
-      _ -> return hits -- FIXME
+      _ -> return hits -- FIXME other effects
   let damageElement =
         case element of
           AcidAttack -> AcidDamage

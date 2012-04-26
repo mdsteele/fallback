@@ -29,7 +29,7 @@ module Fallback.Scenario.Script.Other
    -- ** Mojo/adrenaline
    alterMana, alterCharacterMojo, restoreMojoToFull, alterAdrenaline,
    -- ** Status effects
-   alterStatus, grantInvisibility, inflictPoison, inflictStun,
+   alterStatus, grantInvisibility, inflictPoison, curePoison, inflictStun,
    -- ** Other
    grantExperience, removeFields, setFields,
    getTerrainTile, resetTerrain, setTerrain,
@@ -205,10 +205,8 @@ dealRawDamageToCharacter gentle charNum damage stun = do
   unless gentle $ do
     alterCharacterStatus charNum seWakeFromDaze
     party <- areaGet arsParty
-    let char = partyGetCharacter party charNum
-    let maxHealth = chrMaxHealth party char
     let adrenaline = adrenalineForDamage (chrAdrenalineMultiplier char)
-                                         damage maxHealth
+                                         damage (chrMaxHealth party char)
     alterAdrenaline charNum (+ adrenaline)
   -- Do stun (if in combat):
   when (stun > 0) $ whenCombat $ do
@@ -299,8 +297,7 @@ healDamage hits = do
 
 healCharacter :: (FromAreaEffect f) => CharacterNumber -> Double -> Script f ()
 healCharacter charNum baseAmount = do
-  multiplier <- chrAbilityMultiplier Recuperation 1.1 1.2 1.4 <$>
-                areaGet (arsGetCharacter charNum)
+  multiplier <- recuperationMultiplier <$> areaGet (arsGetCharacter charNum)
   let amount = max 0 $ round (multiplier * baseAmount)
   party <- areaGet arsParty
   emitAreaEffect $ EffAlterCharacter charNum $ \char ->
@@ -416,6 +413,21 @@ inflictPoison hitTarget basePoison = do
       let poison = round $ (basePoison *) $ tmGet ResistChemical $
                    mtResistances $ monstType $ Grid.geValue monstEntry
       alterMonsterStatus (Grid.geKey monstEntry) $ seAlterPoison (poison +)
+    Nothing -> return ()
+
+-- | Cure poison damage from the target, taking the Recuperation skill into
+-- account.
+curePoison :: (FromAreaEffect f) => HitTarget -> Double -> Script f ()
+curePoison hitTarget baseAmount = do
+  mbOccupant <- getHitTargetOccupant hitTarget
+  case mbOccupant of
+    Just (Left charNum) -> do
+      char <- areaGet (arsGetCharacter charNum)
+      let amount = round (baseAmount * recuperationMultiplier char)
+      alterCharacterStatus charNum $ seAlterPoison (max 0 . subtract amount)
+    Just (Right monstEntry) -> do
+      alterMonsterStatus (Grid.geKey monstEntry) $
+        seAlterPoison (max 0 . subtract (round baseAmount))
     Nothing -> return ()
 
 -- | Inflicts stun (measured in action points) onto the target, taking
@@ -826,5 +838,8 @@ characterScreamSound char =
     (MagusClass, Appearance0) -> SndHurtMale
     (MagusClass, Appearance1) -> SndHurtMale
     _ -> SndHurtFemale
+
+recuperationMultiplier :: Character -> Double
+recuperationMultiplier = chrAbilityMultiplier Recuperation 1.1 1.2 1.4
 
 -------------------------------------------------------------------------------

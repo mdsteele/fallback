@@ -103,6 +103,7 @@ getAbility characterClass abilityNumber rank =
       \_ _ _ -> do
         return () -- FIXME
     Backstab -> PassiveAbility
+    Vanish -> PassiveAbility -- FIXME
     SmokeBomb ->
       general (FocusCost 1) (aoeTarget 5 $ ofRadius $ ranked 1 2 3) $
       \caster power (endPos, targets) -> do
@@ -172,6 +173,7 @@ getAbility characterClass abilityNumber rank =
                         prectPositions $ Grid.geRect entry') $ \_hitPos -> do
                   return () -- FIXME slash monster at hitPos
     Dodge -> PassiveAbility
+    Subsume -> PassiveAbility -- FIXME
     Illusion ->
       combat (FocusCost 1) AutoTarget $ \caster _power () -> do
         startPos <- areaGet (arsCharacterPosition caster)
@@ -221,6 +223,7 @@ getAbility characterClass abilityNumber rank =
         when (rank >= Rank3) $ do
           setFields (FireWall $ power * 8) [endPos]
         characterWeaponHit wd' endPos critical damage
+    Entangle -> PassiveAbility -- FIXME
     Recuperation -> PassiveAbility
     PoisonShot ->
       meta (mix Limestone Limestone) RangedOnly SingleTarget $
@@ -236,7 +239,11 @@ getAbility characterClass abilityNumber rank =
         (critical, damage) <- characterWeaponChooseCritical char =<<
                               characterWeaponBaseDamage char wd'
         characterWeaponHit wd' endPos critical damage
+    Charm -> PassiveAbility -- FIXME
     EagleEye -> PassiveAbility
+    CurseShot -> PassiveAbility -- FIXME
+    Summon -> PassiveAbility -- FIXME
+    FrostShot -> PassiveAbility -- FIXME
     Fireball ->
       combat (mix AquaVitae Naphtha) (SingleTarget $ ranked 5 5 7) $
       \caster power endPos -> do
@@ -249,6 +256,19 @@ getAbility characterClass abilityNumber rank =
         playSound SndFireDamage
         addBoomDoodadAtPosition FireBoom 3 endPos >> wait 8
         dealDamage [(HitPosition endPos, FireDamage, damage)] >> wait 16
+    Cure ->
+      general (mix AquaVitae Mandrake) (AllyTarget 8) $
+      \caster power eith -> do
+        intBonus <- getIntellectBonus caster
+        let hitTarget = either HitPosition HitCharacter eith
+        playSound SndHeal
+        when (rank >= Rank2) $ alterStatus hitTarget sePurgeMentalEffects
+        cureAmount <- (intBonus * power * ranked 25 40 60 *) <$>
+                      getRandomR 0.9 1.1
+        curePoison hitTarget cureAmount
+        healAmount <- (intBonus * power * ranked 20 35 55 *) <$>
+                      getRandomR 0.9 1.1
+        healDamage [(hitTarget, healAmount)]
     Conflagration ->
       combat (mix Naphtha Limestone) (aoeTarget 4 $ ofRadius $ ranked 1 2 2) $
       \caster power (endPos, targets) -> do
@@ -337,6 +357,8 @@ getAbility characterClass abilityNumber rank =
         playSound SndBoomBig
         forkScript $ doExplosionDoodad FireBoom $ positionCenter endPos
         wait 5 >> dealDamage hits
+    AdrenalineRush -> PassiveAbility -- FIXME
+    Rainbow -> PassiveAbility -- FIXME
     Healing ->
       general (ManaCost 4) (AllyTarget 8) $ \caster power eith -> do
         intBonus <- getIntellectBonus caster
@@ -344,6 +366,7 @@ getAbility characterClass abilityNumber rank =
         let healAmount = randMult * intBonus * power * ranked 20 35 55
         playSound SndHeal
         healDamage [(either HitPosition HitCharacter eith, healAmount)]
+    Blessing -> PassiveAbility -- FIXME
     Disruption ->
       combat (ManaCost 6) (MultiTarget (ranked 1 3 3) 4) $
       \caster power targets -> do
@@ -369,7 +392,10 @@ getAbility characterClass abilityNumber rank =
                              MagicDamage, dmg)
             Nothing -> return Nothing
         dealDamage hits >> wait 12
+    Restore -> PassiveAbility -- FIXME
+    Hinder -> PassiveAbility -- FIXME
     Clarity -> PassiveAbility
+    Revive -> PassiveAbility -- FIXME
     GroupHeal ->
       general (ManaCost 20) AutoTarget $ \caster power () -> do
         intBonus <- getIntellectBonus caster
@@ -485,6 +511,7 @@ getAbility characterClass abilityNumber rank =
         grantInvisibility hitTarget invis
         when (rank >= Rank3) $ do
           return () -- FIXME grantBlessing hitTarget (power * whatever)
+    Hasten -> PassiveAbility -- FIXME
     Lightning ->
       combat (ManaCost 5) (SingleTarget 4) $ \caster power endPos -> do
         characterBeginOffensiveAction caster endPos
@@ -590,7 +617,6 @@ getAbility characterClass abilityNumber rank =
           wait 12
           dealDamage [(HitPosition target, EnergyDamage, damage)]
         wait 12
-    _ -> PassiveAbility
   where
     tag = classAbility characterClass abilityNumber
     ranked v1 v2 v3 =
@@ -633,7 +659,7 @@ abilityDescription Hardiness =
   \At rank 2, the increase rises to 6%.\n\
   \At rank 3, the increase rises to 10%."
 abilityDescription Shieldbreaker =
-  "Make a melee weapon attack, impairing the enemy's defenses so that future\
+  "Make a melee weapon attack, weakening the enemy's defenses so that future\
   \ attacks will deal more damage.\n\
   \At rank 2, reduces the target's defenses more.\n\
   \At rank 3, this attack will be unmitigated by the target's armor."
@@ -689,7 +715,8 @@ abilityDescription RopeDart =
   \At rank 2, also heavily stuns the enemy.\n\
   \At rank 3, you slash the enemy with your weapon after reeling them in."
 abilityDescription Dodge =
-  "Permanently gives you an extra 5% chance to avoid any ranged attack.\n\
+  "Permanently gives you an extra 5% chance to avoid any ranged weapon\
+  \ attack.\n\
   \At rank 2, your chance of dodging rises to 10%.\n\
   \At rank 3, your chance of dodging rises to 20%."
 abilityDescription Subsume =
@@ -751,8 +778,9 @@ abilityDescription Fireball =
   "Hurl a ball of fire at a single target.\n\
   \At rank 2, the fireball does more damage.\n\
   \At rank 3, the fireball does even more damage and has a longer range."
-abilityDescription Cure = "Restore some health for one target.\n\
-  \At rank 2, heals more damage, and also reduces poison.\n\
+abilityDescription Cure =
+  "Restore health and reduce poison for one target.\n\
+  \At rank 2, heals more damage, and also alleviates mental effects.\n\
   \At rank 3, heals even more damage."
 abilityDescription Conflagration =
   "Set an area on fire, continuously damaging those within.\n\
@@ -768,6 +796,11 @@ abilityDescription ArmorAura =
   \ taken by 25%.\n\
   \At rank 2, the effect lasts longer.\n\
   \At rank 3, the effect lasts a very long time."
+abilityDescription Barrier =
+  "Create a impenetrable wall of magic, temporarily blocking all movement and\
+  \ attacks.\n\
+  \At rank 2, the wall is wider and lasts longer.\n\
+  \At rank 3, the wall is even wider and longer-lasting."
 abilityDescription Drain =
   "Drain the health of all creatures in an area, and distribute the stolen\
   \ health among all allies.\n\
@@ -789,9 +822,19 @@ abilityDescription Rainbow =
 abilityDescription Healing = "Restores some health for one target.\n\
   \At rank 2, heals more damage.\n\
   \At rank 3, heals even more damage."
+abilityDescription Blessing =
+  "Bless a single ally, making them harder for enemies to hit, and making\
+  \ their own weapon attacks hit more often and do more damage.\n\
+  \At rank 2, also blesses any allies adjacent to the target.\n\
+  \At rank 3, blesses all allies."
 abilityDescription Disruption = "Deals major damage to an undead target.\n\
   \At rank 2, hits up to three targets.\n\
   \At rank 3, also damages daemonic targets."
+abilityDescription Restore =
+  "Cures poison, alleviates mental effects, and washes away entanglement\
+  \ from everyone within an area.\n\
+  \At rank 2, also removes curses, weakness, and slowness.\n\
+  \At rank 3, the removed effects are inflicted upon any nearby enemies."
 abilityDescription Hinder =
   "Slow several targets, causing them to take turns less often.\n\
   \At rank 2, also ensnares the targets, causing them to walk slower.\n\
@@ -854,7 +897,6 @@ abilityDescription AcidRain = "Spray all nearby enemies with damaging acid.\n\
 abilityDescription Luminaire = "Deal major energy damage to a wide area.\n\
   \At rank 2, deals even more damage.\n\
   \At rank 3, deals massive damage."
-abilityDescription _ = "FIXME abilityDescription"
 
 -------------------------------------------------------------------------------
 

@@ -31,7 +31,8 @@ module Fallback.State.Status
    seIsShielded, seMagicShieldMultiplier,
    -- * Setters and modifiers
    seAlterPoison, seApplyBlessing, seApplyDefense, seApplyEntanglement,
-   seApplyHaste, seApplyMagicShield, seSetInvisibility, seWakeFromDaze,
+   seApplyHaste, seApplyMagicShield, sePurgeMentalEffects, seSetInvisibility,
+   seWakeFromDaze,
    -- * Utilities
    compress, townifyStatus)
 where
@@ -174,6 +175,9 @@ seApplyHaste hb se = se { seHaste = mergeHarmOrBenefit hb (seHaste se) }
 seApplyMagicShield :: Double -> StatusEffects -> StatusEffects
 seApplyMagicShield x se =
   se { seMagicShield = mergeMaybe x (seMagicShield se) }
+
+sePurgeMentalEffects :: StatusEffects -> StatusEffects
+sePurgeMentalEffects se = se { seMentalEffect = Nothing }
 
 seSetInvisibility :: Maybe Invisibility -> StatusEffects -> StatusEffects
 seSetInvisibility mbInvis se = se { seInvisibility = mbInvis }
