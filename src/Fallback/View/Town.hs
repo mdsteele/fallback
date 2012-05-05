@@ -56,6 +56,7 @@ import Fallback.View.Upgrade
 data TownAction = TownSidebar SidebarAction
                 | TownAbilities AbilitiesAction
                 | TownInventory InventoryAction
+                | TownShopping ShoppingAction
                 | TownUpgrade UpgradeAction
                 --- | TownInteract (GridEntry Device)
                 | TownMove Direction
@@ -84,6 +85,14 @@ newTownView resources = newCursorView resources $ \cursorSink -> do
                                   ivsClock = arsClock ts,
                                   ivsParty = arsParty ts }
           _ -> Nothing
+  let shoppingFn ts =
+        case tsPhase ts of
+          ShoppingPhase _ forsale _ ->
+            Just ShoppingState { spsForSale = forsale,
+                                 spsInventory = InventoryState { ivsActiveCharacter = tsActiveCharacter ts,
+                                  ivsClock = arsClock ts,
+                                  ivsParty = arsParty ts } }
+          _ -> Nothing
   let upgradeFn ts =
         case tsPhase ts of
           UpgradePhase st sk ->
@@ -96,10 +105,12 @@ newTownView resources = newCursorView resources $ \cursorSink -> do
      newSidebarView resources),
     (subView mapRect <$> compoundViewM [
        (newTownMapView resources cursorSink),
-       (newMaybeView inventoryFn =<< fmap TownInventory <$>
-        newInventoryView resources cursorSink),
        (newMaybeView abilitiesFn =<< fmap TownAbilities <$>
         newAbilitiesView resources cursorSink),
+       (newMaybeView inventoryFn =<< fmap TownInventory <$>
+        newInventoryView resources cursorSink),
+       (newMaybeView shoppingFn =<< fmap TownShopping <$>
+        newShoppingView resources cursorSink),
        (newMaybeView upgradeFn =<< fmap TownUpgrade <$>
         newUpgradeView resources cursorSink)])]
 
@@ -154,6 +165,7 @@ newTownMapView resources cursorSink = do
             return $ Action $ TownTargetPosition $
             pointPosition (pt `pAdd` (camTopleft $ arsCamera ts))
           ScriptPhase _ -> return Suppress
+          ShoppingPhase _ _ _ -> return Suppress
     handler ts (EvKeyDown KeyEscape _ _) = do
       case tsPhase ts of
         TargetingPhase _ -> return (Action TownCancelTargeting)

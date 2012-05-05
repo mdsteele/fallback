@@ -22,7 +22,7 @@ module Fallback.State.Party where
 import Control.Applicative ((<$>), (<*>))
 import Control.Exception (assert)
 import Control.Monad (guard)
-import qualified Data.Foldable as Fold (and, any)
+import qualified Data.Foldable as Fold
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes, fromMaybe, isNothing)
@@ -114,6 +114,16 @@ partyDeductCastingCost charNum cost party =
       let fn char = char { chrMojo = max 0 $ chrMojo char - mana }
       in partyAlterCharacter charNum fn party
     NoCost -> party
+
+numIngredientUsers :: TotalMap CharacterNumber Character -> Int
+numIngredientUsers = Fold.sum . fmap (usesIngredients . chrClass) where
+  usesIngredients HunterClass = 1
+  usesIngredients AlchemistClass = 1
+  usesIngredients _ = 0
+
+partyMaxIngredientCount :: Party -> Int
+partyMaxIngredientCount =
+  (100 *) . max 1 . numIngredientUsers . partyCharacters
 
 partyRemoveItem :: ItemSlot -> Party -> Party
 partyRemoveItem (CharWeaponSlot charNum) party =

@@ -21,7 +21,6 @@ module Fallback.Mode.NewGame (newNewGameMode) where
 
 import Control.Applicative ((<$>))
 import Control.Monad (when)
-import qualified Data.Foldable as Fold (sum)
 import qualified Data.IntMap as IntMap (fromList)
 import qualified Data.Map as Map (empty)
 import qualified Data.Set as Set (empty)
@@ -132,9 +131,7 @@ initCharacter spec = Character
 newParty :: NewGameSpec -> IO Party
 newParty spec = do
   let characters = initCharacter <$> ngsCharacters spec
-  let numHAs = let fn c = if c == HunterClass || c == AlchemistClass
-                          then 1 else 0
-               in Fold.sum $ fmap (fn . chrClass) characters
+  let numHAs = numIngredientUsers characters
   let party = Party
         { partyCharacters = characters,
           partyClearedAreas = Set.empty,
@@ -157,6 +154,9 @@ newParty spec = do
     ingredientStartQuantity Naphtha = 20
     ingredientStartQuantity Limestone = 10
     ingredientStartQuantity Mandrake = 10
-    ingredientStartQuantity _ = 5
+    ingredientStartQuantity Potash = 5
+    ingredientStartQuantity Brimstone = 5
+    ingredientStartQuantity DryIce = 0
+    ingredientStartQuantity Quicksilver = 0
 
 -------------------------------------------------------------------------------

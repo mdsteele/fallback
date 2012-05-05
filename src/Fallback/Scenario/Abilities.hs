@@ -226,7 +226,7 @@ getAbility characterClass abilityNumber rank =
     Entangle -> PassiveAbility -- FIXME
     Recuperation -> PassiveAbility
     PoisonShot ->
-      meta (mix Limestone Limestone) RangedOnly SingleTarget $
+      meta (mix Mandrake Mandrake) RangedOnly SingleTarget $
       \caster power endPos -> do
         char <- areaGet (arsGetCharacter caster)
         let effects = ranked

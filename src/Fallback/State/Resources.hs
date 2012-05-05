@@ -84,7 +84,7 @@ newResources = do
   charSheet <- loadSheet "characters.png" (24, 4)
   cursors <- loadVStrip "gui/cursors.png" 20
   itemIcons <- loadSheet "items.png" (8, 8)
-  sheetEquipButtons <- loadSheet "gui/equip-buttons.png" (4, 3)
+  sheetEquipButtons <- loadSheet "gui/equip-buttons.png" (4, 4)
   fonts <- makeTotalMapA (uncurry loadFont . fontSpec)
   monsterImages <- makeTotalMapA loadMonsterImages
   paintDigits <- newDigitPaint

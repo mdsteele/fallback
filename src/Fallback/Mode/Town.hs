@@ -67,12 +67,13 @@ import Fallback.State.Party
 import Fallback.State.Region (RegionState(..))
 import Fallback.State.Resources
   (Resources, SoundTag(SndCombatStart), rsrcSound)
-import Fallback.State.Simple (CastingCost, deltaFaceDir)
+import Fallback.State.Simple (CastingCost, Ingredient, ItemSlot, deltaFaceDir)
 import Fallback.State.Tags (AreaTag, ItemTag(PotionItemTag))
 import Fallback.State.Town
+import Fallback.Utility (flip3)
 import Fallback.View (fromAction, viewHandler, viewPaint)
 import Fallback.View.Abilities (AbilitiesAction(..))
-import Fallback.View.Inventory (InventoryAction(..))
+import Fallback.View.Inventory (InventoryAction(..), ShoppingAction(..))
 import Fallback.View.Sidebar (SidebarAction(..))
 import Fallback.View.Town
 import Fallback.View.Upgrade (UpgradeAction(..))
@@ -121,6 +122,10 @@ newTownMode resources modes initState = do
           fmap ChangeMode $ newNarrateMode resources view ts text $ do
             modifyIORef stateRef $ \ts' -> ts' { tsPhase = ScriptPhase script }
             return mode
+        Just (DoShopping forsale script) -> do
+          modifyIORef stateRef $ \ts' ->
+            ts' { tsPhase = ShoppingPhase Nothing forsale script }
+          handleAction action
         Just DoStartCombat -> doStartCombat ts
         Just (DoTeleport tag pos) -> do
           popupIfErrors resources view ts (return mode)
@@ -145,7 +150,10 @@ newTownMode resources modes initState = do
                 (tryCheating ts) view ts
             _ -> ignore
         Just (TownSidebar (MakeCharacterActive charNum)) -> do
-          changeState ts { tsActiveCharacter = charNum }
+          case tsPhase ts of
+            TargetingPhase _ -> ignore
+            ScriptPhase _ -> ignore
+            _ -> changeState ts { tsActiveCharacter = charNum }
         Just (TownSidebar ToggleAbilities) -> do
           case tsPhase ts of
             WalkingPhase ->
@@ -158,6 +166,7 @@ newTownMode resources modes initState = do
             UpgradePhase _ _ -> ignore
             TargetingPhase _ -> ignore
             ScriptPhase _ -> ignore
+            ShoppingPhase _ _ _ -> ignore
         Just (TownSidebar ToggleInventory) -> do
           case tsPhase ts of
             WalkingPhase ->
@@ -170,6 +179,7 @@ newTownMode resources modes initState = do
             UpgradePhase _ _ -> ignore
             TargetingPhase _ -> ignore
             ScriptPhase _ -> ignore
+            ShoppingPhase _ _ _ -> ignore
         Just (TownSidebar TryToggleCombat) -> do
           case tsPhase ts of
             WalkingPhase -> tryToManuallyStartCombat ts
@@ -226,12 +236,7 @@ newTownMode resources modes initState = do
             InventoryPhase mbItemTag -> do
               case invAct of
                 ExchangeItem slot -> do
-                  case partyTryExchangeItem slot mbItemTag (arsParty ts) of
-                    Nothing -> ignore
-                    Just (mbItemTag', party') -> do
-                      changeState ts
-                        { tsCommon = (tsCommon ts) { acsParty = party' },
-                          tsPhase = InventoryPhase mbItemTag' }
+                  trySwapItem ts mbItemTag slot InventoryPhase
                 UpgradeStats -> do
                   if isJust mbItemTag then ignore else do
                   startUpgradePhase ts
@@ -245,6 +250,20 @@ newTownMode resources modes initState = do
                                   tsActiveCharacter ts
                       changePhaseAndParty ts phase (partyRemoveItem slot party)
                     _ -> ignore
+                DoneInventory -> do
+                  if isJust mbItemTag then ignore else do
+                  changeState ts { tsPhase = WalkingPhase }
+            _ -> ignore
+        Just (TownShopping shopAct) -> do
+          case tsPhase ts of
+            ShoppingPhase mbItemTag forSale onDone -> do
+              case shopAct of
+                SwapItem slot -> trySwapItem ts mbItemTag slot $
+                                 flip3 ShoppingPhase forSale onDone
+                DoneShopping -> do
+                  if isJust mbItemTag then ignore else do
+                  changeState ts { tsPhase = ScriptPhase onDone }
+                _ -> ignore -- FIXME
             _ -> ignore
         Just (TownUpgrade upgAct) -> do
           case tsPhase ts of
@@ -346,6 +365,15 @@ newTownMode resources modes initState = do
         Just _ -> return SameMode -- FIXME handle other actions
         Nothing -> return SameMode
 
+    trySwapItem :: TownState -> Maybe ItemTag -> ItemSlot
+                -> (Maybe ItemTag -> TownPhase) -> IO NextMode
+    trySwapItem ts mbItemTag slot phaseFn = do
+      case partyTryExchangeItem slot mbItemTag (arsParty ts) of
+        Nothing -> ignore
+        Just (mbItemTag', party') -> do
+          changeState ts { tsCommon = (tsCommon ts) { acsParty = party' },
+                           tsPhase = phaseFn mbItemTag' }
+
     executeAbility :: TownState -> CastingCost -> Script TownEffect ()
                    -> IO NextMode
     executeAbility ts cost script =
@@ -432,9 +460,8 @@ data Interrupt = DoExit AreaTag
                | forall a. DoMultiChoice String [(String, a)] (Maybe a)
                                          (a -> Script TownEffect ())
                | DoNarrate String (Script TownEffect ())
+               | DoShopping [Either Ingredient ItemTag] (Script TownEffect ())
                | DoStartCombat
---                | forall a. DoTalk (Script TalkEffect a)
---                                   (a -> Script TownEffect ())
                | DoTeleport AreaTag Position
                | DoWait (Script TownEffect ())
 
@@ -448,6 +475,7 @@ doTick ts =
     InventoryPhase _ -> return (tickTownAnimations ts, Nothing)
     UpgradePhase _ _ -> return (tickTownAnimations ts, Nothing)
     TargetingPhase _ -> return (tickTownAnimations ts, Nothing)
+    ShoppingPhase _ _ _ -> return (tickTownAnimations ts, Nothing)
     -- If there is a pending script, we need to finish it.  Once it's all done,
     -- we'll move on to updateState (unless we get interrupted first, in which
     -- case the updateState will have to wait for the next tick).
@@ -511,7 +539,7 @@ executeEffect ts eff sfn =
     EffSetPartyPosition dest -> do
       ts' <- updateTownVisibility ts { tsPartyPosition = dest }
       return (ts', Right $ sfn ())
-    EffShop _ -> do fail "FIXME EffShop"
+    EffShop forsale -> return (ts, Left $ DoShopping forsale $ sfn ())
     EffStartCombat -> return (ts, Left DoStartCombat)
     EffTeleportToArea tag pos -> return (ts, Left $ DoTeleport tag pos)
     EffTownArea eff' ->

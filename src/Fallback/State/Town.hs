@@ -76,7 +76,8 @@ data TownPhase = WalkingPhase
                                              AbilityNumber) Int)
                | TargetingPhase TownTargeting
                | ScriptPhase (Script TownEffect ())
---                | ConversationPhase (Conversation TownEffect)
+               | ShoppingPhase (Maybe ItemTag) [Either Ingredient ItemTag]
+                               (Script TownEffect ())
 
 -------------------------------------------------------------------------------
 

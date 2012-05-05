@@ -225,6 +225,36 @@ ingredientName AquaVitae = "Aqua Vitae"
 ingredientName DryIce = "Dry Ice"
 ingredientName ing = show ing
 
+ingredientDescription :: Ingredient -> String
+ingredientDescription AquaVitae = "Aqua vitae, or ethanol, is a common\
+  \ alchemical ingredient and the basis of many potions and tinctures."
+ingredientDescription Naphtha = "Naphtha is an inflammable oil distilled from\
+  \ pitch.  It is especially useful for setting things on fire."
+ingredientDescription Limestone = "Limestone is a durable sedimentary rock. \
+  \ Its chemical derivatives are highly reactive."
+ingredientDescription Mandrake = "Mandrake is a plant root with many magical\
+  \ properties.  It is the foundation of both life-saving potions and deadly\
+  \ poisons."
+ingredientDescription Potash = "Potash is a caustic, alkaline substance used\
+  \ in several different alchemical formulae."
+ingredientDescription Brimstone = "Brimstone is a foul-smelling mineral\
+  \ compound and a critical ingredient in magical explosives."
+ingredientDescription DryIce = "Dry ice is a frozen gas, kept magically cold. \
+  \ It is a rare and powerful component in alchemical spells."
+ingredientDescription Quicksilver = "Quicksilver is a flowing liquid metal. \
+  \ It is very costly, and reserved for only the most powerful magic."
+
+-- | Return the cost, in coins, of a single unit of the given ingredient.
+ingredientCost :: Ingredient -> Integer
+ingredientCost AquaVitae = 3
+ingredientCost Naphtha = 5
+ingredientCost Limestone = 6
+ingredientCost Mandrake = 8
+ingredientCost Potash = 10
+ingredientCost Brimstone = 15
+ingredientCost DryIce = 25
+ingredientCost Quicksilver = 50
+
 -------------------------------------------------------------------------------
 
 data ItemSlot = CharWeaponSlot CharacterNumber

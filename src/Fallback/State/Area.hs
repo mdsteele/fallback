@@ -458,7 +458,6 @@ data AreaCommonEffect :: * -> * where
 -- handled differently depending on the mode.
 data AreaEffect :: * -> * where
   EffAreaCommon :: AreaCommonEffect a -> AreaEffect a
---   EffConversation :: Script TalkEffect a -> AreaEffect a
   EffFork :: Script AreaEffect () -> AreaEffect ()
   EffGameOver :: AreaEffect ()
   -- TODO: As currently implemented, EffIfCombat breaks concurrency.  That is,
@@ -493,15 +492,6 @@ data TownEffect :: * -> * where
   EffStartCombat :: TownEffect ()
   EffTeleportToArea :: AreaTag -> Position -> TownEffect ()
 
-{-
--- | Effects that can only happen during a conversation.
-data TalkEffect :: * -> * where
-  EffClear :: TalkEffect ()
-  EffDelay :: Int -> TalkEffect Bool -- return true if we hurried through
-  EffMonologue :: IRect -> Position -> [TextLine] -> Bool -> TalkEffect ()
-  EffPause :: TalkEffect ()
-  EffQuestion :: IRect -> Position -> [(TextLine, a)] -> TalkEffect a
--}
 -------------------------------------------------------------------------------
 
 executePartyEffect :: PartyEffect a -> Party -> IO (a, Party)

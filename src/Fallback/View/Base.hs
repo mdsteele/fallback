@@ -23,7 +23,7 @@ module Fallback.View.Base
    -- * View combinators
    f2map, vmap, vmapM, viewMap, viewMapM,
    compoundView, compoundViewM, subView, subView_,
-   newMaybeView, newEitherView, newHoverOnlyView,
+   maybeView, newMaybeView, newEitherView, newHoverOnlyView,
    -- * Utility functions
    whenWithinCanvas)
 where
@@ -159,11 +159,10 @@ subView_ = subView . const . const
 --   paint' input = paint . fn input =<< canvasSize
 --   handler' input rect event = handler (fn input (rectSize rect)) rect event
 
--- maybeView :: (a -> Maybe c) -> View c b -> View a b
--- maybeView fn (View paint handler) = View paint' handler' where
---   paint' input = maybe (return ()) paint (fn input)
---   handler' input rect event =
---     maybe (return Ignore) (flip3 handler rect event) (fn input)
+maybeView :: (a -> Maybe c) -> View c b -> View a b
+maybeView fn (View paint handler) = View paint' handler' where
+  paint' input = maybe (return ()) paint (fn input)
+  handler' input event = maybe (return Ignore) (flip handler event) (fn input)
 
 newMaybeView :: (MonadDraw m) => (a -> Maybe c) -> View c b -> m (View a b)
 newMaybeView fn (View paint handler) = do

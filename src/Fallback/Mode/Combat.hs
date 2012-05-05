@@ -217,6 +217,9 @@ newCombatMode resources modes initState = do
                         runPotionAction (getPotionAction potionTag) $
                         ccCharacterNumber cc
                     _ -> ignore
+                DoneInventory -> do
+                  if isJust mbItemTag then ignore else do
+                  changeState cs { csPhase = CommandPhase cc }
             _ -> ignore
         Just (CombatMove dir) ->
           case csPhase cs of
