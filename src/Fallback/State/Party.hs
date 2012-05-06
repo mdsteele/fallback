@@ -228,6 +228,11 @@ partyGrantExperience xp party =
     statOf (_, a, _) Agility = a
     statOf (_, _, i) Intellect = i
 
+partyGrantIngredient :: Int -> Ingredient -> Party -> Party
+partyGrantIngredient n ingredient party =
+  party { partyIngredients = tmAlter ingredient fn (partyIngredients party) }
+  where fn = min (partyMaxIngredientCount party) . (+ n)
+
 -- | Add an item to the first open slot in the party inventory.
 partyGrantItem :: ItemTag -> Party -> Party
 partyGrantItem tag party =

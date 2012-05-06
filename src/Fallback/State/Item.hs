@@ -18,7 +18,7 @@
 ============================================================================ -}
 
 module Fallback.State.Item
-  (itemName, itemIconCoords, ItemValue(..), itemValue, showCoins,
+  (itemName, itemIconCoords, ItemValue(..), itemValue, itemCost, showCoins,
    itemFullDescription,
    WeaponData(..), getWeaponData, unarmedWeaponData, DamageModifier(..),
    ArmorData(..), getArmorData, getAccessoryData,
@@ -159,6 +159,11 @@ showCommaSep :: (Integral a) => a -> String
 showCommaSep = reverse . commaSep . reverse . show
   where commaSep (a:b:c:d:xs) = a : b : c : ',' : commaSep (d : xs)
         commaSep xs = xs
+
+itemCost :: ItemTag -> Integer
+itemCost tag = case itemValue tag of
+                 CanSell cost -> cost
+                 CannotSell -> 0
 
 -------------------------------------------------------------------------------
 

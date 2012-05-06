@@ -63,12 +63,14 @@ import Fallback.State.Area
 import Fallback.State.Combat
   (CombatCharState(..), CombatState(..), CombatPhase(WaitingPhase))
 import Fallback.State.Creature (CreatureAnim(..))
-import Fallback.State.Item (getPotionAction)
+import Fallback.State.Item
+  (ItemValue(..), getPotionAction, itemCost, itemValue)
 import Fallback.State.Party
 import Fallback.State.Region (RegionState(..))
 import Fallback.State.Resources
   (Resources, SoundTag(SndCombatStart), rsrcSound)
-import Fallback.State.Simple (CastingCost, Ingredient, ItemSlot, deltaFaceDir)
+import Fallback.State.Simple
+  (CastingCost, Ingredient, ItemSlot, deltaFaceDir, ingredientCost)
 import Fallback.State.Tags (AreaTag, ItemTag(PotionItemTag), allItemTags)
 import Fallback.State.Town
 import Fallback.Utility (flip3)
@@ -185,18 +187,6 @@ newTownMode resources modes initState = do
           case tsPhase ts of
             WalkingPhase -> tryToManuallyStartCombat ts
             _ -> ignore
---         Just (TownInteract entry) -> do
---           case tsPhase ts of
---             WalkingPhase -> do
---               let pos = rectTopleft (geRect entry)
---               if Set.notMember pos (tsVisible ts) then ignore else do
---               let device = geValue entry
---               if pos `pSqDist` tsPartyPosition ts > devRange device then
---                 ignore else do
---               changeState ts { tsPhase = ScriptPhase $ mapEffect EffTownArea $
---                                          devInteract device entry $
---                                          tsActiveCharacter ts }
---             _ -> ignore
         Just (TownAbilities abilAct) -> do
           case tsPhase ts of
             ChooseAbilityPhase -> do
@@ -259,12 +249,32 @@ newTownMode resources modes initState = do
           case tsPhase ts of
             ShoppingPhase mbItemTag forSale onDone -> do
               case shopAct of
+                BuyIngredient quantity ing -> do
+                  if isJust mbItemTag then ignore else do
+                  let party = arsParty ts
+                  if quantity + tmGet ing (partyIngredients party) >
+                     partyMaxIngredientCount party then ignore else do
+                  tryBuy ts (toInteger quantity * ingredientCost ing)
+                         (partyGrantIngredient quantity ing)
+                BuyItem tag -> do
+                  if isJust mbItemTag then ignore else do
+                  tryBuy ts (itemCost tag) (partyGrantItem tag)
+                SellItem slot -> do
+                  if isJust mbItemTag then ignore else do
+                  let party = arsParty ts
+                  case partyItemInSlot slot party of
+                    Nothing -> ignore
+                    Just tag -> do
+                      case itemValue tag of
+                        CannotSell -> ignore
+                        CanSell value -> do
+                          changeParty ts $ partyRemoveItem slot $
+                            party { partyCoins = partyCoins party + value }
                 SwapItem slot -> trySwapItem ts mbItemTag slot $
                                  flip3 ShoppingPhase forSale onDone
                 DoneShopping -> do
                   if isJust mbItemTag then ignore else do
                   changeState ts { tsPhase = ScriptPhase onDone }
-                _ -> ignore -- FIXME
             _ -> ignore
         Just (TownUpgrade upgAct) -> do
           case tsPhase ts of
@@ -366,6 +376,13 @@ newTownMode resources modes initState = do
         Just _ -> return SameMode -- FIXME handle other actions
         Nothing -> return SameMode
 
+    tryBuy :: TownState -> Integer -> (Party -> Party) -> IO NextMode
+    tryBuy ts cost partyFn = do
+      let party = arsParty ts
+      let coins' = partyCoins party - cost
+      if coins' < 0 then ignore else do
+      changeParty ts $ partyFn party { partyCoins = coins' }
+
     trySwapItem :: TownState -> Maybe ItemTag -> ItemSlot
                 -> (Maybe ItemTag -> TownPhase) -> IO NextMode
     trySwapItem ts mbItemTag slot phaseFn = do
@@ -440,6 +457,10 @@ newTownMode resources modes initState = do
           let msg = "A hollow voice says, \"Fool!\""
           writeIORef stateRef $ arsSetMessage msg ts
       return mode
+
+    changeParty :: TownState -> Party -> IO NextMode
+    changeParty ts party' = do
+      changeState ts { tsCommon = (tsCommon ts) { acsParty = party' } }
 
     changePhaseAndParty :: TownState -> TownPhase -> Party -> IO NextMode
     changePhaseAndParty ts phase' party' = do

@@ -271,6 +271,7 @@ newItemActionButton resources cursorSink = do
       rect <- canvasRect
       blitStretch ((rsrcSheetEquipButtons resources) ! (row, column)) rect
     buttonInputFn (slot, mbTag) = do
+      -- TODO don't display button if player is holding an item with the cursor
       tag <- mbTag
       useAction slot tag
   newHoverOnlyView =<< newMaybeView buttonInputFn =<<
@@ -473,9 +474,6 @@ newShopItemView resources tooltipSink = do
         let sprite = rsrcItemIcon resources $
                      either ingredientIconCoords itemIconCoords eith
         blitLoc sprite $ LocTopleft $ Point 1 (1 :: Int)
-  let itemCost tag = case itemValue tag of
-                       CanSell cost -> cost
-                       CannotSell -> 0
   let hoverFn = Just . either (IngredientTooltip True) (ItemTooltip True)
   hoverView' tooltipSink hoverFn <$> compoundViewM [
     (return $ inertView paintIcon),
