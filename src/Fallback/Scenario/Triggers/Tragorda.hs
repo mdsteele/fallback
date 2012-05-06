@@ -21,12 +21,16 @@ module Fallback.Scenario.Triggers.Tragorda
   (compileTragorda)
 where
 
+import Control.Monad (when)
+
 import Fallback.Data.Point
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Globals (Globals(..), signRadius)
-import Fallback.Scenario.Triggers.Script (setAreaCleared)
-import Fallback.State.Tags (AreaTag(..))
+import Fallback.Scenario.Triggers.Script
+import Fallback.State.Creature (MonsterTownAI(DrunkAI))
+import Fallback.State.Simple (Ingredient(..))
+import Fallback.State.Tags
 
 -------------------------------------------------------------------------------
 
@@ -69,9 +73,54 @@ compileTragorda globals = compileArea Tragorda Nothing $ do
   uniqueDevice 277292 (Point 9 24) signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
       \      {b}THE WELCOME TRAVELER TAVERN{_}"
+
   uniqueDevice 915293 (Point 13 20) signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
       \      {b}APOTHECARY{_}"
+  simpleTownsperson 109230 TownWomanApron (Point 13 17)
+                    (DrunkAI $ Rect 11 17 5 1) $ \_ -> conversation $ do
+    convText "Well, hello!"  -- TODO
+    let
+      initialChoices = convNode $ do
+        convChoice (return ()) "\"We're all set, thank you.\"  (Leave.)"
+        -- TODO: when found ice, add choice to give it to her.
+        convChoice whereFrom "\"Where do your ingredients come from?\""
+        convChoice doShop "\"Let's see what you've got for sale.  (Shop.)\""
+      doShop = convNode $ do
+        startShopping $
+          map (Right . PotionItemTag)
+              [HealingTincture, HealingPotion, ManaPhilter, Antidote] ++
+          map Left [AquaVitae .. Brimstone]
+        convText "You conclude your business.  \"Always glad to be of help to\
+          \ an adventuring group,\" Lucca says with a little smile.  \"I used\
+          \ to be an adventurer myself, until I took...well, that's a story\
+          \ for another time, perhaps.\""
+      whereFrom = convNode $ do
+        convText "\"Hah, nice try!\" she laughs.  \"If I told you that, you'd\
+          \ just go get them yourselves instead of coming here to buy them\
+          \ from little old me!  What would I do then?\"  She gives you a\
+          \ little wink."
+        when True $ do -- TODO: when (quest not done yet)
+          convText "\n\n\"Although you know, now that I say that, I wonder if\
+            \ maybe you could help me out.  I've got this recipe I've been\
+            \ working on for months, but I need some dry ice to finish it, and\
+            \ I haven't got a bit of it.  Why don't you go fetch some for me,\
+            \ and if the recipe works out you can have some of the results?\""
+          convChoice whereIsIce "\"Where can we find dry ice?\""
+          convChoice howMuchIce "\"How much dry ice do you need?\""
+      howMuchIce = convNode $ do
+        convText "\"Oh, I hardly need any, that's the most frustrating part. \
+          \ A single piece would do.  But I haven't got a single bit of it\
+          \ right now, not even a speck.  It's difficult stuff to come by.\""
+      whereIsIce = convNode $ do
+        convText "\"I have no idea, dearies.  If I knew, I would go get it\
+          \ myself and spare myself from having to share the potion with\
+          \ you.\"  She brightens a bit.  \"Then I could sell it to you\
+          \ instead!  Then everyone would be happy!\"\n\
+          \\n\"But no, no idea where to find any around here; just let me know\
+          \ if you do.\""
+    initialChoices
+
   uniqueDevice 884670 (Point 26 30) signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
       \      {b}TRAGORDA MARKETPLACE{_}"

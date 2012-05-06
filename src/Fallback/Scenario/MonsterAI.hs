@@ -95,6 +95,12 @@ monsterTownStep ge = do
         return False else do
       maybe (return False) stepTowardsParty
             (pathfindRectToRange isBlocked rect partyPos (SqDist 2) 30)
+    DrunkAI zone -> do
+      pos' <- (rectTopleft rect `plusDir`) <$> getRandomElem allDirections
+      when (rectContains zone pos') $ do
+        blocked <- areaGet (flip (arsIsBlockedForMonster ge) pos')
+        unless blocked $ takeStep_ [pos']
+      return False
     GuardAI home -> do
       case pathfindRectToRange isBlocked rect partyPos (SqDist 2) 5 of
         Just path -> stepTowardsParty path

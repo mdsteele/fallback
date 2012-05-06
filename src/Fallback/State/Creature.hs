@@ -83,6 +83,7 @@ data MonsterAttack = MonsterAttack
     maRange :: AttackRange }
 
 data MonsterTownAI = ChaseAI -- chase party relentlessly
+                   | DrunkAI PRect -- random walk within rect
                    | GuardAI Position
                    | ImmobileAI -- never move; start combat when could attack
                    | MindlessAI -- chase party only when visible

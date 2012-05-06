@@ -300,7 +300,7 @@ data MonsterTag = Revenant | Revenantor | MasterRevenant
                 -- Bosses:
                 | Vampire | Vhaegyst
                 -- Townspeople:
-                | TownManApron | TownManRed | TownWomanBlue
+                | TownManApron | TownWomanApron | TownManRed | TownWomanBlue
                 -- Town guards:
                 | GuardSmallShield | GuardLargeShield | GuardArcher
                 -- Rogue illusions:

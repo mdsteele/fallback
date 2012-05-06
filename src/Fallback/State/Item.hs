@@ -66,6 +66,8 @@ accessoryName TitanFists = "Titan Fists"
 
 potionName :: PotionItemTag -> String
 potionName HealingTincture = "Healing Tincture"
+potionName HealingPotion = "Healing Potion"
+potionName ManaPhilter = "Mana Philter"
 potionName tag = show tag -- FIXME
 
 inertName :: InertItemTag -> String
@@ -107,7 +109,14 @@ accessoryIconCoords _ = (0, 5) -- FIXME
 
 potionIconCoords :: PotionItemTag -> (Int, Int)
 potionIconCoords HealingTincture = (2, 0)
-potionIconCoords _ = (0, 5) -- FIXME
+potionIconCoords HealingPotion = (2, 1)
+potionIconCoords HealingElixir = (2, 2)
+potionIconCoords ManaPhilter = (2, 3)
+potionIconCoords ManaElixir = (2, 4)
+potionIconCoords Antidote = (2, 5)
+potionIconCoords CuringPotion = (2, 6)
+potionIconCoords MiracleElixir = (2, 7)
+potionIconCoords _ = (0, 0) -- FIXME
 
 inertIconCoords :: InertItemTag -> (Int, Int)
 inertIconCoords _ = (0, 5) -- FIXME
@@ -146,6 +155,9 @@ accessoryValue _ = CanSell 10 -- FIXME
 
 potionValue :: PotionItemTag -> ItemValue
 potionValue HealingTincture = CanSell 50
+potionValue HealingPotion = CanSell 180
+potionValue ManaPhilter = CanSell 200
+potionValue Antidote = CanSell 35
 potionValue _ = CanSell 10 -- FIXME
 
 inertValue :: InertItemTag -> ItemValue
@@ -486,6 +498,8 @@ data PotionAction = HealAction Int -- TODO add more
 
 getPotionAction :: PotionItemTag -> PotionAction
 getPotionAction HealingTincture = HealAction 100
+getPotionAction HealingPotion = HealAction 300
+getPotionAction HealingElixir = HealAction 750
 getPotionAction _ = HealAction 42 -- FIXME
 
 -------------------------------------------------------------------------------

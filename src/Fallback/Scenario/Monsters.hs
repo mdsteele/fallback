@@ -184,6 +184,7 @@ getMonsterType Zombie = baseMonsterType
     mtSpeed = 0.9 }
 getMonsterType TownManRed = townsperson { mtImageRow = 10 }
 getMonsterType TownManApron = townsperson { mtImageRow = 14 }
+getMonsterType TownWomanApron = townsperson { mtImageRow = 15 }
 getMonsterType TownWomanBlue = townsperson { mtImageRow = 17 }
 getMonsterType GuardArcher = baseMonsterType
   { mtAgility = 30,
