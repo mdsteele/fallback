@@ -80,12 +80,12 @@ data AttackEffect = DrainMana Double -- mana drained per base damage
                   | ExtraEnergyDamage Double -- extra damage per base damage
                   | ExtraFireDamage Double -- extra damage per base damage
                   | ExtraIceDamage Double -- extra damage per base damage
-                  | InflictCurse Double
+                  | InflictCurse Double -- duration (in rounds) per base damage
                   | InflictDaze Double
                   | InflictPoison Double -- poison per base damage
-                  | InflictSlow Double
+                  | InflictSlow Double -- duration (in rounds) per base damage
                   | InflictStun Double -- AP stun per base damage
-                  | InflictWeakness Double
+                  | InflictWeakness Double -- duration (in rounds) per base dmg
                   | ReduceBuffs Double
 
 -- | Determines the maximum range of an attack, and whether the attack counts

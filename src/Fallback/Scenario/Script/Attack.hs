@@ -170,7 +170,7 @@ attackInitialAnimation appearance element origin target = do
     WandAttack -> do
       let tint = case element of
                    AcidAttack -> Tint 0 255 0 192
-                   EnergyAttack -> Tint 0 0 255 192
+                   EnergyAttack -> Tint 255 192 64 192
                    FireAttack -> Tint 255 0 0 192
                    IceAttack -> Tint 0 255 255 192
                    PhysicalAttack -> Tint 255 255 255 192
@@ -229,8 +229,9 @@ attackHit appearance element effects target critical damage = do
   -- when choosing sound/doodad
   let elementSnd AcidAttack = SndChemicalDamage
       elementSnd FireAttack = if critical then SndBoomSmall else SndFireDamage
+      elementSnd EnergyAttack = SndLightning
+      elementSnd IceAttack = SndFreeze
       elementSnd PhysicalAttack = if critical then SndHit3 else SndHit4
-      elementSnd _ = error "FIXME attackHit"
   playSound $
     case appearance of
       BiteAttack -> SndBite
@@ -273,8 +274,17 @@ attackHit appearance element effects target critical damage = do
         return ((hitTarget, FireDamage, mult * damage) : hits)
       ExtraIceDamage mult -> do
         return ((hitTarget, ColdDamage, mult * damage) : hits)
+      InflictCurse mult ->
+        hits <$ (alterStatus hitTarget $ seApplyBlessing $
+                 Harmful (mult * damage))
       InflictPoison mult -> hits <$ inflictPoison hitTarget (mult * damage)
+      InflictSlow mult ->
+        hits <$ (alterStatus hitTarget $ seApplyHaste $
+                 Harmful (mult * damage))
       InflictStun mult -> hits <$ inflictStun hitTarget (mult * damage)
+      InflictWeakness mult ->
+        hits <$ (alterStatus hitTarget $ seApplyDefense $
+                 Harmful (mult * damage))
       _ -> return hits -- FIXME other effects
   let damageElement =
         case element of

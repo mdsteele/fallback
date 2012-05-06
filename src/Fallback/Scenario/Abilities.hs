@@ -465,7 +465,7 @@ getAbility characterClass abilityNumber rank =
         let damage = randMult * intBonus * power * ranked 12 24 36
         playSound SndLightning
         replicateM_ (ranked 1 2 3) $ do
-          addLightningDoodad (Tint 64 64 255 192) startPos endPos
+          addLightningDoodad (Tint 255 192 64 192) startPos endPos
         addBoomDoodadAtPosition EnergyBoom 3 endPos >> wait 12
         dealDamage [(HitPosition endPos, EnergyDamage, damage)] >> wait 12
     IceBolts ->
@@ -549,7 +549,7 @@ getAbility characterClass abilityNumber rank =
           damage <- (baseDamage *) <$> getRandomR 0.9 1.1
           playSound SndLightning
           replicateM_ ((remain + 2) `div` 2) $ do
-            addLightningDoodad (Tint 64 64 255 192) origin target
+            addLightningDoodad (Tint 255 192 64 192) origin target
           addBoomDoodadAtPosition EnergyBoom 3 target >> wait 6
           dealDamage [(HitPosition target, EnergyDamage, damage)] >> wait 18
     Freeze ->
@@ -600,7 +600,7 @@ getAbility characterClass abilityNumber rank =
             p2 = p0 `pSub` Point 0 108
             p3 = p0 `pSub` Point 84 0
             p4 = p0 `pAdd` Point 0 108
-        let tint = Tint 128 128 255 128
+        let tint = Tint 255 192 128 128
         let duration = 44
         let height = 80
         addLightWallDoodad False tint duration height p1 p2

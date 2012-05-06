@@ -308,6 +308,6 @@ data MonsterTag = Revenant | Revenantor | MasterRevenant
                 | RogueIllusion2 | RogueIllusion3
   deriving (Bounded, Enum, Eq, Ix, Ord, Read, Show)
 
-data MonsterSpellTag = FireSpray | IceBomb
+data MonsterSpellTag = BladeSweep | BlessMonsters | EntangleSpray | FireSpray
 
 -------------------------------------------------------------------------------

@@ -56,7 +56,7 @@ tryMonsterSpell FireSpray ge = do
     wait 4
     dealDamage [(HitPosition target, FireDamage, 30)]
     wait 20
-tryMonsterSpell IceBomb _ge = do return False -- FIXME
+tryMonsterSpell _ _ = do return False -- FIXME
 
 -------------------------------------------------------------------------------
 
