@@ -18,8 +18,8 @@
 ============================================================================ -}
 
 module Fallback.View.Inventory
-  (InventoryState(..), InventoryAction(..), newInventoryView,
-   ShoppingState(..), ShoppingAction(..), newShoppingView)
+  (InventoryState, makeInventoryState, InventoryAction(..), newInventoryView,
+   ShoppingState, makeShoppingState, ShoppingAction(..), newShoppingView)
 where
 
 import Control.Applicative ((<$), (<$>))
@@ -35,6 +35,7 @@ import Fallback.Data.Point
 import Fallback.Data.TotalMap (tmGet)
 import Fallback.Draw
 import Fallback.Event
+import Fallback.State.Area (AreaState, arsClock, arsParty)
 import Fallback.State.Item
 import Fallback.State.Party
 import Fallback.State.Resources
@@ -53,7 +54,16 @@ import Fallback.View.Widget
 data InventoryState = InventoryState
   { ivsActiveCharacter :: CharacterNumber,
     ivsClock :: Clock,
+    ivsHolding :: Maybe ItemTag,
     ivsParty :: Party }
+
+makeInventoryState :: (AreaState a) => a -> CharacterNumber -> Maybe ItemTag
+                   -> InventoryState
+makeInventoryState ars charNum mbTag = InventoryState
+  { ivsActiveCharacter = charNum,
+    ivsClock = arsClock ars,
+    ivsHolding = mbTag,
+    ivsParty = arsParty ars }
 
 ivsGetCharacter :: InventoryState -> Character
 ivsGetCharacter ivs = partyGetCharacter (ivsParty ivs) (ivsActiveCharacter ivs)
@@ -66,6 +76,11 @@ data InventoryAction = ExchangeItem ItemSlot
 data ShoppingState = ShoppingState
   { spsForSale :: [Either Ingredient ItemTag],
     spsInventory :: InventoryState }
+
+makeShoppingState :: (AreaState a) => a -> CharacterNumber -> Maybe ItemTag
+                  -> [Either Ingredient ItemTag] -> ShoppingState
+makeShoppingState ars charNum mbTag forsale = ShoppingState
+  { spsForSale = forsale, spsInventory = makeInventoryState ars charNum mbTag }
 
 data ShoppingAction = BuyIngredient Int Ingredient
                     | BuyItem ItemTag
@@ -101,12 +116,14 @@ newInventoryView resources cursorSink = do
   tooltipRef <- newHoverRef NoTooltip
   let tooltipSink = hoverSink tooltipRef
   hoverJunction tooltipRef <$> compoundViewM [
-    (return $ hoverView tooltipSink NoTooltip nullView),
+    (return $ hoverView cursorSink DefaultCursor $
+     hoverView tooltipSink NoTooltip nullView),
     (vmap ivsParty . subView_ partyInventoryRect <$>
      newPartyInventoryView resources cursorSink tooltipSink),
     (subView_ (Rect col2Left topMargin col2Width colHeight) <$>
      newCharStatsView resources cursorSink tooltipSink),
-    (newItemInfoView resources tooltipRef)]
+    (newItemInfoView resources tooltipRef),
+    (return $ hoverView' cursorSink (fmap ItemCursor . ivsHolding) nullView)]
 
 newItemInfoView :: (MonadDraw m) => Resources -> HoverRef Tooltip
                 -> m (View a b)
@@ -131,8 +148,8 @@ newItemInfoView resources tooltipRef = do
                   writeDrawRef cache $ Just (itemTag, string)
                   return string
             return $ Just (fromShop, desc)
-  let rectFn (fromShop, _) _ =
-        if fromShop then Rect 30 0 240 360 else Rect 270 0 240 360
+  let rectFn (fromShop, _) (_, h) =
+        if fromShop then Rect 30 0 240 h else Rect 270 0 240 h
   vmapM inputFn . maybeView id . subView rectFn . vmap snd <$>
     newTooltipView resources
 
@@ -144,14 +161,17 @@ newShoppingView resources cursorSink = do
   tooltipRef <- newHoverRef NoTooltip
   let tooltipSink = hoverSink tooltipRef
   hoverJunction tooltipRef <$> compoundViewM [
-    (return $ hoverView tooltipSink NoTooltip nullView),
+    (return $ hoverView cursorSink DefaultCursor $
+     hoverView tooltipSink NoTooltip nullView),
     (vmap (ivsParty . spsInventory) . subView_ partyInventoryRect <$>
      newPartyInventoryView resources cursorSink tooltipSink),
     (subView_ (Rect col2Left topMargin col2Width 94) <$>
      newCharEquipmentView resources cursorSink tooltipSink),
     (subView_ (Rect col2Left (topMargin + 104) col2Width (colHeight - 104)) <$>
      newShopkeeperView resources tooltipSink),
-    (newItemInfoView resources tooltipRef)]
+    (newItemInfoView resources tooltipRef),
+    (return $ hoverView' cursorSink (fmap ItemCursor . ivsHolding .
+                                     spsInventory) nullView)]
 
 -------------------------------------------------------------------------------
 
@@ -204,7 +224,7 @@ newPartyInventoryView resources cursorSink tooltipSink = do
                                    (40 * (idx `div` 4) + levelAndXpTop + 50)
                                    36 36) <$>
           newIngredientSlotWidget resources tooltipSink ingredient
-  hoverView cursorSink DefaultCursor <$> compoundViewM [
+  compoundViewM [
     (newDialogBackgroundView),
     (newTopLabel resources (const "Party Inventory")),
     (return $ vmap (("Level:  " ++) . show . partyLevel) $
@@ -227,19 +247,20 @@ newPartyInventoryView resources cursorSink tooltipSink = do
 newItemSlotWidget :: (MonadDraw m, ItemsAction a) => Resources
                   -> HoverSink Cursor -> HoverSink Tooltip
                   -> m (View (ItemSlot, Maybe ItemTag) a)
-newItemSlotWidget resources _cursorSink tooltipSink = do
+newItemSlotWidget resources cursorSink tooltipSink = do
   let
     paint (_, mbTag) = paintItemSlot resources (Tint 0 0 0 20) mbTag
     handler (slot, _) (EvMouseDown pt) = do
       whenWithinCanvas pt $ return $ Action $ swapAction slot
     handler _ _ = return Ignore
-  button <- newItemActionButton resources
-  return $ hoverView' tooltipSink (fmap (ItemTooltip False) . snd) $
+  button <- newItemActionButton resources cursorSink
+  return $ hoverView' cursorSink (fmap (const HandCursor) . snd) $
+    hoverView' tooltipSink (fmap (ItemTooltip False) . snd) $
     compoundView [View paint handler, button]
 
 newItemActionButton :: (MonadDraw m, ItemsAction a) => Resources
-                    -> m (View (ItemSlot, Maybe ItemTag) a)
-newItemActionButton resources = do
+                    -> HoverSink Cursor -> m (View (ItemSlot, Maybe ItemTag) a)
+newItemActionButton resources cursorSink = do
   let
     buttonPaintFn (column, _) buttonState = do
       let row = case buttonState of
@@ -254,7 +275,8 @@ newItemActionButton resources = do
       useAction slot tag
   newHoverOnlyView =<< newMaybeView buttonInputFn =<<
     f2map (\(_, action) () -> action) .
-    subView (\_ (_, h) -> Rect 2 (h - 18) 16 16) <$>
+    subView (\_ (_, h) -> Rect 2 (h - 18) 16 16) .
+    hoverView cursorSink DefaultCursor <$>
     newButton buttonPaintFn (const ReadyButton) [] ()
 
 newIngredientSlotWidget :: (MonadDraw m) => Resources -> HoverSink Tooltip
@@ -318,7 +340,7 @@ newCharStatsView resources cursorSink tooltipSink = do
                       then Just (ivsClock ivs) else Nothing
   let resistancesTop = 230
   let buttonW = 90
-  hoverView cursorSink DefaultCursor <$> compoundViewM [
+  compoundViewM [
     (newDialogBackgroundView),
     (newTopLabel resources ((++ "'s Equipment") . chrName . ivsGetCharacter)),
     (vmap (ivsActiveCharacter &&& ivsGetCharacter) .
@@ -351,9 +373,9 @@ newCharStatsView resources cursorSink tooltipSink = do
     (newMaybeView upgradeFn =<<
      subView (\_ (_, h) -> Rect 16 (h - 40) buttonW 24) <$>
      newFlashingTextButton resources "Upgrade Stats" [KeyU] UpgradeStats),
-    (subView (\_ (w, h) -> Rect (w - buttonW - 16) (h - 40) buttonW 24) <$>
-     newSimpleTextButton resources "Done" [KeyReturn, KeyEscape]
-                         DoneInventory)]
+    (subView (\_ (w, h) -> Rect (w - buttonW - 16) (h - 40) buttonW 24) .
+     vmap ((,) "Done" . enabledIf . isNothing . ivsHolding) <$>
+     newTextButton resources [KeyReturn, KeyEscape] DoneInventory)]
 
 -- | A view for just character equipment; used in the shopping view.
 newCharEquipmentView :: (MonadDraw m) => Resources -> HoverSink Cursor
@@ -361,7 +383,7 @@ newCharEquipmentView :: (MonadDraw m) => Resources -> HoverSink Cursor
                      -> m (View ShoppingState ShoppingAction)
 newCharEquipmentView resources cursorSink tooltipSink = do
   let inputFn = (ivsActiveCharacter &&& ivsGetCharacter) . spsInventory
-  hoverView cursorSink DefaultCursor <$> compoundViewM [
+  compoundViewM [
     (newDialogBackgroundView),
     (vmap inputFn <$> compoundViewM [
       (newTopLabel resources ((++ "'s Equipment") . chrName . snd)),
@@ -393,7 +415,7 @@ newEquipmentSlotWidget :: (MonadDraw m, ItemsAction a) => Resources
                        -> (Equipment -> Maybe b) -> (b -> ItemTag)
                        -> (CharacterNumber -> ItemSlot)
                        -> m (View (CharacterNumber, Character) a)
-newEquipmentSlotWidget resources _cursorSink tooltipSink tint fromEqp toItemTag
+newEquipmentSlotWidget resources cursorSink tooltipSink tint fromEqp toItemTag
                        toSlot = do
   let
     paint (_, char) = paintItemSlot resources tint $ fmap toItemTag $ fromEqp $
@@ -403,10 +425,12 @@ newEquipmentSlotWidget resources _cursorSink tooltipSink tint fromEqp toItemTag
       whenWithinCanvas pt $ return $ Action $ swapAction $ toSlot charNum
     handler _ _ = return Ignore
 
-    hoverFn = fmap (ItemTooltip False . toItemTag) . fromEqp .
-              chrEquipment . snd
+    itemTagFn = fmap toItemTag . fromEqp . chrEquipment . snd
+    cursorFn = fmap (const HandCursor) . itemTagFn
+    tooltipFn = fmap (ItemTooltip False) . itemTagFn
 
-  return $ hoverView' tooltipSink hoverFn $ View paint handler
+  return $ hoverView' cursorSink cursorFn $
+    hoverView' tooltipSink tooltipFn $ View paint handler
 
 -------------------------------------------------------------------------------
 

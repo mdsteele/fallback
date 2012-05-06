@@ -102,6 +102,7 @@ tickTownAnimations ts =
 data TownCheatCode = Gimme ItemTag
                    | IAmLeTired
                    | Plugh Int
+                   | StuffMart
                    | WhereAmI
                    | Xyzzy AreaTag Int Int
   deriving (Read, Show)

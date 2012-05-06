@@ -481,7 +481,7 @@ data PotionAction = HealAction Int -- TODO add more
 
 getPotionAction :: PotionItemTag -> PotionAction
 getPotionAction HealingTincture = HealAction 100
-getPotionAction _ = error "FIXME getPotionAction"
+getPotionAction _ = HealAction 42 -- FIXME
 
 -------------------------------------------------------------------------------
 

@@ -22,30 +22,18 @@
 -- | This module contains 'Script' functions relevant to scripting area
 -- triggers.
 module Fallback.Scenario.Triggers.Script
-  (doesPartyHaveItem, playDoorUnlockSound, setAreaCleared,
-   -- * Conversation
-   TalkEffect(..), conversation, convText, convChoice, convNode, convReset)
+  (-- * Conversation
+   TalkEffect(..), conversation, convText, convChoice, convNode, convReset,
+   -- * Miscellaneous
+   doesPartyHaveItem, playDoorUnlockSound, setAreaCleared, startShopping)
 where
 
 import Fallback.Scenario.Script
-import Fallback.State.Area (PartyEffect(EffSetAreaCleared), arsParty)
+import Fallback.State.Area
 import Fallback.State.Party (partyHasItem)
 import Fallback.State.Resources (SoundTag(SndUnlock))
+import Fallback.State.Simple (Ingredient)
 import Fallback.State.Tags (AreaTag, ItemTag)
-
--------------------------------------------------------------------------------
-
-doesPartyHaveItem :: (FromAreaEffect f) => ItemTag -> Script f Bool
-doesPartyHaveItem tag = areaGet (partyHasItem tag . arsParty)
-
--- | Play the sound used for unlocking doors, and wait a short bit for the
--- sound to complete.  This is generally called just before returning from a
--- @tryOpen@ script passed to @newDoorDevices@.
-playDoorUnlockSound :: (FromAreaEffect f) => Script f ()
-playDoorUnlockSound = playSound SndUnlock >> wait 6
-
-setAreaCleared :: (FromAreaEffect f) => AreaTag -> Bool -> Script f ()
-setAreaCleared tag cleared = emitAreaEffect $ EffSetAreaCleared tag cleared
 
 -------------------------------------------------------------------------------
 
@@ -63,6 +51,9 @@ instance (FromAreaEffect f) => FromAreaEffect (TalkEffect f) where
       Just script -> Just (mapEffect EffTalkLift script >>= fn)
       Nothing -> Nothing
   isWaitEffect _ _ = Nothing
+
+instance (FromTownEffect f) => FromTownEffect (TalkEffect f) where
+  fromTownEffect = EffTalkLift . fromTownEffect
 
 conversation :: forall f a. (FromAreaEffect f) => Script (TalkEffect f) a
              -> Script f a
@@ -102,5 +93,23 @@ convNode = (>> emitEffect EffTalkNode)
 
 convReset :: Script (TalkEffect f) ()
 convReset = emitEffect EffTalkReset
+
+-------------------------------------------------------------------------------
+
+doesPartyHaveItem :: (FromAreaEffect f) => ItemTag -> Script f Bool
+doesPartyHaveItem tag = areaGet (partyHasItem tag . arsParty)
+
+-- | Play the sound used for unlocking doors, and wait a short bit for the
+-- sound to complete.  This is generally called just before returning from a
+-- @tryOpen@ script passed to @newDoorDevices@.
+playDoorUnlockSound :: (FromAreaEffect f) => Script f ()
+playDoorUnlockSound = playSound SndUnlock >> wait 6
+
+setAreaCleared :: (FromAreaEffect f) => AreaTag -> Bool -> Script f ()
+setAreaCleared tag cleared = emitAreaEffect $ EffSetAreaCleared tag cleared
+
+startShopping :: (FromTownEffect f) => [Either Ingredient ItemTag]
+              -> Script f ()
+startShopping = emitTownEffect . EffShop
 
 -------------------------------------------------------------------------------

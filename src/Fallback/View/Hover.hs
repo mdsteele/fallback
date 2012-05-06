@@ -30,7 +30,9 @@ import Control.Monad (when)
 import Fallback.Data.Point
 import Fallback.Draw
 import Fallback.Event (Event(..))
-import Fallback.State.Resources (Resources, rsrcCursorsStrip)
+import Fallback.State.Item (itemIconCoords)
+import Fallback.State.Resources (Resources, rsrcCursorsStrip, rsrcItemIcon)
+import Fallback.State.Tags (ItemTag)
 import Fallback.Utility (maybeM)
 import Fallback.View.Base (View(View))
 
@@ -91,23 +93,23 @@ hoverJunction ref (View paint handler) = View paint handler' where
 -------------------------------------------------------------------------------
 
 data Cursor = DefaultCursor
-            | InfoCursor
-            | TalkCursor
             | HandCursor
+            | InfoCursor
+            | ItemCursor ItemTag
+            | SwapCursor Direction
             | TargetCursor
             | TargetNCursor Int
-            | SwapCursor Direction
+            | TalkCursor
             | WalkCursor Direction
 
 paintCursor :: Resources -> Cursor -> IPoint -> Paint ()
 paintCursor resources cursor mousePt =
   case cursor of
     DefaultCursor -> paint 0 (Point 1 1)
-    InfoCursor -> paint 1 (Point 7 13)
-    TalkCursor -> paint 15 (Point 4 14)
     HandCursor -> paint 16 (Point 8 8)
-    TargetCursor -> paint 0 (Point 1 1) -- FIXME
-    TargetNCursor _ -> paint 0 (Point 1 1) -- FIXME
+    InfoCursor -> paint 1 (Point 7 13)
+    ItemCursor tag -> blitLoc (rsrcItemIcon resources $ itemIconCoords tag)
+                              (LocCenter mousePt)
     SwapCursor DirE -> paint 11 (Point 20 8)
     SwapCursor DirNE -> paint 12 (Point 14 1)
     SwapCursor DirN -> paint 13 (Point 9 2)
@@ -116,6 +118,9 @@ paintCursor resources cursor mousePt =
     SwapCursor DirSW -> paint 12 (Point 1 14)
     SwapCursor DirS -> paint 13 (Point 7 20)
     SwapCursor DirSE -> paint 14 (Point 14 14)
+    TalkCursor -> paint 15 (Point 4 14)
+    TargetCursor -> paint 0 (Point 1 1) -- FIXME
+    TargetNCursor _ -> paint 0 (Point 1 1) -- FIXME
     WalkCursor DirE -> paint 3 (Point 14 7)
     WalkCursor DirNE -> paint 4 (Point 14 1)
     WalkCursor DirN -> paint 5 (Point 7 1)

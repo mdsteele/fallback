@@ -21,7 +21,8 @@
 
 module Fallback.Scenario.Script.Base
   (-- * Basics
-   FromAreaEffect(..), ToAreaEffect(..), emitAreaEffect, areaGet,
+   FromAreaEffect(..), FromTownEffect(..), ToAreaEffect(..),
+   emitAreaEffect, emitTownEffect, areaGet,
    -- * Control
    wait, alsoWith, also_, concurrent, concurrent_, concurrentAny,
    forkScript, whenCombat, unlessCombat, whenDifficulty,
@@ -75,6 +76,10 @@ instance FromAreaEffect TownEffect where
   isWaitEffect (EffTownArea EffWait) fn = Just (fn ())
   isWaitEffect _ _ = Nothing
 
+class (FromAreaEffect f) => FromTownEffect f where
+  fromTownEffect :: TownEffect a -> f a
+instance FromTownEffect TownEffect where fromTownEffect = id
+
 class ToAreaEffect f where toAreaEffect :: f a -> AreaEffect a
 instance ToAreaEffect PartyEffect where
   toAreaEffect = EffAreaCommon . EffAreaParty
@@ -83,6 +88,9 @@ instance ToAreaEffect AreaEffect where toAreaEffect = id
 
 emitAreaEffect :: (ToAreaEffect e, FromAreaEffect f) => e a -> Script f a
 emitAreaEffect = emitEffect . fromAreaEffect . toAreaEffect
+
+emitTownEffect :: (FromTownEffect f) => TownEffect a -> Script f a
+emitTownEffect = emitEffect . fromTownEffect
 
 areaGet :: (FromAreaEffect f) => (forall s. (AreaState s) => s -> a)
         -> Script f a

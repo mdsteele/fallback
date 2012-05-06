@@ -80,18 +80,13 @@ newTownView resources = newCursorView resources $ \cursorSink -> do
           _ -> Nothing
   let inventoryFn ts =
         case tsPhase ts of
-          InventoryPhase _ ->
-            Just InventoryState { ivsActiveCharacter = tsActiveCharacter ts,
-                                  ivsClock = arsClock ts,
-                                  ivsParty = arsParty ts }
+          InventoryPhase mbItem ->
+            Just $ makeInventoryState ts (tsActiveCharacter ts) mbItem
           _ -> Nothing
   let shoppingFn ts =
         case tsPhase ts of
-          ShoppingPhase _ forsale _ ->
-            Just ShoppingState { spsForSale = forsale,
-                                 spsInventory = InventoryState { ivsActiveCharacter = tsActiveCharacter ts,
-                                  ivsClock = arsClock ts,
-                                  ivsParty = arsParty ts } }
+          ShoppingPhase mbItem forsale _ ->
+            Just $ makeShoppingState ts (tsActiveCharacter ts) mbItem forsale
           _ -> Nothing
   let upgradeFn ts =
         case tsPhase ts of

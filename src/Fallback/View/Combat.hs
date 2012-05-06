@@ -82,10 +82,8 @@ newCombatView resources = newCursorView resources $ \cursorSink -> do
           _ -> Nothing
   let inventoryFn cs =
         case csPhase cs of
-          InventoryPhase cc _ ->
-            Just InventoryState { ivsActiveCharacter = ccCharacterNumber cc,
-                                  ivsClock = arsClock cs,
-                                  ivsParty = arsParty cs }
+          InventoryPhase cc mbItem ->
+            Just $ makeInventoryState cs (ccCharacterNumber cc) mbItem
           _ -> Nothing
   compoundViewM [
     (subView sidebarRect . viewMap SidebarCombat CombatSidebar <$>

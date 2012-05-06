@@ -27,8 +27,8 @@ module Fallback.State.Tags
    -- * Feats
    FeatTag(..), featName,
    -- * Items
-   ItemTag(..), WeaponItemTag(..), ArmorItemTag(..), AccessoryItemTag(..),
-   PotionItemTag(..), InertItemTag(..),
+   ItemTag(..), allItemTags, WeaponItemTag(..), ArmorItemTag(..),
+   AccessoryItemTag(..), PotionItemTag(..), InertItemTag(..),
    -- * Monsters
    MonsterTag(..), MonsterSpellTag(..))
 where
@@ -252,6 +252,14 @@ data ItemTag = WeaponItemTag WeaponItemTag
              | InertItemTag InertItemTag
   deriving (Eq, Read, Show)
 
+allItemTags :: [ItemTag]
+allItemTags =
+  map WeaponItemTag [minBound .. maxBound] ++
+  map ArmorItemTag [minBound .. maxBound] ++
+  map AccessoryItemTag [minBound .. maxBound] ++
+  map PotionItemTag [minBound .. maxBound] ++
+  map InertItemTag [minBound .. maxBound]
+
 data WeaponItemTag = Sunrod | Starspear | Moonbow | Lifeblade
                    -- Light swords:
                    | Dagger | Shortsword
@@ -266,21 +274,21 @@ data WeaponItemTag = Sunrod | Starspear | Moonbow | Lifeblade
                    -- Wands:
                    | SilverWand | JeweledRod | GoldenWand | DiamondRod
                    | ChronosScepter
-  deriving (Eq, Ord, Read, Show)
+  deriving (Bounded, Enum, Eq, Ord, Read, Show)
 
 data ArmorItemTag = LeatherArmor | AdamantPlate
-  deriving (Eq, Read, Show)
+  deriving (Bounded, Enum, Eq, Ord, Read, Show)
 
 data AccessoryItemTag = GroundedAmulet | MedalOfValor | TitanFists
-  deriving (Eq, Read, Show)
+  deriving (Bounded, Enum, Eq, Ord, Read, Show)
 
 data PotionItemTag = HealingTincture | HealingPotion | HealingElixir
                    | ManaPhilter | ManaElixir | Quintessence
                    | Antidote | CuringPotion | MiracleElixir
-  deriving (Eq, Read, Show)
+  deriving (Bounded, Enum, Eq, Ord, Read, Show)
 
 data InertItemTag = IronKey | SilverKey
-  deriving (Eq, Read, Show)
+  deriving (Bounded, Enum, Eq, Ord, Read, Show)
 
 -------------------------------------------------------------------------------
 

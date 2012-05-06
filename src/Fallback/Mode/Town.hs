@@ -56,6 +56,7 @@ import Fallback.Scenario.Script
   (also_, alsoWith, alterAdrenaline, concurrentAny, grantExperience, grantItem,
    inflictAllPeriodicDamage, partyWalkTo, setMessage, teleport)
 import Fallback.Scenario.Triggers (getAreaExits, scenarioTriggers)
+import Fallback.Scenario.Triggers.Script (startShopping)
 import Fallback.Sound (playSound)
 import Fallback.State.Action
 import Fallback.State.Area
@@ -68,7 +69,7 @@ import Fallback.State.Region (RegionState(..))
 import Fallback.State.Resources
   (Resources, SoundTag(SndCombatStart), rsrcSound)
 import Fallback.State.Simple (CastingCost, Ingredient, ItemSlot, deltaFaceDir)
-import Fallback.State.Tags (AreaTag, ItemTag(PotionItemTag))
+import Fallback.State.Tags (AreaTag, ItemTag(PotionItemTag), allItemTags)
 import Fallback.State.Town
 import Fallback.Utility (flip3)
 import Fallback.View (fromAction, viewHandler, viewPaint)
@@ -423,16 +424,18 @@ newTownMode resources modes initState = do
 
     tryCheating :: TownState -> String -> IO Mode
     tryCheating ts string = do
+      let runScript script = do
+            writeIORef stateRef ts { tsPhase = ScriptPhase script }
       case reads string of
-        [(cheat, "")] -> do
-          let runScript script = do
-                writeIORef stateRef ts { tsPhase = ScriptPhase script }
+        [(cheat, "")] -> runScript $
           case cheat of
-            Gimme tag -> runScript $ grantItem tag
-            IAmLeTired -> runScript $ return () -- TODO heal party
-            Plugh xp -> runScript $ grantExperience xp
-            WhereAmI -> runScript $ setMessage $ show $ tsPartyPosition ts
-            Xyzzy area x y -> runScript $ teleport area (Point x y)
+            Gimme tag -> grantItem tag
+            IAmLeTired -> return () -- TODO heal party
+            Plugh xp -> grantExperience xp
+            StuffMart -> startShopping $ map Right allItemTags ++
+                         map Left [minBound .. maxBound]
+            WhereAmI -> setMessage $ show $ tsPartyPosition ts
+            Xyzzy area x y -> teleport area (Point x y)
         _ -> do
           let msg = "A hollow voice says, \"Fool!\""
           writeIORef stateRef $ arsSetMessage msg ts
