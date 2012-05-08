@@ -357,7 +357,25 @@ getAbility characterClass abilityNumber rank =
         playSound SndBoomBig
         forkScript $ doExplosionDoodad FireBoom $ positionCenter endPos
         wait 5 >> dealDamage hits
-    AdrenalineRush -> PassiveAbility -- FIXME
+    AdrenalineRush ->
+      general (mix Mandrake Quicksilver) AutoTarget $ \caster power () -> do
+        intBonus <- getIntellectBonus caster
+        -- At rank 3, affects the whole party; otherwise affects only the
+        -- caster and any adjacent characters.
+        charNums <- do
+          -- TODO: If we're keeping monster adrenline, then this should affect
+          -- allies, not just characters.
+          conscious <- getAllConsciousCharacters
+          if rank >= Rank3 then return conscious else do
+          startPos <- areaGet (arsCharacterPosition caster)
+          flip filterM conscious $ \charNum -> do
+            pos <- areaGet (arsCharacterPosition charNum)
+            return (pos `adjacent` startPos)
+        -- TODO doodad/sound
+        forM_ charNums $ \charNum -> do
+          randMult <- getRandomR 0.9 1.1
+          let amount = round (intBonus * randMult * power * ranked 15 25 25)
+          alterAdrenaline charNum (+ amount)
     Rainbow -> PassiveAbility -- FIXME
     Healing ->
       general (ManaCost 4) (AllyTarget 8) $ \caster power eith -> do
