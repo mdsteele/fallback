@@ -194,7 +194,7 @@ seWakeFromDaze se =
 data MentalEffect = DazedEffect | ConfusedEffect | CharmedEffect
   deriving (Eq, Read, Show)
 
-data Invisibility = MinorInvisibility | MediumInvisibility | MajorInvisibility
+data Invisibility = MinorInvisibility | MajorInvisibility
   deriving (Eq, Ord, Read, Show)
 
 -------------------------------------------------------------------------------

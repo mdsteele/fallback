@@ -294,8 +294,14 @@ paintTargeting cameraTopleft mbMousePt ars charNum targeting = do
       paintRegion targetable
       whenMouse $ \targetPos -> do
         if targetPos `Set.notMember` targetable then paintX targetPos else do
-          let targets = areaFn ars originPos targetPos
-          if null targets then paintX targetPos else mapM_ paintTile targets
+        let targets = areaFn ars originPos targetPos
+        if null targets then paintX targetPos else mapM_ paintTile targets
+    TargetingJump areaFn targetable -> do
+      paintRegion targetable
+      whenMouse $ \targetPos -> do
+        if targetPos `Set.notMember` targetable then paintX targetPos else do
+        mapM_ paintTile $ areaFn ars originPos targetPos
+        paintO targetPos
     TargetingMulti _ radius targets -> do
       let targetable = getRegionOfRadius radius
       paintRegion targetable
@@ -321,6 +327,16 @@ paintTargeting cameraTopleft mbMousePt ars charNum targeting = do
           y2 = y1 + rectH rect - 1
       drawLine (Tint 255 0 0 192) (Point x1 y1) (Point x2 y2)
       drawLine (Tint 255 0 0 192) (Point x2 y1) (Point x1 y2)
+    paintO pos = do
+      let rect = positionRect pos `rectMinus` cameraTopleft
+      let x1 = rectX rect
+          x2 = x1 + half (rectW rect)
+          x3 = x1 + rectW rect - 1
+          y1 = rectY rect
+          y2 = y1 + half (rectH rect)
+          y3 = y1 + rectH rect - 1
+      drawPolygon (Tint 0 0 255 192)
+                  [Point x1 y2, Point x2 y1, Point x3 y2, Point x2 y3]
     visible = arsVisibleForCharacter charNum ars
 
 paintWeaponRange :: (AreaState a) => IPoint -> a -> CharacterNumber

@@ -288,6 +288,9 @@ newCombatMode resources modes initState = do
                    let targets = areaFn cs originPos pos
                    if null targets then ignore else do
                    execute $ sfn (pos, targets)
+                 TargetingJump areaFn targetable -> do
+                   if Set.notMember pos targetable then ignore else do
+                   execute $ sfn (pos, areaFn cs originPos pos)
                  TargetingMulti n rng ps ->
                    if pos `elem` ps then switch (delete pos ps) else
                      if cannotHit rng then ignore else
@@ -350,6 +353,9 @@ newCombatMode resources modes initState = do
         AllyTarget r -> setTargeting (TargetingAlly r)
         AreaTarget f r -> setTargeting (TargetingArea f r)
         AutoTarget -> executeCommand cs cc cost maxActionPoints $ sfn ()
+        JumpTarget areaFn radius ->
+          setTargeting $ TargetingJump areaFn $
+          arsCharacterJumpDestinations radius (ccCharacterNumber cc) cs
         MultiTarget n r -> setTargeting (TargetingMulti n r [])
         SingleTarget r -> setTargeting (TargetingSingle r)
       where setTargeting targeting =

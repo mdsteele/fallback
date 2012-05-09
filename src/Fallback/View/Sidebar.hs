@@ -387,9 +387,8 @@ newStatusEffectsView resources = do
           CharmedEffect -> 10
       maybeM (seInvisibility se) $ \inv -> blit 5 $
         case inv of
-          MinorInvisibility -> 11
-          MediumInvisibility -> 12
-          MajorInvisibility -> 13
+          MinorInvisibility -> 12
+          MajorInvisibility -> 11
       when (seIsEntangled se) $ blit 6 14
       when (seIsShielded se) $ blit 7 15
   return (inertView paint)

@@ -103,7 +103,16 @@ getAbility characterClass abilityNumber rank =
       \_ _ _ -> do
         return () -- FIXME
     Backstab -> PassiveAbility
-    Vanish -> PassiveAbility -- FIXME
+    Vanish ->
+      combat (FocusCost 1) (JumpTarget (const $ const $ const []) 6) $
+      \caster _power (endPos, _) -> do
+        -- TODO doodad?
+        playSound SndIllusion
+        grantInvisibility (HitCharacter caster) $
+          if rank >= Rank2 then MajorInvisibility else MinorInvisibility
+        emitEffect $ EffSetCharPosition caster endPos
+        when (rank >= Rank3) $ do
+          return () -- TODO reduce bad effects
     SmokeBomb ->
       general (FocusCost 1) (aoeTarget 5 $ ofRadius $ ranked 1 2 3) $
       \caster power (endPos, targets) -> do
@@ -205,11 +214,12 @@ getAbility characterClass abilityNumber rank =
       combat (mix AquaVitae AquaVitae) AutoTarget $
       \caster _power () -> do
         startPos <- areaGet (arsCharacterPosition caster)
+        playSound SndSummon
         -- TODO Add other possible monster tags; at higher ranks, give better
         --      monster choices.  Incorporate power somehow.
-        mtag <- getRandomElem $ [Wolf]
-        playSound SndSummon
-        summonAllyMonster startPos mtag
+        replicateM_ (ranked 1 1 2) $ do
+          mtag <- getRandomElem $ [Wolf]
+          summonAllyMonster startPos mtag
     FireShot ->
       meta (mix Naphtha Naphtha) RangedOnly SingleTarget $
       \caster power endPos -> do
@@ -522,11 +532,10 @@ getAbility characterClass abilityNumber rank =
     Invisibility ->
       combat (ManaCost 5) (AllyTarget 6) $
       \_caster _power eith -> do
-        let invis = if rank >= Rank2 then MediumInvisibility
-                    else MinorInvisibility
         let hitTarget = either HitPosition HitCharacter eith
         playSound SndIllusion
-        grantInvisibility hitTarget invis
+        grantInvisibility hitTarget $
+          if rank >= Rank2 then MajorInvisibility else MinorInvisibility
         when (rank >= Rank3) $ do
           return () -- FIXME grantBlessing hitTarget (power * whatever)
     Hasten -> PassiveAbility -- FIXME
@@ -696,7 +705,8 @@ abilityDescription Riposte =
   \At rank 2, your chance of counterattacking rises to 10%.\n\
   \At rank 3, your chance of counterattacking rises to 20%."
 abilityDescription Critical =
-  "Make a single weapon attack, dealing 1.5x damage.\n\
+  "Make a single weapon attack, automatically scoring a critical hit and\
+  \ dealing 1.5x damage.\n\
   \At rank 2, deals 1.75x damage.\n\
   \At rank 3, deals 2x damage."
 abilityDescription FinalBlow =
@@ -714,10 +724,11 @@ abilityDescription Backstab =
   \At rank 2, you also get a 25% damage bonus when you're invisible.\n\
   \At rank 3, you also get a 20% damage bonus when you're standing in smoke."
 abilityDescription Vanish =
-  "Become invisible until you attack or are attacked.  Only adjacent enemies\
-  \ can see you, but they cannot counterattack if you move away.\n\
-  \At rank 2, you stay invisible even if you are attacked.\n\
-  \At rank 3, even adjacent enemies cannot see you."
+  "Slip away a short distance, and become invisible until you next attack. \
+  \ Only adjacent enemies will be able to see you, but they cannot\
+  \ counterattack if you move away.\n\
+  \At rank 2, even adjacent enemies won't see you.\n\
+  \At rank 3, also partially cures you of negative effects."
 abilityDescription SmokeBomb =
   "Create a cloud of opaque smoke, blocking line-of-sight for spells and\
   \ ranged attacks.\n\
@@ -888,9 +899,9 @@ abilityDescription Vitriol = "Splash a small area with damaging acid.\n\
   \At rank 2, deals more damage.\n\
   \At rank 3, also poisons the targets."
 abilityDescription Invisibility =
-  "Turn one ally invisible until she attacks or is attacked.  Only adjacent\
-  \ enemies can see her, but they cannot counterattack if she moves away.\n\
-  \At rank 2, the target stays invisible even if attacked.\n\
+  "Turn one ally invisible until she next attacks.  Only adjacent enemies will\
+  \ be able to see her, but they cannot counterattack if she moves away.\n\
+  \At rank 2, the target will be invisible even to adjacent enemies.\n\
   \At rank 3, also blesses the target."
 abilityDescription Lightning =
   "Strike a target with energy damage and then fork to hit two other, nearby\

@@ -41,6 +41,7 @@ import Fallback.Draw (Minimap, Paint)
 import Fallback.Sound (Sound, fadeOutMusic, loopMusic, playSound, stopMusic)
 import Fallback.State.Camera (Camera, setCameraShake, tickCamera)
 import Fallback.State.Creature
+import Fallback.State.FOV (fieldOfView)
 import Fallback.State.Minimap (updateMinimapFromTerrain)
 import Fallback.State.Party
 import Fallback.State.Progress
@@ -264,6 +265,14 @@ arsBeamPositions ars start thru =
        in takeThru blocked $ drop 1 $ bresenhamPositions start $
           until (not . rectContains arena) (pAdd delta) start
 
+arsCharacterJumpDestinations :: (AreaState a) => Int -> CharacterNumber -> a
+                             -> Set.Set Position
+arsCharacterJumpDestinations radius charNum ars =
+  Set.filter (\pos -> not (isBlocked pos || arsOccupied pos ars)) $
+  fieldOfView (terrainSize $ arsTerrain ars) isBlocked (ofRadius radius)
+              (arsCharacterPosition charNum ars) Set.empty
+  where isBlocked pos = cannotWalkOn (arsTerrainOpenness pos ars)
+
 arsOccupant :: (AreaState a) => Position -> a
             -> Maybe (Either CharacterNumber (Grid.Entry Monster))
 arsOccupant pos ars =
@@ -379,6 +388,9 @@ data Targeting :: * -> * where
   TargetingAlly :: Int -> Targeting (Either Position CharacterNumber)
   TargetingArea :: (forall a. (AreaState a) => a -> Position -> Position ->
                     [Position]) -> Int -> Targeting (Position, [Position])
+  TargetingJump :: (forall a. (AreaState a) => a -> Position -> Position ->
+                    [Position])
+                -> Set.Set Position -> Targeting (Position, [Position])
   TargetingMulti :: Int {-max num targets-} -> Int {-range-}
                  -> [Position] {-targets so far-} -> Targeting [Position]
   TargetingSingle :: Int -> Targeting Position

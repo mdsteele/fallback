@@ -34,6 +34,8 @@ data TargetKind :: * -> * where
   AreaTarget :: (forall a. (AreaState a) => a -> Position -> Position ->
                  [Position]) -> Int -> TargetKind (Position, [Position])
   AutoTarget :: TargetKind ()
+  JumpTarget :: (forall a. (AreaState a) => a -> Position -> Position ->
+                 [Position]) -> Int -> TargetKind (Position, [Position])
   MultiTarget :: Int {-num targets-} -> Int {-range-} -> TargetKind [Position]
   SingleTarget :: Int -> TargetKind Position
 

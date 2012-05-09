@@ -211,6 +211,9 @@ newTownMode resources modes initState = do
                                AreaTarget f r -> setTarget (TargetingArea f r)
                                AutoTarget -> changeState ts
                                  { tsPhase = ScriptPhase $ sfn' () }
+                               JumpTarget f r ->
+                                 setTarget $ TargetingJump f $
+                                 arsCharacterJumpDestinations r charNum ts
                                MultiTarget n r ->
                                  setTarget (TargetingMulti n r [])
                                SingleTarget r ->
@@ -347,6 +350,9 @@ newTownMode resources modes initState = do
                    let targets = areaFn ts originPos pos
                    if null targets then ignore else do
                    execute $ sfn (pos, targets)
+                 TargetingJump areaFn targetable -> do
+                   if Set.notMember pos targetable then ignore else do
+                   execute $ sfn (pos, areaFn ts originPos pos)
                  TargetingMulti n rng ps ->
                    if pos `elem` ps then switch (delete pos ps) else
                      if cannotHit rng then ignore else
