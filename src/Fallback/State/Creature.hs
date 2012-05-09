@@ -19,7 +19,7 @@
 
 module Fallback.State.Creature where
 
-import Fallback.Constants (tileHeight, tileWidth)
+import Fallback.Constants (secondsPerFrame, tileHeight, tileWidth)
 import Fallback.Data.Point
 import Fallback.Draw (Sprite)
 import Fallback.State.Simple
@@ -30,20 +30,24 @@ import Fallback.State.Tags (MonsterSpellTag)
 data CreatureAnim = NoAnim
                   | AttackAnim Int
                   | HurtAnim Int
+                  | JumpAnim Int Int Position
                   | WalkAnim Int Int Position
   deriving (Eq, Read, Show)
-
--- | Return the number of frames the animation will take to complete.
-animDuration :: CreatureAnim -> Int
-animDuration NoAnim = 0
-animDuration (AttackAnim n) = n
-animDuration (HurtAnim n) = n
-animDuration (WalkAnim n _ _) = n
 
 animOffset :: CreatureAnim -> Position -> IPoint
 animOffset NoAnim _ = pZero
 animOffset (AttackAnim _) _ = pZero
 animOffset (HurtAnim n) _ = Point (2 - 4 * (n `mod` 2)) 0
+animOffset (JumpAnim count limit p1) p2 =
+  let gravity = 80 -- arbitrary value that gives reasonably nice-looking motion
+      time = fromIntegral limit * secondsPerFrame
+      height = gravity * time * time
+      x0 = fromIntegral (tileWidth * (pointX p1 - pointX p2))
+      y0 = fromIntegral (tileHeight * (pointY p1 - pointY p2))
+      t = fromIntegral count / fromIntegral limit
+      x = t * x0
+      y = t * y0 - 4 * (t - t * t) * height
+  in Point (round x) (round y)
 animOffset (WalkAnim n m p1) p2 =
   let Point dx dy = p1 `pSub` p2
   in Point (dx * tileWidth * n `div` m) (dy * tileHeight * n `div` m)
@@ -52,6 +56,8 @@ tickCreatureAnim :: CreatureAnim -> CreatureAnim
 tickCreatureAnim NoAnim = NoAnim
 tickCreatureAnim (AttackAnim n) = if n > 1 then AttackAnim (n - 1) else NoAnim
 tickCreatureAnim (HurtAnim n) = if n > 1 then HurtAnim (n - 1) else NoAnim
+tickCreatureAnim (JumpAnim n m p) =
+  if n > 1 then JumpAnim (n - 1) m p else NoAnim
 tickCreatureAnim (WalkAnim n m p) =
   if n > 1 then WalkAnim (n - 1) m p else NoAnim
 

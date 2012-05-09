@@ -223,7 +223,7 @@ data FeatTag = Concentrate
              | TidalForce | Eclipse | LunarBeam
              | PulseOfLife | Avatar | AllCreation
              -- For bladed weapons:
-             | Spincut | FireSpin
+             | Spincut | FireSpin | JumpSlash | JumpStrike
              -- For throwing stars:
              | Pierce | NeutronBomb
              -- For bows:
@@ -240,6 +240,8 @@ featName LunarBeam = "Lunar Beam"
 featName PulseOfLife = "Pulse of Life"
 featName AllCreation = "All Creation"
 featName FireSpin = "Fire Spin"
+featName JumpSlash = "Jump Slash"
+featName JumpStrike = "Jump Strike"
 featName NeutronBomb = "Neutron Bomb"
 featName tag = show tag
 

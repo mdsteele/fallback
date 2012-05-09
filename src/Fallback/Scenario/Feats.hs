@@ -25,9 +25,11 @@ import Control.Monad (forM_, unless)
 
 import Fallback.Constants (maxAdrenaline)
 import qualified Fallback.Data.Grid as Grid (geKey)
+import Fallback.Data.Point
 import Fallback.Scenario.Script
 import Fallback.State.Action
 import Fallback.State.Area (arsGetCharacter)
+import Fallback.State.Creature (CreatureAnim(..))
 import Fallback.State.Party (chrEquippedWeaponData)
 import Fallback.State.Resources
 import Fallback.State.Simple
@@ -65,6 +67,29 @@ featEffect Eclipse =
     forM_ hitTargets $ \hitTarget -> do
       -- TODO add doodad and wait
       grantInvisibility hitTarget MajorInvisibility
+featEffect JumpSlash =
+  StandardFeat (const $ JumpTarget areaFn 3) $ \caster (endPos, targets) -> do
+    characterBeginOffensiveAction caster endPos
+    wait =<< charLeapTo caster endPos
+    char <- areaGet (arsGetCharacter caster)
+    let wd = chrEquippedWeaponData char
+    setCharacterAnim caster (AttackAnim 8)
+    concurrent_ targets $ \target -> do
+      (critical, damage) <- characterWeaponChooseCritical char =<<
+                            characterWeaponBaseDamage char wd
+      characterWeaponHit wd target critical (damage * 1.5)
+  where areaFn _ start end = [end `plusDir` ipointDir (end `pSub` start)]
+featEffect JumpStrike =
+  StandardFeat (const $ JumpTarget areaFn 3) $ \caster (endPos, targets) -> do
+    characterBeginOffensiveAction caster endPos
+    wait =<< charLeapTo caster endPos
+    char <- areaGet (arsGetCharacter caster)
+    let wd = chrEquippedWeaponData char
+    setCharacterAnim caster (AttackAnim 8)
+    concurrent_ targets $ \target -> do
+      damage <- characterWeaponBaseDamage char wd
+      characterWeaponHit wd target False damage
+  where areaFn _ _ center = map (center `plusDir`) allDirections
 featEffect Shortshot =
   StandardFeat (SingleTarget . (subtract 1)) $ \caster target -> do
     char <- areaGet (arsGetCharacter caster)
@@ -102,7 +127,7 @@ featCastingCost LunarBeam = AdrenalineCost 100
 featCastingCost PulseOfLife = AdrenalineCost 50
 featCastingCost Avatar = AdrenalineCost 80
 featCastingCost AllCreation = AdrenalineCost 100
-featCastingCost _ = AdrenalineCost 1 -- FIXME
+featCastingCost _ = NoCost -- FIXME
 
 featDescription :: FeatTag -> String
 featDescription Offering = "Use any one ability for free, at triple power."
@@ -131,6 +156,10 @@ featDescription Avatar =
   \ cures you of all negative effects."
 featDescription AllCreation =
   "Summon a multitude of wild animals and beasts to attack your enemies."
+featDescription JumpSlash = "Leap towards an enemy, bringing your blade down\
+  \ on them for 1.5x damage."
+featDescription JumpStrike = "Leap amongst your enemies, slashing everything\
+  \ near you when you land."
 featDescription Shortshot =
   "Fire an arrow at reduced range, but with +50% damage."
 featDescription Longshot = "Fire an arrow at +3 range and +25% damage."

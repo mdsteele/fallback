@@ -20,8 +20,8 @@
 module Fallback.Scenario.Script.Other
   (-- * Actions
    -- ** Movement
-   getPartyPosition, setPartyPosition, partyWalkTo, charWalkTo, teleport,
-   exitTo, walkMonster, setMonsterTownAI,
+   getPartyPosition, setPartyPosition, partyWalkTo, charWalkTo, charLeapTo,
+   teleport, exitTo, walkMonster, setMonsterTownAI,
 
    -- * Effects
    -- ** Damage
@@ -120,6 +120,15 @@ charWalkTo charNum pos = do
   faceCharacterToward charNum pos
   emitEffect $ EffSetCharPosition charNum pos
   emitEffect $ EffSetCharAnim charNum $ WalkAnim frames frames oldPos
+  return frames
+
+charLeapTo :: CharacterNumber -> Position -> Script CombatEffect Int
+charLeapTo charNum pos = do
+  let frames = 20
+  oldPos <- areaGet (arsCharacterPosition charNum)
+  faceCharacterToward charNum pos
+  emitEffect $ EffSetCharPosition charNum pos
+  emitEffect $ EffSetCharAnim charNum $ JumpAnim frames frames oldPos
   return frames
 
 teleport :: AreaTag -> Position -> Script TownEffect ()
