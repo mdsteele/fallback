@@ -24,12 +24,15 @@ where
 import Control.Monad (when)
 
 import Fallback.Data.Point
+import Fallback.Data.TotalMap (tmGet)
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Globals (Globals(..), signRadius)
 import Fallback.Scenario.Triggers.Script
+import Fallback.State.Area (arsParty)
 import Fallback.State.Creature (MonsterTownAI(DrunkAI))
-import Fallback.State.Simple (Ingredient(..))
+import Fallback.State.Party (partyIngredients)
+import Fallback.State.Simple (Ingredient(..), QuestStatus(..))
 import Fallback.State.Tags
 
 -------------------------------------------------------------------------------
@@ -83,7 +86,10 @@ compileTragorda globals = compileArea Tragorda Nothing $ do
     let
       initialChoices = convNode $ do
         convChoice (return ()) "\"We're all set, thank you.\"  (Leave.)"
-        -- TODO: when found ice, add choice to give it to her.
+        whenP (questActive DryIceForLucca) $ do
+          ings <- areaGet (partyIngredients . arsParty)
+          when (tmGet DryIce ings > 0) $ do
+            convChoice giveIce "\"We found some dry ice for you.\"  (Give.)"
         convChoice whereFrom "\"Where do your ingredients come from?\""
         convChoice doShop "\"Let's see what you've got for sale.  (Shop.)\""
       doShop = convNode $ do
@@ -100,12 +106,17 @@ compileTragorda globals = compileArea Tragorda Nothing $ do
           \ just go get them yourselves instead of coming here to buy them\
           \ from little old me!  What would I do then?\"  She gives you a\
           \ little wink."
-        when True $ do -- TODO: when (quest not done yet)
+        whenP (questActive DryIceForLucca) $ do
+          convText "\n\n\"I'll admit that I'm still hoping you'll bring me\
+            \ some dry ice, though.  At least, if you ever find any.\""
+        whenP (questUntaken DryIceForLucca) $ do
           convText "\n\n\"Although you know, now that I say that, I wonder if\
             \ maybe you could help me out.  I've got this recipe I've been\
             \ working on for months, but I need some dry ice to finish it, and\
             \ I haven't got a bit of it.  Why don't you go fetch some for me,\
             \ and if the recipe works out you can have some of the results?\""
+          setQuestStatus DryIceForLucca QuestActive
+        whenP (questActive DryIceForLucca) $ do
           convChoice whereIsIce "\"Where can we find dry ice?\""
           convChoice howMuchIce "\"How much dry ice do you need?\""
       howMuchIce = convNode $ do
@@ -119,6 +130,10 @@ compileTragorda globals = compileArea Tragorda Nothing $ do
           \ instead!  Then everyone would be happy!\"\n\
           \\n\"But no, no idea where to find any around here; just let me know\
           \ if you do.\""
+      giveIce = convNode $ do
+        convText "\"Thankee!\"" -- TODO
+        -- TODO take one unit DryIce; give XP/reward
+        setQuestStatus DryIceForLucca QuestSucceeded
     initialChoices
 
   uniqueDevice 884670 (Point 26 30) signRadius $ \_ _ -> do

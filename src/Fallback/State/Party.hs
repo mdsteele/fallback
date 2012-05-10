@@ -54,7 +54,8 @@ data Party = Party
     partyIngredients :: Ingredients,
     partyItems :: IntMap.IntMap ItemTag,
     partyLevel :: Int,
-    partyProgress :: Progress }
+    partyProgress :: Progress,
+    partyQuests :: SM.SparseMap QuestTag QuestStatus }
   deriving (Read, Show)
 
 instance HasProgress Party where
@@ -231,7 +232,7 @@ partyGrantExperience xp party =
 partyGrantIngredient :: Int -> Ingredient -> Party -> Party
 partyGrantIngredient n ingredient party =
   party { partyIngredients = tmAlter ingredient fn (partyIngredients party) }
-  where fn = min (partyMaxIngredientCount party) . (+ n)
+  where fn = max 0 . min (partyMaxIngredientCount party) . (+ n)
 
 -- | Add an item to the first open slot in the party inventory.
 partyGrantItem :: ItemTag -> Party -> Party

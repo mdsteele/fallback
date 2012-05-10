@@ -264,6 +264,11 @@ data ItemSlot = CharWeaponSlot CharacterNumber
 
 -------------------------------------------------------------------------------
 
+data QuestStatus = QuestUntaken | QuestActive | QuestFailed | QuestSucceeded
+  deriving (Eq, Read, Show)
+
+-------------------------------------------------------------------------------
+
 data Resistance = Armor | ResistFire | ResistCold | ResistEnergy
                 | ResistChemical | ResistMental | ResistStun
   deriving (Bounded, Enum, Eq, Ix, Ord)

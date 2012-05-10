@@ -36,9 +36,10 @@ module Fallback.Scenario.Compile
    -- * Variables
    Var, getVar, readVar, writeVar, modifyVar,
    -- * Trigger predicates
-   Predicate, andP, orP, notP, getP,
+   Predicate, andP, orP, notP, getP, whenP,
    varTrue, varFalse, varEq,
-   walkOn, walkOff, walkIn)
+   walkOn, walkOff, walkIn,
+   questUntaken, questActive)
 where
 
 import Control.Applicative ((<$))
@@ -51,16 +52,17 @@ import qualified Data.Set as Set
 
 import qualified Fallback.Data.Grid as Grid (Entry)
 import Fallback.Data.Point (Position, PRect, pZero, rectContains)
+import qualified Fallback.Data.SparseMap as SM
 import Fallback.Data.TotalMap
 import Fallback.Scenario.Monsters (getMonsterType)
 import Fallback.Scenario.Script
 import Fallback.State.Area
 import Fallback.State.Creature
-import Fallback.State.Party (Party)
+import Fallback.State.Party (Party, partyQuests)
 import Fallback.State.Progress
 import Fallback.State.Simple
 import Fallback.State.Status (initStatusEffects)
-import Fallback.State.Tags (AreaTag, MonsterTag, RegionTag)
+import Fallback.State.Tags (AreaTag, MonsterTag, QuestTag, RegionTag)
 import Fallback.State.Town (TownState)
 
 -------------------------------------------------------------------------------
@@ -396,6 +398,11 @@ notP (Predicate fn) = Predicate (not . fn)
 getP :: (FromAreaEffect f) => Predicate -> Script f Bool
 getP (Predicate fn) = areaGet fn
 
+whenP :: (FromAreaEffect f) => Predicate -> Script f () -> Script f ()
+whenP predicate action = do
+  bool <- getP predicate
+  when bool action
+
 varTrue :: Var Bool -> Predicate
 varTrue var = Predicate (getVar var)
 
@@ -413,5 +420,14 @@ walkOff = notP . walkOn
 
 walkIn :: PRect -> Predicate
 walkIn rect = Predicate (\s -> any (rectContains rect) (arsPartyPositions s))
+
+questUntaken :: QuestTag -> Predicate
+questUntaken = questStatus (== QuestUntaken)
+
+questActive :: QuestTag -> Predicate
+questActive = questStatus (== QuestActive)
+
+questStatus :: (QuestStatus -> Bool) -> QuestTag -> Predicate
+questStatus fn tag = Predicate (fn . SM.get tag . partyQuests . arsParty)
 
 -------------------------------------------------------------------------------

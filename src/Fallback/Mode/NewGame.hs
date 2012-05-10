@@ -26,6 +26,7 @@ import qualified Data.Map as Map (empty)
 import qualified Data.Set as Set (empty)
 
 import Fallback.Control.Error (IOEO, onlyIO)
+import qualified Fallback.Data.SparseMap as SM (make)
 import Fallback.Data.TotalMap (makeTotalMap)
 import Fallback.Draw (handleScreen, paintScreen)
 import Fallback.Event
@@ -39,7 +40,7 @@ import Fallback.State.Party
 import Fallback.State.Resources (Resources)
 import Fallback.State.Simple
 import Fallback.State.Status (initStatusEffects)
-import Fallback.State.Tags --(WeaponItemTag(..))
+import Fallback.State.Tags
 import Fallback.State.Town (TownState)
 import Fallback.View (View, fromAction, viewHandler, viewPaint)
 import Fallback.View.NewGame
@@ -145,7 +146,8 @@ newParty spec = do
             makeTotalMap ((numHAs *) . ingredientStartQuantity),
           partyItems = IntMap.fromList $ zip [0..] ([PotionItemTag HealingTincture, ArmorItemTag AdamantPlate, AccessoryItemTag TitanFists] ++ map WeaponItemTag [Sunrod, Starspear, Moonbow, Lifeblade, Longbow]), -- FIXME
           partyLevel = 1,
-          partyProgress = initialProgress }
+          partyProgress = initialProgress,
+          partyQuests = SM.make QuestUntaken }
   let healChar char = char { chrHealth = chrMaxHealth party char,
                              chrMojo = chrMaxMojo party char }
   return party { partyCharacters = fmap healChar (partyCharacters party) }

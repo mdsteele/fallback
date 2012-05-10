@@ -30,7 +30,9 @@ module Fallback.State.Tags
    ItemTag(..), allItemTags, WeaponItemTag(..), ArmorItemTag(..),
    AccessoryItemTag(..), PotionItemTag(..), InertItemTag(..),
    -- * Monsters
-   MonsterTag(..), MonsterSpellTag(..))
+   MonsterTag(..), MonsterSpellTag(..),
+   -- * Quests
+   QuestTag(..))
 where
 
 import Data.Ix (Ix)
@@ -311,5 +313,20 @@ data MonsterTag = Revenant | Revenantor | MasterRevenant
   deriving (Bounded, Enum, Eq, Ix, Ord, Read, Show)
 
 data MonsterSpellTag = BladeSweep | BlessMonsters | EntangleSpray | FireSpray
+
+-------------------------------------------------------------------------------
+
+data QuestTag = SaveCorenglen
+              -- Svengaard:
+              | ReclaimSunrod | CaptureSophia | HelpSophiaEscape
+              | IronForGregor | ClearPerilousRoad | ClearIronMine
+              | StealIronKey | DryIceForLucca | BookForSageBora
+              -- Tahariam:
+              | ReclaimStarspear
+              -- Bailagua:
+              | ReclaimMoonbow
+              -- Emitsuibom:
+              | ReclaimLifeblade
+  deriving (Eq, Ord, Read, Show)
 
 -------------------------------------------------------------------------------

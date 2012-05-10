@@ -25,15 +25,16 @@ module Fallback.Scenario.Triggers.Script
   (-- * Conversation
    TalkEffect(..), conversation, convText, convChoice, convNode, convReset,
    -- * Miscellaneous
-   doesPartyHaveItem, playDoorUnlockSound, setAreaCleared, startShopping)
+   doesPartyHaveItem, playDoorUnlockSound, setAreaCleared, setQuestStatus,
+   startShopping)
 where
 
 import Fallback.Scenario.Script
 import Fallback.State.Area
 import Fallback.State.Party (partyHasItem)
 import Fallback.State.Resources (SoundTag(SndUnlock))
-import Fallback.State.Simple (Ingredient)
-import Fallback.State.Tags (AreaTag, ItemTag)
+import Fallback.State.Simple (Ingredient, QuestStatus)
+import Fallback.State.Tags (AreaTag, ItemTag, QuestTag)
 
 -------------------------------------------------------------------------------
 
@@ -107,6 +108,9 @@ playDoorUnlockSound = playSound SndUnlock >> wait 6
 
 setAreaCleared :: (FromAreaEffect f) => AreaTag -> Bool -> Script f ()
 setAreaCleared tag cleared = emitAreaEffect $ EffSetAreaCleared tag cleared
+
+setQuestStatus :: (FromAreaEffect f) => QuestTag -> QuestStatus -> Script f ()
+setQuestStatus tag status = emitAreaEffect $ EffSetQuestStatus tag status
 
 startShopping :: (FromTownEffect f) => [Either Ingredient ItemTag]
               -> Script f ()

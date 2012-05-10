@@ -36,6 +36,7 @@ import Fallback.Data.Clock (Clock, clockInc)
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import qualified Fallback.Data.PriorityQueue as PQ
+import qualified Fallback.Data.SparseMap as SM
 import Fallback.Data.TotalMap (TotalMap, makeTotalMap, tmAlter, tmGet)
 import Fallback.Draw (Minimap, Paint)
 import Fallback.Sound (Sound, fadeOutMusic, loopMusic, playSound, stopMusic)
@@ -50,7 +51,7 @@ import Fallback.State.Progress
 import Fallback.State.Resources (MusicTag, Resources, musicPath)
 import Fallback.State.Simple
 import Fallback.State.Status (StatusEffects)
-import Fallback.State.Tags (AreaTag, ItemTag, MonsterTag)
+import Fallback.State.Tags (AreaTag, ItemTag, MonsterTag, QuestTag)
 import Fallback.State.Terrain
 
 -------------------------------------------------------------------------------
@@ -445,6 +446,8 @@ data PartyEffect :: * -> * where
   EffRandom :: (Random a) => a -> a -> PartyEffect a
   -- Set whether the specified area is cleared.
   EffSetAreaCleared :: AreaTag -> Bool -> PartyEffect ()
+  -- Set the status for a given quest.
+  EffSetQuestStatus :: QuestTag -> QuestStatus -> PartyEffect ()
   -- Change the value of a scenario variable.
   EffSetVar :: (VarType a) => Var a -> a -> PartyEffect ()
 
@@ -526,6 +529,8 @@ executePartyEffect eff party =
       let cleared' = (if clear then Set.insert tag else Set.delete tag)
                      (partyClearedAreas party)
       return ((), party { partyClearedAreas = cleared' })
+    EffSetQuestStatus tag qs -> do
+      return ((), party { partyQuests = SM.set tag qs (partyQuests party) })
     EffSetVar var value -> do
       let progress' = progressSetVar var value $ partyProgress party
       return ((), party { partyProgress = progress' })

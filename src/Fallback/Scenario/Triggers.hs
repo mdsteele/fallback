@@ -46,7 +46,7 @@ import Fallback.State.Progress (Progress)
 import Fallback.State.Resources
 import Fallback.State.Simple
 import Fallback.State.Tags
-import Fallback.Utility (firstJust, flip3, maybeM, whenM)
+import Fallback.Utility (firstJust, flip3, maybeM)
 
 -------------------------------------------------------------------------------
 
@@ -127,16 +127,16 @@ scenarioTriggers = compileScenario $ do
     makeExit Corenglen [Rect 35 41 5 5] (Point 32 40)
 
     trigger 908784 (walkIn (Rect 0 0 9 2) `orP` walkIn (Rect 0 0 3 9)) $ do
-      whenM (getP isFirstTimeThroughLongvale) $ do
+      whenP isFirstTimeThroughLongvale $ do
         narrate "You look back up the mountain, towards the way you came\
           \ from.  Then, you turn around and head back down.  There's nothing\
           \ of interest on the path that led you here, but you feel sure,\
           \ somehow, that adventure awaits you down in Coringlen."
-      whenM (getP isSecondTimeThroughLongvale) $ do
+      whenP isSecondTimeThroughLongvale $ do
         narrate "You're still not sure what's going on, but you doubt you're\
           \ going to find any answers by heading back the way you came.  You'd\
           \ better continue on into Corenglen.  Again."
-      whenM (getP isLastTimeThroughLongvale) $ do
+      whenP isLastTimeThroughLongvale $ do
         narrate "Just when you thought everything made sense, nothing makes\
           \ sense anymore.  You have to end this, and that means returning to\
           \ Corenglen one more time.  Squaring your shoulders, you turn to\

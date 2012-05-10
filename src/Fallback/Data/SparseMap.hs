@@ -29,18 +29,18 @@ module Fallback.Data.SparseMap
   (-- * SparseMap type
    SparseMap,
    -- * Construction
-   make, map, zipWith,
+   make, map, zipWith, fromSparseAssocs,
    -- * Operations
-   get, set, adjust,
+   get, set, adjust, defaultValue, sparseAssocs,
    -- * Debugging
    valid)
 where
 
 import Prelude hiding (map, zipWith)
-import Data.Ix (Ix, range)
 
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
+import qualified Text.Read as Read
 
 -------------------------------------------------------------------------------
 
@@ -50,25 +50,26 @@ import Data.Maybe (fromMaybe)
 -- not stored (thus, maps with infinite key spaces are possible as long as all
 -- but a finite number of keys point to this default value).
 --
--- Note 1: In order to maintain the internal invariant, any function that
--- mutates a 'SparseMap' requires the value type to be an instance of 'Eq'; in
+-- Note: In order to maintain the internal invariant, any function that mutates
+-- a 'SparseMap' requires the value type to be an instance of 'Eq'; in
 -- particular, the 'map' function has this requirement, so 'SparseMap'
 -- unfortunately cannot be an instance of 'Functor'.
---
--- Note 2: It is possible for two 'SparseMap' objects with different internal
--- default values to be equivalent, in the sense of having equal values for
--- every possible key.  Thus, the only way to be sure that two maps are unequal
--- in this case is to try every possible key and find one for which the two
--- maps have different mappings.  Thus, the 'Eq' instance of 'SparseMap'
--- requires that the key space be finite (enforced by requiring the key type to
--- be an instance of both 'Bounded' and 'Ix').  This is inconvenient, but
--- necessary to maintain the abstraction.
 data SparseMap k a = SparseMap !a (Map.Map k a)
+  deriving (Eq)
 
-instance (Bounded k, Ix k, Eq a) => Eq (SparseMap k a) where
-  s1@(SparseMap d1 m1) == s2@(SparseMap d2 m2) =
-    if d1 == d2 then m1 == m2
-    else all (\k -> get k s1 == get k s2) $ range (minBound, maxBound)
+instance (Ord k, Eq a, Read k, Read a) => Read (SparseMap k a) where
+  readPrec = Read.parens $ Read.prec 10 $ do
+    Read.Ident "fromSparseAssocs" <- Read.lexP
+    d <- Read.readPrec
+    as <- Read.readPrec
+    return (fromSparseAssocs d as)
+
+instance (Show k, Show a) => Show (SparseMap k a) where
+  showsPrec p sm = showParen (p > appPrec) $
+                   showString "fromSparseAssocs " .
+                   showsPrec (appPrec + 1) (defaultValue sm) .
+                   showChar ' ' . showsPrec (appPrec + 1) (sparseAssocs sm)
+    where appPrec = 10
 
 -------------------------------------------------------------------------------
 -- Construction:
@@ -97,6 +98,9 @@ zipWith fn (SparseMap d1 m1) (SparseMap d2 m2) = s' where
   put2 (k, v2) s = set k (fn d1 v2) s
   d' = fn d1 d2
 
+fromSparseAssocs :: (Ord k, Eq a) => a -> [(k, a)] -> SparseMap k a
+fromSparseAssocs d as = foldr (uncurry set) (make d) as
+
 -------------------------------------------------------------------------------
 -- Operations:
 
@@ -120,6 +124,12 @@ adjust :: (Ord k, Eq a) => (a -> a) -> k -> SparseMap k a -> SparseMap k a
 adjust fn k (SparseMap d m) = SparseMap d m' where
   m' = Map.alter (consider . fn . fromMaybe d) k m
   consider a = if a == d then Nothing else Just a
+
+defaultValue :: SparseMap k a -> a
+defaultValue (SparseMap d _) = d
+
+sparseAssocs :: SparseMap k a -> [(k, a)]
+sparseAssocs (SparseMap _ m) = Map.assocs m
 
 -------------------------------------------------------------------------------
 -- Debugging:

@@ -1,5 +1,5 @@
 {- ============================================================================
-| Copyright 2010 Matthew D. Steele <mdsteele@alum.mit.edu>                    |
+| Copyright 2011 Matthew D. Steele <mdsteele@alum.mit.edu>                    |
 |                                                                             |
 | This file is part of Fallback.                                              |
 |                                                                             |
@@ -17,29 +17,30 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
-module Test (main) where
+module Fallback.Test.SparseMap (smTests) where
 
-import Test.HUnit (Test(TestList), runTestTT)
+import Data.Function (on)
+import Data.List (nubBy, sort)
+import Test.HUnit ((~:), Test(TestList))
 
-import Fallback.Test.Error (errorTests)
-import Fallback.Test.FOV (fovTests)
-import Fallback.Test.Grid (gridTests)
-import Fallback.Test.Pathfind (pathfindTests)
-import Fallback.Test.Point (pointTests)
-import Fallback.Test.PriorityQueue (pqTests)
-import Fallback.Test.Queue (queueTests)
-import Fallback.Test.Script (scriptTests)
-import Fallback.Test.SparseMap (smTests)
-import Fallback.Test.Utility (utilityTests)
+import qualified Fallback.Data.SparseMap as SM
+import Fallback.Test.Base (qcTest)
 
 -------------------------------------------------------------------------------
 
-main :: IO ()
-main = runTestTT allTests >> return ()
+smTests :: Test
+smTests = "sm" ~: TestList [
+  qcTest $ \d -> SM.defaultValue (SM.make d :: SMIC) == d,
+  qcTest $ \d -> null (SM.sparseAssocs (SM.make d :: SMIC)),
+  qcTest $ \k d -> SM.get k (SM.make d :: SMIC) == d,
+  qcTest $ \d as -> SM.defaultValue (SM.fromSparseAssocs d as :: SMIC) == d,
+  qcTest $ \d as -> SM.sparseAssocs (SM.fromSparseAssocs d as :: SMIC) ==
+                    (sort $ filter ((d /=) . snd) $ nubBy ((==) `on` fst) as),
+  qcTest $ \d as -> let sm = SM.fromSparseAssocs d as :: SMIC
+                    in read (show sm) == sm]
 
-allTests :: Test
-allTests = TestList [errorTests, fovTests, gridTests, pathfindTests,
-                     pointTests, pqTests, queueTests, scriptTests,
-                     smTests, utilityTests]
+-------------------------------------------------------------------------------
+
+type SMIC = SM.SparseMap Int Char
 
 -------------------------------------------------------------------------------

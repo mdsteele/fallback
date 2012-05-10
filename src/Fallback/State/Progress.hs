@@ -34,6 +34,7 @@ import Data.Maybe (fromMaybe)
 
 -------------------------------------------------------------------------------
 
+-- TODO: Use SparseMaps here.
 data Progress = Progress
   { progBoolVars :: Map.Map (Var Bool) Bool,
     progIntVars :: Map.Map (Var Int) Int }
