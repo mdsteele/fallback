@@ -29,22 +29,25 @@ import qualified Graphics.UI.SDL.TTF as SDLt
 
 import Fallback.Constants (framesPerSecond)
 import Fallback.Data.Point (Point(Point))
-import Fallback.Draw (initializeScreen)
+import Fallback.Draw (initializeScreen, setFullscreen)
 import Fallback.Event
 import Fallback.Mode (Mode, NextMode(..), newBootUpMode)
 
 -------------------------------------------------------------------------------
 
-data EngineState = EngineState { engineFps :: SDLf.FPSManager,
-                                 engineClockOn :: Bool,
-                                 engineMode :: Mode }
+data EngineState = EngineState
+  { engineFps :: SDLf.FPSManager,
+    engineFullscreen :: Bool,
+    engineClockOn :: Bool,
+    engineMode :: Mode }
 
-newEngineState :: IO EngineState
-newEngineState = do fps <- SDLf.new
-                    SDLf.init fps
-                    _ <- SDLf.set fps framesPerSecond
-                    mode <- newBootUpMode
-                    return $ EngineState fps True mode
+newEngineState :: Bool -> IO EngineState
+newEngineState fullscreen = do
+  fps <- SDLf.new
+  SDLf.init fps
+  _ <- SDLf.set fps framesPerSecond
+  mode <- newBootUpMode
+  return $ EngineState fps fullscreen True mode
 
 convertKeyMods :: [SDL.Modifier] -> Maybe [KeyMod]
 convertKeyMods = fmap (nub . sort) . mapM convert where
@@ -81,7 +84,9 @@ eventLoop state = SDL.pollEvent >>= handleEvent where
   handleEvent (SDL.KeyDown (SDL.Keysym k ms char)) =
     let handle mods = if mods == [KeyModCmd] && k == SDL.SDLK_q
                       then passToMode EvQuit
-                      else passToMode $ EvKeyDown (fromSDLKey k) mods char
+                      else if mods == [KeyModCmd] && k == SDL.SDLK_m
+                           then toggleFullscreen
+                           else passToMode $ EvKeyDown (fromSDLKey k) mods char
     in maybe ignore handle (convertKeyMods ms)
   handleEvent (SDL.KeyUp (SDL.Keysym k _ _)) =
     passToMode . EvKeyUp $ fromSDLKey k
@@ -111,15 +116,21 @@ eventLoop state = SDL.pollEvent >>= handleEvent where
   nextMode SameMode = eventLoop state
   nextMode (ChangeMode mode) = eventLoop $ state { engineMode = mode }
 
+  toggleFullscreen :: IO ()
+  toggleFullscreen = let fs = not (engineFullscreen state)
+                     in do setFullscreen fs
+                           eventLoop $ state { engineFullscreen = fs }
+
 -------------------------------------------------------------------------------
 
 sdlMain :: IO ()
 sdlMain = withSdlInit $ do
-  initializeScreen False -- not fullscreen
+  let fullscreen = False
+  initializeScreen fullscreen
   let windowTitle = "Fallback"
   SDL.setCaption windowTitle windowTitle
   SDL.enableUnicode True
-  newEngineState >>= eventLoop
+  newEngineState fullscreen >>= eventLoop
 
 withSdlInit :: IO a -> IO a
 withSdlInit = SDL.withInit [SDL.InitEverything] . withTtfInit . withMixerInit

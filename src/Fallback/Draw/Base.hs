@@ -21,7 +21,7 @@
 
 module Fallback.Draw.Base
   (-- * Setting up the screen
-   initializeScreen,
+   initializeScreen, setFullscreen,
    -- * The Draw monad
    Draw, MonadDraw(..), debugDraw,
    -- * The Handler monad
@@ -114,6 +114,9 @@ initializeScreen fullscreen = do
   GL.viewport $= (GL.Position 0 0, GL.Size (fromIntegral screenWidth)
                                            (fromIntegral screenHeight))
   GL.ortho 0 (fromIntegral screenWidth) (fromIntegral screenHeight) 0 (-1) 1
+
+setFullscreen :: Bool -> IO ()
+setFullscreen = preservingTextures . initializeScreen
 
 -------------------------------------------------------------------------------
 -- Sprites:
