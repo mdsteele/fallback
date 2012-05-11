@@ -30,6 +30,7 @@ import Data.IORef
 import qualified Data.Set as Set
 import qualified Text.ParserCombinators.ReadP as Read
 
+import Fallback.Constants (cameraCenterOffset)
 import Fallback.Control.Error (runEO, runIOEO)
 import Fallback.Data.Clock (initClock)
 import Fallback.Data.Point
@@ -76,7 +77,9 @@ newEditorMode resources = do
       when (event == EvTick) $ paintScreen (viewPaint view es)
       case fromAction action of
         Nothing -> return SameMode
-        Just (JumpMapTo _) -> return SameMode -- TODO implement this
+        Just (JumpMapTo pos) -> alterState $
+          es { esCameraTopleft =
+                 round <$> (positionCenter pos `pSub` cameraCenterOffset) }
         Just (ScrollMap delta) -> alterState $
           es { esCameraTopleft = esCameraTopleft es `pAdd` delta }
         Just (ScrollPalette top) -> alterState $

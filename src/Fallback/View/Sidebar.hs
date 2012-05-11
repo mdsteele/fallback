@@ -193,8 +193,8 @@ newMinimapView = do
       whenWithinCanvas pt $ do
         (w, h) <- canvasSize
         let (_, _, offsetX, offsetY) = getOffset camera minimap (w, h)
-        let x = (pointX pt - w - offsetX) `div` minimapScale
-        let y = (pointY pt - h - offsetY) `div` minimapScale
+        let x = (pointX pt - offsetX) `div` minimapScale
+        let y = (pointY pt - offsetY) `div` minimapScale
         return $ Action $ Point x y
     handler _ _ = return Ignore
 
