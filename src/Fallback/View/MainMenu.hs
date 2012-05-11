@@ -55,7 +55,7 @@ newBackgroundView :: (MonadDraw m) => m (View a b)
 newBackgroundView = do
 --   bgSprite <- loadSprite "tileset_indoors.png"
 --   return $ inertView $ const $ blitStretch bgSprite (Rect 0 0 (16 * 28) (16 * 36) :: IRect)
-  bgSprite <- loadSprite "gui/main-menu-background.png"
+  bgSprite <- loadSprite "title.png"
   return $ inertView $ const $ canvasRect >>= blitStretch bgSprite
 
 -------------------------------------------------------------------------------

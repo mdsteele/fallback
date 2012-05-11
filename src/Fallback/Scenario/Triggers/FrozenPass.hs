@@ -42,7 +42,7 @@ import Fallback.State.Tileset (TileTag(..))
 compileFrozenPass :: Globals -> CompileScenario ()
 compileFrozenPass globals = compileArea FrozenPass Nothing $ do
 
-  makeExit Holmgare [Rect 53 37 2 5] (Point 51 38)
+  makeExit Holmgare [Rect 53 36 2 7] (Point 51 38)
 
   onStartDaily 028371 $ do
     addDevice_ (gStoneDoor globals) (Point 44 12)

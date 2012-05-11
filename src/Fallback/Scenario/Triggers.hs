@@ -124,7 +124,7 @@ scenarioTriggers = compileScenario $ do
 
   compileArea MountainPath Nothing $ do
 
-    makeExit Corenglen [Rect 35 41 5 5] (Point 32 40)
+    makeExit Corenglen [Rect 38 38 2 8, Rect 31 44 7 2] (Point 36 42)
 
     trigger 908784 (walkIn (Rect 0 0 9 2) `orP` walkIn (Rect 0 0 3 9)) $ do
       whenP isFirstTimeThroughLongvale $ do

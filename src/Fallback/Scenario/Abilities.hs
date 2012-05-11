@@ -816,7 +816,7 @@ abilityDescription Conflagration =
   \At rank 2, affects a larger area.\n\
   \At rank 3, also deals an initial burst of damage to the area."
 abilityDescription PoisonGas =
-  "Fill an area with a cloud of poisonous gas, continuously poisoning those\
+  "Fill an area with a cloud of toxic gas, continuously poisoning those\
   \ within.\n\
   \At rank 2, the gas is even more poisonous.\n\
   \At rank 3, also curses everything within the area."
