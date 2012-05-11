@@ -205,9 +205,9 @@ tryMove key rect' grid = do
                                 prectPositions $ geRect entry) positions' }
 
 -- | Alter all items in the grid.
-update :: (a -> a) -> Grid a -> Grid a
+update :: (Entry a -> a) -> Grid a -> Grid a
 update fn grid = grid { gridMap1 = IntMap.map fn' (gridMap1 grid) } where
-  fn' entry = entry { geValue = fn (geValue entry) }
+  fn' entry = entry { geValue = fn entry }
 
 updateSelect :: (Entry a -> (a, Maybe b)) -> Grid a -> (Grid a, Maybe b)
 updateSelect fn grid = (grid { gridMap1 = map1' }, result) where

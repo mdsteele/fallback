@@ -28,7 +28,7 @@ import Fallback.Data.TotalMap (tmSet)
 import Fallback.State.Area (Monster(..))
 import Fallback.State.Creature
 import Fallback.State.Simple
-import Fallback.State.Status (initStatusEffects)
+import Fallback.State.Status (Invisibility(..), initStatusEffects)
 import Fallback.State.Tags (MonsterSpellTag(..), MonsterTag(..))
 
 -------------------------------------------------------------------------------
@@ -39,14 +39,14 @@ import Fallback.State.Tags (MonsterSpellTag(..), MonsterTag(..))
 -- this function.
 makeMonster :: MonsterTag -> Monster
 makeMonster tag = Monster
-  { monstAnim = NoAnim,
-    monstAdrenaline = 0,
+  { monstAdrenaline = 0,
     monstDeadVar = Nothing,
-    monstFaceDir = FaceLeft,
     monstHealth = mtMaxHealth mtype,
     monstIsAlly = False,
     monstMoments = 0,
     monstName = mtName mtype,
+    monstPose = CreaturePose { cpAlpha = 255, cpAnim = NoAnim,
+                               cpFaceDir = FaceLeft },
     monstScript = Nothing,
     monstStatus = initStatusEffects,
     monstTag = tag,
@@ -168,6 +168,9 @@ getMonsterType Ghoul = baseMonsterType
     mtMaxHealth = 80,
     mtName = "Ghoul",
     mtSpeed = 1.2 }
+getMonsterType Invisighoul = (getMonsterType Ghoul)
+  { mtInherentInvisibility = MinorInvisibility,
+    mtName = "Invisighoul" }
 getMonsterType Skeleton = baseMonsterType
   { mtAgility = 40,
     mtAttacks = [baseMonsterAttack
@@ -248,6 +251,7 @@ baseMonsterType = MonsterType
     mtCanFly = False,
     mtExperienceValue = 0,
     mtImageRow = 0,
+    mtInherentInvisibility = NoInvisibility,
     mtIsDaemonic = False,
     mtIsUndead = False,
     mtLevel = 0,

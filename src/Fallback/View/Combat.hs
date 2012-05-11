@@ -22,8 +22,6 @@ module Fallback.View.Combat
 where
 
 import Control.Applicative ((<$>))
-import Data.Foldable (toList)
-import Data.Maybe (isJust)
 
 import Fallback.Constants (sidebarWidth)
 import Fallback.Data.Color (Tint(Tint))
@@ -40,7 +38,6 @@ import Fallback.State.Item (wdRange)
 import Fallback.State.Party
 import Fallback.State.Resources (Resources, rsrcCharacterImages)
 import Fallback.State.Simple (CharacterNumber)
-import Fallback.State.Status (seInvisibility)
 import Fallback.State.Terrain
 import Fallback.Utility (maybeM)
 import Fallback.View.Abilities
@@ -107,7 +104,6 @@ newCombatMapView resources = do
       paintFields resources cameraTopleft (acsVisible acs)
                   (acsClock acs) (acsFields acs)
       paintMonsters resources cameraTopleft (acsClock acs) (acsVisible acs)
-                    (map ccsPosition $ toList $ csCharStates cs)
                     (Grid.entries $ acsMonsters acs)
       paintCharacters resources cameraTopleft cs
       paintHealthBars cs
@@ -192,17 +188,16 @@ paintCharacters resources cameraTopleft cs =
       if not (chrIsConscious char) then return () else do
       let ccs = tmGet charNum $ csCharStates cs
       let pos = ccsPosition ccs
+      let pose = ccsPose ccs
       let sprite =
-            (case ccsAnim ccs of { AttackAnim _ -> ciAttack; _ -> ciStand })
-            (ccsFaceDir ccs)
+            (case cpAnim pose of { AttackAnim _ -> ciAttack; _ -> ciStand })
+            (cpFaceDir pose)
             (rsrcCharacterImages resources (chrClass char)
                                  (chrAppearance char))
       let rect = positionRect pos `rectPlus`
-                 (animOffset (ccsAnim ccs) pos `pSub` cameraTopleft)
+                 (animOffset (cpAnim pose) pos `pSub` cameraTopleft)
       -- TODO draw an extra decoration for the active character
-      (if isJust $ seInvisibility $ chrStatus char
-       then blitStretchTinted (Tint 255 255 255 128)
-       else blitStretch) sprite rect
+      blitStretchTinted (Tint 255 255 255 (cpAlpha pose)) sprite rect
       paintStatusDecorations resources cameraTopleft (arsClock cs)
                              (makeRect pos (1, 1)) (chrStatus char)
 

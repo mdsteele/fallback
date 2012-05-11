@@ -17,13 +17,43 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
-module Fallback.State.Creature where
+module Fallback.State.Creature
+  (CreaturePose(..), tickCreaturePose,
+   CreatureAnim(..), animOffset,
+   CreatureImages(..), ciStand, ciAttack,
+   MonsterAttack(..), MonsterTownAI(..), MonsterType(..))
+where
+
+import Data.Word (Word8)
 
 import Fallback.Constants (secondsPerFrame, tileHeight, tileWidth)
 import Fallback.Data.Point
 import Fallback.Draw (Sprite)
 import Fallback.State.Simple
+import Fallback.State.Status (Invisibility(..))
 import Fallback.State.Tags (MonsterSpellTag)
+
+-------------------------------------------------------------------------------
+
+data CreaturePose = CreaturePose
+  { cpAlpha :: Word8,
+    cpAnim :: CreatureAnim,
+    cpFaceDir :: FaceDir }
+  deriving (Read, Show)
+
+tickCreaturePose :: Invisibility -> Bool -> CreaturePose -> CreaturePose
+tickCreaturePose invis canSee pose = pose { cpAlpha = alpha', cpAnim = anim' }
+  where
+    anim' = tickCreatureAnim (cpAnim pose)
+    shouldSee = case anim' of AttackAnim _ -> True
+                              HurtAnim _ -> True
+                              _ -> False
+    desiredAlpha = if invis == NoInvisibility || shouldSee then 255
+                   else if canSee then 128 else 0
+    alpha' = if alpha > desiredAlpha
+             then max desiredAlpha (alpha - min alpha 16)
+             else min desiredAlpha (alpha + min (255 - alpha) 64)
+    alpha = cpAlpha pose
 
 -------------------------------------------------------------------------------
 
@@ -103,6 +133,7 @@ data MonsterType = MonsterType
     --mtDefaultCombatAI :: MonsterCombatAI,
     mtExperienceValue :: Int,
     mtImageRow :: Int,
+    mtInherentInvisibility :: Invisibility,
     mtIsDaemonic :: Bool,
     mtIsUndead :: Bool,
     mtLevel :: Int,

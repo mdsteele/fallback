@@ -28,11 +28,12 @@ import Fallback.Control.Script (Script)
 import Fallback.Data.Point
 import qualified Fallback.Data.SparseMap as SM
 import Fallback.State.Area
-import Fallback.State.Creature (CreatureAnim(..), tickCreatureAnim)
+import Fallback.State.Creature (CreaturePose, tickCreaturePose)
 import Fallback.State.FOV (fieldOfView)
 import Fallback.State.Party
 import Fallback.State.Progress (HasProgress, getProgress)
 import Fallback.State.Simple
+import Fallback.State.Status (Invisibility(NoInvisibility))
 import Fallback.State.Tags (AreaTag, ItemTag)
 import Fallback.State.Terrain (positionCenter, terrainSize)
 
@@ -42,8 +43,7 @@ import Fallback.State.Terrain (positionCenter, terrainSize)
 data TownState = TownState
   { tsActiveCharacter :: CharacterNumber,
     tsCommon :: AreaCommonState,
-    tsPartyAnim :: CreatureAnim,
-    tsPartyFaceDir :: FaceDir,
+    tsPartyPose :: CreaturePose,
     tsPartyPosition :: Position,
     tsPhase :: TownPhase,
     tsTriggersFired :: [Trigger TownState TownEffect],
@@ -94,8 +94,10 @@ updateTownVisibility ts = do
 tickTownAnimations :: TownState -> TownState
 tickTownAnimations ts =
   let acs' = tickAnimations (positionCenter (tsPartyPosition ts) `pSub`
-                             cameraCenterOffset) (tsCommon ts)
-  in ts { tsCommon = acs', tsPartyAnim = tickCreatureAnim (tsPartyAnim ts) }
+                             cameraCenterOffset)
+                            (arsAllyOccupiedPositions ts) (tsCommon ts)
+  in ts { tsCommon = acs',
+          tsPartyPose = tickCreaturePose NoInvisibility True (tsPartyPose ts) }
 
 -------------------------------------------------------------------------------
 

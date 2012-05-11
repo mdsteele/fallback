@@ -172,9 +172,8 @@ getAbility characterClass abilityNumber rank =
               ok <- emitAreaEffect $ EffTryMoveMonster key $ makeRect newPos $
                     rectSize $ Grid.geRect entry'
               unless ok $ fail "RopeDart: monster failed to move"
-              emitAreaEffect $ EffReplaceMonster key $
-                Just (Grid.geValue entry')
-                  { monstAnim = WalkAnim time time monstPos }
+              faceMonsterAwayFrom key startPos
+              setMonsterAnim key (WalkAnim time time monstPos)
               wait time
             unless (isAlly || rank < Rank3) $ do
               withMonsterEntry key $ \entry' -> do
@@ -202,12 +201,12 @@ getAbility characterClass abilityNumber rank =
         also_ (charWalkTo caster (head spots) >>= wait) $ do
           concurrent_ (tail spots) $ \spot -> do
             let monster = (makeMonster monsterTag)
-                  { monstAnim = WalkAnim 4 4 startPos,
-                    monstIsAlly = True,
+                  { monstIsAlly = True,
                     monstTownAI = ChaseAI }
             mbEntry <- tryAddMonster spot monster
             maybeM (Grid.geKey <$> mbEntry) $ \key -> do
               faceMonsterAwayFrom key startPos
+              setMonsterAnim key (WalkAnim 4 4 startPos)
               wait 4
     Alacrity -> PassiveAbility
     BeastCall ->

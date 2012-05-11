@@ -385,10 +385,10 @@ newStatusEffectsView resources = do
           DazedEffect -> 8
           ConfusedEffect -> 9
           CharmedEffect -> 10
-      maybeM (seInvisibility se) $ \inv -> blit 5 $
-        case inv of
-          MinorInvisibility -> 12
-          MajorInvisibility -> 11
+      case seInvisibility se of
+        NoInvisibility -> return ()
+        MinorInvisibility -> blit 5 11
+        MajorInvisibility -> blit 5 12
       when (seIsEntangled se) $ blit 6 14
       when (seIsShielded se) $ blit 7 15
   return (inertView paint)

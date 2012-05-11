@@ -28,16 +28,16 @@ import qualified Data.Set as Set
 import Fallback.Control.Error (IOEO, onlyIO)
 import Fallback.Data.Clock (initClock)
 import qualified Fallback.Data.Grid as Grid (empty)
-import Fallback.Data.Point (IPoint, Point(Point), Position)
+import Fallback.Data.Point (IPoint, Point(Point), Position, half, pSub)
 import Fallback.Scenario.Triggers
 import Fallback.State.Area
   (AreaCommonState(..), TownEffect, Trigger, emptyDoodads)
 import Fallback.State.Camera (makeCameraWithCenter)
-import Fallback.State.Creature (CreatureAnim(NoAnim))
+import Fallback.State.Creature (CreatureAnim(NoAnim), CreaturePose(..))
 import Fallback.State.Minimap (newMinimapFromTerrain)
 import Fallback.State.Party (Party(partyCurrentArea), partyExploredMap)
 import Fallback.State.Resources (Resources)
-import Fallback.State.Simple (FaceDir(..))
+import Fallback.State.Simple (deltaFaceDir)
 import Fallback.State.Tags (AreaTag(..))
 import Fallback.State.Terrain
 import Fallback.State.Town
@@ -82,6 +82,7 @@ enterPartyIntoArea resources origParty tag position = do
   let party = origParty { partyCurrentArea = tag }
   tmap <- loadTerrainMap resources (areaTerrain party tag)
   let terrain = Terrain { terrainMap = tmap, terrainOverrides = Map.empty }
+  let mapCenter = fmap half $ uncurry Point $ terrainSize terrain
   minimap <- onlyIO $ newMinimapFromTerrain terrain $
              partyExploredMap terrain party
   onlyIO $ updateTownVisibility $ TownState
@@ -99,8 +100,9 @@ enterPartyIntoArea resources origParty tag position = do
           acsResources = resources,
           acsTerrain = terrain,
           acsVisible = Set.empty },
-      tsPartyAnim = NoAnim,
-      tsPartyFaceDir = FaceRight, -- TODO face towards center of map
+      tsPartyPose = CreaturePose
+        { cpAlpha = 255, cpAnim = NoAnim,
+          cpFaceDir = deltaFaceDir (mapCenter `pSub` position) },
       tsPartyPosition = position,
       tsPhase = WalkingPhase,
       tsTriggersFired = [],

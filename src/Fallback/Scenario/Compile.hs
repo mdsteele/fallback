@@ -54,14 +54,13 @@ import qualified Fallback.Data.Grid as Grid (Entry)
 import Fallback.Data.Point (Position, PRect, pZero, rectContains)
 import qualified Fallback.Data.SparseMap as SM
 import Fallback.Data.TotalMap
-import Fallback.Scenario.Monsters (getMonsterType)
+import Fallback.Scenario.Monsters (makeMonster)
 import Fallback.Scenario.Script
 import Fallback.State.Area
 import Fallback.State.Creature
 import Fallback.State.Party (Party, partyQuests)
 import Fallback.State.Progress
 import Fallback.State.Simple
-import Fallback.State.Status (initStatusEffects)
 import Fallback.State.Tags (AreaTag, MonsterTag, QuestTag, RegionTag)
 import Fallback.State.Town (TownState)
 
@@ -235,21 +234,10 @@ simpleTownsperson vseed tag pos ai sfn = do
   (vseed', vseed'') <- splitVarSeed vseed
   mscript <- newMonsterScript vseed' sfn
   onStartDaily vseed'' $ do
-    let mtype = getMonsterType tag
-    () <$ tryAddMonster pos Monster
-      { monstAnim = NoAnim,
-        monstAdrenaline = 0,
-        monstDeadVar = Nothing,
-        monstFaceDir = FaceLeft,
-        monstHealth = mtMaxHealth mtype,
-        monstIsAlly = True,
-        monstMoments = 0,
-        monstName = mtName mtype,
+    () <$ tryAddMonster pos (makeMonster tag)
+      { monstIsAlly = True,
         monstScript = Just mscript,
-        monstStatus = initStatusEffects,
-        monstTag = tag,
-        monstTownAI = ai,
-        monstType = mtype }
+        monstTownAI = ai }
 
 -------------------------------------------------------------------------------
 -- Checking VarSeeds:

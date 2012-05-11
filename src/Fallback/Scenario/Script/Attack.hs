@@ -51,7 +51,7 @@ characterBeginOffensiveAction :: CharacterNumber -> Position
                               -> Script CombatEffect ()
 characterBeginOffensiveAction charNum target = do
   faceCharacterToward charNum target
-  alterStatus (HitCharacter charNum) (seSetInvisibility Nothing)
+  alterStatus (HitCharacter charNum) (seSetInvisibility NoInvisibility)
   setCharacterAnim charNum (AttackAnim 8)
 
 characterWeaponAttack :: CharacterNumber -> Position -> Script CombatEffect ()
@@ -102,7 +102,7 @@ monsterBeginOffensiveAction :: Grid.Key Monster -> Position
                             -> Script CombatEffect ()
 monsterBeginOffensiveAction key target = do
   faceMonsterToward key target
-  alterStatus (HitMonster key) (seSetInvisibility Nothing)
+  alterStatus (HitMonster key) (seSetInvisibility NoInvisibility)
   setMonsterAnim key (AttackAnim 8)
 
 monsterPerformAttack :: Grid.Key Monster -> MonsterAttack -> Position

@@ -36,7 +36,7 @@ import Fallback.Constants
    combatCameraOffset, maxActionPoints, momentsPerActionPoint)
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
-import Fallback.Data.TotalMap (TotalMap, makeTotalMap, tmAlter, tmGet)
+import Fallback.Data.TotalMap
 import Fallback.Draw (handleScreen, paintScreen)
 import Fallback.Event
 import Fallback.Mode.Base
@@ -52,7 +52,8 @@ import qualified Fallback.Sound as Sound (playSound)
 import Fallback.State.Action
 import Fallback.State.Area
 import Fallback.State.Combat
-import Fallback.State.Creature (CreatureAnim(..), mtSpeed, tickCreatureAnim)
+import Fallback.State.Creature
+  (CreatureAnim(..), CreaturePose(..), mtSpeed, tickCreaturePose)
 import Fallback.State.Item (WeaponData(..), getPotionAction)
 import Fallback.State.Party
 import Fallback.State.Resources (Resources, SoundTag(..), rsrcSound)
@@ -452,12 +453,15 @@ newCombatMode resources modes initState = do
         putStrLn ("Warning: there are " ++ show (length extraMonsters) ++
                   " extra monsters.")
       Sound.playSound (rsrcSound resources SndCombatEnd)
+      let activeCcs = tmGet activeChar $ csCharStates cs
       ChangeMode <$> newTownMode' modes TownState
         { tsActiveCharacter = activeChar,
           tsCommon = acs',
-          tsPartyAnim =
-            WalkAnim 4 4 (ccsPosition $ tmGet activeChar $ csCharStates cs),
-          tsPartyFaceDir = FaceLeft, -- FIXME
+          tsPartyPose = CreaturePose
+            { cpAlpha = cpAlpha (ccsPose activeCcs),
+              cpAnim = WalkAnim 4 4 (ccsPosition activeCcs),
+              cpFaceDir =
+                deltaFaceDir (partyPos `pSub` ccsPosition activeCcs) },
           tsPartyPosition = partyPos,
           tsPhase = WalkingPhase,
           tsTriggersFired = filter wasFired townTriggers,
@@ -499,9 +503,13 @@ doTick cs =
   where
     acs = csCommon cs
     animationsOnly = return (cs', Nothing)
-    cs' = cs { csCharStates = fmap tickCharStateBasic (csCharStates cs),
-               csCommon = tickAnimations camTarget acs }
-    tickCharStateBasic ccs = ccs { ccsAnim = tickCreatureAnim (ccsAnim ccs) }
+    cs' = cs { csCharStates = tmMapWithKey tickCcs (csCharStates cs),
+               csCommon = tickAnimations camTarget
+                                         (arsAllyOccupiedPositions cs) acs }
+    tickCcs charNum ccs = ccs
+      { ccsPose = tickCreaturePose (seInvisibility $ chrStatus $
+                                    arsGetCharacter charNum cs)
+                                   True (ccsPose ccs) }
     camTarget = fromIntegral <$> (positionTopleft (csArenaTopleft cs) `pSub`
                                   combatCameraOffset)
 
@@ -625,14 +633,15 @@ executeEffect cs eff sfn =
         EffWait -> return (cs, sfn (), Just DoWait)
     EffEndCombat -> return (cs, sfn (), Just DoEndCombat)
     EffGetCharFaceDir charNum -> do
-      return (cs, sfn $ ccsFaceDir $ csGetCharState cs charNum, Nothing)
+      return (cs, sfn $ cpFaceDir $ ccsPose $ csGetCharState cs charNum,
+              Nothing)
     EffGetCharMoments charNum -> do
       return (cs, sfn $ ccsMoments $ csGetCharState cs charNum, Nothing)
     EffSetCharAnim charNum anim -> do
-      let setAnim ccs = ccs { ccsAnim = anim }
+      let setAnim ccs = ccs { ccsPose = (ccsPose ccs) { cpAnim = anim } }
       return (csAlterCharState charNum setAnim cs, sfn (), Nothing)
     EffSetCharFaceDir charNum faceDir -> do
-      let setFace ccs = ccs { ccsFaceDir = faceDir }
+      let setFace ccs = ccs { ccsPose = (ccsPose ccs) { cpFaceDir = faceDir } }
       return (csAlterCharState charNum setFace cs, sfn (), Nothing)
     EffSetCharMoments charNum moments -> do
       let setMoments ccs = ccs { ccsMoments = moments }

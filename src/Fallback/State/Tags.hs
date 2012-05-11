@@ -300,7 +300,8 @@ data MonsterTag = Revenant | Revenantor | MasterRevenant
                 -- Animals:
                 | Wolf | DemonWolf
                 -- Undead:
-                | Ghoul | Ghast | Skeleton | Wight | Wraith | Zombie
+                | Ghoul | Ghast | Invisighoul | Skeleton | Wight | Wraith
+                | Zombie
                 -- Bosses:
                 | Vampire | Vhaegyst
                 -- Townspeople:

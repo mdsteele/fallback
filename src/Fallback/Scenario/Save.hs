@@ -180,7 +180,7 @@ newtype ReadTownState = ReadTownState
 
 instance Read ReadTownState where
   readPrec = do
-    (activeCharacter, wrappedCommon, partyAnim, partyFaceDir, partyPosition,
+    (activeCharacter, wrappedCommon, partyPose, partyPosition,
      triggersFiredIds) <- readPrec
     return $ ReadTownState $ \resources -> do
       acs <- unwrapAreaCommonState wrappedCommon resources partyPosition
@@ -189,9 +189,8 @@ instance Read ReadTownState where
       return TownState
         { tsActiveCharacter = activeCharacter,
           tsCommon = acs,
-          tsPartyAnim = partyAnim,
+          tsPartyPose = partyPose,
           tsPartyPosition = partyPosition,
-          tsPartyFaceDir = partyFaceDir,
           tsPhase = WalkingPhase,
           tsTriggersFired =
             filter (flip Set.member triggersFiredIds . triggerId) triggers,
@@ -203,7 +202,7 @@ newtype ShowTownState = ShowTownState TownState
 instance Show ShowTownState where
   showsPrec p (ShowTownState ts) = showsPrec p $
     (tsActiveCharacter ts, ShowAreaCommonState (tsCommon ts),
-     tsPartyAnim ts, tsPartyFaceDir ts, tsPartyPosition ts,
+     tsPartyPose ts, tsPartyPosition ts,
      Set.fromList $ map triggerId $ tsTriggersFired ts)
 
 -------------------------------------------------------------------------------

@@ -33,12 +33,12 @@ import qualified Fallback.Data.Grid as Grid (Grid)
 import Fallback.Data.Point
 import Fallback.Data.TotalMap (TotalMap, tmAlter, tmAssocs, tmGet)
 import Fallback.State.Area
-import Fallback.State.Creature (CreatureAnim)
+import Fallback.State.Creature (CreaturePose)
 import Fallback.State.FOV (fieldOfView)
 import Fallback.State.Party
 import Fallback.State.Progress (HasProgress, TriggerId, getProgress)
 import Fallback.State.Simple
-  (CastingCost, CharacterNumber, CostModifier, FaceDir, PowerModifier)
+  (CastingCost, CharacterNumber, CostModifier, PowerModifier)
 import Fallback.State.Status
 import Fallback.State.Tags (FeatTag, ItemTag)
 import Fallback.State.Terrain (terrainSize)
@@ -166,9 +166,8 @@ data CombatExecution = CombatExecution
 -------------------------------------------------------------------------------
 
 data CombatCharState = CombatCharState
-  { ccsAnim :: CreatureAnim,
-    ccsFaceDir :: FaceDir,
-    ccsMoments :: Int,
+  { ccsMoments :: Int,
+    ccsPose :: CreaturePose,
     ccsPosition :: Position,
     ccsVisible :: Set.Set Position,
     ccsWantsTurn :: Bool }

@@ -30,13 +30,14 @@ import qualified Data.Set as Set
 import Fallback.Constants (sidebarWidth, talkRadius)
 import Fallback.Control.Script (Script, mapEffect)
 import qualified Fallback.Data.Grid as Grid
+import Fallback.Data.Color (Tint(Tint))
 import Fallback.Data.Point
 import Fallback.Draw
 import Fallback.Event
 import Fallback.Scenario.Triggers (getAreaExits, scenarioTriggers)
 import Fallback.State.Area
 import Fallback.State.Camera (camTopleft)
-import Fallback.State.Creature (animOffset, ciStand)
+import Fallback.State.Creature (CreaturePose(..), animOffset, ciStand)
 import Fallback.State.Party
 import Fallback.State.Resources (Resources, rsrcCharacterImages)
 import Fallback.State.Simple (CharacterNumber)
@@ -125,7 +126,7 @@ newTownMapView resources cursorSink = do
       paintFields resources cameraTopleft (acsVisible acs) (acsClock acs)
                   (acsFields acs)
       paintMonsters resources cameraTopleft (acsClock acs) (acsVisible acs)
-                    [tsPartyPosition ts] (Grid.entries $ acsMonsters acs)
+                    (Grid.entries $ acsMonsters acs)
       paintParty resources cameraTopleft ts
       paintDoodads cameraTopleft MidDood (acsDoodads acs)
       tintNonVisibleTiles acs
@@ -224,13 +225,14 @@ newTownMapView resources cursorSink = do
 
 paintParty :: Resources -> IPoint -> TownState -> Paint ()
 paintParty resources cameraTopleft ts = do
+  let pose = tsPartyPose ts
   let rect = positionRect (tsPartyPosition ts) `rectPlus`
-             (animOffset (tsPartyAnim ts) (tsPartyPosition ts) `pSub`
+             (animOffset (cpAnim pose) (tsPartyPosition ts) `pSub`
               cameraTopleft)
   let char = arsParty ts `partyGetCharacter` tsActiveCharacter ts
-  let sprite = ciStand (tsPartyFaceDir ts) $
+  let sprite = ciStand (cpFaceDir pose) $
                rsrcCharacterImages resources (chrClass char)
                                    (chrAppearance char)
-  blitStretch sprite rect
+  blitStretchTinted (Tint 255 255 255 (cpAlpha pose)) sprite rect
 
 -------------------------------------------------------------------------------

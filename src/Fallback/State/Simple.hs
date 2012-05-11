@@ -202,6 +202,10 @@ deltaFaceDir (Point dx dy) =
   if dx < 0 then FaceLeft else
     if dx > 0 then FaceRight else if dy < 0 then FaceLeft else FaceRight
 
+oppositeFaceDir :: FaceDir -> FaceDir
+oppositeFaceDir FaceLeft = FaceRight
+oppositeFaceDir FaceRight = FaceLeft
+
 -------------------------------------------------------------------------------
 
 data Field = BarrierWall Int -- duration in frames

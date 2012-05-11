@@ -62,7 +62,7 @@ import Fallback.State.Action
 import Fallback.State.Area
 import Fallback.State.Combat
   (CombatCharState(..), CombatState(..), CombatPhase(WaitingPhase))
-import Fallback.State.Creature (CreatureAnim(..))
+import Fallback.State.Creature (CreatureAnim(..), CreaturePose(..))
 import Fallback.State.Item
   (ItemValue(..), getPotionAction, itemCost, itemValue)
 import Fallback.State.Party
@@ -424,9 +424,10 @@ newTownMode resources modes initState = do
       let mkCharState _charNum claimed =
             let pos = arsFindOpenSpot ts pp arenaRect claimed
                 ccs = CombatCharState
-                        { ccsAnim = WalkAnim 6 6 pp,
-                          ccsFaceDir = deltaFaceDir (pos `pSub` pp),
-                          ccsMoments = 2 * momentsPerActionPoint,
+                        { ccsMoments = 2 * momentsPerActionPoint,
+                          ccsPose = CreaturePose
+                            { cpAlpha = 255, cpAnim = WalkAnim 6 6 pp,
+                              cpFaceDir = deltaFaceDir (pos `pSub` pp) },
                           ccsPosition = pos,
                           ccsVisible = Set.empty,
                           ccsWantsTurn = False }
@@ -563,9 +564,12 @@ executeEffect ts eff sfn =
   case eff of
     EffExitTowardArea tag -> return (ts, Left $ DoExit tag)
     EffGetPartyPosition -> return (ts, Right $ sfn $ tsPartyPosition ts)
-    EffSetPartyAnim anim -> return (ts { tsPartyAnim = anim }, Right $ sfn ())
+    EffSetPartyAnim anim -> do
+      return (ts { tsPartyPose = (tsPartyPose ts) { cpAnim = anim } },
+              Right $ sfn ())
     EffSetPartyFaceDir dir -> do
-      return (ts { tsPartyFaceDir = dir }, Right $ sfn ())
+      return (ts { tsPartyPose = (tsPartyPose ts) { cpFaceDir = dir } },
+              Right $ sfn ())
     EffSetPartyPosition dest -> do
       ts' <- updateTownVisibility ts { tsPartyPosition = dest }
       return (ts', Right $ sfn ())

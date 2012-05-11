@@ -44,9 +44,9 @@ gridTests = "grid" ~: TestList [
           (Grid.search grid1 pos),
   insistEq "ABCF" $ evalues $ Grid.searchRect grid1 $ Rect 3 1 3 3,
   insistEq "AC" $ evalues $ Grid.searchRect grid1 $ Rect 3 2 2 1,
-  insistEq "BCDEFG" $ gvalues $ Grid.update succ grid1,
+  insistEq "BCDEFG" $ gvalues $ Grid.update (succ . Grid.geValue) grid1,
   insistEq (Just 'B') $ fmap Grid.geValue $
-    Grid.search (Grid.update succ grid1) (Point 2 2),
+    Grid.search (Grid.update (succ . Grid.geValue) grid1) (Point 2 2),
   insist $ uncurry (&&) $ (Grid.valid *** Grid.valid) $
     Grid.excise (Rect 2 0 4 2) grid1,
   insistEq ("AB", "CDEF") $ (gvalues *** gvalues) $

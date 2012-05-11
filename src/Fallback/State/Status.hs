@@ -89,7 +89,7 @@ data StatusEffects = StatusEffects
     seDefense :: HarmOrBenefit,
     seEntanglement :: Maybe Double, -- rounds remaining
     seHaste :: HarmOrBenefit,
-    seInvisibility :: Maybe Invisibility,
+    seInvisibility :: Invisibility,
     seMagicShield :: Maybe Double, -- rounds remaining
     seMentalEffect :: Maybe (MentalEffect, Double {-rounds remaining-}),
     sePoison :: Int } -- damage remaining
@@ -101,7 +101,7 @@ initStatusEffects = StatusEffects
     seDefense = Unaffected,
     seEntanglement = Nothing,
     seHaste = Unaffected,
-    seInvisibility = Nothing,
+    seInvisibility = NoInvisibility,
     seMagicShield = Nothing,
     seMentalEffect = Nothing,
     sePoison = 0 }
@@ -179,8 +179,8 @@ seApplyMagicShield x se =
 sePurgeMentalEffects :: StatusEffects -> StatusEffects
 sePurgeMentalEffects se = se { seMentalEffect = Nothing }
 
-seSetInvisibility :: Maybe Invisibility -> StatusEffects -> StatusEffects
-seSetInvisibility mbInvis se = se { seInvisibility = mbInvis }
+seSetInvisibility :: Invisibility -> StatusEffects -> StatusEffects
+seSetInvisibility invis se = se { seInvisibility = invis }
 
 seWakeFromDaze :: StatusEffects -> StatusEffects
 seWakeFromDaze se =
@@ -194,7 +194,7 @@ seWakeFromDaze se =
 data MentalEffect = DazedEffect | ConfusedEffect | CharmedEffect
   deriving (Eq, Read, Show)
 
-data Invisibility = MinorInvisibility | MajorInvisibility
+data Invisibility = NoInvisibility | MinorInvisibility | MajorInvisibility
   deriving (Eq, Ord, Read, Show)
 
 -------------------------------------------------------------------------------
@@ -210,7 +210,7 @@ compress limit value = 2 * limit / (1 + exp (-2 * value / limit)) - limit
 
 townifyStatus :: StatusEffects -> StatusEffects
 townifyStatus status = status
-  { seInvisibility = Nothing,
+  { seInvisibility = NoInvisibility,
     seMentalEffect = Nothing }
 
 -------------------------------------------------------------------------------

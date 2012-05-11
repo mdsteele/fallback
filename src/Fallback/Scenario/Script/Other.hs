@@ -40,7 +40,7 @@ module Fallback.Scenario.Script.Other
    -- ** Creature animation
    faceCharacterToward, faceMonsterToward, faceMonsterAwayFrom,
    facePartyToward, setCharacterAnim, setMonsterAnim, setPartyAnim,
-   getMonsterHeadPos,
+   getMonsterHeadPos, alterMonsterPose,
 
    -- * UI
    setMessage, narrate,
@@ -78,7 +78,7 @@ import Fallback.Control.Script
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Data.TotalMap (tmGet)
-import Fallback.Scenario.Monsters (getMonsterType)
+import Fallback.Scenario.Monsters (makeMonster)
 import Fallback.Scenario.Script.Base
 import Fallback.Scenario.Script.Doodad
 import Fallback.State.Action (TargetKind(..))
@@ -144,13 +144,12 @@ walkMonster :: (FromAreaEffect f) => Int -> Grid.Key Monster -> Position
 walkMonster frames gkey pos' = do
   withMonsterEntry gkey $ \entry -> do
     let rect' = makeRect pos' $ rectSize $ Grid.geRect entry
-    ok <- emitAreaEffect $ EffTryMoveMonster (Grid.geKey entry) rect'
+    ok <- emitAreaEffect $ EffTryMoveMonster gkey rect'
     when ok $ do
       let deltaX = pointX $ pos' `pSub` rectTopleft (Grid.geRect entry)
       let dir = if deltaX < 0 then FaceLeft else FaceRight
       let anim' = WalkAnim frames frames $ rectTopleft $ Grid.geRect entry
-      emitAreaEffect $ EffReplaceMonster (Grid.geKey entry) $
-        Just (Grid.geValue entry) { monstAnim = anim', monstFaceDir = dir }
+      alterMonsterPose gkey (\p -> p { cpAnim = anim', cpFaceDir = dir })
       wait frames
 
 setMonsterTownAI :: (FromAreaEffect f) => Grid.Key Monster -> MonsterTownAI
@@ -264,10 +263,10 @@ dealRawDamageToMonster gentle key damage stun = do
   let health' = monstHealth monst - damage
   let moments' = max 0 (monstMoments monst -
                         round (stun * fromIntegral momentsPerActionPoint))
-  let mbMonst' = if health' <= 0 then Nothing else
-                   Just monst { monstAdrenaline = adrenaline',
-                                monstAnim = HurtAnim 12, monstHealth = health',
-                                monstMoments = moments' }
+  let mbMonst' = if health' <= 0 then Nothing else Just monst
+                   { monstAdrenaline = adrenaline',
+                     monstPose = (monstPose monst) { cpAnim = HurtAnim 12 },
+                     monstHealth = health', monstMoments = moments' }
   emitAreaEffect $ EffReplaceMonster key mbMonst'
   unless (gentle && damage == 0) $ do
     addNumberDoodadAtPoint damage $ rectCenter $ prectRect $ Grid.geRect entry
@@ -278,7 +277,7 @@ dealRawDamageToMonster gentle key damage stun = do
     let mtype = monstType monst
     addDeathDoodad (rsrcMonsterImages resources (mtSize mtype)
                                       (mtImageRow mtype))
-                   (monstFaceDir monst) (Grid.geRect entry)
+                   (cpFaceDir $ monstPose monst) (Grid.geRect entry)
     maybeM (monstDeadVar monst) (emitAreaEffect . flip EffSetVar True)
     unless (monstIsAlly monst) $ do
       grantExperience $ mtExperienceValue $ monstType monst
@@ -399,13 +398,12 @@ grantInvisibility hitTarget invis = do
   case mbOccupant of
     Just (Left charNum) -> do
       status <- chrStatus <$> areaGet (arsGetCharacter charNum)
-      when (seInvisibility status < Just invis) $ do
-        alterCharacterStatus charNum $ seSetInvisibility $ Just invis
+      when (seInvisibility status < invis) $ do
+        alterCharacterStatus charNum $ seSetInvisibility invis
     Just (Right monstEntry) -> do
       let status = monstStatus $ Grid.geValue monstEntry
-      when (seInvisibility status < Just invis) $ do
-        alterMonsterStatus (Grid.geKey monstEntry) $ seSetInvisibility $
-          Just invis
+      when (seInvisibility status < invis) $ do
+        alterMonsterStatus (Grid.geKey monstEntry) $ seSetInvisibility invis
     Nothing -> return ()
 
 -- | Inflicts poison damage (as opposed to direct damage) onto the target,
@@ -484,19 +482,13 @@ faceMonsterToward key pos = do
     let deltaX = pointX $ (pos `pSub`) $ monstHeadPos entry
     when (deltaX /= 0) $ do
       let dir = if deltaX < 0 then FaceLeft else FaceRight
-      emitAreaEffect $ EffReplaceMonster key $
-        Just (Grid.geValue entry) { monstFaceDir = dir }
+      alterMonsterPose key (\p -> p { cpFaceDir = dir })
 
 faceMonsterAwayFrom :: (FromAreaEffect f) => Grid.Key Monster -> Position
                     -> Script f ()
 faceMonsterAwayFrom key pos = do
   faceMonsterToward key pos
-  withMonsterEntry key $ \entry -> do
-    let monst = Grid.geValue entry
-    let dir = case monstFaceDir monst of FaceLeft -> FaceRight
-                                         FaceRight -> FaceLeft
-    emitAreaEffect $ EffReplaceMonster key $
-      Just monst { monstFaceDir = dir }
+  alterMonsterPose key (\p -> p { cpFaceDir = oppositeFaceDir (cpFaceDir p) })
 
 facePartyToward :: Position -> Script TownEffect ()
 facePartyToward pos = do
@@ -510,10 +502,7 @@ setCharacterAnim charNum anim = emitEffect $ EffSetCharAnim charNum anim
 
 setMonsterAnim :: (FromAreaEffect f) => Grid.Key Monster -> CreatureAnim
                -> Script f ()
-setMonsterAnim key anim = do
-  withMonsterEntry key $ \entry -> do
-    let monst = Grid.geValue entry
-    emitAreaEffect $ EffReplaceMonster key $ Just monst { monstAnim = anim }
+setMonsterAnim key anim = alterMonsterPose key (\p -> p { cpAnim = anim })
 
 setPartyAnim :: CreatureAnim -> Script TownEffect ()
 setPartyAnim = emitEffect . EffSetPartyAnim
@@ -523,6 +512,14 @@ getMonsterHeadPos :: (FromAreaEffect f) => Grid.Key Monster
 getMonsterHeadPos key = do
   entry <- demandMonsterEntry key
   return $ monstHeadPos entry
+
+alterMonsterPose :: (FromAreaEffect f) => Grid.Key Monster
+                 -> (CreaturePose -> CreaturePose) -> Script f ()
+alterMonsterPose key fn = do
+  withMonsterEntry key $ \entry -> do
+    let monst = Grid.geValue entry
+    emitAreaEffect $ EffReplaceMonster key $ Just monst
+      { monstPose = fn (monstPose monst) }
 
 -------------------------------------------------------------------------------
 -- Messages and conversation:
@@ -571,26 +568,14 @@ forcedConversationLoop = (choice [] [] .) . ContinueConv where
 addBasicEnemyMonster :: (FromAreaEffect f) => Position -> MonsterTag
                      -> Maybe (Var Bool) -> MonsterTownAI -> Script f ()
 addBasicEnemyMonster nearPos tag mbDeadVar townAi = do
-  let mtype = getMonsterType tag
+  let monster = makeMonster tag
   within <- areaGet arsBoundaryRect
   -- TODO Allow for non-SizeSmall monsters
   spot <- areaGet $ \ars ->
     if not $ arsIsBlockedForParty ars nearPos then nearPos
     else arsFindOpenSpot ars nearPos within Set.empty
-  _ <- tryAddMonster spot Monster
-         { monstAnim = NoAnim,
-           monstAdrenaline = 0,
-           monstDeadVar = mbDeadVar,
-           monstFaceDir = FaceLeft,
-           monstHealth = mtMaxHealth mtype,
-           monstIsAlly = False,
-           monstMoments = 0,
-           monstName = mtName mtype,
-           monstScript = Nothing,
-           monstStatus = initStatusEffects,
-           monstTag = tag,
-           monstTownAI = townAi,
-           monstType = mtype }
+  _ <- tryAddMonster spot monster { monstDeadVar = mbDeadVar,
+                                    monstTownAI = townAi }
   return ()
 
 addDevice_ :: (FromAreaEffect f) => Device -> Position -> Script f ()
@@ -661,24 +646,14 @@ setTerrain = emitAreaEffect . EffSetTerrain
 summonAllyMonster :: (FromAreaEffect f) => Position -> MonsterTag
                   -> Script f ()
 summonAllyMonster startPos tag = do
-  let mtype = getMonsterType tag
   arena <- areaGet arsBoundaryRect
   -- TODO Allow for non-SizeSmall monsters
   spot <- areaGet (flip4 arsFindOpenSpot startPos arena Set.empty)
-  _ <- tryAddMonster spot Monster
-         { monstAnim = NoAnim,
-           monstAdrenaline = 0,
-           monstDeadVar = Nothing,
-           monstFaceDir = FaceLeft, -- TODO
-           monstHealth = mtMaxHealth mtype,
-           monstIsAlly = True,
-           monstMoments = 0,
-           monstName = "Summoned " ++ mtName mtype,
-           monstScript = Nothing,
-           monstStatus = initStatusEffects,
-           monstTag = tag,
-           monstTownAI = ChaseAI,
-           monstType = mtype }
+  let monster = makeMonster tag
+  _ <- tryAddMonster spot monster
+         { monstIsAlly = True,
+           monstName = "Summoned " ++ monstName monster,
+           monstTownAI = ChaseAI }
   return ()
 
 tryAddMonster :: (FromAreaEffect f) => Position -> Monster

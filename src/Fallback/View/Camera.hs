@@ -33,7 +33,6 @@ where
 import Control.Monad (forM_, guard, when)
 import Data.Ix (range)
 import qualified Data.Map as Map
-import Data.Maybe (isJust)
 import qualified Data.Set as Set
 
 import Fallback.Constants (tileHeight, tileWidth)
@@ -132,44 +131,35 @@ paintFields resources cameraTopleft visible clock =
 -- tile locations, a list of party member positions (used to determine if the
 -- party is adjacent to any invisible monsters), and finally the list of
 -- monsters to draw.
-paintMonsters :: Resources -> IPoint -> Clock -> Set.Set Position -> [Position]
+paintMonsters :: Resources -> IPoint -> Clock -> Set.Set Position
               -> [Grid.Entry Monster] -> Paint ()
-paintMonsters resources cameraTopleft clock visible eyes = mapM_ paintMonster
+paintMonsters resources cameraTopleft clock visible = mapM_ paintMonster
  where
   paintMonster entry = do
     let rect = Grid.geRect entry
     let monst = Grid.geValue entry
+    let pose = monstPose monst
     -- If the monster is not on a visible tile, and it's not curently walking
     -- from a visible tile, don't draw it.
     if all (flip Set.notMember visible) $ prectPositions rect ++
-       case monstAnim monst of
+       case cpAnim pose of
+         JumpAnim _ _ from -> prectPositions $ makeRect from $ rectSize rect
          WalkAnim _ _ from -> prectPositions $ makeRect from $ rectSize rect
          _ -> []
      then return () else do
-    -- If the monster is majorly invisible, or otherwise invisible with no
-    -- adjacent party members, and if the monster is not undergoing an
-    -- always-visible animation, then don't draw it.
-    if flip (maybe False) (seInvisibility $ monstStatus monst) $ \inv ->
-       (inv >= MajorInvisibility ||
-        not (any (rectContains $ adjustRect1 (-1) rect) eyes)) &&
-       case monstAnim monst of
-         AttackAnim _ -> False
-         HurtAnim _ -> False
-         _ -> True
-     then return () else do
+    -- If the monster is completely invisible, then don't draw it.
+    if cpAlpha pose == 0 then return () else do
     -- Draw the monster, taking its currenct animation (if any) into account.
     let mtype = monstType monst
-    let sprite = (case monstAnim monst of
+    let sprite = (case cpAnim pose of
                     { AttackAnim _ -> ciAttack; _ -> ciStand})
-                 (monstFaceDir monst)
+                 (cpFaceDir pose)
                  (rsrcMonsterImages resources (mtSize mtype)
                                     (mtImageRow mtype))
     let irect = prectRect rect `rectPlus`
-                (animOffset (monstAnim monst) (rectTopleft rect) `pSub`
+                (animOffset (cpAnim pose) (rectTopleft rect) `pSub`
                  cameraTopleft)
-    (if isJust $ seInvisibility $ monstStatus monst
-     then blitStretchTinted (Tint 255 255 255 128)
-     else blitStretch) sprite irect
+    blitStretchTinted (Tint 255 255 255 (cpAlpha pose)) sprite irect
     paintStatusDecorations resources cameraTopleft clock rect
                            (monstStatus monst)
 
@@ -256,6 +246,8 @@ paintHealthBars ars = do
                    (chrMaxHealth (arsParty ars) char)
   forM_ (Grid.entries $ arsMonsters ars) $ \entry -> do
     let monst = Grid.geValue entry
+    if cpAlpha (monstPose monst) == 0 then return () else do
+    -- TODO don't paint if monster not on visible tile
     paintHealthBar (monstIsAlly monst) (Grid.geRect entry) (monstHealth monst)
                    (mtMaxHealth $ monstType monst)
 

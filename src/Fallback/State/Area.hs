@@ -50,7 +50,7 @@ import Fallback.State.Progress
    progressSetVar)
 import Fallback.State.Resources (MusicTag, Resources, musicPath)
 import Fallback.State.Simple
-import Fallback.State.Status (StatusEffects)
+import Fallback.State.Status (Invisibility(..), StatusEffects, seInvisibility)
 import Fallback.State.Tags (AreaTag, ItemTag, MonsterTag, QuestTag)
 import Fallback.State.Terrain
 
@@ -70,13 +70,25 @@ data AreaCommonState = AreaCommonState
     acsTerrain :: Terrain,
     acsVisible :: Set.Set Position }
 
-tickAnimations :: DPoint -> AreaCommonState -> AreaCommonState
-tickAnimations cameraGoalTopleft acs =
+tickAnimations :: DPoint -> [Position] -> AreaCommonState -> AreaCommonState
+tickAnimations cameraGoalTopleft eyes acs =
   acs { acsClock = clockInc (acsClock acs),
         acsCamera = tickCamera cameraGoalTopleft (acsCamera acs),
         acsDoodads = tickDoodads (acsDoodads acs),
         acsMessage = acsMessage acs >>= decayMessage,
-        acsMonsters = Grid.update tickMonsterAnim (acsMonsters acs) }
+        acsMonsters = Grid.update tickMonsterPose (acsMonsters acs) }
+  where
+    tickMonsterPose entry = monst { monstPose = pose' } where
+      monst = Grid.geValue entry
+      pose' = tickCreaturePose invis canSee (monstPose monst)
+      invis = max (mtInherentInvisibility $ monstType monst)
+                  (seInvisibility $ monstStatus monst)
+      canSee =
+        case invis of
+          NoInvisibility -> True
+          MinorInvisibility ->
+            any (rectContains $ adjustRect1 (-1) $ Grid.geRect entry) eyes
+          MajorInvisibility -> False
 
 updateMinimap :: AreaCommonState -> [Position] -> IO ()
 updateMinimap acs visible = do
@@ -284,6 +296,12 @@ arsOccupant pos ars =
 arsOccupied :: (AreaState a) => Position -> a -> Bool
 arsOccupied pos ars = isJust (arsOccupant pos ars)
 
+-- | Return a list of all positions occupied by a character or an ally monster.
+arsAllyOccupiedPositions :: (AreaState a) => a -> [Position]
+arsAllyOccupiedPositions ars =
+  (arsPartyPositions ars ++) $ concatMap (prectPositions . Grid.geRect) $
+  filter (monstIsAlly . Grid.geValue) $ Grid.entries (arsMonsters ars)
+
 -------------------------------------------------------------------------------
 -- AreaState setters:
 
@@ -355,14 +373,13 @@ decayMessage (Message t s) =
 -------------------------------------------------------------------------------
 
 data Monster = Monster
-  { monstAnim :: CreatureAnim,
-    monstAdrenaline :: Int,
+  { monstAdrenaline :: Int,
     monstDeadVar :: Maybe (Var Bool),
-    monstFaceDir :: FaceDir,
     monstHealth :: Int,
     monstIsAlly :: Bool, -- True for townspeople, False for baddies
     monstMoments :: Int,
     monstName :: String,
+    monstPose :: CreaturePose,
     monstScript :: Maybe MonsterScript,
     monstStatus :: StatusEffects,
     monstTag :: MonsterTag,
@@ -376,12 +393,9 @@ data MonsterScript = MonsterScript
 monstHeadPos :: Grid.Entry Monster -> Position
 monstHeadPos entry =
   let Rect x y w _ = Grid.geRect entry
-  in case monstFaceDir (Grid.geValue entry) of
+  in case cpFaceDir $ monstPose $ Grid.geValue entry of
        FaceLeft -> Point x y
        FaceRight -> Point (x + w - 1) y
-
-tickMonsterAnim :: Monster -> Monster
-tickMonsterAnim mon = mon { monstAnim = tickCreatureAnim (monstAnim mon) }
 
 -------------------------------------------------------------------------------
 
