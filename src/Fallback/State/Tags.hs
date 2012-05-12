@@ -289,9 +289,12 @@ data AccessoryItemTag = GroundedAmulet | MedalOfValor | TitanFists
 data PotionItemTag = HealingTincture | HealingPotion | HealingElixir
                    | ManaPhilter | ManaElixir | Quintessence
                    | Antidote | CuringPotion | MiracleElixir
+                   -- Food:
+                   | Grapes | Pineapple | Bread | Cheese | Carrot | Fish | Meat
+                   | Eggs | Radish | Apple | Orange | Strawberry | Pear | Lemon
   deriving (Bounded, Enum, Eq, Ord, Read, Show)
 
-data InertItemTag = IronKey | SilverKey
+data InertItemTag = IronKey | BrassKey
   deriving (Bounded, Enum, Eq, Ord, Read, Show)
 
 -------------------------------------------------------------------------------

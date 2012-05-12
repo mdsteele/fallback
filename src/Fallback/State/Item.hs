@@ -67,12 +67,16 @@ accessoryName TitanFists = "Titan Fists"
 potionName :: PotionItemTag -> String
 potionName HealingTincture = "Healing Tincture"
 potionName HealingPotion = "Healing Potion"
+potionName HealingElixir = "Healing Elixer"
 potionName ManaPhilter = "Mana Philter"
+potionName ManaElixir = "Mana Elixer"
+potionName CuringPotion = "Curing Potion"
+potionName MiracleElixir = "Miracle Elixer"
 potionName tag = show tag -- FIXME
 
 inertName :: InertItemTag -> String
 inertName IronKey = "Iron Key"
-inertName SilverKey = "Silver Key"
+inertName BrassKey = "Brass Key"
 
 -------------------------------------------------------------------------------
 
@@ -116,10 +120,25 @@ potionIconCoords ManaElixir = (2, 4)
 potionIconCoords Antidote = (2, 5)
 potionIconCoords CuringPotion = (2, 6)
 potionIconCoords MiracleElixir = (2, 7)
+potionIconCoords Grapes = (6, 0)
+potionIconCoords Pineapple = (6, 1)
+potionIconCoords Bread = (6, 2)
+potionIconCoords Cheese = (6, 3)
+potionIconCoords Carrot = (6, 4)
+potionIconCoords Fish = (6, 5)
+potionIconCoords Meat = (6, 6)
+potionIconCoords Eggs = (6, 7)
+potionIconCoords Radish = (7, 0)
+potionIconCoords Apple = (7, 1)
+potionIconCoords Orange = (7, 2)
+potionIconCoords Strawberry = (7, 3)
+potionIconCoords Pear = (7, 4)
+potionIconCoords Lemon = (7, 5)
 potionIconCoords _ = (0, 0) -- FIXME
 
 inertIconCoords :: InertItemTag -> (Int, Int)
-inertIconCoords _ = (0, 5) -- FIXME
+inertIconCoords IronKey = (5, 0)
+inertIconCoords BrassKey = (5, 1)
 
 -------------------------------------------------------------------------------
 
@@ -158,6 +177,20 @@ potionValue HealingTincture = CanSell 50
 potionValue HealingPotion = CanSell 180
 potionValue ManaPhilter = CanSell 200
 potionValue Antidote = CanSell 35
+potionValue Grapes = CanSell 15
+potionValue Pineapple = CanSell 20
+potionValue Bread = CanSell 15
+potionValue Cheese = CanSell 15
+potionValue Carrot = CanSell 12
+potionValue Fish = CanSell 15
+potionValue Meat = CanSell 15
+potionValue Eggs = CanSell 10
+potionValue Radish = CanSell 12
+potionValue Apple = CanSell 15
+potionValue Orange = CanSell 18
+potionValue Strawberry = CanSell 10
+potionValue Pear = CanSell 15
+potionValue Lemon = CanSell 18
 potionValue _ = CanSell 10 -- FIXME
 
 inertValue :: InertItemTag -> ItemValue
@@ -238,7 +271,10 @@ adSubDesc :: ArmorData -> String
 adSubDesc ad = bonusesSubDesc (adBonuses ad) ++ usableSubDesc (adUsableBy ad)
 
 potionSubDesc :: PotionAction -> String
-potionSubDesc (HealAction n) = "Restores " ++ show n ++ " health\n"
+potionSubDesc (RestoreHealth h) = "Restores " ++ show h ++ " health\n"
+potionSubDesc (RestoreMana m) = "Restores " ++ show m ++ " mana\n"
+potionSubDesc (RestoreHealthAndMana h m) =
+  "Restores " ++ show h ++ " health and " ++ show m ++ " mana\n"
 
 bonusesSubDesc :: Bonuses -> String
 bonusesSubDesc bonuses = if null bonusLines then "" else
@@ -312,6 +348,34 @@ accessoryFlavorText :: AccessoryItemTag -> String
 accessoryFlavorText _ = "FIXME an accessory"
 
 potionFlavorText :: PotionItemTag -> String
+potionFlavorText ManaPhilter = "This vial of blue liquid smells of citrus. \
+  \ One gulp is all it takes to leave you feeling energized."
+potionFlavorText Grapes = "The seeded kind, in this case.  Don't worry; no one\
+  \ here minds if you spit."
+potionFlavorText Pineapple = "Unless you live in a tropical climate, you'll\
+  \ need a hothouse to grow pineapples; but delicious things are worth the\
+  \ effort."
+potionFlavorText Bread = "If beer is \"liquid bread,\" does that mean that\
+  \ bread is solid beer?"
+potionFlavorText Cheese = "Hey, look: you {i}have{_} in fact got any cheese at\
+  \ all!"
+potionFlavorText Carrot = "They say that carrots help you to see in the dark. \
+  \ So does a torch, but carrots taste better."
+potionFlavorText Fish = "\"Brain food,\" they call it; and it's delicious when\
+  \ fried."
+potionFlavorText Meat = "With all the protein you could ever want."
+potionFlavorText Eggs = "Eggs are basically cheese that comes from chickens."
+potionFlavorText Radish = "Or is it a turnip?  Hard to tell."
+potionFlavorText Apple = "Apples are notable for being especially difficult to\
+  \ compare to oranges."
+potionFlavorText Orange = "Oranges (the most aptly named of all fruits) have\
+  \ that delicious citrus taste that magicians love!"
+potionFlavorText Strawberry = "Strawberries are blushing because their seeds\
+  \ are on the outside."
+potionFlavorText Pear = "Pears are like apples, but they're shaped wrong and\
+  \ they taste different."
+potionFlavorText Lemon = "If life gives you lemons, make lemonade.  Or pie! \
+  \ Lemon cream pie is quite good."
 potionFlavorText _ = "FIXME a potion"
 
 inertFlavorText :: InertItemTag -> String
@@ -500,13 +564,31 @@ getAccessoryData TitanFists = ArmorData
 
 -------------------------------------------------------------------------------
 
-data PotionAction = HealAction Int -- TODO add more
+data PotionAction = RestoreHealth Int -- TODO add more
+                  | RestoreMana Int
+                  | RestoreHealthAndMana Int Int
 
 getPotionAction :: PotionItemTag -> PotionAction
-getPotionAction HealingTincture = HealAction 100
-getPotionAction HealingPotion = HealAction 300
-getPotionAction HealingElixir = HealAction 750
-getPotionAction _ = HealAction 42 -- FIXME
+getPotionAction HealingTincture = RestoreHealth 100
+getPotionAction HealingPotion = RestoreHealth 300
+getPotionAction HealingElixir = RestoreHealth 750
+getPotionAction ManaPhilter = RestoreMana 50
+getPotionAction ManaElixir = RestoreMana 250
+getPotionAction Grapes = RestoreHealthAndMana 15 3
+getPotionAction Pineapple = RestoreHealthAndMana 20 5
+getPotionAction Bread = RestoreHealth 30
+getPotionAction Cheese = RestoreHealth 30
+getPotionAction Carrot = RestoreHealth 25
+getPotionAction Fish = RestoreHealth 30
+getPotionAction Meat = RestoreHealth 30
+getPotionAction Eggs = RestoreHealth 20
+getPotionAction Radish = RestoreHealth 25
+getPotionAction Apple = RestoreHealthAndMana 15 3
+getPotionAction Orange = RestoreHealthAndMana 15 5
+getPotionAction Strawberry = RestoreHealthAndMana 10 3
+getPotionAction Pear = RestoreHealthAndMana 15 3
+getPotionAction Lemon = RestoreHealthAndMana 15 5
+getPotionAction _ = RestoreHealth 42 -- FIXME
 
 -------------------------------------------------------------------------------
 

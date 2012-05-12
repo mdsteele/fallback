@@ -144,7 +144,7 @@ newParty spec = do
           partyFoundAreas = Set.empty,
           partyIngredients =
             makeTotalMap ((numHAs *) . ingredientStartQuantity),
-          partyItems = IntMap.fromList $ zip [0..] ([PotionItemTag HealingTincture, ArmorItemTag AdamantPlate, AccessoryItemTag TitanFists] ++ map WeaponItemTag [Sunrod, Starspear, Moonbow, Lifeblade, Longbow]), -- FIXME
+          partyItems = IntMap.fromList $ zip [0..] initialItems,
           partyLevel = 1,
           partyProgress = initialProgress,
           partyQuests = SM.make QuestUntaken }
@@ -160,5 +160,7 @@ newParty spec = do
     ingredientStartQuantity Brimstone = 5
     ingredientStartQuantity DryIce = 0
     ingredientStartQuantity Quicksilver = 0
+    initialItems = map PotionItemTag [Bread, Eggs, Carrot, Fish]
+      ++ map WeaponItemTag [Sunrod, Starspear, Moonbow, Lifeblade] -- FIXME
 
 -------------------------------------------------------------------------------

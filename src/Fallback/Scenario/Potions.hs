@@ -28,8 +28,15 @@ import Fallback.State.Simple
 -------------------------------------------------------------------------------
 
 runPotionAction :: PotionAction -> CharacterNumber -> Script AreaEffect ()
-runPotionAction (HealAction amount) charNum = do
+runPotionAction (RestoreHealth health) charNum = do
   playSound SndHeal
-  healDamage [(HitCharacter charNum, fromIntegral amount)]
+  healDamage [(HitCharacter charNum, fromIntegral health)]
+runPotionAction (RestoreMana mana) charNum = do
+  playSound SndHeal
+  alterMana (HitCharacter charNum) (+ mana)
+runPotionAction (RestoreHealthAndMana health mana) charNum = do
+  playSound SndHeal
+  healDamage [(HitCharacter charNum, fromIntegral health)]
+  alterMana (HitCharacter charNum) (+ mana)
 
 -------------------------------------------------------------------------------

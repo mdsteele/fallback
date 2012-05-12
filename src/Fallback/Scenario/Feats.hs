@@ -77,7 +77,7 @@ featEffect JumpSlash =
     concurrent_ targets $ \target -> do
       (critical, damage) <- characterWeaponChooseCritical char =<<
                             characterWeaponBaseDamage char wd
-      characterWeaponHit wd target critical (damage * 1.5)
+      characterWeaponHit wd target critical (damage * 2)
   where areaFn _ start end = [end `plusDir` ipointDir (end `pSub` start)]
 featEffect JumpStrike =
   StandardFeat (const $ JumpTarget areaFn 3) $ \caster (endPos, targets) -> do
@@ -97,7 +97,7 @@ featEffect Shortshot =
     characterWeaponInitialAnimation caster target wd
     (critical, damage) <- characterWeaponChooseCritical char =<<
                           characterWeaponBaseDamage char wd
-    characterWeaponHit wd target critical (damage * 1.5)
+    characterWeaponHit wd target critical (damage * 2)
 featEffect Longshot =
   StandardFeat (SingleTarget . (+ 3)) $ \caster target -> do
     char <- areaGet (arsGetCharacter caster)
@@ -105,7 +105,7 @@ featEffect Longshot =
     characterWeaponInitialAnimation caster target wd
     (critical, damage) <- characterWeaponChooseCritical char =<<
                           characterWeaponBaseDamage char wd
-    characterWeaponHit wd target critical (damage * 1.25)
+    characterWeaponHit wd target critical (damage * 1.5)
 featEffect Glow = MetaAbility OneThirdCost 1
 featEffect Amplify = MetaAbility NormalCost 1.5
 featEffect Radiate = MetaAbility ZeroCost 1
@@ -157,12 +157,12 @@ featDescription Avatar =
 featDescription AllCreation =
   "Summon a multitude of wild animals and beasts to attack your enemies."
 featDescription JumpSlash = "Leap towards an enemy, bringing your blade down\
-  \ on them for 1.5x damage."
+  \ on them for double damage."
 featDescription JumpStrike = "Leap amongst your enemies, slashing everything\
   \ near you when you land."
 featDescription Shortshot =
-  "Fire an arrow at reduced range, but with +50% damage."
-featDescription Longshot = "Fire an arrow at +3 range and +25% damage."
+  "Fire an arrow at reduced range, for double damage."
+featDescription Longshot = "Fire an arrow at +3 range and +50% damage."
 featDescription Glow = "Use any one ability for one third of its normal cost."
 featDescription Amplify = "Use any one ability, at 1.5x power."
 featDescription Radiate = "Use any one ability for free."
