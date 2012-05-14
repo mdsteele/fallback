@@ -106,7 +106,6 @@ newCombatMapView resources = do
       paintMonsters resources cameraTopleft (acsClock acs) (acsVisible acs)
                     (Grid.entries $ acsMonsters acs)
       paintCharacters resources cameraTopleft cs
-      paintHealthBars cs
       paintDoodads cameraTopleft MidDood (acsDoodads acs)
       tintNonVisibleTiles acs
       paintDoodads cameraTopleft HighDood (acsDoodads acs)
@@ -194,11 +193,14 @@ paintCharacters resources cameraTopleft cs =
             (cpFaceDir pose)
             (rsrcCharacterImages resources (chrClass char)
                                  (chrAppearance char))
-      let rect = positionRect pos `rectPlus`
-                 (animOffset (cpAnim pose) pos `pSub` cameraTopleft)
+      let offset = animOffset (cpAnim pose) pos
       -- TODO draw an extra decoration for the active character
-      blitStretchTinted (Tint 255 255 255 (cpAlpha pose)) sprite rect
+      blitStretchTinted (Tint 255 255 255 (cpAlpha pose)) sprite $
+        positionRect pos `rectPlus` (offset `pSub` cameraTopleft)
+      let prect = makeRect pos (1, 1)
       paintStatusDecorations resources cameraTopleft (arsClock cs)
-                             (makeRect pos (1, 1)) (chrStatus char)
+                             prect (chrStatus char)
+      paintHealthBar cameraTopleft True prect offset (chrHealth char)
+                     (chrMaxHealth (arsParty cs) char)
 
 -------------------------------------------------------------------------------
