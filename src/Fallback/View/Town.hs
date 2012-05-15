@@ -125,8 +125,7 @@ newTownMapView resources cursorSink = do
       paintDoodads cameraTopleft LowDood (acsDoodads acs)
       paintFields resources cameraTopleft (acsVisible acs) (acsClock acs)
                   (acsFields acs)
-      paintMonsters resources cameraTopleft (acsClock acs) (acsVisible acs)
-                    (Grid.entries $ acsMonsters acs)
+      paintMonsters acs False
       paintParty resources cameraTopleft ts
       paintDoodads cameraTopleft MidDood (acsDoodads acs)
       tintNonVisibleTiles acs

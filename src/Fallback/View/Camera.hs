@@ -131,17 +131,15 @@ paintFields resources cameraTopleft visible clock =
 -- tile locations, a list of party member positions (used to determine if the
 -- party is adjacent to any invisible monsters), and finally the list of
 -- monsters to draw.
-paintMonsters :: Resources -> IPoint -> Clock -> Set.Set Position
-              -> [Grid.Entry Monster] -> Paint ()
-paintMonsters resources cameraTopleft clock visible = mapM_ paintMonster
- where
+paintMonsters :: AreaCommonState -> Bool -> Paint ()
+paintMonsters acs inCombat = mapM_ paintMonster monsters where
   paintMonster entry = do
     let rect = Grid.geRect entry
     let monst = Grid.geValue entry
     let pose = monstPose monst
     -- If the monster is not on a visible tile, and it's not curently walking
     -- from a visible tile, don't draw it.
-    if all (flip Set.notMember visible) $ prectPositions rect ++
+    if all (flip Set.notMember $ acsVisible acs) $ prectPositions rect ++
        case cpAnim pose of
          JumpAnim _ _ from -> prectPositions $ makeRect from $ rectSize rect
          WalkAnim _ _ from -> prectPositions $ makeRect from $ rectSize rect
@@ -159,10 +157,14 @@ paintMonsters resources cameraTopleft clock visible = mapM_ paintMonster
     let offset = animOffset (cpAnim pose) (rectTopleft rect)
     blitStretchTinted (Tint 255 255 255 (cpAlpha pose)) sprite
                       (prectRect rect `rectPlus` (offset `pSub` cameraTopleft))
-    paintStatusDecorations resources cameraTopleft clock rect
+    paintStatusDecorations resources cameraTopleft (acsClock acs) rect
                            (monstStatus monst)
-    paintHealthBar cameraTopleft (monstIsAlly monst) rect offset
-                   (monstHealth monst) (mtMaxHealth mtype)
+    when inCombat $ do
+      paintHealthBar cameraTopleft (monstIsAlly monst) rect offset
+                     (monstHealth monst) (mtMaxHealth mtype)
+  cameraTopleft = camTopleft $ acsCamera acs
+  monsters = Grid.entries $ acsMonsters acs
+  resources = acsResources acs
 
 paintStatusDecorations :: Resources -> IPoint -> Clock -> PRect
                        -> StatusEffects -> Paint ()
