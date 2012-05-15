@@ -214,15 +214,13 @@ addWordDoodadAtPosition :: (FromAreaEffect f) => WordTag -> Position
 addWordDoodadAtPosition tag pos =
   addWordDoodadAtPoint tag (positionCenter pos)
 
-addShockwaveDoodad :: (FromAreaEffect f) => Int -> DPoint
-                   -> (Double -> (Tint, Double, Double, Double)) -> Script f ()
-addShockwaveDoodad limit center fn = do
-  let paint count cameraTopleft = do
-        let (tint, thickness, hRad, vRad) =
-              fn (fromIntegral (limit - count) / fromIntegral limit)
-        tintRing tint thickness (center `pSub` fmap fromIntegral cameraTopleft)
-                 hRad vRad
-  addDoodad MidDood limit paint
+addShockwaveDoodad :: (FromAreaEffect f) => Int -> DPoint -> Double -> Double
+                   -> (Double -> Double -> (Double, Tint))
+                   -> (Double -> Double -> (Double, Tint)) -> Script f ()
+addShockwaveDoodad limit center hRad vRad innerFn outerFn = do
+  addContinuousDoodad MidDood limit $ \time topleft -> do
+    gradientRing (innerFn time) (outerFn time)
+                 (center `pSub` fmap fromIntegral topleft) hRad vRad
 
 doExplosionDoodad :: (FromAreaEffect f) => StripTag -> DPoint -> Script f ()
 doExplosionDoodad tag (Point cx cy) = do
@@ -234,6 +232,14 @@ doExplosionDoodad tag (Point cx cy) = do
     addBoomDoodadAtPoint tag 4 (round <$> pt)
     wait 1
     return theta
+
+-- TODO: The below was discovered by accident, but it makes a cool sort of
+-- sunburst effect; I should tweak it a bit and then use it.
+--   let innerFn t _ = if t >= 0.5 then (1 - 2 * t, Tint 255 255 255 128)
+--                     else (max 0 (2 * t - 0.1), Tint 255 255 255 0)
+--       outerFn t _ = if t < 0.5 then (2 * t, Tint 255 255 255 128)
+--                     else (2 * t + 0.1, Tint 255 255 255 0)
+--   addShockwaveDoodad 16 (positionCenter endPos) 58 74 innerFn outerFn
 
 -------------------------------------------------------------------------------
 

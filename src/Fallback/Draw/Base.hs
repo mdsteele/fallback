@@ -48,7 +48,8 @@ module Fallback.Draw.Base
    blitRepeat, blitRepeatTinted, blitRotate, blitRotateTinted,
    -- * Geometric primitives
    tintRect, tintCanvas, drawLine, drawRect,
-   drawLineChain, drawPolygon, tintPolygon, gradientPolygon, tintRing,
+   drawLineChain, drawPolygon, tintPolygon, gradientPolygon,
+   tintRing, gradientRing,
    -- * Fonts and text
    Font, loadFont, drawText, {-renderText,-} textRenderSize, textRenderWidth,
    -- * Minimaps
@@ -513,6 +514,24 @@ tintRing tint thickness (Point cx cy) hRad vRad = Paint $ do
         GL.vertex $ GL.Vertex3 (ohr * cos theta') (ovr * sin theta') 0
       GL.vertex $ GL.Vertex3 (ihr * cos 0) (ivr * sin 0) 0
       GL.vertex $ GL.Vertex3 (ohr * cos step) (ovr * sin step) 0
+
+gradientRing :: (Double -> (Double, Tint)) -> (Double -> (Double, Tint))
+             -> DPoint {-^center-} -> Double -> Double -> Paint ()
+gradientRing innerFn outerFn (Point cx cy) hRad vRad = Paint $ do
+  GL.preservingMatrix $ do
+    GL.translate $ GL.Vector3 (toGLdouble cx) (toGLdouble cy) 0
+    GL.textureBinding GL.Texture2D $= Nothing
+    GL.renderPrimitive GL.TriangleStrip $ do
+      let step = toGLdouble (pi / 24 :: Double) -- TODO
+      let doPt fn theta = do
+            let (rad, tint) = fn theta
+            setTint tint
+            axisVertex (rad * hRad * cos theta) (rad * vRad * sin theta)
+      forM_ [0, (2 * step) .. 2 * (pi - step)] $ \theta -> do
+        doPt innerFn theta
+        doPt outerFn (theta + step)
+      doPt innerFn 0
+      doPt outerFn step
 
 -------------------------------------------------------------------------------
 -- Fonts and text:

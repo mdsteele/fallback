@@ -285,11 +285,12 @@ getAbility characterClass abilityNumber rank =
         startPos <- areaGet (arsCharacterPosition caster)
         addBallisticDoodad FireProj startPos endPos 500.0 >>= wait
         playSound SndBoomSmall
-        addShockwaveDoodad 24 (positionCenter endPos) $ \t ->
-          let f = if t <= 0.6 then t * 0.9 / 0.6
-                  else 0.9 + 0.1 * sin ((t - 0.6) / 0.4 * pi / 2)
-          in (Tint 255 0 0 (floor ((1 - f) * 240)),
-              8.0, f * ranked 58 88 88, f * ranked 74 110 110)
+        let innerFn t = (max 0 (t - 0.1), Tint 255 0 0 0)
+            outerFn t = (max 0 (t + 0.1), Tint 255 0 0 (floor ((1 - t) * 140)))
+            trans fn t _ = fn $ if t <= 0.6 then t * 0.9 / 0.6
+                                else 0.9 + 0.1 * sin ((t - 0.6) / 0.4 * pi / 2)
+        addShockwaveDoodad 24 (positionCenter endPos) (ranked 58 88 88)
+                           (ranked 74 110 110) (trans innerFn) (trans outerFn)
         wait 16
         intBonus <- getIntellectBonus caster
         randMult <- getRandomR 0.9 1.1
@@ -592,15 +593,19 @@ getAbility characterClass abilityNumber rank =
         dealDamage $ flip map targets $ \pos ->
           (HitPosition pos, ColdDamage, damage)
     Disjunction ->
-      general (ManaCost 17) (aoeTarget 3 $ ofRadius 1) $
+      general (ManaCost {-17-} 1) (aoeTarget 3 $ ofRadius 1) $
       \caster _power (endPos, targets) -> do
         whenCombat $ characterBeginOffensiveAction caster endPos
-        addShockwaveDoodad 16 (positionCenter endPos) $ \t ->
-          let f = 1 - 2 * abs (t - 0.5)
-          in (Tint 255 255 255 128, 4.0, f * 58, f * 74)
-        wait 8
+        let shift = 0.5
+            innerFn t _ = (max 0 (sin (t * (pi + shift) - shift)),
+                           Tint 255 255 255 0)
+            outerFn t _ = (max 0 (sin (t * (pi + shift))),
+                           Tint 255 255 255 128)
+        addShockwaveDoodad 24 (positionCenter endPos) 58 74 innerFn outerFn
+        wait 12
         -- TODO also reduce status effects
         removeFields targets
+        wait 12
     AcidRain ->
       combat (ManaCost 1) AutoTarget $ \caster power () -> do
         startPos <- areaGet (arsCharacterPosition caster)
