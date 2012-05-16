@@ -23,7 +23,8 @@ module Fallback.Utility
   (-- * Numeric functions
    ceilDiv, fmod, hypot, isFinite, square,
    -- * List functions
-   firstJust, groupKey, minimumKey, maximumKey, nubKey, sortKey,
+   mapEither, forEither, firstJust,
+   groupKey, minimumKey, maximumKey, nubKey, sortKey,
    -- * Function combinators
    flip3, flip4,
    -- * Monadic functions
@@ -75,6 +76,18 @@ square x = x * x
 
 -------------------------------------------------------------------------------
 -- List functions:
+
+-- | Map values and separate the 'Left' and 'Right' results.
+mapEither :: (a -> Either b c) -> [a] -> ([b], [c])
+mapEither _ [] = ([], [])
+mapEither fn (x : xs) =
+  let (bs, cs) = mapEither fn xs
+  in case fn x of Left b -> (b : bs, cs)
+                  Right c -> (bs, c : cs)
+
+-- | 'forEither' is 'mapEither' with its arguments flipped.
+forEither :: [a] -> (a -> Either b c) -> ([b], [c])
+forEither = flip mapEither
 
 -- | Apply the given function to items in the list, returning the first @Just@
 -- result, or @Nothing@ if all items return @Nothing@.

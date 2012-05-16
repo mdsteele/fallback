@@ -32,7 +32,7 @@ module Fallback.Scenario.Script.Base
    getAllConsciousCharacters, getAllAllyMonsters, getAllEnemyMonsters,
    getAllAllyTargets,
    -- * Randomization
-   randomBool, getRandomR, getRandomElem, randomPermutation,
+   randomBool, getRandomR, getRandomElem, removeRandomElem, randomPermutation,
    -- * Sound
    playSound, startMusic, stopMusic, fadeOutMusic,
    -- * Debugging
@@ -242,6 +242,14 @@ randomBool probTrue = (probTrue >) <$> getRandomR 0 1
 getRandomElem :: (FromAreaEffect f) => [a] -> Script f a
 getRandomElem list = if null list then fail "getRandomElem: empty list"
                      else (list !!) <$> getRandomR 0 (length list - 1)
+
+-- | Choose and remove a random element from a non-empty list.
+removeRandomElem :: (FromAreaEffect f) => [a] -> Script f (a, [a])
+removeRandomElem list = do
+  if null list then fail "removeRandomElem: empty list" else do
+  idx <- getRandomR 0 (length list - 1)
+  let (before, chosen : after) = splitAt idx list
+  return (chosen, before ++ after)
 
 -- | Choose a random value within the given range.  @'getRandomR' a b@ is
 -- the 'Script' monad equivalent of @'randomRIO' (a, b)@.

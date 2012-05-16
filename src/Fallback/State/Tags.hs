@@ -306,7 +306,7 @@ data MonsterTag = Revenant | Revenantor | MasterRevenant
                 | Ghoul | Ghast | Invisighoul | Skeleton | Wight | Wraith
                 | Zombie
                 -- Bosses:
-                | Vampire | Vhaegyst
+                | Vampire | Dactylid | Vhaegyst
                 -- Townspeople:
                 | TownManApron | TownWomanApron | TownManRed | TownWomanBlue
                 -- Town guards:
@@ -316,7 +316,9 @@ data MonsterTag = Revenant | Revenantor | MasterRevenant
                 | RogueIllusion2 | RogueIllusion3
   deriving (Bounded, Enum, Eq, Ix, Ord, Read, Show)
 
-data MonsterSpellTag = BladeSweep | BlessMonsters | EntangleSpray | FireSpray
+data MonsterSpellTag = BladeSweep | BlessMonsters | CrossBeam | EntangleSpray
+                     | FireSpray | TeleportAway
+  deriving (Eq, Read, Show)
 
 -------------------------------------------------------------------------------
 

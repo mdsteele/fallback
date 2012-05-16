@@ -664,15 +664,16 @@ ccssCharThatWantsATurn ccss party =
 tickMonsterWaiting :: Grid.Entry Monster
                    -> (Monster, Maybe (Script CombatEffect ()))
 tickMonsterWaiting entry = (monst', mbScript) where
+  key = Grid.geKey entry
   monst = Grid.geValue entry
   monst' = monst { monstMoments = moments', monstStatus = status' }
   mbScript = if moments' >= maxActionPoints * momentsPerActionPoint
-             then Just (defaultMonsterCombatAI entry >> resetMoments)
+             then Just (defaultMonsterCombatAI key >> resetMoments)
              else Nothing
   resetMoments = do
     monsters <- areaGet arsMonsters
-    maybeM (Grid.lookup (Grid.geKey entry) monsters) $ \entry' -> do
-      emitAreaEffect $ EffReplaceMonster (Grid.geKey entry') $
+    maybeM (Grid.lookup key monsters) $ \entry' -> do
+      emitAreaEffect $ EffReplaceMonster key $
         Just (Grid.geValue entry') { monstMoments = 0 }
   moments' = max moments $ min (maxActionPoints * momentsPerActionPoint) $
              round (mtSpeed mtype * seSpeedMultiplier status *

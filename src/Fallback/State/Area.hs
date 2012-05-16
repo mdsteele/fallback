@@ -51,7 +51,8 @@ import Fallback.State.Progress
 import Fallback.State.Resources (MusicTag, Resources, musicPath)
 import Fallback.State.Simple
 import Fallback.State.Status (Invisibility(..), StatusEffects, seInvisibility)
-import Fallback.State.Tags (AreaTag, ItemTag, MonsterTag, QuestTag)
+import Fallback.State.Tags
+  (AreaTag, ItemTag, MonsterTag, MonsterSpellTag, QuestTag)
 import Fallback.State.Terrain
 
 -------------------------------------------------------------------------------
@@ -374,13 +375,16 @@ decayMessage (Message t s) =
 
 data Monster = Monster
   { monstAdrenaline :: Int,
-    monstDeadVar :: Maybe (Var Bool),
+    monstDeadVar :: Maybe (Var Bool),  -- var to set to True when monst dies
     monstHealth :: Int,
     monstIsAlly :: Bool, -- True for townspeople, False for baddies
     monstMoments :: Int,
     monstName :: String,
     monstPose :: CreaturePose,
+    -- script to execute when talking to monster (used for townspeople)
     monstScript :: Maybe MonsterScript,
+    -- spell tags, with cooldown (num rounds until we can use that spell again)
+    monstSpells :: [(MonsterSpellTag, Int)],
     monstStatus :: StatusEffects,
     monstTag :: MonsterTag,
     monstTownAI :: MonsterTownAI,

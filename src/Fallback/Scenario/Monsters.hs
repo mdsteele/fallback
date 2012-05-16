@@ -48,6 +48,7 @@ makeMonster tag = Monster
     monstPose = CreaturePose { cpAlpha = 255, cpAnim = NoAnim,
                                cpFaceDir = FaceLeft },
     monstScript = Nothing,
+    monstSpells = map (flip (,) 0) $ mtSpells mtype,
     monstStatus = initStatusEffects,
     monstTag = tag,
     monstTownAI = ImmobileAI,
@@ -57,6 +58,29 @@ makeMonster tag = Monster
 -------------------------------------------------------------------------------
 
 getMonsterType :: MonsterTag -> MonsterType
+getMonsterType Dactylid = baseMonsterType
+  { mtAgility = 40,
+    mtAttacks = [baseMonsterAttack
+      { maAppearance = ClawAttack,
+        maCriticalChance = 0.1,
+        maDamageCount = 10,
+        maDamageRange = (1, 15) }, baseMonsterAttack
+      { maAppearance = BreathAttack,
+        maCriticalChance = 0.05,
+        maDamageCount = 8,
+        maDamageRange = (1, 10),
+        maElement = FireAttack,
+        maRange = Ranged 8 }], -- FIXME
+    mtExperienceValue = 1000,
+    mtImageRow = 0, -- FIXME
+    mtInherentInvisibility = MajorInvisibility,
+    mtIsDaemonic = True,
+    mtMaxHealth = 1000,
+    mtName = "Dactylid",
+    mtResistances = resistances [ResistFire =% 25, ResistMental =% 100],
+    mtSize = SizeSmall,
+    mtSpells = [CrossBeam, TeleportAway],
+    mtSpeed = 2 }
 getMonsterType Revenant = baseMonsterType
   { mtAgility = 30,
     mtAttacks = [MonsterAttack

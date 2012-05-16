@@ -22,13 +22,15 @@ module Fallback.Scenario.MonsterAI
 where
 
 import Control.Applicative ((<$), (<$>))
-import Control.Monad (unless, when)
+import Control.Arrow ((***), second)
+import Control.Monad (forM, unless, when)
+import Data.List (partition)
 import qualified Data.Set as Set
 
 import Fallback.Constants (sightRangeSquared)
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
-import Fallback.Scenario.MonsterSpells (tryMonsterSpell)
+import Fallback.Scenario.MonsterSpells (prepMonsterSpell)
 import Fallback.Scenario.Script
 import Fallback.State.Area
 import Fallback.State.Creature
@@ -37,15 +39,15 @@ import Fallback.State.Pathfind (pathfindRectToRange, pathfindRectToRanges)
 import Fallback.State.Simple
 import Fallback.State.Tags (MonsterSpellTag)
 import Fallback.State.Terrain (terrainSize)
-import Fallback.Utility (maybeM)
+import Fallback.Utility (forEither, maybeM)
 
 -------------------------------------------------------------------------------
 
-defaultMonsterCombatAI :: Grid.Entry Monster -> Script CombatEffect ()
-defaultMonsterCombatAI ge = do
-  let key = Grid.geKey ge
-  done <- tryMonsterSpells ge (mtSpells $ monstType $ Grid.geValue ge)
+defaultMonsterCombatAI :: Grid.Key Monster -> Script CombatEffect ()
+defaultMonsterCombatAI key = do
+  done <- tryMonsterSpells key
   unless done $ do
+  ge <- demandMonsterEntry key
   let attacks = mtAttacks $ monstType $ Grid.geValue ge
   if null attacks then fleeMonsterCombatAI ge else do
   attack <- getRandomElem attacks
@@ -74,12 +76,39 @@ fleeMonsterCombatAI :: Grid.Entry Monster -> Script CombatEffect ()
 fleeMonsterCombatAI _ge = do
   return () -- FIXME
 
-tryMonsterSpells :: Grid.Entry Monster -> [MonsterSpellTag]
-                 -> Script CombatEffect Bool
-tryMonsterSpells _ [] = return False
-tryMonsterSpells ge (spell : spells) = do
-  done <- tryMonsterSpell spell ge
-  if done then return True else tryMonsterSpells ge spells
+-------------------------------------------------------------------------------
+
+tryMonsterSpells :: Grid.Key Monster -> Script CombatEffect Bool
+tryMonsterSpells key = do
+  alterMonsterSpells key $ map $ second $ max 0 . subtract 1
+  entry <- demandMonsterEntry key
+  let (ready, notReady) = partition ((0 >=) . snd) $ monstSpells $
+                          Grid.geValue entry
+  prepped <- forM ready $ \(tag, _) -> (,) tag <$> prepMonsterSpell tag entry
+  let (able, notAble) =
+        forEither prepped $ \(tag, mbCasting) ->
+          case mbCasting of
+            Nothing -> Right (tag, 0)
+            Just (impact, action) -> Left (impact, (tag, action))
+  if null able then return False else do
+  let (best, notBest) = (map snd *** map snd) $
+                        partition ((maximum (map fst able) ==) . fst) able
+  ((chosenTag, chosenAction), notChosen) <- removeRandomElem best
+  alterMonsterSpells key $ const $
+    map (flip (,) 0 . fst) (notChosen ++ notBest) ++ notAble ++ notReady
+  cooldown <- chosenAction
+  alterMonsterSpells key ((chosenTag, cooldown) :)
+  return True
+
+-- | Make changes to the monster's spells, if the monster's still alive.
+alterMonsterSpells :: (FromAreaEffect f) => Grid.Key Monster
+                   -> ([(MonsterSpellTag, Int)] -> [(MonsterSpellTag, Int)])
+                   -> Script f ()
+alterMonsterSpells key fn = do
+  withMonsterEntry key $ \entry -> do
+    let monst = Grid.geValue entry
+    emitAreaEffect $ EffReplaceMonster key $
+      Just monst { monstSpells = fn (monstSpells monst) }
 
 -------------------------------------------------------------------------------
 

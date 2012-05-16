@@ -18,7 +18,7 @@
 ============================================================================ -}
 
 module Fallback.Scenario.MonsterSpells
-  (tryMonsterSpell)
+  (prepMonsterSpell)
 where
 
 import Control.Applicative ((<$>))
@@ -28,45 +28,62 @@ import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Scenario.Script
 import Fallback.State.Area
-import Fallback.State.Resources (StripTag(..))
+import Fallback.State.Resources (SoundTag(..), StripTag(..))
 import Fallback.State.Simple
 import Fallback.State.Tags (MonsterSpellTag(..))
 import Fallback.Utility (flip3)
 
 -------------------------------------------------------------------------------
 
-tryMonsterSpell :: MonsterSpellTag -> Grid.Entry Monster
-                -> Script CombatEffect Bool
-tryMonsterSpell FireSpray ge = do
-  ifRandom 0.35 $ do
+prepMonsterSpell :: MonsterSpellTag -> Grid.Entry Monster
+                 -> Script CombatEffect (Maybe (Int, Script CombatEffect Int))
+prepMonsterSpell FireSpray ge = do
+  ifRandom 0.8 $ do
   let maxRange = 5
+  let key = Grid.geKey ge
   let rect = Grid.geRect ge
   targets <- randomPermutation =<<
              filter (flip3 rangeTouchesRect (ofRadius maxRange) rect) <$>
              areaGet arsPartyPositions
   -- TODO only hit targets we can see
-  ifSatisfies (length targets >= 2) $ do
-  monsterBeginOffensiveAction (Grid.geKey ge) (head targets)
-  origin <- getMonsterHeadPos (Grid.geKey ge)
-  -- TODO sound
+  let numTargets = length targets
+  ifSatisfies (numTargets >= 2) $ do
+  yieldSpell numTargets $ do
+  monsterBeginOffensiveAction key (head targets)
+  origin <- getMonsterHeadPos key
+  playSound SndBreath
   concurrent_ (zip targets [0..]) $ \(target, index) -> do
     wait (index * 4)
-    addBlasterDoodad (Tint 255 0 0 128) 6 60 origin target 320 >>= wait
+    addBlasterDoodad (Tint 255 0 0 128) 6 100 origin target 320 >>= wait
     addBoomDoodadAtPosition FireBoom 3 target
+    playSound SndFireDamage
     wait 4
     dealDamage [(HitPosition target, FireDamage, 30)]
     wait 20
-tryMonsterSpell _ _ = do return False -- FIXME
+  return 3
+prepMonsterSpell TeleportAway ge = do
+  let rect = adjustRect1 (-1) $ Grid.geRect ge
+  numAdjacentFoes <- error "FIXME" rect
+  ifRandom (fromIntegral numAdjacentFoes * 0.25) $ do
+  -- FIXME pick destination far from foes
+  yieldSpell numAdjacentFoes $ do
+  -- FIXME perform teleport to destination
+  return 5
+prepMonsterSpell _ _ = return Nothing -- FIXME
 
 -------------------------------------------------------------------------------
 
-ifRandom :: (FromAreaEffect f) => Double -> Script f a -> Script f Bool
+ifRandom :: (FromAreaEffect f) => Double -> Script f (Maybe a)
+         -> Script f (Maybe a)
 ifRandom probability action = do
   number <- getRandomR 0 1
   ifSatisfies (probability > number) action
 
-ifSatisfies :: (FromAreaEffect f) => Bool -> Script f a -> Script f Bool
-ifSatisfies ok action = do
-  if ok then action >> return True else return False
+ifSatisfies :: (Monad m) => Bool -> m (Maybe a) -> m (Maybe a)
+ifSatisfies ok action = if ok then action else return Nothing
+
+yieldSpell :: Int -> Script CombatEffect Int
+           -> Script CombatEffect (Maybe (Int, Script CombatEffect Int))
+yieldSpell impact action = return $ Just (impact, action)
 
 -------------------------------------------------------------------------------
