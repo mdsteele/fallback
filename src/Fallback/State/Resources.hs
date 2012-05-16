@@ -43,8 +43,9 @@ module Fallback.State.Resources
    rsrcTerrainSprite, rsrcTerrainOverlaySprite, rsrcTileset)
 where
 
-import Data.Array (Array, Ix, listArray)
+import Data.Array (Array, Ix, bounds, listArray)
 
+import Fallback.Constants (tileHeight, tileWidth)
 import Fallback.Data.Point (IRect, LocSpec, Rect(Rect))
 import Fallback.Data.TotalMap (TotalMap, makeTotalMap, makeTotalMapA, tmGet)
 import Fallback.Draw
@@ -94,8 +95,9 @@ newResources = do
   statusDecorations <- loadStatusDecorations
   statusIcons <- loadVStrip "gui/status-icons.png" 16
   strips <- makeTotalMapA (uncurry loadVStrip . stripSpec)
-  terrainSheet <- loadSheet "terrain.png" (50, 12)
-  terrainOverlaySheet <- loadSheet "terrain-overlays.png" (7, 8)
+  terrainSheet <- loadSheetWithTileSize (tileWidth, tileHeight) "terrain.png"
+  terrainOverlaySheet <-
+    loadSheetWithTileSize (tileWidth, tileHeight) "terrain-overlays.png"
   tileset <- loadTileset
   digitsWords <- loadTexture "big-digits.png"
   return Resources
@@ -128,16 +130,17 @@ newResources = do
 loadMonsterImages :: CreatureSize -> IO (Array Int CreatureImages)
 loadMonsterImages size =
   case size of
-    SizeSmall -> load "monsters/small.png" 28
-    SizeWide -> load "monsters/wide.png" 4
-    SizeTall -> load "monsters/tall.png" 3
-    SizeHuge -> load "monsters/huge.png" 2
+    SizeSmall -> load "monsters/small.png" (1, 1)
+    SizeWide -> load "monsters/wide.png" (2, 1)
+    SizeTall -> load "monsters/tall.png" (1, 2)
+    SizeHuge -> load "monsters/huge.png" (2, 2)
   where
-    load name rows = do
-      sheet <- loadSheet name (rows, 4)
+    load name (w, h) = do
+      sheet <- loadSheetWithTileSize (w * tileWidth, h * tileHeight) name
       let make row = CreatureImages (sheet ! (row, 0)) (sheet ! (row, 1))
                                     (sheet ! (row, 2)) (sheet ! (row, 3))
-      return $ listArray (0, rows - 1) $ map make [0 .. rows - 1]
+      let maxRow = fst $ snd $ bounds sheet
+      return $ listArray (0, maxRow) $ map make [0 .. maxRow]
 
 -------------------------------------------------------------------------------
 

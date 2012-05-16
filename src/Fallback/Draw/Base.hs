@@ -40,7 +40,7 @@ module Fallback.Draw.Base
    -- ** Creating
    takeScreenshot,
    -- ** Loading
-   loadSprite, loadSubSprite, loadVStrip, loadSheet,
+   loadSprite, loadSubSprite, loadVStrip, loadSheet, loadSheetWithTileSize,
    -- ** Querying
    spriteWidth, spriteHeight, spriteSize, stripLength, (!),
    -- ** Blitting
@@ -660,10 +660,21 @@ loadSheet name (rows, cols) = drawIO $ do
   let (width, extraW) = textureWidth texture `divMod` cols
   when (extraH /= 0 || extraW /= 0) $ do
     fail ("bad sheet size " ++ show (rows, cols) ++ " for " ++ name)
-  let slice (row, col) =
-        makeSubSprite (Rect (col * width) (row * height) width height) texture
-  let bound = ((0, 0), (rows - 1, cols - 1))
-  return $ listArray bound $ map slice (range bound)
+  return $ makeSheet texture width height cols rows
+
+loadSheetWithTileSize :: (Int, Int) -> FilePath -> IO Sheet
+loadSheetWithTileSize (width, height) name = do
+  texture <- loadTexture name
+  let (rows, extraH) = textureHeight texture `divMod` height
+  let (cols, extraW) = textureWidth texture `divMod` width
+  when (extraH /= 0 || extraW /= 0) $ do
+    fail ("bad tile size " ++ show (width, height) ++ " for " ++ name)
+  return $ makeSheet texture width height cols rows
+
+makeSheet :: Texture -> Int -> Int -> Int -> Int -> Sheet
+makeSheet texture w h cols rows = listArray bound $ map slice (range bound)
+  where slice (row, col) = makeSubSprite (Rect (col * w) (row * h) w h) texture
+        bound = ((0, 0), (rows - 1, cols - 1))
 
 -- | Load an image from disk as a 'Texture' object.
 loadTexture :: String -> IO Texture

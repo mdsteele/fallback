@@ -73,12 +73,15 @@ prepMonsterSpell _ _ = return Nothing -- FIXME
 
 -------------------------------------------------------------------------------
 
+-- | Perform the action with the given probability, otherwise return 'Nothing'.
 ifRandom :: (FromAreaEffect f) => Double -> Script f (Maybe a)
          -> Script f (Maybe a)
 ifRandom probability action = do
   number <- getRandomR 0 1
   ifSatisfies (probability > number) action
 
+-- | If the predicate is 'True', perform the action, otherwise return
+-- 'Nothing'.
 ifSatisfies :: (Monad m) => Bool -> m (Maybe a) -> m (Maybe a)
 ifSatisfies ok action = if ok then action else return Nothing
 
