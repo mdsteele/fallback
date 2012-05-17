@@ -262,6 +262,7 @@ tilesList = [
  Tile 4183 (Still 12 8) TerrainWindow gray, -- desk
  Tile 7723 (Still 13 2) TerrainWindow gray, -- book on pedestal
  Tile 4645 (Still 13 3) TerrainWindow gray, -- column
+ Tile 4892 (Still 12 0) TerrainSolid lightgray, -- huge column
  Tile 9307 (Still 13 4) TerrainWindow gray, -- potted plant
  Tile 7551 (Still 13 5) TerrainWindow gray, -- statue
  Tile 2983 (Still 13 7) TerrainSolid brown, -- bookcase

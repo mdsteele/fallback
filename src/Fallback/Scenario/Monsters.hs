@@ -45,7 +45,7 @@ makeMonster tag = Monster
     monstIsAlly = False,
     monstMoments = 0,
     monstName = mtName mtype,
-    monstPose = CreaturePose { cpAlpha = 255, cpAnim = NoAnim,
+    monstPose = CreaturePose { cpAlpha = alpha, cpAnim = NoAnim,
                                cpFaceDir = FaceLeft },
     monstScript = Nothing,
     monstSpells = map (flip (,) 0) $ mtSpells mtype,
@@ -53,7 +53,9 @@ makeMonster tag = Monster
     monstTag = tag,
     monstTownAI = ImmobileAI,
     monstType = mtype }
-  where mtype = getMonsterType tag
+  where
+    mtype = getMonsterType tag
+    alpha = if mtInherentInvisibility mtype == NoInvisibility then 255 else 0
 
 -------------------------------------------------------------------------------
 
@@ -64,11 +66,11 @@ getMonsterType Dactylid = baseMonsterType
       { maAppearance = ClawAttack,
         maCriticalChance = 0.1,
         maDamageCount = 10,
-        maDamageRange = (1, 15) }, baseMonsterAttack
+        maDamageRange = (1, 10) }, baseMonsterAttack
       { maAppearance = BreathAttack,
         maCriticalChance = 0.05,
-        maDamageCount = 8,
-        maDamageRange = (1, 10),
+        maDamageCount = 6,
+        maDamageRange = (1, 8),
         maElement = FireAttack,
         maRange = Ranged 8 }],
     mtExperienceValue = 1000,

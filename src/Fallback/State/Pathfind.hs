@@ -18,7 +18,8 @@
 ============================================================================ -}
 
 module Fallback.State.Pathfind
-  (pathfind, pathfindToRect, pathfindRectToRange, pathfindRectToRanges)
+  (allPathsFrom, pathfind, pathfindToRect, pathfindRectToRange,
+   pathfindRectToRanges)
 where
 
 import Control.Applicative ((<$>))
@@ -27,8 +28,25 @@ import qualified Data.Set as Set
 
 import Fallback.Data.Point
 import qualified Fallback.Data.PriorityQueue as PQ
+import qualified Fallback.Data.Queue as Queue
 
 -------------------------------------------------------------------------------
+
+-- | Lazily compute the shortest path to each and every position reachable from
+-- the start position, sorted from fewest steps to most.
+allPathsFrom :: [Direction] {-^ directions to use -}
+             -> (Position -> Bool) {-^ Is this position blocked? -}
+             -> Position {-^ start position -} -> [[Position]]
+allPathsFrom dirs isBlocked start = expand Set.empty Queue.empty start [] where
+  step visited queue = flip (maybe []) (Queue.pop queue) $
+                       \((pos, path), queue') ->
+    reverse path : expand visited queue' pos path
+  expand visited queue pos path =
+    let children = filter (\p -> Set.notMember p visited &&
+                           not (isBlocked p)) $ map (pos `plusDir`) dirs
+        addToQueue child queue' = Queue.insert (pos, child : path) queue'
+    in step (foldr Set.insert visited children)
+            (foldr addToQueue queue children)
 
 -- | Find a path from the start position to a goal position.  The return value
 -- will be a sequence of positions from the start to the goal, including the

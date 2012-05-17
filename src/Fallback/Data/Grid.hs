@@ -17,6 +17,16 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
+-- | A 'Grid' stores a collection of objects, each of which occupies a
+-- rectangular section of a grid.  It provides an efficient way to find which
+-- object occupies a given grid position, and does not allow more than one
+-- object to occupy a position.
+--
+-- Since some function names clash with "Prelude" names, this module is usually
+-- imported @qualified@, e.g.
+--
+-- >  import qualified Fallback.Data.Grid as Grid
+
 module Fallback.Data.Grid
   (-- * Grid type
    Grid, empty,
@@ -51,10 +61,7 @@ import Fallback.Utility (nubKey, square)
 
 -------------------------------------------------------------------------------
 
--- | A 'Grid' stores a collection of objects, each of which occupies a
--- rectangular section of a grid.  It provides an efficient way to find which
--- object occupies a given grid position, and does not allow more than one
--- object to occupy a position.
+-- | A grid containing values @a@.
 data Grid a = Grid
   { gridNextKey :: !(Key a),
     gridMap1 :: IntMap.IntMap (Entry a),
@@ -236,6 +243,7 @@ merge grid ents = foldl fn (grid, []) ents where
 -------------------------------------------------------------------------------
 -- Debug:
 
+-- | Test if the internal grid structure is valid.
 valid :: Grid a -> Bool
 valid grid = (all assoc1ok $ IntMap.assocs map1) &&
              (all assoc2ok $ Map.assocs map2)

@@ -26,9 +26,10 @@ module Fallback.Scenario.Triggers.Script
    TalkEffect(..), conversation, convText, convChoice, convNode, convReset,
    -- * Miscellaneous
    doesPartyHaveItem, playDoorUnlockSound, setAreaCleared, setQuestStatus,
-   startShopping)
+   startCombatWithTopleft, startShopping)
 where
 
+import Fallback.Data.Point (Position)
 import Fallback.Scenario.Script
 import Fallback.State.Area
 import Fallback.State.Party (partyHasItem)
@@ -111,6 +112,11 @@ setAreaCleared tag cleared = emitAreaEffect $ EffSetAreaCleared tag cleared
 
 setQuestStatus :: (FromAreaEffect f) => QuestTag -> QuestStatus -> Script f ()
 setQuestStatus tag status = emitAreaEffect $ EffSetQuestStatus tag status
+
+-- | Start combat, with the top left corner of the combat area being the given
+-- position.
+startCombatWithTopleft :: (FromTownEffect f) => Position -> Script f ()
+startCombatWithTopleft = emitTownEffect . EffStartCombat
 
 startShopping :: (FromTownEffect f) => [Either Ingredient ItemTag]
               -> Script f ()

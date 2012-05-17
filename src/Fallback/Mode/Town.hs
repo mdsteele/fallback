@@ -129,7 +129,7 @@ newTownMode resources modes initState = do
           modifyIORef stateRef $ \ts' ->
             ts' { tsPhase = ShoppingPhase Nothing forsale script }
           handleAction action
-        Just DoStartCombat -> doStartCombat ts
+        Just (DoStartCombat topleft) -> doStartCombat ts topleft
         Just (DoTeleport tag pos) -> do
           popupIfErrors resources view ts (return mode)
                         (enterPartyIntoArea resources (arsParty ts) tag pos) $
@@ -322,7 +322,10 @@ newTownMode resources modes initState = do
                       monsterTownStep
                     inflictAllPeriodicDamage
                     -- TODO decay status effects by one round
-                    when startCombat $ emitEffect EffStartCombat
+                    when startCombat $ do
+                      partyPos <- emitEffect EffGetPartyPosition
+                      emitEffect $ EffStartCombat $ partyPos `pSub`
+                        Point (half combatArenaCols) (half combatArenaRows)
               changeState ts { tsCommon = acs { acsFields = fields' },
                                tsPhase = ScriptPhase script }
             _ -> ignore
@@ -410,17 +413,18 @@ newTownMode resources modes initState = do
 
     tryToManuallyStartCombat :: TownState -> IO NextMode
     tryToManuallyStartCombat ts = do
-      if arsAreMonstersNearby ts then doStartCombat ts else do
+      if arsAreMonstersNearby ts then do
+        doStartCombat ts (tsPartyPosition ts `pSub`
+                          Point (half combatArenaCols) (half combatArenaRows))
+       else do
         let msg = "Can't start combat -- there are no enemies nearby."
         writeIORef stateRef $ arsSetMessage msg ts
         return SameMode
 
-    doStartCombat :: TownState -> IO NextMode
-    doStartCombat ts = do
-      let pp = tsPartyPosition ts
-      let arenaTopleft =
-            pp `pSub` Point (half combatArenaCols) (half combatArenaRows)
+    doStartCombat :: TownState -> Position -> IO NextMode
+    doStartCombat ts arenaTopleft = do
       let arenaRect = makeRect arenaTopleft (combatArenaCols, combatArenaRows)
+      let pp = tsPartyPosition ts
       let mkCharState _charNum claimed =
             let pos = arsFindOpenSpot ts pp arenaRect claimed
                 ccs = CombatCharState
@@ -492,7 +496,7 @@ data Interrupt = DoExit AreaTag
                                          (a -> Script TownEffect ())
                | DoNarrate String (Script TownEffect ())
                | DoShopping [Either Ingredient ItemTag] (Script TownEffect ())
-               | DoStartCombat
+               | DoStartCombat Position
                | DoTeleport AreaTag Position
                | DoWait (Script TownEffect ())
 
@@ -574,7 +578,7 @@ executeEffect ts eff sfn =
       ts' <- updateTownVisibility ts { tsPartyPosition = dest }
       return (ts', Right $ sfn ())
     EffShop forsale -> return (ts, Left $ DoShopping forsale $ sfn ())
-    EffStartCombat -> return (ts, Left DoStartCombat)
+    EffStartCombat topleft -> return (ts, Left $ DoStartCombat topleft)
     EffTeleportToArea tag pos -> return (ts, Left $ DoTeleport tag pos)
     EffTownArea eff' ->
       case eff' of

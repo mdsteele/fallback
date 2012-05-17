@@ -522,7 +522,7 @@ data TownEffect :: * -> * where
   EffSetPartyFaceDir :: FaceDir -> TownEffect ()
   EffSetPartyPosition :: Position -> TownEffect ()
   EffShop :: [Either Ingredient ItemTag] -> TownEffect ()
-  EffStartCombat :: TownEffect ()
+  EffStartCombat :: Position -> TownEffect ()
   EffTeleportToArea :: AreaTag -> Position -> TownEffect ()
 
 -------------------------------------------------------------------------------

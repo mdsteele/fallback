@@ -29,9 +29,11 @@ import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Globals (Globals(..), newDoorDevices)
 import Fallback.Scenario.Triggers.Script
+import Fallback.State.Creature (MonsterTownAI(ChaseAI))
 import Fallback.State.Resources (SoundTag(SndLever))
 import Fallback.State.Tags
-  (AreaTag(Holmgare, SewerCaves), ItemTag(InertItemTag), InertItemTag(IronKey))
+  (AreaTag(Holmgare, SewerCaves), ItemTag(InertItemTag), InertItemTag(IronKey),
+   MonsterTag(Dactylid))
 import Fallback.State.Tileset (TileTag(..))
 
 -------------------------------------------------------------------------------
@@ -80,5 +82,18 @@ compileSewerCaves globals = compileArea SewerCaves Nothing $ do
       \The cave doesn't appear to extend back very far, but according to\
       \ Sophia, there should be a secret passage hidden somewhere back there,\
       \ behind the muck."
+
+  dactylidDead <- newPersistentVar 982452 False
+  once 029345 (walkIn (Rect 1 25 15 9)) $ do
+    narrate "FIXME Boss time!"
+    do tile <- getTerrainTile BasaltGateClosedTile
+       setTerrain [(Point 9 24, tile)]
+    bossStartPos <- flip Point 33 <$> getRandomR 1 15
+    addBasicEnemyMonster bossStartPos Dactylid (Just dactylidDead) ChaseAI
+    startCombatWithTopleft (Point 0 23)
+  once 923982 (varTrue dactylidDead) $ do
+    do tile <- getTerrainTile BasaltGateOpenTile
+       setTerrain [(Point 9 24, tile)]
+    narrate "FIXME Yay, you won!"
 
 -------------------------------------------------------------------------------
