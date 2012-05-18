@@ -261,13 +261,15 @@ tilesList = [
 
  Tile 1602 (Anim 47 8 4 NoOverlay) TerrainOpen gray, -- torch
  Tile 6808 (Anim 48 8 4 NoOverlay) TerrainOpen gray, -- torch
- Tile 6445 (Still 12 6) TerrainOpen gray, -- rune
+ Tile 6445 (Still 12 6) TerrainOpen gray, -- green rune
+ Tile 7894 (Still 25 5) TerrainOpen gray, -- bubble rune
  Tile 2349 (Still 12 7) TerrainWindow gray, -- pedestal
  Tile 4183 (Still 12 8) TerrainWindow gray, -- desk
  Tile 7723 (Still 13 2) TerrainWindow gray, -- book on pedestal
  Tile 4645 (Still 13 3) TerrainWindow gray, -- column
  Tile 4892 (Still 12 0) TerrainSolid lightgray, -- huge column
  Tile 9307 (Still 13 4) TerrainWindow gray, -- potted plant
+ Tile 7398 (Still 13 8) TerrainWindow gray, -- brazier
  Tile 7551 (Still 13 5) TerrainWindow gray, -- statue
  Tile 2983 (Still 13 7) TerrainSolid brown, -- bookcase
  Tile 7576 (Still 25 4) TerrainWindow gray, -- shelving
@@ -281,6 +283,8 @@ tilesList = [
  Tile 5275 (Still 14 10) TerrainWindow gray, -- table (north/south)
  Tile 0636 (Still 14 9) TerrainWindow gray, -- table w/ plates (east/west)
  Tile 8011 (Still 14 8) TerrainWindow gray, -- table w/ plates (north/south)
+ Tile 1198 (Still 13 9) TerrainWindow gray, -- good alter
+ Tile 9927 (Still 15 6) TerrainWindow gray, -- bloody alter
  Tile 2367 (Still 13 10) TerrainWindow gray, -- chest
  Tile 9475 (Still 13 11) TerrainOpen gray, -- chair
  Tile 2060 (Still 14 2) TerrainOpen gray, -- chair
@@ -302,6 +306,8 @@ tilesList = [
  Tile 0040 (Still 15 9) TerrainOpen lightgray, -- white tile floor
  Tile 6711 (Still 16 4) TerrainWindow lightgray, -- column
  Tile 5268 (Still 15 10) TerrainWindow lightgray, -- white alter
+ Tile 9820 (Still 15 11) TerrainWindow lightgray, -- black alter
+ Tile 8211 (Still 16 2) TerrainWindow lightgray, -- brazier
  Tile 6392 (Still 16 3) TerrainWindow lightgray, -- throne
 
  Tile 4252 (Still 16 5) TerrainOpen green, -- green tile floor

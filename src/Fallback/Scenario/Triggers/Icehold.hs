@@ -358,8 +358,28 @@ compileIcehold globals = do
 
   compileArea Icehold3 Nothing $ do
 
+    onStartDaily 559839 $ do
+      addDevice_ (gBasaltDoor globals) (Point 4 4)
+      addDevice_ brassKeyLockedStoneDoor (Point 11 3)
+
     -- Stairs back down to second floor:
     trigger 472987 (walkOn (Point 16 25)) $ do
       teleport Icehold2 (Point 16 8)
+
+    -- Boss fight:
+    vhaegystDead <- newPersistentVar 459822 False
+    once 729892 (walkIn (Rect 1 9 18 13)) $ do
+      -- TODO conversation and so forth
+      return ()
+    trigger 099022 (varTrue vhaegystDead) $ do
+      massSetTerrain BasaltGateOpenTile [Point 9 22, Point 10 22, Point 9 8]
+
+    -- Sunrod pedestal:
+    uniqueDevice 977299 (Point 16 3) 1 $ \_ _ -> do
+      narrate "FIXME You get a Sunrod, yay!"
+
+    uniqueDevice 449872 (Point 43 2) signRadius $ \_ _ -> do
+      narrate "The sign mounted on the wall reads:\n\n\
+        \      {b}SUNROOM{_}"
 
 -------------------------------------------------------------------------------
