@@ -30,6 +30,7 @@ import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
+import Fallback.Scenario.Triggers.Script (massSetTerrain)
 import Fallback.State.Area (AreaEffect, Device)
 import Fallback.State.Progress (VarSeed, splitVarSeed)
 import Fallback.State.Resources (SoundTag(..))
@@ -75,15 +76,13 @@ newDoorDevices vseed cTag oTag tryOpen tryClose = do
   (cSeed, oSeed) <- splitVarSeed vseed
   rec closed <- newDevice cSeed 1 $ \ge charNum -> do
         whenM (tryOpen ge charNum) $ do
-          tile <- getTerrainTile oTag
-          setTerrain [(rectTopleft $ Grid.geRect ge, tile)]
+          massSetTerrain oTag $ prectPositions $ Grid.geRect ge
           replaceDevice ge open
           playSound SndDoorOpen
       open <- newDevice oSeed 1 $ \ge charNum -> do
         -- TODO: don't allow door to be closed if enemies are nearby
         whenM (tryClose ge charNum) $ do
-          tile <- getTerrainTile cTag
-          setTerrain [(rectTopleft $ Grid.geRect ge, tile)]
+          massSetTerrain cTag $ prectPositions $ Grid.geRect ge
           replaceDevice ge closed
           playSound SndDoorShut
   return (closed, open)

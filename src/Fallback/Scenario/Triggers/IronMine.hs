@@ -31,6 +31,7 @@ import Fallback.Draw.Base (blitTopleft)
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Globals (Globals(..), signRadius)
+import Fallback.Scenario.Triggers.Script
 import Fallback.State.Area
 import Fallback.State.Resources
 import Fallback.State.Tags

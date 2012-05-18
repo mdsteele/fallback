@@ -36,8 +36,8 @@ module Fallback.Scenario.Compile
    -- * Variables
    Var, getVar, readVar, writeVar, modifyVar,
    -- * Trigger predicates
-   Predicate, andP, orP, notP, getP, whenP,
-   varTrue, varFalse, varEq,
+   Predicate, andP, orP, xorP, notP, getP, whenP,
+   varTrue, varFalse, varEq, varNeq,
    walkOn, walkOff, walkIn,
    questUntaken, questActive)
 where
@@ -380,6 +380,10 @@ infixr 2 `orP`
 orP :: Predicate -> Predicate -> Predicate
 orP (Predicate fn1) (Predicate fn2) = Predicate (\s -> fn1 s || fn2 s)
 
+infixr 2 `xorP`
+xorP :: Predicate -> Predicate -> Predicate
+xorP (Predicate fn1) (Predicate fn2) = Predicate (\s -> fn1 s /= fn2 s)
+
 notP :: Predicate -> Predicate
 notP (Predicate fn) = Predicate (not . fn)
 
@@ -399,6 +403,9 @@ varFalse var = Predicate (not . getVar var)
 
 varEq :: (Eq a, VarType a) => Var a -> a -> Predicate
 varEq var value = Predicate ((value ==) . getVar var)
+
+varNeq :: (Eq a, VarType a) => Var a -> a -> Predicate
+varNeq var value = Predicate ((value /=) . getVar var)
 
 walkOn :: Position -> Predicate
 walkOn pos = Predicate (\s -> any (pos ==) (arsPartyPositions s))

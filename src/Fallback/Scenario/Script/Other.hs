@@ -32,7 +32,6 @@ module Fallback.Scenario.Script.Other
    alterStatus, grantInvisibility, inflictPoison, curePoison, inflictStun,
    -- ** Other
    grantExperience, removeFields, setFields,
-   getTerrainTile, resetTerrain, setTerrain,
 
    -- * Animation
    -- ** Camera motion
@@ -91,8 +90,7 @@ import Fallback.State.Simple
 import Fallback.State.Status
 import Fallback.State.Tags
   (AbilityTag(..), AreaTag, ItemTag(..), MonsterTag, WeaponItemTag)
-import Fallback.State.Terrain (TerrainTile, prectRect, terrainMap, tmapGet)
-import Fallback.State.Tileset (TileTag, tilesetGet)
+import Fallback.State.Terrain (prectRect)
 import Fallback.Utility
   (ceilDiv, flip3, flip4, groupKey, maybeM, sortKey, square, sumM)
 
@@ -581,11 +579,6 @@ addBasicEnemyMonster nearPos tag mbDeadVar townAi = do
 addDevice_ :: (FromAreaEffect f) => Device -> Position -> Script f ()
 addDevice_ device pos = () <$ emitAreaEffect (EffTryAddDevice pos device)
 
-getTerrainTile :: (FromAreaEffect f) => TileTag -> Script f TerrainTile
-getTerrainTile tag = do
-  resources <- areaGet arsResources
-  return $ tilesetGet tag $ rsrcTileset resources
-
 grantAndEquipWeapon :: (FromAreaEffect f) => WeaponItemTag -> CharacterNumber
                     -> Script f ()
 grantAndEquipWeapon tag charNum = do
@@ -620,12 +613,6 @@ replaceDevice :: (FromAreaEffect f) => Grid.Entry Device -> Device
 replaceDevice entry device =
   emitAreaEffect $ EffReplaceDevice (Grid.geKey entry) (Just device)
 
-resetTerrain :: (FromAreaEffect f) => [Position] -> Script f ()
-resetTerrain positions = do
-  tmap <- areaGet (terrainMap . arsTerrain)
-  let update pos = (pos, tmapGet tmap pos)
-  emitAreaEffect $ EffSetTerrain $ map update positions
-
 setFields :: (FromAreaEffect f) => Field -> [Position] -> Script f ()
 setFields field = emitAreaEffect . EffAlterFields fn where
   fn Nothing = Just field
@@ -639,9 +626,6 @@ setFields field = emitAreaEffect . EffAlterFields fn where
       (SmokeScreen a, SmokeScreen b) -> SmokeScreen (max a b)
       (Webbing a, Webbing b) -> Webbing (max a b)
       _ -> field
-
-setTerrain :: (FromAreaEffect f) => [(Position, TerrainTile)] -> Script f ()
-setTerrain = emitAreaEffect . EffSetTerrain
 
 summonAllyMonster :: (FromAreaEffect f) => Position -> MonsterTag
                   -> Script f ()

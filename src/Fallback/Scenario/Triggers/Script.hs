@@ -24,20 +24,25 @@
 module Fallback.Scenario.Triggers.Script
   (-- * Conversation
    TalkEffect(..), conversation, convText, convChoice, convNode, convReset,
+   -- * Terrain
+   getTerrainTile, setTerrain, massSetTerrain, resetTerrain,
    -- * Miscellaneous
-   doesPartyHaveItem, playDoorUnlockSound, setAreaCleared, setQuestStatus,
-   startCombatWithTopleft, startShopping)
+   doesPartyHaveItem, playDoorUnlockSound, setAreaCleared,
+   setQuestStatus, startCombatWithTopleft, startShopping)
 where
 
 import Fallback.Data.Point (Position)
 import Fallback.Scenario.Script
 import Fallback.State.Area
 import Fallback.State.Party (partyHasItem)
-import Fallback.State.Resources (SoundTag(SndUnlock))
+import Fallback.State.Resources (SoundTag(SndUnlock), rsrcTileset)
 import Fallback.State.Simple (Ingredient, QuestStatus)
 import Fallback.State.Tags (AreaTag, ItemTag, QuestTag)
+import Fallback.State.Terrain (terrainMap, tmapGet)
+import Fallback.State.Tileset (TerrainTile, TileTag, tilesetGet)
 
 -------------------------------------------------------------------------------
+-- Conversation:
 
 data TalkEffect :: (* -> *) -> * -> * where
   EffTalkLift :: f a -> TalkEffect f a
@@ -97,6 +102,32 @@ convReset :: Script (TalkEffect f) ()
 convReset = emitEffect EffTalkReset
 
 -------------------------------------------------------------------------------
+-- Terrain:
+
+-- TODO: Deprecated; use massSetTerrain instead.
+getTerrainTile :: (FromAreaEffect f) => TileTag -> Script f TerrainTile
+getTerrainTile tag = do
+  resources <- areaGet arsResources
+  return $ tilesetGet tag $ rsrcTileset resources
+
+-- TODO: Deprecated; use massSetTerrain instead.
+setTerrain :: (FromAreaEffect f) => [(Position, TerrainTile)] -> Script f ()
+setTerrain = emitAreaEffect . EffSetTerrain
+
+-- TODO: Rename this to setTerrain once the current setTerrain is nuked.
+massSetTerrain :: (FromAreaEffect f) => TileTag -> [Position] -> Script f ()
+massSetTerrain tileTag positions = do
+  tile <- getTerrainTile tileTag
+  setTerrain $ map (flip (,) tile) positions
+
+resetTerrain :: (FromAreaEffect f) => [Position] -> Script f ()
+resetTerrain positions = do
+  tmap <- areaGet (terrainMap . arsTerrain)
+  let update pos = (pos, tmapGet tmap pos)
+  emitAreaEffect $ EffSetTerrain $ map update positions
+
+-------------------------------------------------------------------------------
+-- Miscellaneous:
 
 doesPartyHaveItem :: (FromAreaEffect f) => ItemTag -> Script f Bool
 doesPartyHaveItem tag = areaGet (partyHasItem tag . arsParty)

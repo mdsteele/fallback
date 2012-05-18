@@ -34,6 +34,7 @@ import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.FrozenPass (compileFrozenPass)
 import Fallback.Scenario.Triggers.Globals
+import Fallback.Scenario.Triggers.Icehold (compileIcehold)
 import Fallback.Scenario.Triggers.IronMine (compileIronMine)
 import Fallback.Scenario.Triggers.Script
 import Fallback.Scenario.Triggers.SewerCaves (compileSewerCaves)
@@ -703,18 +704,7 @@ scenarioTriggers = compileScenario $ do
     makeExit NorthernTundra [Rect 5 0 5 2] (Point 7 3)
     makeExit Tragorda [Rect 5 10 5 2] (Point 7 8)
 
-  compileArea Icehold Nothing $ do
-    makeExit Duskwood [Rect 0 42 50 2] (Point 25 40)
-    onStartDaily 789321 $ do
-      addDevice_ (gStoneDoor globals) (Point 30 27)
-    trigger 182832 (walkOn (Point 25 27)) $ do
-      teleport Icehold2 (Point 21 27)
-
-  compileArea Icehold2 Nothing $ do
-    trigger 982111 (walkOn (Point 20 27)) $ do
-      teleport Icehold (Point 24 27)
-
-  compileArea Icehold3 Nothing $ return ()
+  compileIcehold globals
 
   compileArea BurningMaze Nothing $ return ()
 

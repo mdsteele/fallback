@@ -47,7 +47,8 @@ data TileOverlay = NoOverlay | Overlay !Int !Int
 -------------------------------------------------------------------------------
 
 data TileTag = OffTile | NullTile
-             | StoneFloorTile | AdobeCrackedWallTile
+             | StoneFloorTile | WhiteTileFloorTile | WaterAnimTile
+             | LavaAnimTile | AdobeCrackedWallTile
              -- Doors and gates:
              | AdobeDoorClosedTile | AdobeDoorOpenTile
              | AdobeGateClosedTile | AdobeGateOpenTile
@@ -66,6 +67,9 @@ tileTagId :: TileTag -> Int
 tileTagId OffTile = 0000
 tileTagId NullTile = 0001
 tileTagId StoneFloorTile = 8222
+tileTagId WhiteTileFloorTile = 0040
+tileTagId WaterAnimTile = 2937
+tileTagId LavaAnimTile = 0285
 tileTagId AdobeCrackedWallTile = 7185
 tileTagId AdobeDoorClosedTile = 3891
 tileTagId AdobeDoorOpenTile = 2993
