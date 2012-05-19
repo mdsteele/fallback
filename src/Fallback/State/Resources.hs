@@ -47,7 +47,7 @@ import Data.Array (Array, Ix, bounds, listArray)
 
 import Fallback.Constants (tileHeight, tileWidth)
 import Fallback.Data.Point (IRect, LocSpec, Rect(Rect))
-import Fallback.Data.TotalMap (TotalMap, makeTotalMap, makeTotalMapA, tmGet)
+import qualified Fallback.Data.TotalMap as TM
 import Fallback.Draw
 import Fallback.Sound (Sound, loadSound)
 import Fallback.State.Creature (CreatureImages(CreatureImages))
@@ -60,24 +60,25 @@ import Fallback.State.Tileset (Tileset, loadTileset)
 data Resources = Resources
   { rsrcAbilityIcons :: Sheet,
     rsrcAllCharacterImages ::
-      TotalMap (CharacterClass, CharacterAppearance) CreatureImages,
-    rsrcAllMonsterImages :: TotalMap CreatureSize (Array Int CreatureImages),
+      TM.TotalMap (CharacterClass, CharacterAppearance) CreatureImages,
+    rsrcAllMonsterImages ::
+      TM.TotalMap CreatureSize (Array Int CreatureImages),
     rsrcCursorsStrip :: Strip,
     rsrcDigitsStripBig :: Strip,
-    rsrcFonts :: TotalMap FontTag Font,
+    rsrcFonts :: TM.TotalMap FontTag Font,
     rsrcItemIcons :: Sheet,
     rsrcPaintDigits :: Int -> LocSpec Int -> Paint (),
-    rsrcProjs :: TotalMap ProjTag Sprite,
+    rsrcProjs :: TM.TotalMap ProjTag Sprite,
     rsrcSheetEquipButtons :: Sheet,
-    rsrcSounds :: TotalMap SoundTag Sound,
-    rsrcSprites :: TotalMap SpriteTag Sprite,
+    rsrcSounds :: TM.TotalMap SoundTag Sound,
+    rsrcSprites :: TM.TotalMap SpriteTag Sprite,
     rsrcStatusDecorations :: StatusDecorations,
     rsrcStatusIcons :: Strip,
-    rsrcStrips :: TotalMap StripTag Strip,
+    rsrcStrips :: TM.TotalMap StripTag Strip,
     rsrcTerrainSheet :: Sheet,
     rsrcTerrainOverlaySheet :: Sheet,
     rsrcTileset :: Tileset,
-    rsrcWordSprites :: TotalMap WordTag Sprite }
+    rsrcWordSprites :: TM.TotalMap WordTag Sprite }
 
 newResources :: IO Resources
 newResources = do
@@ -86,15 +87,15 @@ newResources = do
   cursors <- loadVStrip "gui/cursors.png" 20
   itemIcons <- loadSheet "items.png" (8, 8)
   sheetEquipButtons <- loadSheet "gui/equip-buttons.png" (4, 4)
-  fonts <- makeTotalMapA (uncurry loadFont . fontSpec)
-  monsterImages <- makeTotalMapA loadMonsterImages
+  fonts <- TM.makeA (uncurry loadFont . fontSpec)
+  monsterImages <- TM.makeA loadMonsterImages
   paintDigits <- newDigitPaint
   projStrip <- loadVStrip "doodads/projectiles.png" 5
   spritesSheet <- loadSheet "doodads/sprites.png" (2, 8)
-  sounds <- makeTotalMapA (loadSound . soundPath)
+  sounds <- TM.makeA (loadSound . soundPath)
   statusDecorations <- loadStatusDecorations
   statusIcons <- loadVStrip "gui/status-icons.png" 16
-  strips <- makeTotalMapA (uncurry loadVStrip . stripSpec)
+  strips <- TM.makeA (uncurry loadVStrip . stripSpec)
   terrainSheet <- loadSheetWithTileSize (tileWidth, tileHeight) "terrain.png"
   terrainOverlaySheet <-
     loadSheetWithTileSize (tileWidth, tileHeight) "terrain-overlays.png"
@@ -102,7 +103,7 @@ newResources = do
   digitsWords <- loadTexture "big-digits.png"
   return Resources
     { rsrcAbilityIcons = abilityIcons,
-      rsrcAllCharacterImages = makeTotalMap $ \(cls, app) ->
+      rsrcAllCharacterImages = TM.make $ \(cls, app) ->
         let row = fromEnum cls * 4 + fromEnum app
         in CreatureImages (charSheet ! (row, 0)) (charSheet ! (row, 1))
                           (charSheet ! (row, 2)) (charSheet ! (row, 3)),
@@ -114,18 +115,17 @@ newResources = do
       rsrcFonts = fonts,
       rsrcItemIcons = itemIcons,
       rsrcPaintDigits = paintDigits,
-      rsrcProjs = makeTotalMap ((projStrip !) . projIndex),
+      rsrcProjs = TM.make ((projStrip !) . projIndex),
       rsrcSheetEquipButtons = sheetEquipButtons,
       rsrcSounds = sounds,
-      rsrcSprites = makeTotalMap ((spritesSheet !) . spriteCoords),
+      rsrcSprites = TM.make ((spritesSheet !) . spriteCoords),
       rsrcStatusDecorations = statusDecorations,
       rsrcStatusIcons = statusIcons,
       rsrcStrips = strips,
       rsrcTerrainSheet = terrainSheet,
       rsrcTerrainOverlaySheet = terrainOverlaySheet,
       rsrcTileset = tileset,
-      rsrcWordSprites =
-        makeTotalMap (flip makeSubSprite digitsWords . wordRect) }
+      rsrcWordSprites = TM.make (flip makeSubSprite digitsWords . wordRect) }
 
 loadMonsterImages :: CreatureSize -> IO (Array Int CreatureImages)
 loadMonsterImages size =
@@ -150,13 +150,13 @@ rsrcAbilityIcon rsrc coords = rsrcAbilityIcons rsrc ! coords
 rsrcCharacterImages :: Resources -> CharacterClass -> CharacterAppearance
                     -> CreatureImages
 rsrcCharacterImages rsrc cls app =
-  tmGet (cls, app) $ rsrcAllCharacterImages rsrc
+  TM.get (cls, app) $ rsrcAllCharacterImages rsrc
 
 rsrcItemIcon :: Resources -> (Int, Int) -> Sprite
 rsrcItemIcon rsrc coords = rsrcItemIcons rsrc ! coords
 
 rsrcMonsterImages :: Resources -> CreatureSize -> Int -> CreatureImages
-rsrcMonsterImages rsrc size row = tmGet size (rsrcAllMonsterImages rsrc) ! row
+rsrcMonsterImages rsrc size row = TM.get size (rsrcAllMonsterImages rsrc) ! row
 
 rsrcTerrainSprite :: Resources -> (Int, Int) -> Sprite
 rsrcTerrainSprite rsrc coords = rsrcTerrainSheet rsrc ! coords
@@ -196,7 +196,7 @@ projIndex StarProj = 3
 projIndex ArrowProj = 4
 
 rsrcProj :: Resources -> ProjTag -> Sprite
-rsrcProj rsrc tag = tmGet tag $ rsrcProjs rsrc
+rsrcProj rsrc tag = TM.get tag $ rsrcProjs rsrc
 
 data SpriteTag = MineCartEmptyHorzSprite | MineCartEmptyVertSprite
                | MineCartFullHorzSprite | MineCartFullVertSprite
@@ -209,7 +209,7 @@ spriteCoords MineCartFullHorzSprite = (0, 2)
 spriteCoords MineCartFullVertSprite = (0, 3)
 
 rsrcSprite :: Resources -> SpriteTag -> Sprite
-rsrcSprite rsrc tag = tmGet tag $ rsrcSprites rsrc
+rsrcSprite rsrc tag = TM.get tag $ rsrcSprites rsrc
 
 data StripTag = SrpBarrierAura | SrpFireAura | SrpGasAura | SrpIceAura
               | SrpSmokeAura
@@ -236,7 +236,7 @@ stripSpec SlashLeft = ("doodads/slash-left.png", 8)
 stripSpec SlashRight = ("doodads/slash-right.png", 8)
 
 rsrcStrip :: Resources -> StripTag -> Strip
-rsrcStrip rsrc tag = tmGet tag $ rsrcStrips rsrc
+rsrcStrip rsrc tag = TM.get tag $ rsrcStrips rsrc
 
 data WordTag = WordBackstab | WordCritical | WordDodge | WordFinalBlow
              | WordMiss | WordParry | WordRiposte
@@ -252,7 +252,7 @@ wordRect WordParry = Rect 0 9 22 9
 wordRect WordRiposte = Rect 37 27 28 9
 
 rsrcWordSprite :: Resources -> WordTag -> Sprite
-rsrcWordSprite rsrc tag = tmGet tag $ rsrcWordSprites rsrc
+rsrcWordSprite rsrc tag = TM.get tag $ rsrcWordSprites rsrc
 
 -------------------------------------------------------------------------------
 -- Fonts:
@@ -280,7 +280,7 @@ fontSpec FontGeorgiaBold16 = ("georgia_b.ttf", 16)
 fontSpec FontGeorgiaItalic11 = ("georgia_i.ttf", 11)
 
 rsrcFont :: Resources -> FontTag -> Font
-rsrcFont rsrc tag = tmGet tag $ rsrcFonts rsrc
+rsrcFont rsrc tag = TM.get tag $ rsrcFonts rsrc
 
 -------------------------------------------------------------------------------
 -- Sounds:
@@ -346,7 +346,7 @@ soundPath SndThrow = "throw-14.wav"
 soundPath SndUnlock = "unlock-9.wav"
 
 rsrcSound :: Resources -> SoundTag -> Sound
-rsrcSound rsrc tag = tmGet tag $ rsrcSounds rsrc
+rsrcSound rsrc tag = TM.get tag $ rsrcSounds rsrc
 
 -------------------------------------------------------------------------------
 -- Music:

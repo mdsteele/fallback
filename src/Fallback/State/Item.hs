@@ -31,7 +31,7 @@ import Data.List (foldl', intercalate, partition)
 import Data.Maybe (maybeToList)
 import Data.Monoid (Monoid(..))
 
-import Fallback.Data.TotalMap (TotalMap, makeTotalMap, tmAssocs, tmGet, tmSet)
+import qualified Fallback.Data.TotalMap as TM
 import Fallback.State.Simple
 import Fallback.State.Tags
 
@@ -279,10 +279,10 @@ potionSubDesc (RestoreHealthAndMana h m) =
 bonusesSubDesc :: Bonuses -> String
 bonusesSubDesc bonuses = if null bonusLines then "" else
                            "Bonuses:\n" ++ concatMap indent bonusLines where
-  bonusLines = (map statLine $ filter ((0 /=) . snd) $ tmAssocs $
+  bonusLines = (map statLine $ filter ((0 /=) . snd) $ TM.assocs $
                 bonusStats bonuses) ++
                (maybeToList mbAdrenMultLine) ++
-               (map resistLine $ filter ((1 /=) . snd) $ tmAssocs $
+               (map resistLine $ filter ((1 /=) . snd) $ TM.assocs $
                 bonusResistances bonuses)
   statLine (stat, delta) = showSignedInt delta ++ " " ++ statName stat ++ "\n"
   mbAdrenMultLine =
@@ -302,9 +302,9 @@ bonusesSubDesc bonuses = if null bonusLines then "" else
   resistName ResistMental = "mental resistance"
   resistName ResistStun = "stun resistance"
 
-usableSubDesc :: TotalMap CharacterClass Bool -> String
+usableSubDesc :: TM.TotalMap CharacterClass Bool -> String
 usableSubDesc usable =
-  case partition (flip tmGet usable) [minBound .. maxBound] of
+  case partition (flip TM.get usable) [minBound .. maxBound] of
     ([], _) -> "Not usable by anyone."
     (_, []) -> "Usable by anyone.\n"
     ([a], _) -> "Usable by " ++ plural a ++ " only.\n"
@@ -392,7 +392,7 @@ data WeaponData = WeaponData
     wdElement :: AttackElement,
     wdFeats :: [FeatTag],
     wdRange :: AttackRange,
-    wdUsableBy :: TotalMap CharacterClass Bool,
+    wdUsableBy :: TM.TotalMap CharacterClass Bool,
     wdVsDaemonic :: DamageModifier,
     wdVsUndead :: DamageModifier }
 
@@ -542,7 +542,7 @@ baseWeaponData = WeaponData
 
 data ArmorData = ArmorData
   { adBonuses :: Bonuses,
-    adUsableBy :: TotalMap CharacterClass Bool }
+    adUsableBy :: TM.TotalMap CharacterClass Bool }
 
 getArmorData :: ArmorItemTag -> ArmorData
 getArmorData AdamantPlate = ArmorData
@@ -626,32 +626,32 @@ adrenMult :: Double -> Bonuses
 adrenMult x = nullBonuses { bonusAdrenalineMultiplier = x }
 
 (+=) :: Stat -> Int -> Bonuses
-stat += n = nullBonuses { bonusStats = tmSet stat n nullStats }
+stat += n = nullBonuses { bonusStats = TM.set stat n nullStats }
 
 (+%) :: Resistance -> Double -> Bonuses
-resist +% n =
-  nullBonuses { bonusResistances = tmSet resist (1 - n / 100) nullResistances }
+resist +% n = nullBonuses { bonusResistances =
+                              TM.set resist (1 - n / 100) nullResistances }
 
 -------------------------------------------------------------------------------
 
-usableByAll :: TotalMap CharacterClass Bool
-usableByAll = makeTotalMap (const True)
+usableByAll :: TM.TotalMap CharacterClass Bool
+usableByAll = TM.make (const True)
 
-castersOnly :: TotalMap CharacterClass Bool
-castersOnly = makeTotalMap $ \c ->
+castersOnly :: TM.TotalMap CharacterClass Bool
+castersOnly = TM.make $ \c ->
   c == AlchemistClass || c == ClericClass || c == MagusClass
 
-archersOnly :: TotalMap CharacterClass Bool
-archersOnly = makeTotalMap $ \c -> c == RogueClass || c == HunterClass
+archersOnly :: TM.TotalMap CharacterClass Bool
+archersOnly = TM.make $ \c -> c == RogueClass || c == HunterClass
 
-manaUsersOnly :: TotalMap CharacterClass Bool
-manaUsersOnly = makeTotalMap $ \c -> c == ClericClass || c == MagusClass
+manaUsersOnly :: TM.TotalMap CharacterClass Bool
+manaUsersOnly = TM.make $ \c -> c == ClericClass || c == MagusClass
 
-warriorsOnly :: TotalMap CharacterClass Bool
-warriorsOnly = makeTotalMap (== WarriorClass)
+warriorsOnly :: TM.TotalMap CharacterClass Bool
+warriorsOnly = TM.make (== WarriorClass)
 
-roguesOnly :: TotalMap CharacterClass Bool
-roguesOnly = makeTotalMap (== RogueClass)
+roguesOnly :: TM.TotalMap CharacterClass Bool
+roguesOnly = TM.make (== RogueClass)
 
 -------------------------------------------------------------------------------
 

@@ -35,7 +35,7 @@ import Fallback.Constants
    sidebarWidth, tileHeight, tileWidth)
 import Fallback.Data.Color
 import Fallback.Data.Point
-import Fallback.Data.TotalMap (tmGet)
+import qualified Fallback.Data.TotalMap as TM (get)
 import Fallback.Draw
 import Fallback.Event
 import Fallback.State.Area (AreaCommonState(..), arsParty)
@@ -310,7 +310,7 @@ newMojoBarView = do
                           DryIce -> Tint 0 128 255 255
                           Quicksilver -> Tint 128 128 128 255
             tintRect tint (Rect (16 + 20 * col) (1 + 8 * row) 4 5)
-            paintDigits (tmGet ingredient ingredients)
+            paintDigits (TM.get ingredient ingredients)
                         (LocTopright $ Point (15 + 20 * col) (8 * row))
       zipWithM_ paintIngredient [minBound .. maxBound] [0 ..]
     paintMana party char = do
@@ -343,7 +343,7 @@ newTimeBarView charNum = do
   let
 
     paint cs = do
-      let ccs = tmGet charNum (csCharStates cs)
+      let ccs = TM.get charNum (csCharStates cs)
       case csCommander cs of
         Just cc | ccCharacterNumber cc == charNum ->
           paintPips (ccsActionPoints ccs) (ccActionPointsUsed cc)

@@ -28,7 +28,7 @@ import Data.Maybe (isNothing, listToMaybe)
 
 import Fallback.Data.Color
 import Fallback.Data.Point
-import Fallback.Data.TotalMap (tmGet)
+import qualified Fallback.Data.TotalMap as TM (get)
 import Fallback.Draw
 import Fallback.Scenario.Abilities
   (getAbility, abilityFullDescription, abilityIconCoords)
@@ -127,7 +127,7 @@ newAbilityWidget :: (MonadDraw m) => Resources -> HoverSink TooltipKey
 newAbilityWidget resources tooltipSink abilNum = do
   let maybeFn as = do
         let char = abilsGetCharacter as
-        abilRank <- tmGet abilNum $ chrAbilities char
+        abilRank <- TM.get abilNum $ chrAbilities char
         let abilTag = classAbility (chrClass char) abilNum
         Just ((as, char), (abilTag, abilRank))
   let eitherFn ((as, char), (abilTag, abilRank)) =

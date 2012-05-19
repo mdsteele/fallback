@@ -29,7 +29,7 @@ import Data.Maybe (fromMaybe, isJust, listToMaybe)
 
 import Fallback.Data.Color
 import Fallback.Data.Point
-import Fallback.Data.TotalMap
+import qualified Fallback.Data.TotalMap as TM
 import Fallback.Draw
 import Fallback.Event
 import Fallback.State.Creature (CreatureImages, ciRightStand)
@@ -52,12 +52,12 @@ data NewCharacterSpec = NewCharacterSpec
 
 data NewGameSpec = NewGameSpec
   { ngsDifficulty :: Difficulty,
-    ngsCharacters :: TotalMap CharacterNumber NewCharacterSpec }
+    ngsCharacters :: TM.TotalMap CharacterNumber NewCharacterSpec }
 
 initialNewGameSpec :: NewGameSpec
 initialNewGameSpec = NewGameSpec
   { ngsDifficulty = Casual,
-    ngsCharacters = makeTotalMap $ \charNum ->
+    ngsCharacters = TM.make $ \charNum ->
       case charNum of
         Character0 -> makeNCS "Ellen" WarriorClass
         Character1 -> makeNCS "Aedrus" HunterClass
@@ -112,7 +112,7 @@ data InternalState = InternalState
 
 insSelectedCharacterSpec :: InternalState -> NewCharacterSpec
 insSelectedCharacterSpec ins =
-  tmGet (insSelectedCharacter ins) $ ngsCharacters $ insSpec ins
+  TM.get (insSelectedCharacter ins) $ ngsCharacters $ insSpec ins
 
 insAppearanceTaken :: InternalState -> CharacterClass -> CharacterAppearance
                    -> Bool
@@ -123,7 +123,7 @@ insAppearanceTakenBy :: InternalState -> CharacterClass -> CharacterAppearance
 insAppearanceTakenBy ins cls app =
   find matches $ delete (insSelectedCharacter ins) [minBound .. maxBound]
   where matches charNum =
-          let ncs = tmGet charNum $ ngsCharacters $ insSpec ins
+          let ncs = TM.get charNum $ ngsCharacters $ insSpec ins
           in ncsClass ncs == cls && ncsAppearance ncs == app
 
 insAlterCharacter :: CharacterNumber -> (NewCharacterSpec -> NewCharacterSpec)
@@ -131,8 +131,8 @@ insAlterCharacter :: CharacterNumber -> (NewCharacterSpec -> NewCharacterSpec)
 insAlterCharacter charNum fn ins =
   let ngs = insSpec ins
       chars = ngsCharacters ngs
-      ncs = tmGet charNum chars
-  in ins { insSpec = ngs { ngsCharacters = tmSet charNum (fn ncs) chars } }
+      ncs = TM.get charNum chars
+  in ins { insSpec = ngs { ngsCharacters = TM.set charNum (fn ncs) chars } }
 
 insAlterSelectedCharacter :: (NewCharacterSpec -> NewCharacterSpec)
                           -> InternalState -> InternalState
@@ -141,7 +141,7 @@ insAlterSelectedCharacter fn ins =
 
 insSetCharClass :: InternalState -> CharacterClass -> InternalState
 insSetCharClass ins cls =
-  let getNcs num = tmGet num $ ngsCharacters $ insSpec ins
+  let getNcs num = TM.get num $ ngsCharacters $ insSpec ins
       appear = ncsAppearance $ getNcs (insSelectedCharacter ins)
       unclaimed = filter (not . insAppearanceTaken ins cls)
                          [minBound .. maxBound]
@@ -173,7 +173,7 @@ newCharacterRadio resources charNum = do
   let classFont = rsrcFont resources FontGeorgiaBold10
   let
     paint state = do
-      let charSpec = tmGet charNum $ ngsCharacters $ insSpec state
+      let charSpec = TM.get charNum $ ngsCharacters $ insSpec state
       blitLoc (ciRightStand $ rsrcCharacterImages resources (ncsClass charSpec)
                                                   (ncsAppearance charSpec))
               (LocTopleft (Point 8 10 :: IPoint))

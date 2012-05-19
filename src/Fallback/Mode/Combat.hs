@@ -36,7 +36,7 @@ import Fallback.Constants
    combatCameraOffset, maxActionPoints, momentsPerActionPoint)
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
-import Fallback.Data.TotalMap
+import qualified Fallback.Data.TotalMap as TM
 import Fallback.Draw (handleScreen, paintScreen)
 import Fallback.Event
 import Fallback.Mode.Base
@@ -227,7 +227,7 @@ newCombatMode resources modes initState = do
             CommandPhase cc -> do
               let charNum = ccCharacterNumber cc
               let character = arsGetCharacter charNum cs
-              let ccs = tmGet charNum $ csCharStates cs
+              let ccs = TM.get charNum $ csCharStates cs
               -- Check that we have enough AP to move:
               let apNeeded = if seIsEntangled (chrStatus character)
                              then 2 else 1
@@ -250,7 +250,7 @@ newCombatMode resources modes initState = do
           case csPhase cs of
             CommandPhase cc -> do
               let charNum = ccCharacterNumber cc
-              let ccs = tmGet charNum $ csCharStates cs
+              let ccs = TM.get charNum $ csCharStates cs
               -- Make sure we have enough action points:
               let apNeeded = maxActionPoints
               if not (hasEnoughActionPoints cs cc apNeeded) then ignore else do
@@ -341,7 +341,7 @@ newCombatMode resources modes initState = do
       let cs' = maybe id subtractUsedActionPoints (csCommander cs) cs
       let noWant ccs = ccs { ccsWantsTurn = False }
       changeState cs' { csCharStates =
-                          tmAlter charNum noWant (csCharStates cs'),
+                          TM.adjust charNum noWant (csCharStates cs'),
                         csPhase = CommandPhase CombatCommander
                           { ccActionPointsUsed = 0,
                             ccCharacterNumber = charNum } }
@@ -372,7 +372,7 @@ newCombatMode resources modes initState = do
       let charNum = ccCharacterNumber cc
       let char = arsGetCharacter charNum cs
       fromMaybe ignore $ do
-        abilRank <- tmGet abilNum (chrAbilities char)
+        abilRank <- TM.get abilNum (chrAbilities char)
         case getAbility (chrClass char) abilNum abilRank of
           ActiveAbility originalCost effect -> do
             let cost = modifyCost costMod originalCost
@@ -453,7 +453,7 @@ newCombatMode resources modes initState = do
         putStrLn ("Warning: there are " ++ show (length extraMonsters) ++
                   " extra monsters.")
       Sound.playSound (rsrcSound resources SndCombatEnd)
-      let activeCcs = tmGet activeChar $ csCharStates cs
+      let activeCcs = TM.get activeChar $ csCharStates cs
       ChangeMode <$> newTownMode' modes TownState
         { tsActiveCharacter = activeChar,
           tsCommon = acs',
@@ -503,7 +503,7 @@ doTick cs =
   where
     acs = csCommon cs
     animationsOnly = return (cs', Nothing)
-    cs' = cs { csCharStates = tmMapWithKey tickCcs (csCharStates cs),
+    cs' = cs { csCharStates = TM.mapWithKey tickCcs (csCharStates cs),
                csCommon = tickAnimations camTarget
                                          (arsAllyOccupiedPositions cs) acs }
     tickCcs charNum ccs = ccs
@@ -565,8 +565,8 @@ tickWaiting cs = do
       char { chrStatus = decayStatusEffects baseActionPointsPerFrame
                                             (chrStatus char) }
     tickCharStatesWaiting ccss =
-      makeTotalMap $ \charNum ->
-        tickCharStateWaiting (arsGetCharacter charNum cs) (tmGet charNum ccss)
+      TM.make $ \charNum ->
+        tickCharStateWaiting (arsGetCharacter charNum cs) (TM.get charNum ccss)
 
 doTickExecution :: CombatState -> CombatExecution
                 -> IO (CombatState, Maybe Interrupt)
@@ -649,15 +649,15 @@ executeEffect cs eff sfn =
     EffSetCharPosition charNum pos -> do
       let setPos ccs = ccs { ccsPosition = pos }
       cs' <- updateCombatVisibility cs
-               { csCharStates = tmAlter charNum setPos (csCharStates cs) }
+               { csCharStates = TM.adjust charNum setPos (csCharStates cs) }
       return (cs', sfn (), Nothing)
 
 -------------------------------------------------------------------------------
 
-ccssCharThatWantsATurn :: TotalMap CharacterNumber CombatCharState
+ccssCharThatWantsATurn :: TM.TotalMap CharacterNumber CombatCharState
                        -> Party -> Maybe CharacterNumber
 ccssCharThatWantsATurn ccss party =
-  let fn charNum = ccsWantsTurn (tmGet charNum ccss) &&
+  let fn charNum = ccsWantsTurn (TM.get charNum ccss) &&
                    chrCanTakeTurn (partyGetCharacter party charNum)
   in find fn [minBound .. maxBound]
 

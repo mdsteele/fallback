@@ -26,7 +26,7 @@ import Control.Applicative ((<$>))
 import Fallback.Constants (sidebarWidth)
 import Fallback.Data.Color (Tint(Tint))
 import Fallback.Data.Point
-import Fallback.Data.TotalMap (tmGet)
+import qualified Fallback.Data.TotalMap as TM (get)
 import Fallback.Draw
 import Fallback.Event
 import Fallback.State.Area
@@ -184,7 +184,7 @@ paintCharacters resources cameraTopleft cs =
     paintChar charNum = do
       let char = arsGetCharacter charNum cs
       if not (chrIsConscious char) then return () else do
-      let ccs = tmGet charNum $ csCharStates cs
+      let ccs = TM.get charNum $ csCharStates cs
       let pos = ccsPosition ccs
       let pose = ccsPose ccs
       let sprite =

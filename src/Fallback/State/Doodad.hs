@@ -32,7 +32,7 @@ import Data.Maybe (fromMaybe, mapMaybe)
 
 import Fallback.Constants (secondsPerFrame)
 import Fallback.Data.Point
-import Fallback.Data.TotalMap (TotalMap, makeTotalMap, tmAlter, tmGet)
+import qualified Fallback.Data.TotalMap as TM
 import Fallback.Draw
 import Fallback.State.Resources
   (Resources, WordTag, rsrcDigitsStripBig, rsrcWordSprite)
@@ -67,12 +67,12 @@ makeFloater fn = Floater { flCount = 0, flLimit = 30, flPaint = fn }
 -------------------------------------------------------------------------------
 
 data Doodads = Doodads
-   { dsDoodads :: TotalMap DoodadHeight [Doodad],
+   { dsDoodads :: TM.TotalMap DoodadHeight [Doodad],
      dsFloaters :: Map.Map PRect [Floater] }
 
 emptyDoodads :: Doodads
 emptyDoodads = Doodads
-  { dsDoodads = makeTotalMap (const []),
+  { dsDoodads = TM.make (const []),
     dsFloaters = Map.empty }
 
 tickDoodads :: Doodads -> Doodads
@@ -91,7 +91,7 @@ tickDoodads ds = ds { dsDoodads = doodads', dsFloaters = floaters' } where
 paintDoodads :: IPoint -> DoodadHeight -> Doodads -> Paint ()
 paintDoodads cameraTopleft dh ds = do
   let paintDoodad d = doodadPaint d (doodadCountdown d - 1) cameraTopleft
-  mapM_ paintDoodad $ tmGet dh $ dsDoodads ds
+  mapM_ paintDoodad $ TM.get dh $ dsDoodads ds
   when (dh == HighDood) $ do
     forM_ (Map.assocs $ dsFloaters ds) $ \(prect, floaters) -> do
       let Point cx cy = rectCenter (prectRect prect) `pSub` cameraTopleft
@@ -99,8 +99,8 @@ paintDoodads cameraTopleft dh ds = do
         flPaint floater $ Point cx (cy - flCount floater)
 
 appendDoodad :: Doodad -> Doodads -> Doodads
-appendDoodad doodad ds =
-  ds { dsDoodads = tmAlter (doodadHeight doodad) (++ [doodad]) (dsDoodads ds) }
+appendDoodad doodad ds = ds { dsDoodads =
+  TM.adjust (doodadHeight doodad) (++ [doodad]) (dsDoodads ds) }
 
 appendFloatingWord :: Resources -> WordTag -> PRect -> Doodads -> Doodads
 appendFloatingWord resources wordTag = appendFloater floater where

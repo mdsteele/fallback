@@ -39,7 +39,7 @@ import Fallback.Data.Point
   (Point(Point), Position, half, makeRect, ofRadius, plusDir, pSqDist, pSub,
    rectContains)
 import qualified Fallback.Data.SparseMap as SM
-import Fallback.Data.TotalMap (tmGet, unfoldTotalMap)
+import qualified Fallback.Data.TotalMap as TM (get, unfold)
 import Fallback.Draw (handleScreen, paintScreen)
 import Fallback.Event
 import Fallback.Mode.Base
@@ -196,7 +196,7 @@ newTownMode resources modes initState = do
                   let charNum = tsActiveCharacter ts
                   let char = partyGetCharacter party charNum
                   fromMaybe ignore $ do
-                    abilRank <- tmGet abilNum (chrAbilities char)
+                    abilRank <- TM.get abilNum (chrAbilities char)
                     case getAbility (chrClass char) abilNum abilRank of
                       ActiveAbility cost effect -> do
                         guard (partyCanAffordCastingCost charNum cost party)
@@ -255,7 +255,7 @@ newTownMode resources modes initState = do
                 BuyIngredient quantity ing -> do
                   if isJust mbItemTag then ignore else do
                   let party = arsParty ts
-                  if quantity + tmGet ing (partyIngredients party) >
+                  if quantity + TM.get ing (partyIngredients party) >
                      partyMaxIngredientCount party then ignore else do
                   tryBuy ts (toInteger quantity * ingredientCost ing)
                          (partyGrantIngredient quantity ing)
@@ -442,7 +442,7 @@ newTownMode resources modes initState = do
       ChangeMode <$> newCombatMode' modes CombatState
         { csArenaTopleft = arenaTopleft,
           csCommon = acs',
-          csCharStates = unfoldTotalMap mkCharState Set.empty,
+          csCharStates = TM.unfold mkCharState Set.empty,
           csMonstersNotInArena = otherMonsts,
           csPeriodicTimer = 0,
           csPhase = WaitingPhase,

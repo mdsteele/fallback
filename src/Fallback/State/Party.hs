@@ -31,7 +31,7 @@ import qualified Data.Set as Set
 import Fallback.Constants (experiencePerLevel, maxExperience)
 import Fallback.Data.Point (Position)
 import qualified Fallback.Data.SparseMap as SM
-import Fallback.Data.TotalMap
+import qualified Fallback.Data.TotalMap as TM
 import Fallback.State.Item
 import Fallback.State.Simple
 import Fallback.State.Status (StatusEffects, seMentalEffect)
@@ -43,7 +43,7 @@ import Fallback.State.Progress (HasProgress(..), Progress)
 -------------------------------------------------------------------------------
 
 data Party = Party
-  { partyCharacters :: TotalMap CharacterNumber Character,
+  { partyCharacters :: TM.TotalMap CharacterNumber Character,
     partyClearedAreas :: Set.Set AreaTag,
     partyCoins :: Integer,
     partyCurrentArea :: AreaTag,
@@ -68,12 +68,12 @@ partyClearedArea :: Party -> AreaTag -> Bool
 partyClearedArea party node = Set.member node $ partyClearedAreas party
 
 partyGetCharacter :: Party -> CharacterNumber -> Character
-partyGetCharacter party charNum = tmGet charNum $ partyCharacters party
+partyGetCharacter party charNum = TM.get charNum $ partyCharacters party
 
 partyAlterCharacter :: CharacterNumber -> (Character -> Character)
                     -> Party -> Party
 partyAlterCharacter charNum fn party =
-  party { partyCharacters = tmAlter charNum fn $ partyCharacters party }
+  party { partyCharacters = TM.adjust charNum fn $ partyCharacters party }
 
 partyExploredMap :: Terrain -> Party -> ExploredMap
 partyExploredMap terrain party =
@@ -116,7 +116,7 @@ partyDeductCastingCost charNum cost party =
       in partyAlterCharacter charNum fn party
     NoCost -> party
 
-numIngredientUsers :: TotalMap CharacterNumber Character -> Int
+numIngredientUsers :: TM.TotalMap CharacterNumber Character -> Int
 numIngredientUsers = Fold.sum . fmap (usesIngredients . chrClass) where
   usesIngredients HunterClass = 1
   usesIngredients AlchemistClass = 1
@@ -143,7 +143,7 @@ partySpendUpgrades :: (SM.SparseMap (CharacterNumber, Stat) Int)
                    -> (SM.SparseMap (CharacterNumber, AbilityNumber) Int)
                    -> Party -> Party
 partySpendUpgrades st sk party = party' where
-  party' = party { partyCharacters = tmMapWithKey upgradeChar $
+  party' = party { partyCharacters = TM.mapWithKey upgradeChar $
                                      partyCharacters party }
   upgradeChar charNum char = char' where
     char' = char { chrAbilities = abilities',
@@ -153,8 +153,8 @@ partySpendUpgrades st sk party = party' where
     skillDelta abilNum = SM.get (charNum, abilNum) sk
     statDelta stat = SM.get (charNum, stat) st
     abilities' = abilityRankPlus <$> chrAbilities char <*>
-                 makeTotalMap skillDelta
-    baseStats' = (+) <$> chrBaseStats char <*> makeTotalMap statDelta
+                 TM.make skillDelta
+    baseStats' = (+) <$> chrBaseStats char <*> TM.make statDelta
     skillPoints' = chrSkillPoints char -
                    (sum $ map skillDelta [minBound .. maxBound])
     statPoints' = chrStatPoints char -
@@ -183,7 +183,7 @@ partyTryExchangeItem slot mbTag party =
                                  Nothing -> IntMap.delete index items
       in Just (IntMap.lookup index items, party { partyItems = items' })
   where
-    tryEquip :: CharacterNumber -> (a -> TotalMap CharacterClass Bool)
+    tryEquip :: CharacterNumber -> (a -> TM.TotalMap CharacterClass Bool)
              -> (Equipment -> Maybe ItemTag)
              -> (Equipment -> Maybe a -> Equipment)
              -> (ItemTag -> Maybe a) -> Maybe (Maybe ItemTag, Party)
@@ -193,7 +193,7 @@ partyTryExchangeItem slot mbTag party =
                       Nothing -> Just Nothing
                       Just tag -> do
                         tag' <- fromItemTag tag
-                        guard $ tmGet (chrClass char) $ usableFn tag'
+                        guard $ TM.get (chrClass char) $ usableFn tag'
                         Just (Just tag')
       let eqp = chrEquipment char
       Just (getFn eqp, partyAlterCharacter charNum
@@ -217,7 +217,7 @@ partyGrantExperience xp party =
                             chrBaseStats char,
              chrSkillPoints = chrSkillPoints char + levels,
              chrStatPoints = chrStatPoints char + 2 * levels }
-    chrStatDeltas char levels = fmap (levels *) $ makeTotalMap $ statOf $
+    chrStatDeltas char levels = fmap (levels *) $ TM.make $ statOf $
       case chrClass char of
         WarriorClass -> (3, 2, 1)
         RogueClass -> (1, 3, 2)
@@ -231,7 +231,7 @@ partyGrantExperience xp party =
 
 partyGrantIngredient :: Int -> Ingredient -> Party -> Party
 partyGrantIngredient n ingredient party =
-  party { partyIngredients = tmAlter ingredient fn (partyIngredients party) }
+  party { partyIngredients = TM.adjust ingredient fn (partyIngredients party) }
   where fn = max 0 . min (partyMaxIngredientCount party) . (+ n)
 
 -- | Add an item to the first open slot in the party inventory.
@@ -270,7 +270,7 @@ partyPurgeItem tag party =
 -------------------------------------------------------------------------------
 
 data Character = Character
-  { chrAbilities :: TotalMap AbilityNumber (Maybe AbilityRank),
+  { chrAbilities :: TM.TotalMap AbilityNumber (Maybe AbilityRank),
     chrAdrenaline :: Int,
     chrAppearance :: CharacterAppearance,
     chrBaseStats :: Stats,
@@ -287,7 +287,7 @@ data Character = Character
 chrAbilityRank :: AbilityTag -> Character -> Maybe AbilityRank
 chrAbilityRank tag char =
   let (cls, num) = abilityClassAndNumber tag
-  in if cls /= chrClass char then Nothing else tmGet num $ chrAbilities char
+  in if cls /= chrClass char then Nothing else TM.get num $ chrAbilities char
 
 chrAbilityMultiplier :: AbilityTag -> Double -> Double -> Double -> Character
                      -> Double
@@ -383,22 +383,22 @@ chrResistances char =
   let stats = chrStats char
       -- TODO: take relevant passive skills into account
       baseResist Armor = chrAbilityMultiplier Hardiness 0.97 0.94 0.90 char
-      baseResist ResistFire = 0.9975 ^^ tmGet Strength stats
-      baseResist ResistCold = 0.9975 ^^ tmGet Agility stats
-      baseResist ResistEnergy = 0.9975 ^^ tmGet Intellect stats
+      baseResist ResistFire = 0.9975 ^^ TM.get Strength stats
+      baseResist ResistCold = 0.9975 ^^ TM.get Agility stats
+      baseResist ResistEnergy = 0.9975 ^^ TM.get Intellect stats
       baseResist ResistChemical =
-        0.9966 ^^ tmGet Strength stats *
+        0.9966 ^^ TM.get Strength stats *
         chrAbilityMultiplier Immunity 0.9 0.8 0.6 char
       baseResist ResistMental =
-        0.9966 ^^ tmGet Intellect stats *
+        0.9966 ^^ TM.get Intellect stats *
         chrAbilityMultiplier Clarity 0.8 0.6 0.3 char
-      baseResist ResistStun = 0.9966 ^^ tmGet Agility stats
-  in (*) <$> makeTotalMap baseResist <*> bonusResistances (chrBonuses char)
+      baseResist ResistStun = 0.9966 ^^ TM.get Agility stats
+  in (*) <$> TM.make baseResist <*> bonusResistances (chrBonuses char)
 
 -- | Get the specified resistance value for a character (including item
 -- bonuses).
 chrGetResistance :: Resistance -> Character -> Double
-chrGetResistance resist char = tmGet resist $ chrResistances char
+chrGetResistance resist char = TM.get resist $ chrResistances char
 
 -- | Get the total value of all stats for a character (including item bonuses).
 chrStats :: Character -> Stats
@@ -407,8 +407,8 @@ chrStats char = (+) <$> chrBaseStats char <*> (bonusStats $ chrBonuses char)
 -- | Get the total value of a stat for a character (including item bonuses).
 chrGetStat :: Stat -> Character -> Int
 chrGetStat stat char =
-  tmGet stat (chrBaseStats char) +
-  (sum $ map (tmGet stat . bonusStats) $ chrBonusesList char)
+  TM.get stat (chrBaseStats char) +
+  (sum $ map (TM.get stat . bonusStats) $ chrBonusesList char)
 
 -- | Get the speed multiplier for a character, taking skills and item bonuses
 -- into account.

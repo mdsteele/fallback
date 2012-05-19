@@ -24,7 +24,7 @@ import Data.Ix (Ix)
 import Data.List (intercalate)
 
 import Fallback.Data.Point
-import Fallback.Data.TotalMap (TotalMap, makeTotalMap, tmAssocs)
+import qualified Fallback.Data.TotalMap as TM
 import Fallback.Utility (ceilDiv)
 
 -------------------------------------------------------------------------------
@@ -130,7 +130,7 @@ costDescription (AdrenalineCost n) = "Cost: " ++ show n ++ " adrenaline"
 costDescription (FocusCost n) = "Cost: " ++ show n ++ " focus"
 costDescription (IngredientCost ings) =
   ("Cost: " ++) $ intercalate " + " $ map ingredientString $
-  filter ((0 /=) . snd) $ tmAssocs ings
+  filter ((0 /=) . snd) $ TM.assocs ings
   where ingredientString (ing, n) =
           (if n == 1 then "" else show n ++ " ") ++
           map toLower (ingredientName ing)
@@ -222,7 +222,7 @@ data Ingredient = AquaVitae | Naphtha | Limestone | Mandrake
                 | Potash | Brimstone | DryIce | Quicksilver
   deriving (Bounded, Enum, Eq, Ix, Ord, Read, Show)
 
-type Ingredients = TotalMap Ingredient Int
+type Ingredients = TM.TotalMap Ingredient Int
 
 ingredientName :: Ingredient -> String
 ingredientName AquaVitae = "Aqua Vitae"
@@ -277,11 +277,11 @@ data Resistance = Armor | ResistFire | ResistCold | ResistEnergy
                 | ResistChemical | ResistMental | ResistStun
   deriving (Bounded, Enum, Eq, Ix, Ord)
 
-type Resistances = TotalMap Resistance Double
+type Resistances = TM.TotalMap Resistance Double
 
 -- | No resistances (or vulnerabilities) to anything.
 nullResistances :: Resistances
-nullResistances = makeTotalMap (const 1)
+nullResistances = TM.make (const 1)
 
 -------------------------------------------------------------------------------
 
@@ -299,11 +299,11 @@ statDescription Intellect = "Intellect determines your maximum mana/focus, the\
   \ power of your spells, and your chances of landing a critical hit with a\
   \ weapon.  It also helps you to resist energy damage and mental effects."
 
-type Stats = TotalMap Stat Int
+type Stats = TM.TotalMap Stat Int
 
 -- | Zero for all stats.
 nullStats :: Stats
-nullStats = makeTotalMap (const 0)
+nullStats = TM.make (const 0)
 
 -------------------------------------------------------------------------------
 

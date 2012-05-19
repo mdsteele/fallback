@@ -24,7 +24,7 @@ where
 import Control.Monad (when)
 
 import Fallback.Data.Point
-import Fallback.Data.TotalMap (tmGet)
+import qualified Fallback.Data.TotalMap as TM (get)
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Globals (Globals(..), signRadius)
@@ -88,7 +88,7 @@ compileTragorda globals = compileArea Tragorda Nothing $ do
         convChoice (return ()) "\"We're all set, thank you.\"  (Leave.)"
         whenP (questActive DryIceForLucca) $ do
           ings <- areaGet (partyIngredients . arsParty)
-          when (tmGet DryIce ings > 0) $ do
+          when (TM.get DryIce ings > 0) $ do
             convChoice giveIce "\"We found some dry ice for you.\"  (Give.)"
         convChoice whereFrom "\"Where do your ingredients come from?\""
         convChoice doShop "\"Let's see what you've got for sale.  (Shop.)\""

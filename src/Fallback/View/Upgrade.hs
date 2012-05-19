@@ -27,7 +27,7 @@ import Control.Monad (zipWithM)
 import Fallback.Data.Color
 import Fallback.Data.Point
 import qualified Fallback.Data.SparseMap as SM
-import Fallback.Data.TotalMap (tmGet)
+import qualified Fallback.Data.TotalMap as TM (get)
 import Fallback.Draw
 import Fallback.Event (Key(..))
 import Fallback.Scenario.Abilities
@@ -127,7 +127,7 @@ newStatWidget resources upgradeSink stat = do
               Agility -> "Agility:"
               Intellect -> "Intellect:"
   let getStatValue ups =
-        (tmGet stat $ chrStats $ upsGetCharacter ups) +
+        (TM.get stat $ chrStats $ upsGetCharacter ups) +
         SM.get (upsActiveCharacter ups, stat) (upsSpentStats ups)
   let plusFn ups =
         if chrStatPoints (upsGetCharacter ups) > upsStatPointsSpent ups
@@ -154,7 +154,7 @@ newAbilityWidget resources upgradeSink abilNum = do
         let party = upsParty ups
         let char = partyGetCharacter party (upsActiveCharacter ups)
         let abilTag = classAbility (chrClass char) abilNum
-        let mbRank = tmGet abilNum $ chrAbilities char
+        let mbRank = TM.get abilNum $ chrAbilities char
         let available =
               mbRank /= Just maxBound &&
               partyLevel party >=
@@ -169,8 +169,8 @@ newAbilityWidget resources upgradeSink abilNum = do
             char = partyGetCharacter party charNum
             abilTag = classAbility (chrClass char) abilNum
             spentOn n = SM.get (charNum, n) (upsSpentSkills ups)
-            curRank = abilityRankPlus (tmGet abilNum $ chrAbilities char)
-                                        (spentOn abilNum)
+            curRank = abilityRankPlus (TM.get abilNum $ chrAbilities char)
+                                      (spentOn abilNum)
         in if curRank /= Just maxBound &&
               partyLevel party >=
               abilityMinPartyLevel abilTag (nextAbilityRank curRank) &&
@@ -210,8 +210,8 @@ newAbilityInfoView resources upgradeRef = do
             let char = upsGetCharacter ups
             let abilTag = classAbility (chrClass char) abilNum
             let spentOn n = SM.get (charNum, n) (upsSpentSkills ups)
-            let curRank = abilityRankPlus (tmGet abilNum $ chrAbilities char)
-                                            (spentOn abilNum)
+            let curRank = abilityRankPlus (TM.get abilNum $ chrAbilities char)
+                                          (spentOn abilNum)
             return $ Just $ abilityUpgradeDescription abilTag curRank $
                      partyLevel $ upsParty ups
           _ -> return Nothing

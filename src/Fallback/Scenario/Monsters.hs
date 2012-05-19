@@ -24,7 +24,7 @@ where
 import Control.Applicative (liftA2)
 import Data.List (foldl')
 
-import Fallback.Data.TotalMap (tmSet)
+import qualified Fallback.Data.TotalMap as TM (set)
 import Fallback.State.Area (Monster(..))
 import Fallback.State.Creature
 import Fallback.State.Simple
@@ -319,7 +319,7 @@ rogueillusion = baseMonsterType
     mtSpeed = 1.5 }
 
 (=%) :: Resistance -> Double -> Resistances
-(=%) resist n = tmSet resist ((100 - n) / 100) nullResistances
+(=%) resist n = TM.set resist ((100 - n) / 100) nullResistances
 
 resistances :: [Resistances] -> Resistances
 resistances = foldl' (liftA2 (*)) nullResistances

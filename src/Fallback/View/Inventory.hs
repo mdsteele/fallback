@@ -32,7 +32,7 @@ import Fallback.Constants (cameraHeight, cameraWidth, maxAdrenaline)
 import Fallback.Data.Clock (Clock)
 import Fallback.Data.Color
 import Fallback.Data.Point
-import Fallback.Data.TotalMap (tmGet)
+import qualified Fallback.Data.TotalMap as TM (get)
 import Fallback.Draw
 import Fallback.Event
 import Fallback.State.Area (AreaState, arsClock, arsParty)
@@ -284,7 +284,7 @@ newIngredientSlotWidget :: (MonadDraw m) => Resources -> HoverSink Tooltip
                         -> Ingredient -> m (View Party a)
 newIngredientSlotWidget resources tooltipSink ing = do
   let paint party = do
-        let count = tmGet ing $ partyIngredients party
+        let count = TM.get ing $ partyIngredients party
         rect <- canvasRect
         drawBevelRect (Tint 0 0 0 50) 4 rect
         blitLocTinted (if count == 0 then Tint 255 255 255 64 else whiteTint)
@@ -311,9 +311,9 @@ newCharStatsView resources cursorSink tooltipSink = do
   let makeStat str stat pt = compoundView [
         (vmap (const str) $ makeLabel_ infoFont blackColor $
          LocTopright (pt :: IPoint)),
-        (vmap (show . tmGet stat . fst) $
+        (vmap (show . TM.get stat . fst) $
          makeLabel_ infoFont blackColor $ LocTopright pt'),
-        (vmap (bonusFn . tmGet stat . snd) $
+        (vmap (bonusFn . TM.get stat . snd) $
          makeLabel_ infoFont (Color 192 0 0) $ LocTopleft pt')]
         where pt' = pt `pAdd` Point 26 0
               bonusFn b = if b > 0 then " + " ++ show b
@@ -336,7 +336,7 @@ newCharStatsView resources cursorSink tooltipSink = do
           MagusClass -> Just ("Mana:", party, char)
   let makeResist str resist pt =
         makeInfo str ((\p -> show (round (100 * (1 - p)) :: Int) ++ "%") .
-                      tmGet resist) pt 30
+                      TM.get resist) pt 30
   let upgradeFn ivs = if (chrStatPoints $ ivsGetCharacter ivs) > 0
                       then Just (ivsClock ivs) else Nothing
   let resistancesTop = 230

@@ -31,7 +31,7 @@ import Fallback.Constants
 import Fallback.Control.Script (Script)
 import qualified Fallback.Data.Grid as Grid (Grid)
 import Fallback.Data.Point
-import Fallback.Data.TotalMap (TotalMap, tmAlter, tmAssocs, tmGet)
+import qualified Fallback.Data.TotalMap as TM
 import Fallback.State.Area
 import Fallback.State.Creature (CreaturePose)
 import Fallback.State.Doodad (makeMessage)
@@ -61,7 +61,7 @@ Combat ends if:
 
 data CombatState = CombatState
   { csArenaTopleft :: Position,
-    csCharStates :: TotalMap CharacterNumber CombatCharState,
+    csCharStates :: TM.TotalMap CharacterNumber CombatCharState,
     csCommon :: AreaCommonState,
     csMonstersNotInArena :: Grid.Grid Monster,
     csPeriodicTimer :: Int,
@@ -72,7 +72,7 @@ data CombatState = CombatState
 instance AreaState CombatState where
   arsBoundaryRect cs =
     makeRect (csArenaTopleft cs) (combatArenaCols, combatArenaRows)
-  arsCharacterPosition charNum = ccsPosition . tmGet charNum . csCharStates
+  arsCharacterPosition charNum = ccsPosition . TM.get charNum . csCharStates
   arsCharacterAtPosition pos cs =
     let present charNum = arsCharacterPosition charNum cs == pos &&
                           chrIsConscious (arsGetCharacter charNum cs)
@@ -82,9 +82,9 @@ instance AreaState CombatState where
   arsPartyPositions cs =
     map (ccsPosition . snd) $
     filter (chrIsConscious . (partyGetCharacter $ arsParty cs) . fst) $
-    tmAssocs $ csCharStates cs
+    TM.assocs $ csCharStates cs
   arsUpdateVisibility = updateCombatVisibility
-  arsVisibleForCharacter charNum = ccsVisible . tmGet charNum . csCharStates
+  arsVisibleForCharacter charNum = ccsVisible . TM.get charNum . csCharStates
 
 instance HasProgress CombatState where
   getProgress = getProgress . acsParty . csCommon
@@ -95,7 +95,7 @@ instance HasProgress CombatState where
 csAlterCharState :: CharacterNumber -> (CombatCharState -> CombatCharState)
                  -> CombatState -> CombatState
 csAlterCharState charNum fn cs =
-  cs { csCharStates = tmAlter charNum fn (csCharStates cs) }
+  cs { csCharStates = TM.adjust charNum fn (csCharStates cs) }
 
 csSetMessage :: String -> CombatState -> CombatState
 csSetMessage text cs =
@@ -120,12 +120,12 @@ csCharCanTakeTurn cs charNum =
   ccsActionPoints (csGetCharState cs charNum) >= 1
 
 csGetCharState :: CombatState -> CharacterNumber -> CombatCharState
-csGetCharState cs charNum = tmGet charNum (csCharStates cs)
+csGetCharState cs charNum = TM.get charNum (csCharStates cs)
 
 hasEnoughActionPoints :: CombatState -> CombatCommander -> Int -> Bool
 hasEnoughActionPoints cs cc apNeeded =
   let charNum = ccCharacterNumber cc
-      startingAp = ccsActionPoints $ tmGet charNum $ csCharStates cs
+      startingAp = ccsActionPoints $ TM.get charNum $ csCharStates cs
       usedAp = ccActionPointsUsed cc
   in if startingAp >= maxActionPoints
      then usedAp < maxActionPoints

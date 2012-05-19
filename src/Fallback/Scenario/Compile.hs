@@ -53,7 +53,7 @@ import qualified Data.Set as Set
 import qualified Fallback.Data.Grid as Grid (Entry)
 import Fallback.Data.Point (Position, PRect, pZero, rectContains)
 import qualified Fallback.Data.SparseMap as SM
-import Fallback.Data.TotalMap
+import qualified Fallback.Data.TotalMap as TM
 import Fallback.Scenario.Monsters (makeMonster)
 import Fallback.Scenario.Script
 import Fallback.State.Area
@@ -68,9 +68,9 @@ import Fallback.State.Town (TownState)
 -- Reading the scenario:
 
 data ScenarioTriggers = ScenarioTriggers
-  { scenarioAreas :: TotalMap AreaTag AreaSpec,
+  { scenarioAreas :: TM.TotalMap AreaTag AreaSpec,
     scenarioInitialProgress :: Progress,
-    scenarioRegionBackgrounds :: TotalMap RegionTag (Party -> String) }
+    scenarioRegionBackgrounds :: TM.TotalMap RegionTag (Party -> String) }
 
 data AreaSpec = AreaSpec
   { aspecDevices :: Map.Map DeviceId Device,
@@ -82,32 +82,32 @@ data AreaSpec = AreaSpec
 
 getAreaDevice :: ScenarioTriggers -> AreaTag -> DeviceId -> Maybe Device
 getAreaDevice scenario tag di =
-  Map.lookup di $ aspecDevices $ tmGet tag $ scenarioAreas scenario
+  Map.lookup di $ aspecDevices $ TM.get tag $ scenarioAreas scenario
 
 getAreaEntrance :: ScenarioTriggers -> AreaTag -> AreaTag -> Position
 getAreaEntrance scenario tag from =
-  Map.findWithDefault pZero from $ aspecEntrances $ tmGet tag $
+  Map.findWithDefault pZero from $ aspecEntrances $ TM.get tag $
   scenarioAreas scenario
 
 getAreaExits :: ScenarioTriggers -> AreaTag -> [AreaExit]
-getAreaExits scenario tag = aspecExits $ tmGet tag $ scenarioAreas scenario
+getAreaExits scenario tag = aspecExits $ TM.get tag $ scenarioAreas scenario
 
 getAreaLinks :: ScenarioTriggers -> AreaTag -> [AreaTag]
 getAreaLinks scenario tag =
-  Map.keys $ aspecEntrances $ tmGet tag $ scenarioAreas scenario
+  Map.keys $ aspecEntrances $ TM.get tag $ scenarioAreas scenario
 
 getAreaTerrain :: ScenarioTriggers -> Party -> AreaTag -> String
 getAreaTerrain scenario party tag =
-  aspecTerrain (tmGet tag (scenarioAreas scenario)) party
+  aspecTerrain (TM.get tag (scenarioAreas scenario)) party
 
 getAreaTriggers :: ScenarioTriggers -> AreaTag
                 -> [Trigger TownState TownEffect]
 getAreaTriggers scenario tag =
-  aspecTriggers $ tmGet tag $ scenarioAreas scenario
+  aspecTriggers $ TM.get tag $ scenarioAreas scenario
 
 getRegionBackground :: ScenarioTriggers -> Party -> RegionTag -> String
 getRegionBackground scenario party tag =
-  tmGet tag (scenarioRegionBackgrounds scenario) party
+  TM.get tag (scenarioRegionBackgrounds scenario) party
 
 -------------------------------------------------------------------------------
 -- Defining the scenario:
@@ -135,8 +135,8 @@ compileScenario (CompileScenario compile) =
                     -- TODO Verify symmetry of links
       getRegion tag = fromMaybe (error $ "Missing region: " ++ show tag) $
                       Map.lookup tag $ cssRegions css
-  in ScenarioTriggers { scenarioAreas = makeTotalMap getArea,
-                        scenarioRegionBackgrounds = makeTotalMap getRegion,
+  in ScenarioTriggers { scenarioAreas = TM.make getArea,
+                        scenarioRegionBackgrounds = TM.make getRegion,
                         scenarioInitialProgress = cssProgress css }
 
 newGlobalVar :: (VarType a) => VarSeed -> a -> CompileScenario (Var a)

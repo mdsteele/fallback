@@ -17,20 +17,28 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
+-- | An implementation of total maps from keys to values, with constant-time
+-- access and guarantees against divergence.
+--
+-- Since some function names clash with "Prelude" names, this module is usually
+-- imported @qualified@, e.g.
+--
+-- >  import qualified Fallback.Data.TotalMap as TM
+
 module Fallback.Data.TotalMap
   (-- * TotalMap type
    TotalMap,
    -- * Construction
-   makeTotalMap, makeTotalMapA, makeTotalMapM, listTotalMap, unfoldTotalMap,
-   tmMapWithKey,
+   make, makeA, makeM, fromList, unfold, mapWithKey,
    -- * Operations
-   tmGet, tmSet, tmAlter, tmAssocs)
+   get, set, adjust, assocs)
 where
 
 import Control.Applicative ((<$>), (<*>), Applicative, pure)
 import Control.Exception (assert)
 import Control.Monad.ST (runST)
-import Data.Array ((!), (//), Array, Ix, assocs, inRange, listArray, range)
+import Data.Array ((!), (//), Array, Ix, inRange, listArray, range)
+import qualified Data.Array as Array (assocs)
 import qualified Data.Foldable as Fold
 import Data.STRef (newSTRef, readSTRef, writeSTRef)
 import qualified Data.Traversable as Trav
@@ -47,27 +55,34 @@ import qualified Text.Read as Read
 -- An earlier implementation of this datatype used the 'Enum' typeclass in
 -- place of 'Ix'; using 'Ix' has the advantage that tuples (of other valid key
 -- types) can be used as the key type for a 'TotalMap'.
+--
+-- Note: 'TotalMap's are intended for use with key types that are fairly small
+-- enumerations (or tuples of several small enumerations).  Although the type
+-- system would allow one to create a 'TotalMap' with, say, 'Char' or 'Int' as
+-- the key type, doing so is probably a very bad idea (and will likely OOM your
+-- program).  If you need a total mapping over a large key space, consider
+-- using "Fallback.Data.SparseMap" instead.
 newtype TotalMap k a = TotalMap (Array k a)
   deriving (Eq, Ord)
 
 instance (Bounded k, Ix k, Read a) => Read (TotalMap k a) where
   readPrec = Read.parens $ Read.prec 10 $ do
-    Read.Ident "listTotalMap" <- Read.lexP
+    Read.Ident "fromList" <- Read.lexP
     xs <- Read.readPrec
-    return (listTotalMap xs)
+    return (fromList xs)
 
 instance (Bounded k, Ix k, Show a) => Show (TotalMap k a) where
   showsPrec p tm = showParen (p > appPrec) $
-                   showString "listTotalMap " .
+                   showString "fromList " .
                    showsPrec (appPrec + 1) (Fold.toList tm)
     where appPrec = 10
 
 instance (Bounded k, Ix k) => Functor (TotalMap k) where
-  fmap fn tm = makeTotalMap $ \k -> fn (tmGet k tm)
+  fmap fn tm = make $ \k -> fn (get k tm)
 
 instance (Bounded k, Ix k) => Applicative (TotalMap k) where
-  pure = makeTotalMap . const
-  tm1 <*> tm2 = makeTotalMap $ \k -> (tmGet k tm1) (tmGet k tm2)
+  pure = make . const
+  tm1 <*> tm2 = make $ \k -> (get k tm1) (get k tm2)
 
 instance (Bounded k, Ix k) => Fold.Foldable (TotalMap k) where
   foldr fn start (TotalMap arr) = Fold.foldr fn start arr
@@ -79,69 +94,72 @@ instance (Bounded k, Ix k) => Trav.Traversable (TotalMap k) where
 
 -- | Create a new 'TotalMap' with each item initialized by applying the
 -- function to the corresponding key.  This function is strict in the return
--- values of the function passed (to ensure that 'tmGet' never evaluates to
+-- values of the function passed (to ensure that 'get' never evaluates to
 -- bottom).
-makeTotalMap :: (Bounded k, Ix k) => (k -> a) -> TotalMap k a
-makeTotalMap fn = unsafeFromList $ map fn $ range (minBound, maxBound)
+make :: (Bounded k, Ix k) => (k -> a) -> TotalMap k a
+make fn = unsafeFromList $ map fn $ range (minBound, maxBound)
 
--- | Like 'makeTotalMap', but allows the passed function to have side effects
+-- | Like 'make', but allows the passed function to have side effects
 -- (within an arbitrary applicative functor).  The side effects are sequenced
 -- in the 'Ix' order of the keys.
-makeTotalMapA :: (Bounded k, Ix k, Applicative f) => (k -> f a)
+makeA :: (Bounded k, Ix k, Applicative f) => (k -> f a)
               -> f (TotalMap k a)
-makeTotalMapA fn =
+makeA fn =
   fmap unsafeFromList $ Trav.traverse fn $ range (minBound, maxBound)
 
--- | Like 'makeTotalMap', but allows the passed function to have side effects
+-- | Like 'make', but allows the passed function to have side effects
 -- (within an arbitrary monad).  The side effects are sequenced in the 'Ix'
 -- order of the keys.
-makeTotalMapM :: (Bounded k, Ix k, Monad m) => (k -> m a) -> m (TotalMap k a)
-makeTotalMapM fn = do
+makeM :: (Bounded k, Ix k, Monad m) => (k -> m a) -> m (TotalMap k a)
+makeM fn = do
   values <- mapM fn $ range (minBound, maxBound)
   return (unsafeFromList values)
 
 -- | Build a 'TotalMap' by associating list values with respective keys in 'Ix'
 -- order.  Extra list items are ignored if the list is too long; this function
 -- diverges if the list is too short.
-listTotalMap :: (Bounded k, Ix k) => [a] -> TotalMap k a
-listTotalMap = unfoldTotalMap fn where
+fromList :: (Bounded k, Ix k) => [a] -> TotalMap k a
+fromList = unfold fn where
   fn _ (b : bs) = (b, bs)
-  fn _ [] = error "listTotalMap: list is too short"
+  fn _ [] = error "TotalMap.fromList: list is too short"
 
--- | Build a 'TotalMap' by unfolding from an initial seed value.
-unfoldTotalMap :: (Bounded k, Ix k) => (k -> s -> (a, s)) -> s -> TotalMap k a
-unfoldTotalMap fn initState = runST $ do
+-- | Build a 'TotalMap' by unfolding from an initial seed value.  The key
+-- values will be visited in 'Ix' order.
+unfold :: (Bounded k, Ix k) => (k -> s -> (a, s)) -> s -> TotalMap k a
+unfold fn initState = runST $ do
   ref <- newSTRef initState
-  makeTotalMapM $ \a -> do
+  makeM $ \a -> do
     s <- readSTRef ref
     let (b, s') = fn a s
     writeSTRef ref s'
     return b
 
-tmMapWithKey :: (Bounded k, Ix k) => (k -> a -> b) -> TotalMap k a
-             -> TotalMap k b
-tmMapWithKey fn tm = makeTotalMap $ \k -> fn k (tmGet k tm)
+-- | /O(n)/.  Map a function over all values in the 'TotalMap'.
+mapWithKey :: (Bounded k, Ix k) => (k -> a -> b) -> TotalMap k a
+           -> TotalMap k b
+mapWithKey fn tm = make $ \k -> fn k (get k tm)
 
--- | Get an item from a 'TotalMap'.  This function will never diverge (assuming
--- that the key type is well-behaved and that the arguments do not diverge).
-tmGet :: (Bounded k, Ix k) => k -> TotalMap k a -> a
-tmGet key (TotalMap arr) =
+-- | /O(1)/.  Get an item from a 'TotalMap'.  This function will never diverge
+-- (assuming that the key type is well-behaved and that the arguments do not
+-- diverge).
+get :: (Bounded k, Ix k) => k -> TotalMap k a -> a
+get key (TotalMap arr) =
   assert (inRange (minBound, maxBound) key) $ arr ! key
 
 -- | Set an item in a 'TotalMap'.  This function will never diverge (assuming
 -- that the key type is well-behaved and that the arguments do not diverge).
-tmSet :: (Bounded k, Ix k) => k -> a -> TotalMap k a -> TotalMap k a
-tmSet key value (TotalMap arr) =
+set :: (Bounded k, Ix k) => k -> a -> TotalMap k a -> TotalMap k a
+set key value (TotalMap arr) =
   assert (inRange (minBound, maxBound) key) $
   value `seq` (TotalMap $ arr // [(key, value)])
 
--- | Alter an item in a 'TotalMap'.
-tmAlter :: (Bounded k, Ix k) => k -> (a -> a) -> TotalMap k a -> TotalMap k a
-tmAlter key fn tmap = tmSet key (fn $ tmGet key tmap) tmap
+-- | Update the value associated with the given key.
+adjust :: (Bounded k, Ix k) => k -> (a -> a) -> TotalMap k a -> TotalMap k a
+adjust key fn tmap = set key (fn $ get key tmap) tmap
 
--- | Return the list of associations of a 'TotalMap' in key order.
-tmAssocs :: (Bounded k, Ix k) => TotalMap k a -> [(k, a)]
-tmAssocs (TotalMap arr) = assocs arr
+-- | /O(n)/.  Return the list of associations of a 'TotalMap' in key order.
+assocs :: (Bounded k, Ix k) => TotalMap k a -> [(k, a)]
+assocs (TotalMap arr) = Array.assocs arr
 
 -------------------------------------------------------------------------------
 -- Private:

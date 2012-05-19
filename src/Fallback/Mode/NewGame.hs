@@ -27,7 +27,7 @@ import qualified Data.Set as Set (empty)
 
 import Fallback.Control.Error (IOEO, onlyIO)
 import qualified Fallback.Data.SparseMap as SM (make)
-import Fallback.Data.TotalMap (makeTotalMap)
+import qualified Fallback.Data.TotalMap as TM (make)
 import Fallback.Draw (handleScreen, paintScreen)
 import Fallback.Event
 import Fallback.Mode.Base
@@ -83,10 +83,10 @@ newGameTownState resources spec = do
 
 initCharacter :: NewCharacterSpec -> Character
 initCharacter spec = Character
-  { chrAbilities = makeTotalMap initRank,
+  { chrAbilities = TM.make initRank,
     chrAdrenaline = 0,
     chrAppearance = ncsAppearance spec,
-    chrBaseStats = makeTotalMap startingStat,
+    chrBaseStats = TM.make startingStat,
     chrClass = cls,
     chrEquipment = Equipment { eqpWeapon = Just weapon, eqpArmor = Nothing,
                                eqpAccessory = Nothing },
@@ -142,8 +142,7 @@ newParty spec = do
           partyExperience = 1900,
           partyExploredMaps = Map.empty,
           partyFoundAreas = Set.empty,
-          partyIngredients =
-            makeTotalMap ((numHAs *) . ingredientStartQuantity),
+          partyIngredients = TM.make ((numHAs *) . ingredientStartQuantity),
           partyItems = IntMap.fromList $ zip [0..] initialItems,
           partyLevel = 1,
           partyProgress = initialProgress,

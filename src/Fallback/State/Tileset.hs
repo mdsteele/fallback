@@ -27,7 +27,7 @@ import Data.Array (Array, Ix, listArray)
 import qualified Data.Map as Map
 
 import Fallback.Data.Color (Color(Color), blackColor, whiteColor)
-import Fallback.Data.TotalMap (TotalMap, makeTotalMapA, tmGet)
+import qualified Fallback.Data.TotalMap as TM
 import Fallback.State.Simple (TerrainOpenness(..))
 import Fallback.Utility (flip3)
 
@@ -95,13 +95,13 @@ tileTagId LeverRightTile = 0761
 data Tileset = Tileset
   { tilesetArray :: Array Int TerrainTile,
     tilesetMap :: Map.Map Int TerrainTile,
-    tilesetTotalMap :: TotalMap TileTag TerrainTile }
+    tilesetTotalMap :: TM.TotalMap TileTag TerrainTile }
 
 tilesetLookup :: Int -> Tileset -> Maybe TerrainTile
 tilesetLookup tid tileset = Map.lookup tid $ tilesetMap tileset
 
 tilesetGet :: TileTag -> Tileset -> TerrainTile
-tilesetGet tag tileset = tmGet tag $ tilesetTotalMap tileset
+tilesetGet tag tileset = TM.get tag $ tilesetTotalMap tileset
 
 -------------------------------------------------------------------------------
 
@@ -111,7 +111,7 @@ loadTileset = do
     if Map.member (ttId tile) mp
     then fail $ "repeat tile ID: " ++ show (ttId tile)
     else return $ Map.insert (ttId tile) tile mp
-  tilesTM <- makeTotalMapA $ \tag ->
+  tilesTM <- TM.makeA $ \tag ->
     maybe (fail $ "no such tile ID: " ++ show (tileTagId tag)) return $
     Map.lookup (tileTagId tag) tilesMap
   let tilesArr = listArray (0, length tilesList - 1) tilesList

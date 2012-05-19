@@ -34,7 +34,7 @@ import Fallback.Data.Color (Tint(Tint))
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import qualified Fallback.Data.Queue as Queue
-import Fallback.Data.TotalMap (makeTotalMap)
+import qualified Fallback.Data.TotalMap as TM (make)
 import Fallback.Scenario.Monsters (makeMonster)
 import Fallback.Scenario.Script
 import Fallback.State.Action
@@ -652,7 +652,7 @@ getAbility characterClass abilityNumber rank =
     tag = classAbility characterClass abilityNumber
     ranked v1 v2 v3 =
       case rank of { Rank1 -> v1; Rank2 -> v2; Rank3 -> v3 }
-    mix i1 i2 = IngredientCost $ makeTotalMap $
+    mix i1 i2 = IngredientCost $ TM.make $
                 \i -> (if i == i1 then 1 else 0) + (if i == i2 then 1 else 0)
     combat cost tkind sfn = ActiveAbility cost $ CombatAbility tkind sfn
     meta cost matype tkindFn sfn =

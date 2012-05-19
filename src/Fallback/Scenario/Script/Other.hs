@@ -76,7 +76,7 @@ import Fallback.Constants (maxAdrenaline, momentsPerActionPoint, sightRange)
 import Fallback.Control.Script
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
-import Fallback.Data.TotalMap (tmGet)
+import qualified Fallback.Data.TotalMap as TM (get)
 import Fallback.Scenario.Monsters (makeMonster)
 import Fallback.Scenario.Script.Base
 import Fallback.Scenario.Script.Doodad
@@ -414,7 +414,7 @@ inflictPoison hitTarget basePoison = do
       let poison = round (basePoison * chrGetResistance ResistChemical char)
       alterCharacterStatus charNum $ seAlterPoison (poison +)
     Just (Right monstEntry) -> do
-      let poison = round $ (basePoison *) $ tmGet ResistChemical $
+      let poison = round $ (basePoison *) $ TM.get ResistChemical $
                    mtResistances $ monstType $ Grid.geValue monstEntry
       alterMonsterStatus (Grid.geKey monstEntry) $ seAlterPoison (poison +)
     Nothing -> return ()
@@ -448,7 +448,7 @@ inflictStun hitTarget stun = do
         max 0 (moments - round (stun' * fromIntegral momentsPerActionPoint))
     Just (Right monstEntry) -> do
       let monst = Grid.geValue monstEntry
-      let stun' = max 0 $ (stun *) $ tmGet ResistStun $ mtResistances $
+      let stun' = max 0 $ (stun *) $ TM.get ResistStun $ mtResistances $
                   monstType monst
       emitAreaEffect $ EffReplaceMonster (Grid.geKey monstEntry) $ Just monst
         { monstMoments = monstMoments monst -
@@ -764,19 +764,19 @@ applyResistances :: StatusEffects -> Resistances -> DamageType -> Double
                  -> Double -> (Int, Double)
 applyResistances status resist dmgType damage stun = (damage', stun')
   where
-    armor = tmGet Armor resist * seArmorMultiplier status
+    armor = TM.get Armor resist * seArmorMultiplier status
     magicArmor = assert (armor >= 0) (sqrt armor) *
                  seMagicShieldMultiplier status
     damage' = round $ (damage *) $
               case dmgType of
-                AcidDamage -> tmGet ResistChemical resist * magicArmor
-                ColdDamage -> tmGet ResistCold resist * magicArmor
-                EnergyDamage -> tmGet ResistEnergy resist * magicArmor
-                FireDamage -> tmGet ResistFire resist * magicArmor
+                AcidDamage -> TM.get ResistChemical resist * magicArmor
+                ColdDamage -> TM.get ResistCold resist * magicArmor
+                EnergyDamage -> TM.get ResistEnergy resist * magicArmor
+                FireDamage -> TM.get ResistFire resist * magicArmor
                 MagicDamage -> magicArmor
                 PhysicalDamage -> armor
                 RawDamage -> 1
-    stun' = stun * tmGet ResistStun resist
+    stun' = stun * TM.get ResistStun resist
 
 applyCharResistances :: Character -> DamageType -> Double -> Double
                      -> (Int, Double)
