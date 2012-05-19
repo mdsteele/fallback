@@ -33,6 +33,7 @@ import Fallback.State.Area
 import Fallback.State.Camera (camTopleft)
 import Fallback.State.Combat
 import Fallback.State.Creature
+import Fallback.State.Doodad (DoodadHeight(..), paintDoodads)
 import Fallback.State.Item (wdRange)
 import Fallback.State.Party
 import Fallback.State.Resources (Resources, rsrcCharacterImages)

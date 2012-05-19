@@ -38,6 +38,7 @@ import Fallback.Scenario.Triggers (getAreaExits, scenarioTriggers)
 import Fallback.State.Area
 import Fallback.State.Camera (camTopleft)
 import Fallback.State.Creature (CreaturePose(..), animOffset, ciStand)
+import Fallback.State.Doodad (DoodadHeight(..), paintDoodads)
 import Fallback.State.Party
 import Fallback.State.Resources (Resources, rsrcCharacterImages)
 import Fallback.State.Simple (CharacterNumber)

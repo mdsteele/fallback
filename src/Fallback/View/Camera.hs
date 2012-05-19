@@ -44,6 +44,7 @@ import Fallback.Draw
 import Fallback.State.Area
 import Fallback.State.Camera (camTopleft)
 import Fallback.State.Creature
+import Fallback.State.Doodad (Message(..))
 import Fallback.State.Party
 import Fallback.State.Resources
 import Fallback.State.Simple

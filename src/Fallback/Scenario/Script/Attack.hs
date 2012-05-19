@@ -42,7 +42,6 @@ import Fallback.State.Resources
 import Fallback.State.Simple
 import Fallback.State.Status
 import Fallback.State.Tags (AbilityTag(..))
-import Fallback.State.Terrain (positionCenter, prectRect)
 import Fallback.Utility (flip3)
 
 -------------------------------------------------------------------------------
@@ -189,37 +188,35 @@ determineIfAttackMisses attacker target isRanged = do
   let missWithProb probMiss onMiss = do
         miss <- randomBool probMiss
         if not miss then return False else do True <$ onMiss
-  let doTryAvoid defendAgil pt = do
+  let doTryAvoid defendAgil = do
         -- TODO take bless/curse into account
         -- TODO take invisibility into account
         let input = fromIntegral (attackAgil - defendAgil) / 15 + 4
         let probMiss = 1 - 0.5 * (1 + input / (1 + abs input))
         missWithProb probMiss $ do
           playMissSound
-          addWordDoodadAtPoint WordMiss pt
+          addFloatingWordOnTarget WordMiss (HitPosition target)
   mbOccupant <- areaGet (arsOccupant target)
   case mbOccupant of
     Just (Left charNum) -> do
       char <- areaGet (arsGetCharacter charNum)
-      pos <- areaGet (arsCharacterPosition charNum)
       dodge <- do
         if not isRanged then return False else do
         let probMiss = 1 - chrAbilityMultiplier Dodge 0.95 0.9 0.8 char
         missWithProb probMiss $ do
           playMissSound
-          addWordDoodadAtPosition WordDodge pos
+          addFloatingWordOnTarget WordDodge (HitCharacter charNum)
       if dodge then return True else do
       parry <- do
         if isRanged then return False else do
         let probMiss = 1 - chrAbilityMultiplier Parry 0.97 0.94 0.9 char
         missWithProb probMiss $ do
           playMissSound -- TODO maybe different sound?  e.g. clang?
-          addWordDoodadAtPosition WordParry pos
+          addFloatingWordOnTarget WordParry (HitCharacter charNum)
       if parry then return True else do
-      doTryAvoid (chrGetStat Agility char) (positionCenter pos)
+      doTryAvoid (chrGetStat Agility char)
     Just (Right monstEntry) -> do
       doTryAvoid (mtAgility $ monstType $ Grid.geValue monstEntry)
-                 (rectCenter $ prectRect $ Grid.geRect monstEntry)
     Nothing -> True <$ playMissSound
 
 attackHit :: AttackAppearance -> AttackElement -> [AttackEffect] -> Position
@@ -293,7 +290,7 @@ attackHit appearance element effects target critical damage = do
           FireAttack -> FireDamage
           IceAttack -> ColdDamage
           PhysicalAttack -> PhysicalDamage
-  when critical $ addWordDoodadOnTarget WordCritical hitTarget
+  when critical $ addFloatingWordOnTarget WordCritical hitTarget
   dealDamage ((hitTarget, damageElement, damage) : extraHits)
   wait 16
 

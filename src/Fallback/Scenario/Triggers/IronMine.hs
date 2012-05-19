@@ -33,6 +33,7 @@ import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Globals (Globals(..), signRadius)
 import Fallback.Scenario.Triggers.Script
 import Fallback.State.Area
+import Fallback.State.Doodad (Doodad(..), DoodadHeight(LowDood))
 import Fallback.State.Resources
 import Fallback.State.Tags
 import Fallback.State.Terrain (positionCenter, positionTopleft)
@@ -232,9 +233,8 @@ doMineCartDoodad cartFull startPos endPos = do
         let topleft = endPt `pSub` cameraTopleft `pAdd`
                       Point (dx * count `div` limit) (dy * count `div` limit)
         blitTopleft sprite topleft
-  emitAreaEffect $ EffAddDoodad $ Doodad { doodadCountdown = limit,
-                                           doodadHeight = LowDood,
-                                           doodadPaint = paint }
+  addDoodad $ Doodad { doodadCountdown = limit, doodadHeight = LowDood,
+                       doodadPaint = paint }
   wait limit
 
 doMineCartChain :: (FromAreaEffect f) => Bool -> [Position] -> Script f ()

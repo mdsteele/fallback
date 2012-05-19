@@ -841,7 +841,7 @@ abilityDescription Drain =
   \At rank 3, also drains helpful status effects, giving them instead to\
   \ allies."
 abilityDescription Detonate =
-  "Cause an explosion, dealing fire damage to an area.\n\
+  "Set off an explosion, dealing fire damage to an area.\n\
   \At rank 2, the explosion deals more damage.\n\
   \At rank 3, the explosion deals even more damage."
 abilityDescription AdrenalineRush =

@@ -90,7 +90,6 @@ import Fallback.State.Simple
 import Fallback.State.Status
 import Fallback.State.Tags
   (AbilityTag(..), AreaTag, ItemTag(..), MonsterTag, WeaponItemTag)
-import Fallback.State.Terrain (prectRect)
 import Fallback.Utility
   (ceilDiv, flip3, flip4, groupKey, maybeM, sortKey, square, sumM)
 
@@ -204,7 +203,6 @@ dealDamageGeneral gentle hits = do
 dealRawDamageToCharacter :: (FromAreaEffect f) => Bool -> CharacterNumber
                          -> Int -> Double -> Script f Int
 dealRawDamageToCharacter gentle charNum damage stun = do
-  pos <- areaGet (arsCharacterPosition charNum)
   char <- areaGet (arsGetCharacter charNum)
   -- If this is non-gentle damage, wake us up from being dazed, and add
   -- adrenaline.
@@ -226,7 +224,7 @@ dealRawDamageToCharacter gentle charNum damage stun = do
   emitAreaEffect $ EffIfCombat (setCharacterAnim charNum $ HurtAnim 12)
                                (setPartyAnim $ HurtAnim 12)
   unless (gentle && damage == 0) $ do
-    addNumberDoodadAtPosition damage pos
+    addFloatingNumberOnTarget damage (HitCharacter charNum)
   -- If we're in combat, the character can die:
   whenCombat $ when (health' <= 0) $ do
     alterCharacterMojo charNum (const 0)
@@ -238,6 +236,7 @@ dealRawDamageToCharacter gentle charNum damage stun = do
     faceDir <- emitEffect $ EffGetCharFaceDir charNum
     playSound (characterScreamSound char)
     playSound SndDie1
+    pos <- areaGet (arsCharacterPosition charNum)
     addDeathDoodad images faceDir (makeRect pos (1, 1))
     -- If all characters are now dead, it's game over:
     alive <- areaGet (Fold.any chrIsConscious . partyCharacters . arsParty)
@@ -267,7 +266,7 @@ dealRawDamageToMonster gentle key damage stun = do
                      monstHealth = health', monstMoments = moments' }
   emitAreaEffect $ EffReplaceMonster key mbMonst'
   unless (gentle && damage == 0) $ do
-    addNumberDoodadAtPoint damage $ rectCenter $ prectRect $ Grid.geRect entry
+    addFloatingNumberOnTarget damage (HitMonster key)
   -- If the monster is now dead, add a death doodad, set the monster's
   -- "dead" var (if any) to True, and grant experience if it's an enemy.
   when (isNothing mbMonst') $ do
@@ -311,7 +310,7 @@ healCharacter charNum baseAmount = do
                            (chrHealth char + amount) }
   pos <- areaGet (arsCharacterPosition charNum)
   addBoomDoodadAtPosition HealBoom 4 pos
-  addNumberDoodadAtPosition amount pos
+  addFloatingNumberOnTarget amount (HitCharacter charNum)
 
 healMonster :: (FromAreaEffect f) => Grid.Key Monster -> Double -> Script f ()
 healMonster key baseAmount = withMonsterEntry key $ \entry -> do
@@ -323,7 +322,7 @@ healMonster key baseAmount = withMonsterEntry key $ \entry -> do
   emitAreaEffect $ EffReplaceMonster key (Just monst')
   let prect = Grid.geRect entry
   forM_ (prectPositions prect) $ addBoomDoodadAtPosition HealBoom 4
-  addNumberDoodadAtPoint amount $ rectCenter $ prectRect prect
+  addFloatingNumberOnTarget amount (HitMonster key)
 
 -------------------------------------------------------------------------------
 -- Mojo/adrenaline:

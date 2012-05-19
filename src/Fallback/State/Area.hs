@@ -22,26 +22,25 @@
 module Fallback.State.Area where
 
 import Control.Applicative ((<$), (<$>))
-import Data.Ix (Ix)
 import Data.List (find)
 import qualified Data.Map as Map
-import Data.Maybe (fromMaybe, isJust, mapMaybe)
+import Data.Maybe (fromMaybe, isJust)
 import qualified Data.Set as Set
 import Data.Traversable (for)
 import System.Random (Random, randomRIO)
 
-import Fallback.Constants (secondsPerFrame)
 import Fallback.Control.Script (Script)
 import Fallback.Data.Clock (Clock, clockInc)
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import qualified Fallback.Data.PriorityQueue as PQ
 import qualified Fallback.Data.SparseMap as SM
-import Fallback.Data.TotalMap (TotalMap, makeTotalMap, tmAlter, tmGet)
-import Fallback.Draw (Minimap, Paint)
+import Fallback.Draw (Minimap)
 import Fallback.Sound (Sound, fadeOutMusic, loopMusic, playSound, stopMusic)
 import Fallback.State.Camera (Camera, setCameraShake, tickCamera)
 import Fallback.State.Creature
+import Fallback.State.Doodad
+  (Doodads, Message, decayMessage, makeMessage, tickDoodads)
 import Fallback.State.FOV (fieldOfView)
 import Fallback.State.Minimap (updateMinimapFromTerrain)
 import Fallback.State.Party
@@ -326,53 +325,6 @@ data Device = Device
 
 -------------------------------------------------------------------------------
 
-data Doodad = Doodad
-  { doodadCountdown :: Int,
-    doodadHeight :: DoodadHeight,
-    doodadPaint :: Int -> IPoint -> Paint () }
-
-newtype Doodads = Doodads { fromDoodads :: TotalMap DoodadHeight [Doodad] }
-
-data DoodadHeight = LowDood | MidDood | HighDood
-  deriving (Bounded, Enum, Eq, Ix, Ord)
-
-emptyDoodads :: Doodads
-emptyDoodads = Doodads $ makeTotalMap (const [])
-
-appendDoodad :: Doodad -> Doodads -> Doodads
-appendDoodad doodad (Doodads tm) =
-  Doodads $ tmAlter (doodadHeight doodad) (++ [doodad]) tm
-
-tickDoodads :: Doodads -> Doodads
-tickDoodads (Doodads tm) = Doodads (mapMaybe tickDoodad <$> tm) where
-  tickDoodad doodad =
-    let count' = doodadCountdown doodad - 1
-    in if count' < 1 then Nothing else Just doodad { doodadCountdown = count' }
-
-paintDoodads :: IPoint -> DoodadHeight -> Doodads -> Paint ()
-paintDoodads cameraTopleft dh (Doodads tm) = mapM_ paintDoodad (tmGet dh tm)
-  where paintDoodad d = doodadPaint d (doodadCountdown d - 1) cameraTopleft
-
--- delayDoodad :: Int -> Doodad -> Doodad
-
--- slowDownDoodad :: Int -> Doodad -> Doodad
-
--- composeDoodads :: Doodad -> Doodad -> Doodad
-
--------------------------------------------------------------------------------
-
-data Message = Message Double String
-
-makeMessage :: String -> Message
-makeMessage string = Message (2.3 + fromIntegral (length string) / 30) string
-
-decayMessage :: Message -> Maybe Message
-decayMessage (Message t s) =
-  let t' = t - secondsPerFrame in
-  if t' <= 0 then Nothing else Just (Message t' s)
-
--------------------------------------------------------------------------------
-
 data Monster = Monster
   { monstAdrenaline :: Int,
     monstDeadVar :: Maybe (Var Bool),  -- var to set to True when monst dies
@@ -472,7 +424,7 @@ data PartyEffect :: * -> * where
 -- | Effects that can occur in any AreaState.
 data AreaCommonEffect :: * -> * where
   EffAreaParty :: PartyEffect a -> AreaCommonEffect a
-  EffAddDoodad :: Doodad -> AreaCommonEffect ()
+  EffAlterDoodads :: (Doodads -> Doodads) -> AreaCommonEffect ()
   EffAlterFields :: (Maybe Field -> Maybe Field) -> [Position]
                  -> AreaCommonEffect ()
   EffAreaGet :: (forall s. (AreaState s) => s -> a) -> AreaCommonEffect a
@@ -561,8 +513,7 @@ executeAreaCommonEffect eff ars = do
     EffAreaParty partyEff -> do
       (result, party') <- executePartyEffect partyEff (arsParty ars)
       return (result, set acs { acsParty = party' })
-    EffAddDoodad dood -> do
-      change acs { acsDoodads = appendDoodad dood (acsDoodads acs) }
+    EffAlterDoodads fn -> change acs { acsDoodads = fn (acsDoodads acs) }
     EffAlterFields fn ps -> do
       let fields' = foldr (Map.alter fn) (acsFields acs) ps
       ars' <- arsUpdateVisibility $ set acs { acsFields = fields' }

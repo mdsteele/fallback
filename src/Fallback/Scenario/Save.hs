@@ -42,8 +42,9 @@ import Fallback.Draw (Sprite, loadSprite)
 import Fallback.Scenario.Triggers
   (getAreaDevice, getAreaTriggers, scenarioTriggers)
 import Fallback.State.Area
-  (AreaCommonState(..), arsCurrentArea, devId, emptyDoodads, triggerId)
+  (AreaCommonState(..), arsCurrentArea, devId, triggerId)
 import Fallback.State.Camera (makeCameraWithCenter)
+import Fallback.State.Doodad (emptyDoodads)
 import Fallback.State.Minimap (newMinimapFromTerrain)
 import Fallback.State.Party (Party(..), partyExploredMap)
 import Fallback.State.Region (RegionState(..))

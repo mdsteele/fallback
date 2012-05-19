@@ -118,7 +118,7 @@ type IRect = Rect Int
 type DRect = Rect Double
 
 data Rect a = Rect { rectX :: !a, rectY :: !a, rectW :: !a, rectH :: !a }
-  deriving (Eq)
+  deriving (Eq, Ord)
 
 instance Functor Rect where
   fmap f (Rect x y w h) = Rect (f x) (f y) (f w) (f h)

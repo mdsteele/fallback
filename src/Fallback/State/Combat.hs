@@ -34,6 +34,7 @@ import Fallback.Data.Point
 import Fallback.Data.TotalMap (TotalMap, tmAlter, tmAssocs, tmGet)
 import Fallback.State.Area
 import Fallback.State.Creature (CreaturePose)
+import Fallback.State.Doodad (makeMessage)
 import Fallback.State.FOV (fieldOfView)
 import Fallback.State.Party
 import Fallback.State.Progress (HasProgress, TriggerId, getProgress)
