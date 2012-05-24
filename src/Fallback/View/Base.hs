@@ -19,7 +19,9 @@
 
 module Fallback.View.Base
   (-- * The @View@ type
-   View(..), nullView, inertView, wallView, Action(..), fromAction,
+   View(..), nullView, inertView, wallView,
+   -- * The @Action@ type
+   Action(..), fromAction,
    -- * View combinators
    f2map, vmap, vmapM, viewMap, viewMapM,
    compoundView, compoundViewM, subView, subView_,

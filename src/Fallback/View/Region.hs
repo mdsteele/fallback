@@ -51,7 +51,7 @@ newRegionView resources bgPath = do
   compoundViewM
     [ newRegionMapView bgPath
     , subView_ (Rect 20 436 120 24) <$>
-      newSimpleTextButton resources "Menu" [KeyEscape] ShowMenu
+      newSimpleTextButton resources "Menu" [KeyEscape, KeyM] ShowMenu
     , subView_ (Rect 500 436 120 24) <$>
       newSimpleTextButton resources "Travel" [KeyReturn] TravelToSelectedArea]
 

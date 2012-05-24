@@ -17,7 +17,9 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
-module Fallback.Mode.Dialog where
+module Fallback.Mode.Dialog
+  (newHorizontalDialogMode, newTextEntryDialogMode, newQuitWithoutSavingMode)
+where
 
 import Control.Applicative ((<$>))
 import Control.Monad (when)

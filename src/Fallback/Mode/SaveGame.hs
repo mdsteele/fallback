@@ -17,7 +17,9 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
-module Fallback.Mode.SaveGame (newSaveGameMode) where
+module Fallback.Mode.SaveGame
+  (newSaveGameMode, newSaveBeforeQuittingMode, newSaveBeforeLeavingMode)
+where
 
 import Control.Applicative ((<$>))
 import Control.Monad (when)
@@ -55,5 +57,42 @@ newSaveGameMode resources onSave screenshot savedGame
                           (saveGame name screenshot savedGame) $ \summary -> do
               onSave summary
   return mode
+
+-------------------------------------------------------------------------------
+
+data SaveBeforeQuittingResponse = CancelQuit | QuitWithoutSave | SaveAndQuit
+
+newSaveBeforeQuittingMode :: Resources -> Sprite -> SavedGame -> Mode
+                          -> View a b -> a -> IO Mode
+newSaveBeforeQuittingMode resources screenshot savedGame
+                          prevMode bgView bgInput =
+  newHorizontalDialogMode resources text buttons nextMode bgView bgInput where
+    text = "Would you like to save your game before quitting?"
+    buttons = [("Save", [KeyReturn], SaveAndQuit),
+               ("Don't Save", [KeyD], QuitWithoutSave),
+               ("Cancel", [KeyEscape], CancelQuit)]
+    nextMode CancelQuit = return (ChangeMode prevMode)
+    nextMode QuitWithoutSave = return DoQuit
+    nextMode SaveAndQuit =
+      ChangeMode <$> newSaveGameMode resources onSave screenshot savedGame
+                                     prevMode bgView bgInput
+    onSave _ = return DoQuit
+
+newSaveBeforeLeavingMode :: Resources -> Modes -> Sprite -> SavedGame -> Mode
+                         -> View a b -> a -> IO Mode
+newSaveBeforeLeavingMode resources modes screenshot savedGame
+                         prevMode bgView bgInput =
+  newHorizontalDialogMode resources text buttons nextMode bgView bgInput where
+    text = "Would you like to save your game before returning to the title\
+           \ screen?"
+    buttons = [("Save", [KeyReturn], SaveAndQuit),
+               ("Don't Save", [KeyD], QuitWithoutSave),
+               ("Cancel", [KeyEscape], CancelQuit)]
+    nextMode CancelQuit = return (ChangeMode prevMode)
+    nextMode QuitWithoutSave = leave
+    nextMode SaveAndQuit =
+      ChangeMode <$> newSaveGameMode resources (const leave) screenshot
+                                     savedGame prevMode bgView bgInput
+    leave = ChangeMode <$> newMainMenuMode' modes
 
 -------------------------------------------------------------------------------

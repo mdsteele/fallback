@@ -26,11 +26,12 @@ import Control.Applicative ((<$>))
 import Control.Monad (filterM, forM)
 import Data.Char (isAlphaNum)
 import Data.List (find)
-import Data.Maybe (catMaybes, listToMaybe)
+import Data.Maybe (catMaybes)
 import qualified Data.Set as Set
 import Data.Time (formatTime, getCurrentTime)
 import Data.Traversable (traverse)
 import System.Directory
+  (createDirectoryIfMissing, doesDirectoryExist, getDirectoryContents)
 import System.FilePath (combine)
 import System.Locale (defaultTimeLocale)
 import Text.Read
@@ -39,6 +40,7 @@ import Fallback.Control.Error (IOEO, onlyIO)
 import Fallback.Data.Clock (initClock)
 import Fallback.Data.Point (Position)
 import Fallback.Draw (Sprite, loadSprite)
+import Fallback.Resource (getGameDataDir, loadFromFile, saveToFile)
 import Fallback.Scenario.Triggers
   (getAreaDevice, getAreaTriggers, scenarioTriggers)
 import Fallback.State.Area
@@ -76,18 +78,9 @@ savedGameLocation (SavedTownState ts) = areaName $ arsCurrentArea ts
 
 -------------------------------------------------------------------------------
 
-loadFromString :: ReadS a -> String -> Maybe a
-loadFromString reader string = fmap fst $ listToMaybe $ reader string
-
-loadFromFile :: ReadS a -> FilePath -> IO (Maybe a)
-loadFromFile reader filepath = loadFromString reader <$> readFile filepath
-
-saveToFile :: FilePath -> ShowS -> IO ()
-saveToFile filepath writer = writeFile filepath (writer "")
-
 getSaveDirectory :: IO FilePath
 getSaveDirectory = do
-  dataDir <- getAppUserDataDirectory "fallback-save-data"
+  dataDir <- getGameDataDir
   let saveDir = combine dataDir "saved-games"
   createDirectoryIfMissing True saveDir
   return saveDir
@@ -125,12 +118,14 @@ loadSavedGame resources sgs = do
       return $ SavedTownState ts
 
 saveGame :: String -> Sprite -> SavedGame -> IOEO SavedGameSummary
-saveGame name screenshot savedGame = onlyIO $ do
-  summaries <- loadSavedGameSummaries
-  dirPath <- maybe allocSaveDir (return . sgsDirPath) $
-             find ((name ==) . sgsName) summaries
+saveGame name screenshot savedGame = do
+  dirPath <- onlyIO $ do
+    summaries <- loadSavedGameSummaries
+    maybe allocSaveDir (return . sgsDirPath) $
+      find ((name ==) . sgsName) summaries
   let loc = savedGameLocation savedGame
-  time <- formatTime defaultTimeLocale "%-d %b %Y %-I:%M %p" <$> getCurrentTime
+  time <- formatTime defaultTimeLocale "%-d %b %Y %-I:%M %p" <$>
+          onlyIO getCurrentTime
   saveToFile (combine dirPath "screenshot.png") $ shows () -- FIXME
   saveToFile (combine dirPath "summary") $ shows (name, loc, time)
   saveToFile (combine dirPath "state") $ shows $
@@ -166,7 +161,8 @@ instance Read ReadRegionState where
         rsParty = party,
         rsPreviousArea = prevArea,
         rsRegion = region,
-        rsSelectedArea = selectedArea }
+        rsSelectedArea = selectedArea,
+        rsUnsaved = False }
 
 newtype ShowRegionState = ShowRegionState RegionState
 

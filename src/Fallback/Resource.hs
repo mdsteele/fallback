@@ -17,12 +17,19 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
-module Fallback.Resource (tryGetResourcePath, getResourcePath) where
+module Fallback.Resource
+  (tryGetResourcePath, getResourcePath,
+   getGameDataDir, loadFromFile, saveToFile)
+where
 
+import Control.Exception (IOException, evaluate, handle)
+import Data.Maybe (listToMaybe)
+import System.Directory (createDirectoryIfMissing, getAppUserDataDirectory)
 import qualified System.FilePath as FilePath (combine)
+import System.IO (IOMode(ReadMode), hGetContents, withFile)
 import qualified System.MacOSX.Bundle as Bundle (tryGetResourcePath)
 
-import Fallback.Control.Error (IOEO, onlyIO)
+import Fallback.Control.Error (EO, IOEO, onlyEO, onlyIO)
 
 -------------------------------------------------------------------------------
 
@@ -41,5 +48,38 @@ getResourcePath :: String {-^directory-} -> String {-^filename-}
 getResourcePath dir name =
   fmap (maybe (fail "getResourcePath failed") id) $
   Bundle.tryGetResourcePath (FilePath.combine dir name)
+
+-------------------------------------------------------------------------------
+
+-- | Get the path to the directory containing persistant data for the game, and
+-- create the directory if it doesn't already exist.
+getGameDataDir :: IO FilePath
+getGameDataDir = do
+  dataDir <- getAppUserDataDirectory "fallback-save-data"
+  createDirectoryIfMissing True dataDir
+  return dataDir
+
+-- | Attempt to load and parse data from a file.  Return 'Nothing' if the file
+-- doesn't exist, isn't readable, or contains unparsable data.
+loadFromFile :: ReadS a -> FilePath -> IO (Maybe a)
+loadFromFile reader filepath = do
+  let handler :: IOException -> IO (Maybe a)
+      handler _ = return Nothing
+  handle handler $ do
+    withFile filepath ReadMode $ \fd -> do
+      string <- hGetContents fd
+      _ <- evaluate (length string) -- force entire file into memory
+      return $ fmap fst $ listToMaybe $ reader string
+
+-- | Save string data to a file, overwriting the file if it already exists.
+-- Throw an exception if the file isn't writable.
+saveToFile :: FilePath -> ShowS -> IOEO ()
+saveToFile filepath writer = do
+  let handler :: IOException -> IO (EO ())
+      handler err = return $ fail $ show err
+  eo <- onlyIO $ handle handler $ do
+    writeFile filepath (writer "")
+    return $ return ()
+  onlyEO eo
 
 -------------------------------------------------------------------------------

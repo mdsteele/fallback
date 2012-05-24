@@ -19,6 +19,7 @@
 
 module Fallback.Main (sdlMain) where
 
+import Control.Applicative ((<$>))
 import Control.Exception (bracket_)
 import Control.Monad ((>=>))
 import Data.List (nub, sort)
@@ -32,6 +33,7 @@ import Fallback.Data.Point (Point(Point))
 import Fallback.Draw (initializeScreen, setFullscreen)
 import Fallback.Event
 import Fallback.Mode (Mode, NextMode(..), newBootUpMode)
+import Fallback.Preferences (loadPreferencesFromDisk, prefFullscreen)
 
 -------------------------------------------------------------------------------
 
@@ -125,7 +127,7 @@ eventLoop state = SDL.pollEvent >>= handleEvent where
 
 sdlMain :: IO ()
 sdlMain = withSdlInit $ do
-  let fullscreen = False
+  fullscreen <- prefFullscreen <$> loadPreferencesFromDisk
   initializeScreen fullscreen
   let windowTitle = "Fallback"
   SDL.setCaption windowTitle windowTitle

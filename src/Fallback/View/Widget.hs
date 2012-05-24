@@ -24,7 +24,7 @@ module Fallback.View.Widget
    -- * Buttons
    ButtonState(..), ButtonStatus(..), enabledIf,
    newButton, newTextButton, newSimpleTextButton, newFlashingTextButton,
-   newIconButton,
+   newIconButton, newCheckbox,
    -- * Editing text
    newTextBox,
    -- * Scrolling
@@ -42,7 +42,8 @@ import Fallback.Data.Color
 import Fallback.Data.Point
 import Fallback.Draw
 import Fallback.Event
-import Fallback.State.Resources (FontTag(..), Resources, rsrcFont)
+import Fallback.State.Resources
+  (FontTag(..), Resources, rsrcFont, rsrcSheetSmallButtons)
 import Fallback.State.Text (TextLine, paintTextLine, wrapText)
 import Fallback.Utility (anyM)
 import Fallback.View.Base
@@ -233,6 +234,20 @@ newIconButton keys value = do
         rect <- canvasRect
         blitLocTinted tint icon $ LocCenter $ rectCenter rect
   newStandardButton paintFn snd keys value
+
+newCheckbox :: (MonadDraw m) => Resources -> [Key] -> LocSpec Int
+            -> m (View Bool Bool)
+newCheckbox resources keys loc = do
+  let paintFn checked bs = do
+        let row = case bs of
+                    ButtonUp -> 0
+                    ButtonHover -> 1
+                    ButtonDown -> 2
+                    ButtonDisabled -> 3
+        blitStretch (rsrcSheetSmallButtons resources !
+                     (row, if checked then 4 else 5)) =<< canvasRect
+  subView_ (locRect loc (16, 16)) . f2map (\i () -> not i) <$>
+    newButton paintFn (const ReadyButton) keys ()
 
 -------------------------------------------------------------------------------
 

@@ -32,7 +32,7 @@ module Fallback.State.Tags
    -- * Monsters
    MonsterTag(..), MonsterSpellTag(..),
    -- * Quests
-   QuestTag(..))
+   QuestTag(..), questName, questDescription)
 where
 
 import Data.Ix (Ix)
@@ -334,5 +334,39 @@ data QuestTag = SaveCorenglen
               -- Emitsuibom:
               | ReclaimLifeblade
   deriving (Eq, Ord, Read, Show)
+
+questName :: QuestTag -> String
+questName ReclaimSunrod = "Astral IV: Find the Sunrod"
+questName CaptureSophia = "Bring Sophia to Holmgare"
+questName HelpSophiaEscape = "Help Sophia Escape"
+questName DryIceForLucca = "Dry Ice for Lucca"
+questName ReclaimStarspear = "Astral III: Find the Starspear"
+questName ReclaimMoonbow = "Astral II: Find the Moonbow"
+questName ReclaimLifeblade = "Astral I: Find the Lifeblade"
+questName _ = "FIXME"
+
+questDescription :: QuestTag -> String
+questDescription ReclaimSunrod = "According to Jessica, your last great\
+  \ adventure was to journey into Svengaard, defeat the Dread Ur-Lich\
+  \ Vhaegyst, and claim the Sunrod.\n\n\
+  \For context, a lich is what happens when an incredibly powerful and evil\
+  \ archmagus uses dark magic to become a skeletal, undead, eldrich horror,\
+  \ thus unnaturally prolonging their existence so that they can continue to\
+  \ wreak destruction and suffering far beyond their mortal lifespan. \
+  \ Considering your complete inexperience as adventurers, asking you to go\
+  \ defeat a lich, even a \"normal\" lich, would be a bit like asking you to\
+  \ jump over the moon and then survive the fall back down."
+questDescription CaptureSophia = "Sophia Vrell has run away from the village\
+  \ of Holmgare, and may be in danger.  The villagers have begged you to find\
+  \ her, and Mayor Jarmir has offered you a reward if you can bring her back\
+  \ to them safe and sound."
+questDescription DryIceForLucca = "Lucca, the apothecary in Tragorda, needs a\
+  \ piece of dry ice for potion she'd like to make.  If you can find any of\
+  \ this alchemical ingredient somewhere in Svengaard and give it to her, she\
+  \ will make the potion and give some of it to you."
+questDescription ReclaimStarspear = "According to Jessica, your third great\
+  \ adventure was to journey into Tahariam, defeat the daemon lord Kuriyos,\
+  \ and claim the Starspear."
+questDescription _ = "FIXME"
 
 -------------------------------------------------------------------------------

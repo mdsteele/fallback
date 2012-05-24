@@ -31,8 +31,9 @@ import Fallback.Draw (paintScreen, handleScreen, takeScreenshot)
 import Fallback.Event
 import Fallback.Mode.Base
 import Fallback.Mode.Error (popupIfErrors)
+import Fallback.Mode.GameMenu (GameMenuState(RegionMenuState), newGameMenuMode)
 import Fallback.Mode.LoadGame (newLoadGameMode)
-import Fallback.Mode.SaveGame (newSaveGameMode)
+import Fallback.Mode.SaveGame (newSaveBeforeQuittingMode, newSaveGameMode)
 import Fallback.Scenario.Areas (areaEntrance, areaLinks, enterPartyIntoArea)
 import Fallback.Scenario.Regions (regionBackground)
 import Fallback.Scenario.Save (SavedGame(SavedRegionState))
@@ -57,7 +58,12 @@ newRegionMode resources modes initState = do
     newRegionView resources $ regionBackground (rsParty state) (rsRegion state)
   let
 
-    mode EvQuit = return DoQuit
+    mode EvQuit = do
+      rs <- readIORef stateRef
+      if not (rsUnsaved rs) then return DoQuit else do
+        screenshot <- takeScreenshot screenRect
+        ChangeMode <$> newSaveBeforeQuittingMode resources screenshot
+                         (SavedRegionState rs) mode view rs
     mode (EvKeyDown KeyO [KeyModCmd] _) = do
       rs <- readIORef stateRef
       ChangeMode <$> newLoadGameMode resources modes mode view rs
@@ -69,25 +75,30 @@ newRegionMode resources modes initState = do
                                      (SavedRegionState rs) mode view rs
     mode event = do
       when (event == EvTick) $ modifyIORef stateRef tickRegionState
-      state <- readIORef stateRef
-      action <- handleScreen $ viewHandler view state event
-      when (event == EvTick) $ paintScreen (viewPaint view state)
+      rs <- readIORef stateRef
+      action <- handleScreen $ viewHandler view rs event
+      when (event == EvTick) $ paintScreen (viewPaint view rs)
       case fromAction action of
         Nothing -> return SameMode
         Just (SelectAreaNode node) -> do
-          let state' = case trySelectAreaNode state node of
-                         Nothing -> state
-                         Just prev -> state { rsSelectedArea = node,
-                                              rsPreviousArea = prev }
-          writeIORef stateRef state'
+          case trySelectAreaNode rs node of
+            Nothing -> return ()
+            Just prev -> writeIORef stateRef rs { rsSelectedArea = node,
+                                                  rsPreviousArea = prev }
           return SameMode
         Just TravelToSelectedArea -> do
-          let tag = rsSelectedArea state
-          popupIfErrors resources view state (return mode)
-                        (enterPartyIntoArea resources (rsParty state) tag $
-                         areaEntrance tag (rsPreviousArea state)) $ \ts -> do
+          let tag = rsSelectedArea rs
+          popupIfErrors resources view rs (return mode)
+                        (enterPartyIntoArea resources (rsParty rs) tag $
+                         areaEntrance tag (rsPreviousArea rs)) $ \ts -> do
             ChangeMode <$> newTownMode' modes ts
-        Just ShowMenu -> return SameMode -- FIXME
+        Just ShowMenu -> do
+          screenshot <- takeScreenshot screenRect
+          let onDone rs' = do
+                writeIORef stateRef rs'
+                return mode
+          ChangeMode <$> newGameMenuMode resources modes screenshot
+                                         (RegionMenuState rs) onDone view
 
   return mode
 

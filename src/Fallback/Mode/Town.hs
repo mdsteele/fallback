@@ -32,7 +32,7 @@ import qualified Data.Set as Set
 
 import Fallback.Constants
   (baseFramesPerActionPoint, combatArenaCols, combatArenaRows,
-   momentsPerActionPoint)
+   momentsPerActionPoint, screenRect)
 import Fallback.Control.Script
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
@@ -40,11 +40,12 @@ import Fallback.Data.Point
    rectContains)
 import qualified Fallback.Data.SparseMap as SM
 import qualified Fallback.Data.TotalMap as TM (get, unfold)
-import Fallback.Draw (handleScreen, paintScreen)
+import Fallback.Draw (handleScreen, paintScreen, takeScreenshot)
 import Fallback.Event
 import Fallback.Mode.Base
 import Fallback.Mode.Dialog (newTextEntryDialogMode)
 import Fallback.Mode.Error (popupIfErrors)
+import Fallback.Mode.GameMenu (GameMenuState(TownMenuState), newGameMenuMode)
 import Fallback.Mode.LoadGame (newLoadGameMode)
 import Fallback.Mode.MultiChoice (newMultiChoiceMode)
 import Fallback.Mode.Narrate (newNarrateMode)
@@ -113,7 +114,8 @@ newTownMode resources modes initState = do
               rsParty = party',
               rsPreviousArea = partyCurrentArea party',
               rsRegion = partyCurrentRegion party',
-              rsSelectedArea = area }
+              rsSelectedArea = area,
+              rsUnsaved = True }
         Just DoGameOver -> ChangeMode <$> newGameOverMode' modes
         Just (DoMultiChoice text choices cancel sfn) -> do
           fmap ChangeMode $ newMultiChoiceMode resources view ts text choices
@@ -157,6 +159,17 @@ newTownMode resources modes initState = do
             TargetingPhase _ -> ignore
             ScriptPhase _ -> ignore
             _ -> changeState ts { tsActiveCharacter = charNum }
+        Just (TownSidebar (QueryMinimap _)) -> ignore -- TODO?
+        Just (TownSidebar ShowMenu) -> do
+          case tsPhase ts of
+            WalkingPhase -> do
+              screenshot <- takeScreenshot screenRect
+              let onDone ts' = do
+                    writeIORef stateRef ts'
+                    return mode
+              ChangeMode <$> newGameMenuMode resources modes screenshot
+                                             (TownMenuState ts) onDone view
+            _ -> ignore
         Just (TownSidebar ToggleAbilities) -> do
           case tsPhase ts of
             WalkingPhase ->
@@ -382,8 +395,7 @@ newTownMode resources modes initState = do
             TargetingPhase _ -> do
               changeState ts { tsPhase = WalkingPhase }
             _ -> ignore
-        Just _ -> return SameMode -- FIXME handle other actions
-        Nothing -> return SameMode
+        Nothing -> ignore
 
     tryBuy :: TownState -> Integer -> (Party -> Party) -> IO NextMode
     tryBuy ts cost partyFn = do

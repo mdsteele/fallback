@@ -18,7 +18,8 @@
 ============================================================================ -}
 
 module Fallback.View.NewGame
-  (NewGameAction(..), NewGameSpec(..), NewCharacterSpec(..), newNewGameView)
+  (NewGameAction(..), NewGameSpec(..), NewCharacterSpec(..),
+   newNewGameView, newDifficultyView)
 where
 
 import Control.Applicative ((<$>))
@@ -95,7 +96,8 @@ newNewGameDialog resources = do
        (compoundView <$> zipWithM newCharRadio [minBound .. maxBound] [0 ..]),
        (subView (\_ (w, h) -> Rect 170 20 (w - 380{-190-}) (h - 70)) <$>
         newEditCharView resources),
-       (subView (\_ (w, h) -> Rect (w - 200) 40 180 (h - 110)) <$>
+       (subView (\_ (w, h) -> Rect (w - 200) 40 180 (h - 110)) .
+        viewMap (ngsDifficulty . insSpec) SetDifficulty <$>
         newDifficultyView resources)]),
     (subView (\_ (_, h) -> Rect 16 (h - 40) 100 24) <$>
      newSimpleTextButton resources "Back to Menu" [KeyEscape] CancelNewGame),
@@ -263,8 +265,10 @@ newAppearanceRadio resources appear = do
     handler _ _ = return Ignore
   return $ View paint handler
 
+-------------------------------------------------------------------------------
+
 newDifficultyView :: (MonadDraw m) => Resources
-                  -> m (View InternalState InternalAction)
+                  -> m (View Difficulty Difficulty)
 newDifficultyView resources = do
   let font = rsrcFont resources FontGeorgiaBold14
   let paintBackground _ = do
@@ -279,17 +283,16 @@ newDifficultyView resources = do
     (return $ inertView paintBackground),
     (compoundView <$> zipWithM newDiffRadio [minBound .. maxBound] [0..]),
     (subView (\_ (w, h) -> Rect 10 125 (w - 20) (h - 140)) .
-     vmap (difficultyDescription . ngsDifficulty . insSpec) <$>
-     newDynamicTextWrapView resources)]
+     vmap difficultyDescription <$> newDynamicTextWrapView resources)]
 
 newDifficultyRadio :: (MonadDraw m) => Resources -> Difficulty
-                   -> m (View InternalState InternalAction)
+                   -> m (View Difficulty Difficulty)
 newDifficultyRadio resources diff = do
   let font1 = rsrcFont resources FontGeorgia11
   let font2 = rsrcFont resources FontGeorgiaBold12
   let
     paint state = do
-      let selected = ngsDifficulty (insSpec state) == diff
+      let selected = state == diff
       rect <- canvasRect
       drawText (if selected then font2 else font1)
                (if selected then Color 192 0 0 else blackColor)
@@ -297,7 +300,7 @@ newDifficultyRadio resources diff = do
       drawBevelRect (if selected then Tint 192 32 32 255 else Tint 0 0 0 40)
                     3 rect
     handler _ (EvMouseDown pt) = do
-      whenWithinCanvas pt $ return $ Action $ SetDifficulty diff
+      whenWithinCanvas pt $ return $ Action diff
     handler _ _ = return Ignore
   return $ View paint handler
 

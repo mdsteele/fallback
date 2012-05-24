@@ -34,7 +34,7 @@ import Fallback.Scenario.Abilities
   (abilityDescription, abilityIconCoords, abilityMinPartyLevel)
 import Fallback.State.Party
 import Fallback.State.Resources
-  (FontTag(..), Resources, rsrcAbilityIcon, rsrcFont, rsrcSheetEquipButtons)
+  (FontTag(..), Resources, rsrcAbilityIcon, rsrcFont, rsrcSheetSmallButtons)
 import Fallback.State.Simple
 import Fallback.State.Tags (AbilityTag, abilityName, classAbility)
 import Fallback.View.Base
@@ -241,7 +241,7 @@ newPlusMinusButton col resources value loc =
                   ButtonDown -> 2
                   ButtonDisabled -> 3
       rect <- canvasRect
-      blitStretch ((rsrcSheetEquipButtons resources) ! (row, col)) rect
+      blitStretch ((rsrcSheetSmallButtons resources) ! (row, col)) rect
 
 -------------------------------------------------------------------------------
 

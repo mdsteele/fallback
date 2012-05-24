@@ -30,9 +30,9 @@ import Control.Monad.Fix (MonadFix, mfix)
 -------------------------------------------------------------------------------
 
 -- | An object of type 'EO' @a@ (for \"Errors Or @a@\") represents a
---   computation that will produce either a value of type @a@ or a (non-empty)
---   list of error messages.  It is a convenient way to represent computations
---   that may fail, possibly in multiple ways at once.
+-- computation that will produce either a value of type @a@ or a (non-empty)
+-- list of error messages.  It is a convenient way to represent computations
+-- that may fail, possibly in multiple ways at once.
 newtype EO a = EO { runEO :: Either [String] a }
 
 instance Functor EO where
@@ -64,8 +64,8 @@ instance MonadFix EO where
 -------------------------------------------------------------------------------
 
 -- | A monad combining the 'IO' and 'EO' monads.  Note that 'fail' in the
---   'IOEO' monad is equivalent to @onlyEO . fail@ (that is, it creates an 'EO'
---   error rather than crashing the program).
+-- 'IOEO' monad is equivalent to @onlyEO . fail@ (that is, it creates an 'EO'
+-- error rather than crashing the program).
 newtype IOEO a = IOEO { runIOEO :: IO (EO a) }
 
 instance Functor IOEO where

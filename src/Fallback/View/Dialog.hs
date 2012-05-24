@@ -18,8 +18,8 @@
 ============================================================================ -}
 
 module Fallback.View.Dialog
-  (newDialogView, newHorizontalDialogView, newTextEntryDialogView,
-   newDialogBackgroundView)
+  (newDialogView, newDialogView', newHorizontalDialogView,
+   newTextEntryDialogView, newDialogBackgroundView)
 where
 
 import Control.Applicative ((<$), (<$>))
@@ -39,12 +39,16 @@ import Fallback.View.Widget
 
 newDialogView :: (MonadDraw m) => View c d -> c -> View a b -> IRect
               -> m (View a b)
-newDialogView bgView bgInput fgView subRect = do
-  let bgPaint _ = do
-        withInputsSuppressed $ viewPaint bgView bgInput
+newDialogView bgView bgInput = newDialogView' bgView (const bgInput)
+
+newDialogView' :: (MonadDraw m) => View c d -> (a -> c) -> View a b -> IRect
+               -> m (View a b)
+newDialogView' bgView bgInput fgView subRect = do
+  let bgPaint input = do
+        withInputsSuppressed $ viewPaint bgView (bgInput input)
         tintCanvas (Tint 0 0 0 64)
-      bgHandler _ EvTick =
-        Ignore <$ withInputsSuppressed (viewHandler bgView bgInput EvTick)
+      bgHandler input EvTick = Ignore <$
+        withInputsSuppressed (viewHandler bgView (bgInput input) EvTick)
       bgHandler _ _ = return Ignore
   midView <- newDialogBackgroundView
   return $ compoundView $ [

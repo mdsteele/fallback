@@ -40,7 +40,7 @@ import Fallback.State.Item
 import Fallback.State.Party
 import Fallback.State.Resources
   (FontTag(..), Resources, rsrcDigitsStripBig, rsrcFont, rsrcItemIcon,
-   rsrcSheetEquipButtons)
+   rsrcSheetSmallButtons)
 import Fallback.State.Simple
 import Fallback.State.Tags (ItemTag(..))
 import Fallback.Utility (flip3, maybeM)
@@ -269,7 +269,7 @@ newItemActionButton resources cursorSink = do
                   ButtonDown -> 2
                   ButtonDisabled -> 3
       rect <- canvasRect
-      blitStretch ((rsrcSheetEquipButtons resources) ! (row, column)) rect
+      blitStretch ((rsrcSheetSmallButtons resources) ! (row, column)) rect
     buttonInputFn (slot, mbTag) = do
       -- TODO don't display button if player is holding an item with the cursor
       tag <- mbTag

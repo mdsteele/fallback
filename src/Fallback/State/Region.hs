@@ -32,7 +32,8 @@ data RegionState = RegionState
     rsParty :: Party,
     rsPreviousArea :: AreaTag,
     rsRegion :: RegionTag,
-    rsSelectedArea :: AreaTag }
+    rsSelectedArea :: AreaTag,
+    rsUnsaved :: Bool }
 
 rsFoundAreas :: RegionState -> Set.Set AreaTag
 rsFoundAreas state =

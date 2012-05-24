@@ -29,7 +29,7 @@ module Fallback.State.Resources
    -- * Fonts
    FontTag(..), rsrcFont,
    -- * GUI graphics
-   rsrcCursorsStrip, rsrcDigitsStripBig, rsrcSheetEquipButtons,
+   rsrcCursorsStrip, rsrcDigitsStripBig, rsrcSheetSmallButtons,
    rsrcPaintDigits,
    -- * Icons
    rsrcAbilityIcon, rsrcItemIcon, rsrcStatusIcons,
@@ -69,7 +69,7 @@ data Resources = Resources
     rsrcItemIcons :: Sheet,
     rsrcPaintDigits :: Int -> LocSpec Int -> Paint (),
     rsrcProjs :: TM.TotalMap ProjTag Sprite,
-    rsrcSheetEquipButtons :: Sheet,
+    rsrcSheetSmallButtons :: Sheet,
     rsrcSounds :: TM.TotalMap SoundTag Sound,
     rsrcSprites :: TM.TotalMap SpriteTag Sprite,
     rsrcStatusDecorations :: StatusDecorations,
@@ -86,7 +86,7 @@ newResources = do
   charSheet <- loadSheet "characters.png" (24, 4)
   cursors <- loadVStrip "gui/cursors.png" 20
   itemIcons <- loadSheet "items.png" (8, 8)
-  sheetEquipButtons <- loadSheet "gui/equip-buttons.png" (4, 4)
+  sheetSmallButtons <- loadSheet "gui/small-buttons.png" (4, 6)
   fonts <- TM.makeA (uncurry loadFont . fontSpec)
   monsterImages <- TM.makeA loadMonsterImages
   paintDigits <- newDigitPaint
@@ -116,7 +116,7 @@ newResources = do
       rsrcItemIcons = itemIcons,
       rsrcPaintDigits = paintDigits,
       rsrcProjs = TM.make ((projStrip !) . projIndex),
-      rsrcSheetEquipButtons = sheetEquipButtons,
+      rsrcSheetSmallButtons = sheetSmallButtons,
       rsrcSounds = sounds,
       rsrcSprites = TM.make ((spritesSheet !) . spriteCoords),
       rsrcStatusDecorations = statusDecorations,
