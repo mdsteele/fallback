@@ -26,7 +26,7 @@ import qualified Data.Map as Map (empty)
 import qualified Data.Set as Set (empty)
 
 import Fallback.Control.Error (IOEO, onlyIO)
-import qualified Fallback.Data.SparseMap as SM (make)
+import qualified Fallback.Data.SparseMap as SM (fromSparseAssocs)
 import qualified Fallback.Data.TotalMap as TM (make)
 import Fallback.Draw (handleScreen, paintScreen)
 import Fallback.Event
@@ -146,7 +146,8 @@ newParty spec = do
           partyItems = IntMap.fromList $ zip [0..] initialItems,
           partyLevel = 1,
           partyProgress = initialProgress,
-          partyQuests = SM.make QuestUntaken }
+          partyQuests =
+            SM.fromSparseAssocs QuestUntaken [(FindAdventure, QuestActive)] }
   let healChar char = char { chrHealth = chrMaxHealth party char,
                              chrMojo = chrMaxMojo party char }
   return party { partyCharacters = fmap healChar (partyCharacters party) }

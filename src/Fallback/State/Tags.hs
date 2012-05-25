@@ -322,7 +322,7 @@ data MonsterSpellTag = BladeSweep | BlessMonsters | CrossBeam | EntangleSpray
 
 -------------------------------------------------------------------------------
 
-data QuestTag = SaveCorenglen
+data QuestTag = FindAdventure | SaveCorenglen
               -- Svengaard:
               | ReclaimSunrod | CaptureSophia | HelpSophiaEscape
               | IronForGregor | ClearPerilousRoad | ClearIronMine
@@ -336,6 +336,7 @@ data QuestTag = SaveCorenglen
   deriving (Eq, Ord, Read, Show)
 
 questName :: QuestTag -> String
+questName FindAdventure = "Seek out Adventure"
 questName ReclaimSunrod = "Astral IV: Find the Sunrod"
 questName CaptureSophia = "Bring Sophia to Holmgare"
 questName HelpSophiaEscape = "Help Sophia Escape"
@@ -346,8 +347,14 @@ questName ReclaimLifeblade = "Astral I: Find the Lifeblade"
 questName _ = "FIXME"
 
 questDescription :: QuestTag -> String
+questDescription FindAdventure = "You are a group of brand-new adventurers,\
+  \ venturing out into the world to seek your fortune.  After stocking up on\
+  \ supplies and hiking through the wild, your first stop is in the village of\
+  \ Corenglen, in Longvale.  You hope that someone there, or nearby, will have\
+  \ some kind of quest in mind for a plucky band of adventurers such as\
+  \ yourselves."
 questDescription ReclaimSunrod = "According to Jessica, your last great\
-  \ adventure was to journey into Svengaard, defeat the Dread Ur-Lich\
+  \ adventure was to journey through Svengaard, defeat the Dread Ur-Lich\
   \ Vhaegyst, and claim the Sunrod.\n\n\
   \For context, a lich is what happens when an incredibly powerful and evil\
   \ archmagus uses dark magic to become a skeletal, undead, eldrich horror,\
@@ -365,8 +372,29 @@ questDescription DryIceForLucca = "Lucca, the apothecary in Tragorda, needs a\
   \ this alchemical ingredient somewhere in Svengaard and give it to her, she\
   \ will make the potion and give some of it to you."
 questDescription ReclaimStarspear = "According to Jessica, your third great\
-  \ adventure was to journey into Tahariam, defeat the daemon lord Kuriyos,\
-  \ and claim the Starspear."
+  \ adventure was to journey into Tahariam, defeat the Daemon Lord Kuriyos,\
+  \ and claim the Starspear.\n\n\
+  \Daemons are creatures from another, infernal plane of existance.  They are\
+  \ extremely dangerous, and the big ones are nigh unkillable.  Fortunately,\
+  \ daemons can generally only reach the world of humans if explicitly\
+  \ summoned; unfortunately, there's no shortage of evil wizards foolish\
+  \ enough to do so.  If a daemon {i}lord{_} is lurking around here, that is\
+  \ {i}very{_} bad news for everyone, and if you are to supposed to fight it\
+  \ yourselves, you are almost certainly going to die."
+questDescription ReclaimMoonbow = "According to Jessica, your second great\
+  \ adventure was to journey to Bailagua, defeat the Eye Queen Straeyeng, and\
+  \ claim the Moonbow.\n\n\
+  \You have no idea what an \"eye queen\" is, and Jessica didn't explain."
+questDescription ReclaimLifeblade = "According to Jessica, your very first\
+  \ great adventure was to journey through Emitsuibom, defeat the archmagus\
+  \ Uhnkanae, and claim the Lifeblade.\n\n\
+  \You've been hearing a lot about your victory over Uhnkanae during your\
+  \ \"later\" adventures, and from what you can tell he is a serious force to\
+  \ be reckoned with.  On the one hand, he is still just one human--not as\
+  \ inherently terrifying as some of your previous foes--but on the other hand\
+  \ you will be facing him without any of the astral weapons, four\
+  \ only-moderately-experienced adventurers against one of the most powerful\
+  \ magi in the world.  Your success is not particularly likely."
 questDescription _ = "FIXME"
 
 -------------------------------------------------------------------------------

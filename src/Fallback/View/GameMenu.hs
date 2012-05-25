@@ -26,10 +26,13 @@ module Fallback.View.GameMenu
 where
 
 import Control.Applicative ((<$), (<$>))
+import Data.Array (listArray)
+import Data.List (sort)
 import Data.Maybe (isJust)
 
-import Fallback.Data.Color (blackColor)
+import Fallback.Data.Color (Color(Color), Tint(Tint), blackColor, blackTint)
 import Fallback.Data.Point
+import qualified Fallback.Data.SparseMap as SM (sparseAssocs)
 import Fallback.Draw
 import Fallback.Event
 import Fallback.Preferences (Preferences(..))
@@ -37,16 +40,17 @@ import Fallback.Scenario.Save (SavedGame(..))
 import Fallback.State.Area (acsParty, arsParty)
 import Fallback.State.Combat (CombatState, csCommon)
 import Fallback.State.Resources (FontTag(..), Resources, rsrcFont)
-import Fallback.State.Party (Party, partyDifficulty)
+import Fallback.State.Party (Party, partyDifficulty, partyQuests)
 import Fallback.State.Region (RegionState, rsParty, rsUnsaved)
-import Fallback.State.Simple (Difficulty)
+import Fallback.State.Simple (Difficulty, QuestStatus(QuestActive))
+import Fallback.State.Tags (QuestTag, questDescription, questName)
 import Fallback.State.Town (TownState(tsCommon))
 import Fallback.View.Base
 import Fallback.View.Dialog (newDialogView, newDialogView')
 import Fallback.View.NewGame (newDifficultyView)
 import Fallback.View.Widget
-  (enabledIf, makeLabel, makeLabel_, newCheckbox, newSimpleTextButton,
-   newTextButton)
+  (enabledIf, makeLabel, makeLabel_, newCheckbox, newDynamicTextWrapView,
+   newSimpleTextButton, newTextButton)
 
 -------------------------------------------------------------------------------
 
@@ -111,7 +115,7 @@ newGameMenuView resources bgView = do
 newGameMenuDialog :: (MonadDraw m) => Resources
                   -> m (View (GameMenuState a) GameMenuAction)
 newGameMenuDialog resources = do
-  let { buttonMargin = 20; buttonSpacing = 8; buttonHeight = 24 }
+  let { buttonMargin = 20; buttonSpacing = 6; buttonHeight = 24 }
   let buttonSub col row = subView $ \_ (w, h) ->
         let buttonWidth = half (w - 2 * buttonMargin - buttonSpacing)
         in Rect (buttonMargin + col * (buttonWidth + buttonSpacing))
@@ -119,7 +123,11 @@ newGameMenuDialog resources = do
                  row * (buttonSpacing + buttonHeight))
                 buttonWidth buttonHeight
   compoundViewM [
-    -- TODO quests view
+    (newTopLabel resources "Party Quest Log"),
+    (subView (\_ (w, h) -> Rect 16 38 (w - 32)
+                                (h - 38 - buttonMargin -
+                                 4 * (buttonHeight + buttonSpacing))) .
+     vmap gmsParty <$> newQuestsView resources),
     (buttonSub 0 3 .
      vmap (\gms -> ("Save Game", enabledIf $ isJust $ gmsSavedGame gms)) <$>
      newTextButton resources [KeyS] GameMenuSave),
@@ -142,6 +150,69 @@ newGameMenuDialog resources = do
     (buttonSub 1 0 <$>
      newSimpleTextButton resources "Return to Game"
                          [KeyEscape, KeyReturn] GameMenuReturnToGame)]
+
+-------------------------------------------------------------------------------
+
+newQuestsView :: (MonadDraw m) => Resources -> m (View Party a)
+newQuestsView resources = do
+  let { numButtons = 10; buttonWidth = 200; buttonHeight = 22 }
+  indexRef <- newDrawRef 0
+  let questArrayFn party =
+        listArray (0, numButtons - 1) $ (++ repeat Nothing) $ map Just $ sort $
+        map fst $ filter ((QuestActive ==) . snd) $ SM.sparseAssocs $
+        partyQuests party
+  let nameInputFn idx arr = do
+        chosen <- readDrawRef indexRef
+        return $ fmap (flip (,) chosen) (arr ! idx)
+  let makeNameWidget idx =
+        viewMapM (nameInputFn idx) ((Suppress <$) . writeDrawRef indexRef) .
+        maybeView id .
+        subView_ (Rect 0 (6 + (buttonHeight + 1) * idx)
+                       buttonWidth buttonHeight) <$>
+        newQuestNameWidget resources idx
+  let descInputFn arr = do
+        chosen <- readDrawRef indexRef
+        return $ fmap (flip (,) chosen) $ (arr ! chosen)
+  vmap questArrayFn <$> compoundViewM [
+    (compoundViewM $ map makeNameWidget [0 .. numButtons - 1]),
+    (vmapM descInputFn . maybeView id .
+     subView (\_ (w, h) -> Rect buttonWidth 0 (w - buttonWidth) h) <$>
+     newQuestDescriptionView resources)]
+
+newQuestNameWidget :: (MonadDraw m) => Resources -> Int
+                   -> m (View (QuestTag, Int) Int)
+newQuestNameWidget resources idx = do
+  let font1 = rsrcFont resources FontGeorgia11
+  let font2 = rsrcFont resources FontGeorgiaBold11
+  let
+    paint (tag, chosen) = do
+      let selected = chosen == idx
+      (w, h) <- canvasSize
+      drawText (if selected then font2 else font1)
+               (if selected then Color 192 0 0 else blackColor)
+               (LocMidleft $ Point 5 $ half h) (questName tag)
+      drawLineChain (if selected then blackTint else Tint 0 0 0 40)
+                    [Point w 0, Point 3 0, Point 0 3,
+                     Point 0 (h - 4), Point 3 (h - 1), Point w (h - 1)]
+    handler _ (EvMouseDown pt) = do
+      whenWithinCanvas pt $ return $ Action idx
+    handler _ _ = return Ignore
+  return $ View paint handler
+
+newQuestDescriptionView :: (MonadDraw m) => Resources
+                        -> m (View (QuestTag, Int) a)
+newQuestDescriptionView resources = do
+  let paintBackground (_, idx) = do
+        (w, h) <- canvasSize
+        let startY = 6 + 23 * idx
+        drawLineChain blackTint [
+          Point 0 startY, Point 0 5, Point 5 0, Point (w - 6) 0,
+          Point (w - 1) 5, Point (w - 1) (h - 6), Point (w - 6) (h - 1),
+          Point 5 (h - 1), Point 0 (h - 6), Point 0 (startY + 21)]
+  compoundViewM [
+    (return $ inertView paintBackground),
+    (subView (\_ (w, h) -> Rect 8 8 (w - 16) (h - 16)) .
+     vmap (questDescription . fst) <$> newDynamicTextWrapView resources)]
 
 -------------------------------------------------------------------------------
 

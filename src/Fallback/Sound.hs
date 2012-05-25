@@ -19,20 +19,17 @@
 
 module Fallback.Sound
   (Sound, loadSound, playSound, playSounds,
-   {-SoundDone, playSoundNotify, soundDone,-}
    loopMusic, stopMusic, fadeOutMusic)
 where
 
---import qualified Control.Concurrent.SampleVar as SV
---import qualified Data.HashTable as HT
+import Control.Monad (when)
 import Data.IORef (IORef, newIORef, writeIORef)
 import Data.List (nub)
---import qualified Graphics.UI.SDL.Extras as SDLx
 import qualified Graphics.UI.SDL.Mixer as SDLm
 import System.IO.Unsafe (unsafePerformIO)
 
 import Fallback.Resource (getResourcePath)
---import Fallback.Utility (maybeM)
+import Fallback.Preferences (getPreferences, prefEnableSound)
 
 -------------------------------------------------------------------------------
 
@@ -42,19 +39,28 @@ loadSound :: String -> IO Sound
 loadSound name = fmap Sound (getResourcePath "sounds" name >>= SDLm.loadWAV)
 
 playSound :: Sound -> IO ()
-playSound (Sound chunk) = SDLm.tryPlayChannel (-1) chunk 0 >> return ()
+playSound (Sound chunk) = do
+  prefs <- getPreferences
+  when (prefEnableSound prefs) $ do
+    SDLm.tryPlayChannel (-1) chunk 0 >> return ()
 
 playSounds :: [Sound] -> IO ()
 playSounds = mapM_ playSound . nub
 
 -------------------------------------------------------------------------------
 
+-- We store the currently playing music object in a global ref, so that it
+-- isn't garbage-collected while the music is playing (which it otherwise might
+-- be, which would be bad).
 {-# NOINLINE currentMusic #-} -- needed for unsafePerformIO
 currentMusic :: IORef (Maybe SDLm.Music)
 currentMusic = unsafePerformIO $ newIORef Nothing
 
 loopMusic :: String -> IO ()
 loopMusic name = do
+  -- TODO: Pay attention to prefEnableMusic here.  Problem: what to do when the
+  -- user turns music back on?  We should probably keep track of what music we
+  -- _would_ be playing, and start it at that moment.
   music <- SDLm.loadMUS =<< getResourcePath "music" name
   writeIORef currentMusic (Just music)
   SDLm.playMusic music (negate 1)
@@ -74,29 +80,4 @@ stopMusic = do
   SDLm.haltMusic
   writeIORef currentMusic Nothing
 
--------------------------------------------------------------------------------
-{-
-newtype SoundDone = SoundDone (SV.SampleVar ())
-
-playSoundNotify :: Sound -> IO SoundDone
-playSoundNotify (Sound chunk) = do
-  chan <- SDLm.tryPlayChannel (-1) chunk 0
-  if chan < 0 then fmap SoundDone (SV.newSampleVar ()) else do
-    done <- fmap SoundDone SV.newEmptySampleVar
-    HT.insert doneTable chan done
-    return done
-
-soundDone :: SoundDone -> IO Bool
-soundDone (SoundDone sv) = fmap not (SV.isEmptySampleVar sv)
-
-{-# NOINLINE doneTable #-} -- needed for unsafePerformIO
-doneTable :: HT.HashTable SDLm.Channel SoundDone
-doneTable = unsafePerformIO $ do
-  SDLx.setChannelFinishedAction $ Just $ \chan -> do
-    mbDone <- HT.lookup doneTable chan
-    maybeM mbDone $ \(SoundDone sv) -> do
-      SV.writeSampleVar sv ()
-      HT.delete doneTable chan
-  HT.new (==) HT.hashInt
--}
 -------------------------------------------------------------------------------
