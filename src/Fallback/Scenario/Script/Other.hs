@@ -39,7 +39,7 @@ module Fallback.Scenario.Script.Other
    -- ** Creature animation
    faceCharacterToward, faceMonsterToward, faceMonsterAwayFrom,
    facePartyToward, setCharacterAnim, setMonsterAnim, setPartyAnim,
-   getMonsterHeadPos, alterMonsterPose,
+   getHitTargetHeadPos, getMonsterHeadPos, alterMonsterPose,
 
    -- * UI
    setMessage, narrate,
@@ -503,6 +503,14 @@ setMonsterAnim key anim = alterMonsterPose key (\p -> p { cpAnim = anim })
 
 setPartyAnim :: CreatureAnim -> Script TownEffect ()
 setPartyAnim = emitEffect . EffSetPartyAnim
+
+-- | Get the position of the given 'HitTarget'; for monster targets, this
+-- returns the position of the monster's head.
+getHitTargetHeadPos :: (FromAreaEffect f) => HitTarget -> Script f Position
+getHitTargetHeadPos (HitCharacter charNum) =
+  areaGet (arsCharacterPosition charNum)
+getHitTargetHeadPos (HitMonster key) = getMonsterHeadPos key
+getHitTargetHeadPos (HitPosition pos) = return pos
 
 getMonsterHeadPos :: (FromAreaEffect f) => Grid.Key Monster
                   -> Script f Position

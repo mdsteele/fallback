@@ -25,6 +25,8 @@ module Fallback.Scenario.Script.Doodad
    addBallisticDoodad, addBeamDoodad, addBlasterDoodad, addBoomDoodadAtPoint,
    addBoomDoodadAtPosition, addLightningDoodad, addLightWallDoodad,
    addShockwaveDoodad, doExplosionDoodad,
+   -- * Swooshes
+   addSwooshDoodad, linearBezierCurve, cubicBezierCurve,
    -- * Hookshot
    addExtendingHookshotDoodad, addExtendedHookshotDoodad,
    addRetractingHookshotDoodad,
@@ -241,6 +243,28 @@ doExplosionDoodad tag (Point cx cy) = do
 --       outerFn t _ = if t < 0.5 then (2 * t, Tint 255 255 255 128)
 --                     else (2 * t + 0.1, Tint 255 255 255 0)
 --   addShockwaveDoodad 16 (positionCenter endPos) 58 74 innerFn outerFn
+
+-------------------------------------------------------------------------------
+-- Swooshes:
+
+addSwooshDoodad :: (FromAreaEffect f) => Tint -> Double -> Int -> Int
+                -> (Double -> DPoint) -> Script f ()
+addSwooshDoodad tint thickness sublimit len fn = do
+  let limit = sublimit + len
+  addSimpleDoodad HighDood limit $ \count topleft -> do
+    let fn' n = fn (fromIntegral n / fromIntegral sublimit) `pSub`
+                fmap fromIntegral topleft
+    paintSwoosh tint thickness $
+      map fn' [max 0 (limit - count - len) .. min sublimit (limit - count)]
+
+linearBezierCurve :: DPoint -> DPoint -> Double -> DPoint
+linearBezierCurve p0 p1 t = p0 `pAdd` (p1 `pSub` p0) `pMul` t
+
+cubicBezierCurve :: DPoint -> DPoint -> DPoint -> DPoint -> Double -> DPoint
+cubicBezierCurve p0 p1 p2 p3 t =
+  let t' = 1 - t
+  in p0 `pMul` (t' * t' * t') `pAdd` p1 `pMul` (3 * t' * t' * t) `pAdd`
+     p2 `pMul` (3 * t' * t * t) `pAdd` p3 `pMul` (t * t * t)
 
 -------------------------------------------------------------------------------
 -- Hookshot:

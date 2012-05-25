@@ -89,15 +89,27 @@ newDigitPaint = paintNumber <$> loadVStrip "small-digits.png" 10
 
 paintSwoosh :: Tint -> Double -> [DPoint] -> Paint ()
 paintSwoosh tint thickness points = mapM_ paintSegment $ quads points where
-  paintSegment (mbA, b, c, mbD) =
-    let pts Nothing p2 _p3 = [(tint', p2)]
-        pts (Just p1) p2 p3 =
-          let dir1 = pAtan2 (p1 `pSub` p2)
-              dir3 = pAtan2 (p3 `pSub` p2)
-              delta = pPolar thickness $
-                      dir3 + 0.5 * ((dir1 - dir3) `fmod` (2 * pi))
-          in [(tint', p2 `pAdd` delta), (tint, p2), (tint', p2 `pSub` delta)]
-    in gradientPolygon (pts mbA b c ++ pts mbD c b) where
+  paintSegment (Nothing, _, _, Nothing) = return ()
+  paintSegment (Just a, b, c, Nothing) = do
+    let delta = getDelta a b c
+    gradientPolygon [(tint, b), (tint', b `pAdd` delta), (tint', c)]
+    gradientPolygon [(tint, b), (tint', b `pSub` delta), (tint', c)]
+  paintSegment (Nothing, b, c, Just d) = do
+    let delta = getDelta d c b
+    gradientPolygon [(tint, c), (tint', c `pAdd` delta), (tint', b)]
+    gradientPolygon [(tint, c), (tint', c `pSub` delta), (tint', b)]
+  paintSegment (Just a, b, c, Just d) = do
+    let delta1 = getDelta a b c
+        delta2 = getDelta d c b
+    gradientPolygon [(tint, b), (tint', b `pAdd` delta1),
+                     (tint', c `pSub` delta2), (tint, c)]
+    gradientPolygon [(tint, b), (tint', b `pSub` delta1),
+                     (tint', c `pAdd` delta2), (tint, c)]
+
+  getDelta p1 p2 p3 =
+    let dir1 = pAtan2 (p1 `pSub` p2)
+        dir3 = pAtan2 (p3 `pSub` p2)
+    in pPolar thickness $ dir3 + 0.5 * ((dir1 - dir3) `fmod` (2 * pi))
 
   quads :: [a] -> [(Maybe a, a, a, Maybe a)]
   quads = subquads Nothing where

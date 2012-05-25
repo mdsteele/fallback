@@ -334,7 +334,14 @@ getAbility characterClass abilityNumber rank =
       combat (mix Brimstone Limestone) (aoeTarget 5 $ SqDist 4) $
       \caster power (endPos, targets) -> do
         characterBeginOffensiveAction caster endPos
-        -- TODO sound/doodad
+        -- TODO sound
+        let swooshTint = Tint 255 255 255 96
+            swooshThickness = 4
+        forM_ [0 .. 3] $ \idx -> do
+          addSwooshDoodad swooshTint swooshThickness 32 12 $ \t ->
+            positionCenter endPos `pSub` Point 0 (t * t * 120) `pAdd`
+            pPolar (90 * (1 - t) * (1 - t)) (4 * pi * t + idx * pi/2)
+        wait 10
         intBonus <- getIntellectBonus caster
         let baseDamage = ranked 10 20 30 * power * intBonus
         hits <- forM targets $ \target -> do
@@ -342,8 +349,17 @@ getAbility characterClass abilityNumber rank =
           return (HitPosition target, MagicDamage, damage)
         totalDamage <- dealDamageTotal hits
         -- TODO at rank 3, also drain status buffs
-        wait 16
+        wait 22
         allyTargets <- getAllAllyTargets
+        do let p1 = positionCenter endPos `pSub` Point 0 110
+           let p2 = p1 `pSub` Point 0 90
+           startPos <- areaGet (arsCharacterPosition caster)
+           let p3 = positionCenter startPos `pSub` Point 0 90
+           forM_ allyTargets $ \target -> do
+             p4 <- positionCenter <$> getHitTargetHeadPos target
+             addSwooshDoodad swooshTint swooshThickness 32 12 $
+               cubicBezierCurve p1 p2 p3 p4
+        wait 32
         let healAmount = fromIntegral totalDamage /
                          fromIntegral (length allyTargets)
         healDamage $ map (flip (,) healAmount) $ allyTargets
