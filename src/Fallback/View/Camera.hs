@@ -30,6 +30,8 @@ module Fallback.View.Camera
    newFadeToBlackView)
 where
 
+import Control.Applicative ((<$>))
+import Control.Arrow ((&&&))
 import Control.Monad (forM_, guard, when)
 import Data.Ix (range)
 import qualified Data.Map as Map
@@ -163,6 +165,8 @@ paintMonsters acs inCombat = mapM_ paintMonster monsters where
     when inCombat $ do
       paintHealthBar cameraTopleft (monstIsAlly monst) rect offset
                      (monstHealth monst) (mtMaxHealth mtype)
+                     ((msRemainingFrames &&& msMaxFrames) <$>
+                      monstSummoning monst)
   cameraTopleft = camTopleft $ acsCamera acs
   monsters = Grid.entries $ acsMonsters acs
   resources = acsResources acs
@@ -228,14 +232,20 @@ paintStatusDecorations resources cameraTopleft clock prect status = do
     mapM_ paint [spinTheta + pi / 4, spinTheta + 3 * (pi / 4),
                  spinTheta + 5 * (pi / 4), spinTheta + 7 * (pi / 4)]
 
-paintHealthBar :: IPoint -> Bool -> PRect -> IPoint -> Int -> Int -> Paint ()
-paintHealthBar cameraTopleft ally prect offset health maxHealth = do
+paintHealthBar :: IPoint -> Bool -> PRect -> IPoint -> Int -> Int
+               -> Maybe (Int, Int) -> Paint ()
+paintHealthBar cameraTopleft ally prect offset health maxHealth mbSummon = do
   let barWidth = 20
   let Rect x y w h = prectRect prect `rectMinus` (cameraTopleft `pSub` offset)
   let rect = Rect (x + half (w - barWidth)) (y + h - 4) barWidth 5
   tintRect (if ally then Tint 192 192 255 255 else Tint 255 192 192 255) rect
   tintRect (if ally then Tint 64 64 255 255 else Tint 255 64 64 255)
            (rect { rectW = barWidth * health `div` maxHealth })
+  maybeM mbSummon $ \(remainingFrames, maxFrames) -> do
+    let y' = rectY rect + half (rectH rect)
+        x' = rectX rect
+        x'' = x' + barWidth * remainingFrames `div` maxFrames
+    drawLine (Tint 0 255 0 255) (Point x' y') (Point x'' y')
   drawRect blackTint rect
 
 -------------------------------------------------------------------------------

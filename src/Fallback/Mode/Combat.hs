@@ -666,10 +666,13 @@ tickMonsterWaiting :: Grid.Entry Monster
 tickMonsterWaiting entry = (monst', mbScript) where
   key = Grid.geKey entry
   monst = Grid.geValue entry
-  monst' = monst { monstMoments = moments', monstStatus = status' }
-  mbScript = if moments' >= maxActionPoints * momentsPerActionPoint
-             then Just (defaultMonsterCombatAI key >> resetMoments)
-             else Nothing
+  monst' = monst { monstMoments = moments', monstStatus = status',
+                   monstSummoning = summoning' }
+  mbScript = if maybe False ((0 >=) . msRemainingFrames) summoning'
+             then Just (unsummonMonster key)
+             else if moments' >= maxActionPoints * momentsPerActionPoint
+                  then Just (defaultMonsterCombatAI key >> resetMoments)
+                  else Nothing
   resetMoments = do
     monsters <- areaGet arsMonsters
     maybeM (Grid.lookup key monsters) $ \entry' -> do
@@ -682,5 +685,8 @@ tickMonsterWaiting entry = (monst', mbScript) where
   status' = decayStatusEffects baseActionPointsPerFrame status
   mtype = monstType monst
   status = monstStatus monst
+  summoning' = tickSummoning <$> monstSummoning monst
+  tickSummoning ms = ms { msRemainingFrames = max 0 $ subtract 1 $
+                                              msRemainingFrames ms }
 
 -------------------------------------------------------------------------------

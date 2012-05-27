@@ -170,6 +170,7 @@ featDescription Resonate = "Use any one ability, at double power."
 featDescription _ = "??? FIXME ???"
 
 featIconCoords :: FeatTag -> (Int, Int)
+featIconCoords Concentrate = (9, 9)
 featIconCoords Offering = (6, 0)
 featIconCoords SolarFlare = (6, 1)
 featIconCoords Energize = (6, 2)
@@ -182,10 +183,16 @@ featIconCoords LunarBeam = (8, 2)
 featIconCoords PulseOfLife = (9, 0)
 featIconCoords Avatar = (9, 1)
 featIconCoords AllCreation = (9, 2)
+featIconCoords JumpSlash = (6, 5)
+featIconCoords JumpStrike = (6, 4)
 featIconCoords Shortshot = (7, 5)
 featIconCoords Longshot = (7, 4)
 featIconCoords Multishot = (7, 3)
-featIconCoords _ = (6, 3) -- FIXME
+featIconCoords Glow = (9, 3)
+featIconCoords Amplify = (9, 4)
+featIconCoords Radiate = (9, 5)
+featIconCoords Resonate = (9, 6)
+featIconCoords _ = (9, 9) -- FIXME
 
 -------------------------------------------------------------------------------
 

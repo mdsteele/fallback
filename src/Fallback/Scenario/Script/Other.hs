@@ -50,7 +50,8 @@ module Fallback.Scenario.Script.Other
    -- ** Devices
    addDevice_, removeDevice, replaceDevice,
    -- ** Monsters
-   addBasicEnemyMonster, summonAllyMonster, tryAddMonster,
+   addBasicEnemyMonster, tryAddMonster, trySummonMonster,
+   degradeMonstersSummonedBy, unsummonMonster, tickSummonsByOneRound,
    -- ** Items
    grantAndEquipWeapon, grantItem,
 
@@ -64,15 +65,16 @@ where
 import Control.Applicative ((<$), (<$>))
 import Control.Arrow (right, second)
 import Control.Exception (assert)
-import Control.Monad (foldM, forM, forM_, unless, when)
+import Control.Monad (foldM, forM_, unless, when)
 import Data.Array (range)
 import qualified Data.Foldable as Fold (any)
 import Data.List (foldl1')
 import qualified Data.Map as Map
-import Data.Maybe (catMaybes, fromMaybe, isNothing)
+import Data.Maybe (fromMaybe, isNothing, listToMaybe)
 import qualified Data.Set as Set
 
-import Fallback.Constants (maxAdrenaline, momentsPerActionPoint, sightRange)
+import Fallback.Constants
+  (baseFramesPerActionPoint, maxAdrenaline, momentsPerActionPoint, sightRange)
 import Fallback.Control.Script
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
@@ -91,7 +93,7 @@ import Fallback.State.Status
 import Fallback.State.Tags
   (AbilityTag(..), AreaTag, ItemTag(..), MonsterTag, WeaponItemTag)
 import Fallback.Utility
-  (ceilDiv, flip3, flip4, groupKey, maybeM, sortKey, square, sumM)
+  (ceilDiv, flip3, forMaybeM, groupKey, maybeM, sortKey, square, sumM)
 
 -------------------------------------------------------------------------------
 -- Movement:
@@ -196,7 +198,7 @@ dealDamageGeneral gentle hits = do
           Right monstEntry ->
             dealRawDamageToMonster gentle (Grid.geKey monstEntry) damage stun
   sumM inflict . map (foldl1' combine) . groupKey keyFn . sortKey keyFn =<<
-    (mapM resist . catMaybes =<< mapM convert hits)
+    mapM resist =<< forMaybeM hits convert
 
 -- | Inflict damage and stun on a character, ignoring armor and resistances.
 -- Stun is measured in action points.
@@ -238,6 +240,8 @@ dealRawDamageToCharacter gentle charNum damage stun = do
     playSound SndDie1
     pos <- areaGet (arsCharacterPosition charNum)
     addDeathDoodad images faceDir (makeRect pos (1, 1))
+    -- Unsummon monsters as necessary.
+    unsummonDependentsOf (Left charNum)
     -- If all characters are now dead, it's game over:
     alive <- areaGet (Fold.any chrIsConscious . partyCharacters . arsParty)
     unless alive $ emitAreaEffect EffGameOver
@@ -267,17 +271,21 @@ dealRawDamageToMonster gentle key damage stun = do
   emitAreaEffect $ EffReplaceMonster key mbMonst'
   unless (gentle && damage == 0) $ do
     addFloatingNumberOnTarget damage (HitMonster key)
-  -- If the monster is now dead, add a death doodad, set the monster's
-  -- "dead" var (if any) to True, and grant experience if it's an enemy.
+  -- If the monster is now dead, we need do to several things.
   when (isNothing mbMonst') $ do
     resources <- areaGet arsResources
     let mtype = monstType monst
+    -- Add a death doodad.
     addDeathDoodad (rsrcMonsterImages resources (mtSize mtype)
                                       (mtImageRow mtype))
                    (cpFaceDir $ monstPose monst) (Grid.geRect entry)
+    -- If the monster has a "dead" var, set it to True.
     maybeM (monstDeadVar monst) (emitAreaEffect . flip EffSetVar True)
+    -- If this was an enemy monster, grant experience for killing it.
     unless (monstIsAlly monst) $ do
       grantExperience $ mtExperienceValue $ monstType monst
+    -- Unsummon other monsters as necessary.
+    unsummonDependentsOf (Right key)
   return damage
 
 adrenalineForDamage :: Double -> Int -> Int -> Int
@@ -634,50 +642,115 @@ setFields field = emitAreaEffect . EffAlterFields fn where
       (Webbing a, Webbing b) -> Webbing (max a b)
       _ -> field
 
-summonAllyMonster :: (FromAreaEffect f) => Position -> MonsterTag
-                  -> Script f ()
-summonAllyMonster startPos tag = do
-  arena <- areaGet arsBoundaryRect
-  -- TODO Allow for non-SizeSmall monsters
-  spot <- areaGet (flip4 arsFindOpenSpot startPos arena Set.empty)
-  let monster = makeMonster tag
-  _ <- tryAddMonster spot monster
-         { monstIsAlly = True,
-           monstName = "Summoned " ++ monstName monster,
-           monstTownAI = ChaseAI }
-  return ()
-
 tryAddMonster :: (FromAreaEffect f) => Position -> Monster
               -> Script f (Maybe (Grid.Entry Monster))
 tryAddMonster position monster = do
   emitAreaEffect $ EffTryAddMonster position monster
-{-
-tryAddMonster :: (FromAreaEffect f) => MonsterTag -> MonsterType -> Position
-              -> Maybe (Var Bool) -> MonsterTownAI -> Maybe MonsterScript
-              -> Script f (Maybe (Entry Monster))
-tryAddMonster tag mtype position mbDeadVar ai mbMscript = do
-  emitAreaEffect $ EffTryAddMonster position $ Monster
-    { monstAnim = NoAnim,
-      monstAdrenaline = 0,
-      monstDeadVar = mbDeadVar,
-      monstFaceDir = FaceLeft,
-      monstHealth = mtMaxHealth mtype,
-      monstIsAlly = False,
-      monstMoments = 0,
-      monstName = mtName mtype,
-      monstScript = mbMscript,
-      monstStatus = initStatusEffects,
-      monstTag = tag,
-      monstTownAI = ai,
-      monstType = mtype }
--}
+
+-- | Summon a monster allied to and somewhere near the given summoner.  Return
+-- 'True' on success, or 'False' if there was no open spot to place the
+-- summoned monster.
+trySummonMonster :: (FromAreaEffect f) =>
+                 Either CharacterNumber (Grid.Key Monster) -> MonsterTag
+              -> Int -> Bool -> Script f Bool
+trySummonMonster summonerKey tag lifetime dieWhenGone = do
+  (isAlly, summonerPos) <- do
+    case summonerKey of
+      Left charNum -> (,) True <$> areaGet (arsCharacterPosition charNum)
+      Right monstKey -> do
+        entry <- demandMonsterEntry monstKey
+        return (monstIsAlly (Grid.geValue entry), monstHeadPos entry)
+  let monster = makeMonster tag
+  let size = sizeSize $ mtSize $ monstType monster
+  mbSpot <- do
+    let blocked ars pos = arsOccupied pos ars ||
+                          cannotWalkOn (arsTerrainOpenness pos ars)
+    unblocked <- areaGet $ \ars pos ->
+      not $ any (blocked ars) $ prectPositions $ makeRect pos size
+    directions <- randomPermutation allDirections
+    listToMaybe . filter unblocked <$>
+      areaGet (arsAccessiblePositions directions summonerPos)
+  flip (maybe $ return False) mbSpot $ \spot -> do
+  faceDir <- getRandomElem [FaceLeft, FaceRight]
+  addSummonDoodad $ makeRect spot size
+  mbEntry <- tryAddMonster spot monster
+    { monstIsAlly = isAlly,
+      monstName = "Summoned " ++ monstName monster,
+      monstPose = (monstPose monster) { cpAlpha = 0, cpFaceDir = faceDir },
+      monstSummoning = Just MonsterSummoning
+        { msMaxFrames = lifetime,
+          msRemainingFrames = lifetime,
+          msSummmoner = summonerKey,
+          msUnsummonWhenSummonerGone = dieWhenGone },
+      monstTownAI = ChaseAI }
+  when (isNothing mbEntry) $ fail "trySummonMonster: tryAddMonster failed"
+  return True
+
+-- | Call this when a summoned monster has zero remaining frames; it will
+-- unsummon the monster, as well as any other summoned monsters that depend on
+-- it.  If the monster no longer exists, this has no effect.
+unsummonMonster :: (FromAreaEffect f) => Grid.Key Monster -> Script f ()
+unsummonMonster key = do
+  withMonsterEntry key $ \entry -> do
+    addUnsummonDoodad entry
+    -- Note that a monster being unsummoned doesn't count as it dying; no XP is
+    -- awarded and the monstDeadVar is not set.
+    emitAreaEffect $ EffReplaceMonster key Nothing
+    unsummonDependentsOf (Right key)
+
+-- | Call this when a creature dies or is unsummoned; it will unsummon all
+-- monsters that 1) were summoned by the given creature, and 2) have
+-- 'msUnsummonWhenSummonerGone' set to 'True'.
+unsummonDependentsOf :: (FromAreaEffect f) =>
+                        Either CharacterNumber (Grid.Key Monster)
+                     -> Script f ()
+unsummonDependentsOf summoner = do
+  monsters <- areaGet arsMonsters
+  forM_ (Grid.entries monsters) $ \entry -> do
+    let monst = Grid.geValue entry
+    maybeM (monstSummoning monst) $ \ms -> do
+      when (msUnsummonWhenSummonerGone ms && msSummmoner ms == summoner) $ do
+        unsummonMonster (Grid.geKey entry)
+
+-- | Cause all monsters that were summoned by the given summoner to lose one
+-- quarter of their remaining lifetime.
+degradeMonstersSummonedBy :: (FromAreaEffect f) =>
+                             Either CharacterNumber (Grid.Key Monster)
+                          -> Script f ()
+degradeMonstersSummonedBy summoner = do
+  monsters <- areaGet arsMonsters
+  forM_ (Grid.entries monsters) $ \entry -> do
+    let monst = Grid.geValue entry
+    maybeM (monstSummoning monst) $ \ms -> do
+      when (msSummmoner ms == summoner) $ do
+        let frames' = (msRemainingFrames ms) * 3 `ceilDiv` 4
+        emitAreaEffect $ EffReplaceMonster (Grid.geKey entry) $ Just monst
+          { monstSummoning = Just ms { msRemainingFrames = frames' } }
+
+-- | Call this once per town step to reduce the remaining frames of all
+-- summoned monsters by one round.
+tickSummonsByOneRound :: Script TownEffect ()
+tickSummonsByOneRound = do
+  monsters <- areaGet arsMonsters
+  keys <- forMaybeM (Grid.entries monsters) $ \entry -> do
+    let monst = Grid.geValue entry
+    case monstSummoning monst of
+      Nothing -> return Nothing
+      Just ms -> do
+        let frames' = max 0 $ subtract baseFramesPerActionPoint $
+                      msRemainingFrames ms
+        if frames' <= 0 then return $ Just $ Grid.geKey entry else do
+        emitAreaEffect $ EffReplaceMonster (Grid.geKey entry) $ Just monst
+          { monstSummoning = Just ms { msRemainingFrames = frames' } }
+        return Nothing
+  mapM_ unsummonMonster keys
 
 -------------------------------------------------------------------------------
 
 inflictAllPeriodicDamage :: (FromAreaEffect f) => Script f ()
 inflictAllPeriodicDamage = do
   fields <- Map.assocs <$> areaGet arsFields
-  fieldDamages <- fmap catMaybes $ forM fields $ \(pos, field) -> do
+  fieldDamages <- forMaybeM fields $ \(pos, field) -> do
     case field of
       BarrierWall _ -> return Nothing
       FireWall baseDamage -> do
@@ -695,14 +768,14 @@ inflictAllPeriodicDamage = do
         Nothing <$ alterStatus (HitPosition pos) (seApplyEntanglement rounds)
   charNums <- getAllConsciousCharacters
   party <- areaGet arsParty
-  charPoisonDamages <- fmap catMaybes $ forM charNums $ \charNum -> do
+  charPoisonDamages <- forMaybeM charNums $ \charNum -> do
     let totalPoison = sePoison $ chrStatus $ partyGetCharacter party charNum
     if totalPoison <= 0 then return Nothing else do
       let damage = totalPoison `ceilDiv` 5
       alterCharacterStatus charNum $ seAlterPoison $ subtract damage
       return $ Just (HitCharacter charNum, RawDamage, fromIntegral damage)
   monsters <- Grid.entries <$> areaGet arsMonsters
-  monstPoisonDamages <- fmap catMaybes $ forM monsters $ \monstEntry -> do
+  monstPoisonDamages <- forMaybeM monsters $ \monstEntry -> do
     let totalPoison = sePoison $ monstStatus $ Grid.geValue monstEntry
     if totalPoison <= 0 then return Nothing else do
       let damage = totalPoison `ceilDiv` 5

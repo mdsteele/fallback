@@ -225,15 +225,14 @@ arsAreMonstersNearby ars = check (Set.fromList origins) origins where
              (filter (not . arsIsBlockedForPartyModuloMonsters ars) ps ++ rest)
   origins = arsPartyPositions ars
 
--- TODO: Accept a RandomGen, and randomize the ordering somewhat.  Maybe just
--- use a random permutation of allDirections?  Probably good enough.
 -- | Lazily compute all positions that can be reached via walking from the
 -- given start position (ignoring any creatures that may be in the way).  The
 -- positions are ordered by distance from the start position, except that as a
 -- special case the start position itself comes just after any adjacent
 -- positions.
-arsAccessiblePositions :: (AreaState a) => Position -> a -> [Position]
-arsAccessiblePositions startPos ars = generate initQueue initVisited where
+arsAccessiblePositions :: (AreaState a) => [Direction] -> Position -> a
+                       -> [Position]
+arsAccessiblePositions dirs startPos ars = generate initQueue initVisited where
   generate queue visited =
     case PQ.pop queue of
       Nothing -> []
@@ -242,7 +241,7 @@ arsAccessiblePositions startPos ars = generate initQueue initVisited where
         queue'' = foldr (uncurry PQ.insert) queue' $ map annotate positions
         visited' = foldr Set.insert visited positions
   annotate pos = (pSqDist startPos pos, pos)
-  expand visited center = filter ok $ map (plusDir center) allDirections where
+  expand visited center = filter ok $ map (plusDir center) dirs where
     ok pos = Set.notMember pos visited && isOpen pos
   isOpen pos = canWalkOn $ arsTerrainOpenness pos ars
   initQueue = let most = map annotate $ expand Set.empty startPos
@@ -333,14 +332,22 @@ data Monster = Monster
     monstMoments :: Int,
     monstName :: String,
     monstPose :: CreaturePose,
-    -- script to execute when talking to monster (used for townspeople)
+    -- Script to execute when talking to monster (used for townspeople)
     monstScript :: Maybe MonsterScript,
-    -- spell tags, with cooldown (num rounds until we can use that spell again)
+    -- Spell tags, with cooldown (num rounds until we can use that spell again)
     monstSpells :: [(MonsterSpellTag, Int)],
     monstStatus :: StatusEffects,
+    monstSummoning :: Maybe MonsterSummoning,
     monstTag :: MonsterTag,
     monstTownAI :: MonsterTownAI,
     monstType :: MonsterType }
+
+data MonsterSummoning = MonsterSummoning
+  { msMaxFrames :: Int,
+    msRemainingFrames :: Int,
+    msSummmoner :: Either CharacterNumber (Grid.Key Monster),
+    msUnsummonWhenSummonerGone :: Bool }
+  deriving (Read, Show)
 
 data MonsterScript = MonsterScript
   { mscriptId :: MonsterScriptId,

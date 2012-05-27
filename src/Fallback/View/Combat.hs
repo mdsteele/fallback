@@ -200,6 +200,6 @@ paintCharacters resources cameraTopleft cs =
       paintStatusDecorations resources cameraTopleft (arsClock cs)
                              prect (chrStatus char)
       paintHealthBar cameraTopleft True prect offset (chrHealth char)
-                     (chrMaxHealth (arsParty cs) char)
+                     (chrMaxHealth (arsParty cs) char) Nothing
 
 -------------------------------------------------------------------------------

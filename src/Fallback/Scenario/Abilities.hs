@@ -183,7 +183,7 @@ getAbility characterClass abilityNumber rank =
     Dodge -> PassiveAbility
     Subsume -> PassiveAbility -- FIXME
     Illusion ->
-      combat (FocusCost 1) AutoTarget $ \caster _power () -> do
+      combat (FocusCost 1) AutoTarget $ \caster power () -> do
         startPos <- areaGet (arsCharacterPosition caster)
         monsterTag <- do
           char <- areaGet (arsGetCharacter caster)
@@ -195,13 +195,20 @@ getAbility characterClass abilityNumber rank =
         spots <- do
           isOccupied <- areaGet (flip arsOccupied)
           let okSpot pos = pos == startPos || not (isOccupied pos)
+          directions <- randomPermutation allDirections
           randomPermutation =<< take (ranked 2 3 4) . filter okSpot <$>
-            areaGet (arsAccessiblePositions startPos)
+            areaGet (arsAccessiblePositions directions startPos)
         playSound SndIllusion
         also_ (charWalkTo caster (head spots) >>= wait) $ do
+          let lifetime = summonedLifetime power 21
           concurrent_ (tail spots) $ \spot -> do
             let monster = (makeMonster monsterTag)
                   { monstIsAlly = True,
+                    monstSummoning = Just MonsterSummoning
+                      { msMaxFrames = lifetime,
+                        msRemainingFrames = lifetime,
+                        msSummmoner = Left caster,
+                        msUnsummonWhenSummonerGone = True },
                     monstTownAI = ChaseAI }
             mbEntry <- tryAddMonster spot monster
             maybeM (Grid.geKey <$> mbEntry) $ \key -> do
@@ -210,15 +217,18 @@ getAbility characterClass abilityNumber rank =
               wait 4
     Alacrity -> PassiveAbility
     BeastCall ->
-      combat (mix AquaVitae AquaVitae) AutoTarget $
-      \caster _power () -> do
-        startPos <- areaGet (arsCharacterPosition caster)
+      general (mix AquaVitae AquaVitae) AutoTarget $
+      \caster power () -> do
+        degradeMonstersSummonedBy (Left caster)
         playSound SndSummon
         -- TODO Add other possible monster tags; at higher ranks, give better
-        --      monster choices.  Incorporate power somehow.
+        --      monster choices.
         replicateM_ (ranked 1 1 2) $ do
           mtag <- getRandomElem $ [Wolf]
-          summonAllyMonster startPos mtag
+          let lifetime = summonedLifetime power 21
+          _ <- trySummonMonster (Left caster) mtag lifetime False
+          return ()
+        wait 16
     FireShot ->
       meta (mix Naphtha Naphtha) RangedOnly SingleTarget $
       \caster power endPos -> do
@@ -1011,5 +1021,11 @@ attackWithExtraEffects caster target effects = do
   (critical, damage) <- characterWeaponChooseCritical char =<<
                         characterWeaponBaseDamage char wd'
   characterWeaponHit wd' target critical damage
+
+-- | Given a power modifier and a base lifetime in rounds for a summoned
+-- monster, return the lifetime in frames.
+summonedLifetime :: PowerModifier -> Double -> Int
+summonedLifetime power rounds =
+  round (power * rounds * fromIntegral baseFramesPerActionPoint)
 
 -------------------------------------------------------------------------------

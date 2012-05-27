@@ -28,15 +28,16 @@ module Fallback.Utility
    -- * Function combinators
    flip3, flip4,
    -- * Monadic functions
-   anyM, maybeM, sumM, unfoldM, untilM, whenM,
+   anyM, forMaybeM, maybeM, sumM, unfoldM, untilM, whenM,
    -- * IO
    delayFinalizers)
 where
 
 import Control.Arrow ((&&&))
-import Control.Monad (foldM, msum, when)
+import Control.Monad (foldM, liftM, msum, when)
 import Data.Function (on)
 import Data.List (groupBy, maximumBy, minimumBy, nubBy, sortBy)
+import Data.Maybe (catMaybes)
 import Data.Ord (comparing)
 import Foreign.C.Types (CDouble)
 import qualified GHC.IO
@@ -45,7 +46,7 @@ import qualified GHC.Prim
 -------------------------------------------------------------------------------
 -- Numeric functions:
 
-infix 7 `ceilDiv`
+infixl 7 `ceilDiv`
 -- | Perform ceiling division of two integral values: @10 `ceilDiv` 5 == 2@ and
 -- @11 `ceilDiv` 5 == 3@.  The divisor must be positive.
 ceilDiv :: (Integral a) => a -> a -> a
@@ -143,6 +144,10 @@ anyM _ [] = return False
 anyM fn (x : xs) = do
   bool <- fn x
   if bool then return True else anyM fn xs
+
+-- | A combination of 'forM' and 'mapMaybe'.
+forMaybeM :: (Monad m) => [a] -> (a -> m (Maybe b)) -> m [b]
+forMaybeM xs fn = liftM catMaybes $ mapM fn xs
 
 -- | Performs an action on the value if present, otherwise does nothing.
 maybeM :: (Monad m) => Maybe a -> (a -> m ()) -> m ()

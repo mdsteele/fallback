@@ -26,16 +26,16 @@ module Fallback.Scenario.Script.Doodad
    addBoomDoodadAtPosition, addLightningDoodad, addLightWallDoodad,
    addShockwaveDoodad, doExplosionDoodad,
    -- * Swooshes
-   addSwooshDoodad, linearBezierCurve, cubicBezierCurve,
+   addSwooshDoodad, linearBezierCurve, quadraticBezierCurve, cubicBezierCurve,
    -- * Hookshot
    addExtendingHookshotDoodad, addExtendedHookshotDoodad,
    addRetractingHookshotDoodad,
    -- * Special
-   addDeathDoodad)
+   addDeathDoodad, addSummonDoodad, addUnsummonDoodad)
 where
 
 import Control.Applicative ((<$>))
-import Control.Monad (foldM_, forM, replicateM)
+import Control.Monad (foldM_, forM, forM_, replicateM)
 import Data.Array (listArray)
 
 import Fallback.Constants (framesPerSecond)
@@ -260,6 +260,11 @@ addSwooshDoodad tint thickness sublimit len fn = do
 linearBezierCurve :: DPoint -> DPoint -> Double -> DPoint
 linearBezierCurve p0 p1 t = p0 `pAdd` (p1 `pSub` p0) `pMul` t
 
+quadraticBezierCurve :: DPoint -> DPoint -> DPoint -> Double -> DPoint
+quadraticBezierCurve p0 p1 p2 t =
+  let t' = 1 - t
+  in p0 `pMul` (t' * t') `pAdd` p1 `pMul` (2 * t' * t) `pAdd` p2 `pMul` (t * t)
+
 cubicBezierCurve :: DPoint -> DPoint -> DPoint -> DPoint -> Double -> DPoint
 cubicBezierCurve p0 p1 p2 p3 t =
   let t' = 1 - t
@@ -331,5 +336,20 @@ addDeathDoodad images faceDir prect = addSimpleDoodad MidDood limit paint where
   limit = 15
   initRect = prectRect prect
   sprite = ciStand faceDir images
+
+addSummonDoodad :: (FromAreaEffect f) => PRect -> Script f ()
+addSummonDoodad prect = do
+  forM_ (prectPositions prect) $ addBoomDoodadAtPosition SmokeBoom 2
+
+addUnsummonDoodad :: (FromAreaEffect f) => Grid.Entry Monster -> Script f ()
+addUnsummonDoodad entry = do
+  resources <- areaGet arsResources
+  let mtype = monstType $ Grid.geValue entry
+  let sprite = ciStand (cpFaceDir $ monstPose $ Grid.geValue entry) $
+               rsrcMonsterImages resources (mtSize mtype) (mtImageRow mtype)
+  let prect = Grid.geRect entry
+  addSimpleDoodad LowDood 9 $ \_ topleft -> do
+    blitStretch sprite (prectRect prect `rectMinus` topleft)
+  forM_ (prectPositions prect) $ addBoomDoodadAtPosition SmokeBoom 2
 
 -------------------------------------------------------------------------------

@@ -50,6 +50,7 @@ makeMonster tag = Monster
     monstScript = Nothing,
     monstSpells = map (flip (,) 0) $ mtSpells mtype,
     monstStatus = initStatusEffects,
+    monstSummoning = Nothing,
     monstTag = tag,
     monstTownAI = ImmobileAI,
     monstType = mtype }

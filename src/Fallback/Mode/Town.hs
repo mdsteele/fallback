@@ -54,8 +54,9 @@ import Fallback.Scenario.Areas (enterPartyIntoArea)
 import Fallback.Scenario.MonsterAI (monsterTownStep)
 import Fallback.Scenario.Potions (runPotionAction)
 import Fallback.Scenario.Script
-  (also_, alsoWith, alterAdrenaline, concurrentAny, grantExperience, grantItem,
-   inflictAllPeriodicDamage, partyWalkTo, setMessage, teleport)
+  (also_, alsoWith, alterAdrenaline, areaGet, concurrentAny, grantExperience,
+   grantItem, inflictAllPeriodicDamage, partyWalkTo, setMessage, teleport,
+   tickSummonsByOneRound)
 import Fallback.Scenario.Triggers (getAreaExits, scenarioTriggers)
 import Fallback.Scenario.Triggers.Script (startShopping)
 import Fallback.Sound (playSound)
@@ -326,21 +327,8 @@ newTownMode resources modes initState = do
               if arsIsBlockedForParty ts pos' then ignore else do
               let acs = tsCommon ts
               fields' <- decayFields baseFramesPerActionPoint (acsFields acs)
-              let script = do
-                    forM_ [minBound .. maxBound] $ \charNum -> do
-                      alterAdrenaline charNum (subtract 1)
-                    startCombat <-
-                      alsoWith (flip const) (partyWalkTo pos') $
-                      concurrentAny (Grid.entries $ acsMonsters acs) $
-                      monsterTownStep
-                    inflictAllPeriodicDamage
-                    -- TODO decay status effects by one round
-                    when startCombat $ do
-                      partyPos <- emitEffect EffGetPartyPosition
-                      emitEffect $ EffStartCombat $ partyPos `pSub`
-                        Point (half combatArenaCols) (half combatArenaRows)
               changeState ts { tsCommon = acs { acsFields = fields' },
-                               tsPhase = ScriptPhase script }
+                               tsPhase = ScriptPhase (doTownStep pos') }
             _ -> ignore
         Just (TownTargetCharacter charNum) -> do
           case tsPhase ts of
@@ -605,5 +593,25 @@ executeEffect ts eff sfn =
           return (ts, Left $ DoMultiChoice text choices cancel sfn)
         EffNarrate text -> return (ts, Left $ DoNarrate text $ sfn ())
         EffWait -> return (ts, Left $ DoWait $ sfn ())
+
+-------------------------------------------------------------------------------
+
+-- | The script to run each time the party takes a step in town mode.  The
+-- argument indicates the position to which the party is stepping.
+doTownStep :: Position -> Script TownEffect ()
+doTownStep partyWalkDest = do
+  forM_ [minBound .. maxBound] $ \charNum -> do
+    alterAdrenaline charNum (subtract 1)
+  tickSummonsByOneRound
+  shouldStartCombat <- do
+    monsters <- areaGet (Grid.entries . arsMonsters)
+    alsoWith (flip const) (partyWalkTo partyWalkDest) $ do
+      concurrentAny monsters monsterTownStep
+  inflictAllPeriodicDamage
+  -- TODO decay status effects by one round
+  when shouldStartCombat $ do
+    partyPos <- emitEffect EffGetPartyPosition
+    emitEffect $ EffStartCombat $ partyPos `pSub`
+      Point (half combatArenaCols) (half combatArenaRows)
 
 -------------------------------------------------------------------------------
