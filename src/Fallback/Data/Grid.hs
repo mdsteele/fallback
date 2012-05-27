@@ -31,7 +31,7 @@ module Fallback.Data.Grid
   (-- * Grid type
    Grid, empty,
    Entry(..),
-   Key,
+   Key, nilKey,
    -- * Query
    null, size, entries,
    lookup, occupied, search, searchRect,
@@ -120,6 +120,10 @@ instance Functor Entry where
 -- | The key type for 'Grid' values.
 newtype Key a = Key { fromKey :: Int }
   deriving (Eq, Ord, Read, Show)
+
+-- | A key that will never be a member of any grid.
+nilKey :: Key a
+nilKey = Key 0
 
 -------------------------------------------------------------------------------
 -- Query:

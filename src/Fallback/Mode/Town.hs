@@ -31,7 +31,7 @@ import Data.IORef
 import qualified Data.Set as Set
 
 import Fallback.Constants
-  (baseFramesPerActionPoint, combatArenaCols, combatArenaRows,
+  (baseFramesPerActionPoint, combatArenaCols, combatArenaRows, combatArenaSize,
    momentsPerActionPoint, screenRect)
 import Fallback.Control.Script
 import qualified Fallback.Data.Grid as Grid
@@ -423,7 +423,7 @@ newTownMode resources modes initState = do
 
     doStartCombat :: TownState -> Position -> IO NextMode
     doStartCombat ts arenaTopleft = do
-      let arenaRect = makeRect arenaTopleft (combatArenaCols, combatArenaRows)
+      let arenaRect = makeRect arenaTopleft combatArenaSize
       let pp = tsPartyPosition ts
       let mkCharState _charNum claimed =
             let pos = arsFindOpenSpot ts pp arenaRect claimed

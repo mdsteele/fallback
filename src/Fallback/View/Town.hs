@@ -34,10 +34,12 @@ import Fallback.Data.Color (Tint(Tint))
 import Fallback.Data.Point
 import Fallback.Draw
 import Fallback.Event
-import Fallback.Scenario.Triggers (getAreaExits, scenarioTriggers)
+import Fallback.Scenario.Triggers
+  (getAreaExits, getMonsterScript, scenarioTriggers)
 import Fallback.State.Area
 import Fallback.State.Camera (camTopleft)
-import Fallback.State.Creature (CreaturePose(..), animOffset, ciStand)
+import Fallback.State.Creature
+  (CreaturePose(..), animOffset, ciStand, monstScript)
 import Fallback.State.Doodad (DoodadHeight(..), paintDoodads)
 import Fallback.State.Party
 import Fallback.State.Resources (Resources, rsrcCharacterImages)
@@ -195,7 +197,8 @@ newTownMapView resources cursorSink = do
                       Just $ mapEffect EffTownArea $
                       devInteract (Grid.geValue ge) ge $ tsActiveCharacter ts
           getScript ge = do mscript <- monstScript (Grid.geValue ge)
-                            Just (mscriptScriptFn mscript ge)
+                            Just (getMonsterScript scenarioTriggers
+                                      (arsCurrentArea ts) mscript ge)
       in flip3 maybe monFn' (search (acsMonsters acs) >>= getScript) $
          flip3 maybe devFn' (search (acsDevices acs)) $
          dirFn $ ipointDir $ pt `pSub` rectCenter rect

@@ -40,7 +40,6 @@ import Fallback.Scenario.Script
 import Fallback.State.Action
 import Fallback.State.Area
 import Fallback.State.Creature
-  (CreatureAnim(..), MonsterTownAI(ChaseAI), mtIsDaemonic, mtIsUndead)
 import Fallback.State.FOV (fieldOfView)
 import Fallback.State.Item (WeaponData(..), unarmedWeaponData)
 import Fallback.State.Party

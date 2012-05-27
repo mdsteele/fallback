@@ -23,15 +23,19 @@ where
 
 import Control.Applicative ((<$>))
 import Control.Monad (forM_, when)
+import Data.Maybe (isNothing)
 
+import Fallback.Constants (combatArenaSize)
 import Fallback.Data.Point
 import Fallback.Scenario.Compile
+import Fallback.Scenario.Monsters (makeMonster)
 import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Globals
 import Fallback.Scenario.Triggers.Script
+import Fallback.State.Creature (Monster(..), MonsterTownAI(..))
 import Fallback.State.Resources (SoundTag(SndLever))
 import Fallback.State.Tags
-  (AreaTag(..), InertItemTag(BrassKey), ItemTag(InertItemTag))
+  (AreaTag(..), InertItemTag(BrassKey), ItemTag(InertItemTag), MonsterTag(..))
 import Fallback.State.Tileset (TileTag(..))
 
 -------------------------------------------------------------------------------
@@ -367,11 +371,22 @@ compileIcehold globals = do
       teleport Icehold2 (Point 16 8)
 
     -- Boss fight:
+    let bossChamberTopleft = Point 1 9
+    let bossChamberRect = makeRect bossChamberTopleft combatArenaSize
     vhaegystDead <- newPersistentVar 459822 False
-    once 729892 (walkIn (Rect 1 9 18 13)) $ do
-      -- TODO conversation and so forth
-      return ()
+    onStartDaily 209103 $ do
+      whenP (varFalse vhaegystDead) $ do
+        mbEntry <- tryAddMonster (Point 9 13) (makeMonster Vhaegyst)
+          { monstDeadVar = Just vhaegystDead,
+            monstIsAlly = True, -- don't attack yet
+            monstTownAI = ImmobileAI }
+        when (isNothing mbEntry) $ fail "failed to place Vhaegyst"
+    once 729892 (walkIn bossChamberRect) $ do
+      -- TODO conversation and so forth; set Vhaegyst to non-ally
+      massSetTerrain BasaltGateClosedTile [Point 9 22, Point 10 22]
+      startCombatWithTopleft (Point 1 9)
     trigger 099022 (varTrue vhaegystDead) $ do
+      setAreaCleared Icehold True
       massSetTerrain BasaltGateOpenTile [Point 9 22, Point 10 22, Point 9 8]
 
     -- Sunrod pedestal:

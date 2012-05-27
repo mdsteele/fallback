@@ -25,7 +25,6 @@ import Control.Applicative (liftA2)
 import Data.List (foldl')
 
 import qualified Fallback.Data.TotalMap as TM (set)
-import Fallback.State.Area (Monster(..))
 import Fallback.State.Creature
 import Fallback.State.Simple
 import Fallback.State.Status (Invisibility(..), initStatusEffects)

@@ -53,7 +53,6 @@ import Fallback.State.Action
 import Fallback.State.Area
 import Fallback.State.Combat
 import Fallback.State.Creature
-  (CreatureAnim(..), CreaturePose(..), mtSpeed, tickCreaturePose)
 import Fallback.State.Item (WeaponData(..), getPotionAction)
 import Fallback.State.Party
 import Fallback.State.Resources (Resources, SoundTag(..), rsrcSound)

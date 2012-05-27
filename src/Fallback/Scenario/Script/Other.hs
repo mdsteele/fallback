@@ -50,7 +50,7 @@ module Fallback.Scenario.Script.Other
    -- ** Devices
    addDevice_, removeDevice, replaceDevice,
    -- ** Monsters
-   addBasicEnemyMonster, tryAddMonster, trySummonMonster,
+   addBasicEnemyMonster, setMonsterIsAlly, tryAddMonster, trySummonMonster,
    degradeMonstersSummonedBy, unsummonMonster, tickSummonsByOneRound,
    -- ** Items
    grantAndEquipWeapon, grantItem,
@@ -641,6 +641,13 @@ setFields field = emitAreaEffect . EffAlterFields fn where
       (SmokeScreen a, SmokeScreen b) -> SmokeScreen (max a b)
       (Webbing a, Webbing b) -> Webbing (max a b)
       _ -> field
+
+setMonsterIsAlly :: (FromAreaEffect f) => Bool -> Grid.Key Monster
+                 -> Script f ()
+setMonsterIsAlly isAlly key = do
+  withMonsterEntry key $ \entry -> do
+    emitAreaEffect $ EffReplaceMonster key $ Just (Grid.geValue entry)
+      { monstIsAlly = isAlly }
 
 tryAddMonster :: (FromAreaEffect f) => Position -> Monster
               -> Script f (Maybe (Grid.Entry Monster))

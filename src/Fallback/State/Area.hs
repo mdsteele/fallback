@@ -45,13 +45,11 @@ import Fallback.State.FOV (fieldOfView)
 import Fallback.State.Minimap (updateMinimapFromTerrain)
 import Fallback.State.Party
 import Fallback.State.Progress
-  (DeviceId, HasProgress, MonsterScriptId, TriggerId, Var, VarType,
-   progressSetVar)
+  (DeviceId, HasProgress, TriggerId, Var, VarType, progressSetVar)
 import Fallback.State.Resources (MusicTag, Resources, musicPath)
 import Fallback.State.Simple
 import Fallback.State.Status (Invisibility(..), StatusEffects, seInvisibility)
-import Fallback.State.Tags
-  (AreaTag, ItemTag, MonsterTag, MonsterSpellTag, QuestTag)
+import Fallback.State.Tags (AreaTag, ItemTag, QuestTag)
 import Fallback.State.Terrain
 
 -------------------------------------------------------------------------------
@@ -321,44 +319,6 @@ data Device = Device
     devInteract :: Grid.Entry Device -> CharacterNumber ->
                    Script AreaEffect (),
     devRadius :: Int }
-
--------------------------------------------------------------------------------
-
-data Monster = Monster
-  { monstAdrenaline :: Int,
-    monstDeadVar :: Maybe (Var Bool),  -- var to set to True when monst dies
-    monstHealth :: Int,
-    monstIsAlly :: Bool, -- True for townspeople, False for baddies
-    monstMoments :: Int,
-    monstName :: String,
-    monstPose :: CreaturePose,
-    -- Script to execute when talking to monster (used for townspeople)
-    monstScript :: Maybe MonsterScript,
-    -- Spell tags, with cooldown (num rounds until we can use that spell again)
-    monstSpells :: [(MonsterSpellTag, Int)],
-    monstStatus :: StatusEffects,
-    monstSummoning :: Maybe MonsterSummoning,
-    monstTag :: MonsterTag,
-    monstTownAI :: MonsterTownAI,
-    monstType :: MonsterType }
-
-data MonsterSummoning = MonsterSummoning
-  { msMaxFrames :: Int,
-    msRemainingFrames :: Int,
-    msSummmoner :: Either CharacterNumber (Grid.Key Monster),
-    msUnsummonWhenSummonerGone :: Bool }
-  deriving (Read, Show)
-
-data MonsterScript = MonsterScript
-  { mscriptId :: MonsterScriptId,
-    mscriptScriptFn :: Grid.Entry Monster -> Script TownEffect () }
-
-monstHeadPos :: Grid.Entry Monster -> Position
-monstHeadPos entry =
-  let Rect x y w _ = Grid.geRect entry
-  in case cpFaceDir $ monstPose $ Grid.geValue entry of
-       FaceLeft -> Point x y
-       FaceRight -> Point (x + w - 1) y
 
 -------------------------------------------------------------------------------
 

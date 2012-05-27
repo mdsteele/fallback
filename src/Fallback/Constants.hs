@@ -72,6 +72,9 @@ combatArenaCols = cameraWidth `div` tileWidth
 combatArenaRows :: Int
 combatArenaRows = cameraHeight `div` tileHeight
 
+combatArenaSize :: (Int, Int)
+combatArenaSize = (combatArenaCols, combatArenaRows)
+
 combatCameraOffset :: Point Int
 combatCameraOffset = Point ((cameraWidth  `mod` tileWidth)  `div` 2)
                            ((cameraHeight `mod` tileHeight) `div` 2)

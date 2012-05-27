@@ -20,7 +20,7 @@
 module Fallback.Scenario.Triggers
   (startingArea, startingPosition, scenarioTriggers, initialProgress,
    getAreaDevice, getAreaEntrance, getAreaExits, getAreaLinks, getAreaTerrain,
-   getAreaTriggers, getRegionBackground)
+   getAreaTriggers, getMonsterScript, getRegionBackground)
 where
 
 import Control.Applicative ((<$>))

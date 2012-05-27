@@ -21,6 +21,7 @@ module Fallback.Test.Grid (gridTests) where
 
 import Control.Arrow ((***))
 import Data.List (sort)
+import Data.Maybe (isNothing)
 import Test.HUnit ((~:), Test(TestList))
 
 import Fallback.Data.Point (Point(Point), Rect(Rect), prectPositions)
@@ -35,6 +36,7 @@ gridTests = "grid" ~: TestList [
   insist $ Grid.size Grid.empty == 0,
   insist $ Grid.valid Grid.empty,
   insist $ Grid.valid grid1,
+  insist $ isNothing $ Grid.lookup Grid.nilKey grid1,
   insistEq "ABCDEF" $ gvalues grid1,
   insist $ Grid.occupied grid1 (Point 3 2),
   insistEq (Just 'A') $ fmap Grid.geValue $ Grid.search grid1 (Point 3 2),

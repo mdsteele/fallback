@@ -49,6 +49,7 @@ import Fallback.Control.Script
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point (Position)
 import Fallback.State.Area
+import Fallback.State.Creature (Monster, monstIsAlly)
 import Fallback.State.Party
 import Fallback.State.Resources
 import Fallback.State.Simple

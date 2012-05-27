@@ -21,17 +21,20 @@ module Fallback.State.Creature
   (CreaturePose(..), tickCreaturePose,
    CreatureAnim(..), animOffset,
    CreatureImages(..), ciStand, ciAttack,
-   MonsterAttack(..), MonsterTownAI(..), MonsterType(..))
+   Monster(..), monstHeadPos,  MonsterType(..),
+   MonsterAttack(..), MonsterSummoning(..), MonsterTownAI(..))
 where
 
 import Data.Word (Word8)
 
 import Fallback.Constants (secondsPerFrame, tileHeight, tileWidth)
+import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Draw (Sprite)
+import Fallback.State.Progress (MonsterScriptId, Var)
 import Fallback.State.Simple
-import Fallback.State.Status (Invisibility(..))
-import Fallback.State.Tags (MonsterSpellTag)
+import Fallback.State.Status (Invisibility(..), StatusEffects)
+import Fallback.State.Tags (MonsterTag, MonsterSpellTag)
 
 -------------------------------------------------------------------------------
 
@@ -109,21 +112,32 @@ ciAttack FaceRight = ciRightAttack
 
 -------------------------------------------------------------------------------
 
-data MonsterAttack = MonsterAttack
-  { maAppearance :: AttackAppearance,
-    maCriticalChance :: Double,
-    maDamageCount :: Int,
-    maDamageRange :: (Int, Int),
-    maElement :: AttackElement,
-    maEffects :: [AttackEffect],
-    maRange :: AttackRange }
+data Monster = Monster
+  { monstAdrenaline :: Int,
+    monstDeadVar :: Maybe (Var Bool),  -- var to set to True when monst dies
+    monstHealth :: Int,
+    monstIsAlly :: Bool, -- True for townspeople, False for baddies
+    monstMoments :: Int,
+    monstName :: String,
+    monstPose :: CreaturePose,
+    -- Script to execute when talking to monster (used for townspeople)
+    monstScript :: Maybe MonsterScriptId,
+    -- Spell tags, with cooldown (num rounds until we can use that spell again)
+    monstSpells :: [(MonsterSpellTag, Int)],
+    monstStatus :: StatusEffects,
+    monstSummoning :: Maybe MonsterSummoning,
+    monstTag :: MonsterTag,
+    monstTownAI :: MonsterTownAI,
+    monstType :: MonsterType }
 
-data MonsterTownAI = ChaseAI -- chase party relentlessly
-                   | DrunkAI PRect -- random walk within rect
-                   | GuardAI Position
-                   | ImmobileAI -- never move; start combat when could attack
-                   | MindlessAI -- chase party only when visible
-                   | PatrolAI Position Position
+monstHeadPos :: Grid.Entry Monster -> Position
+monstHeadPos entry =
+  let Rect x y w _ = Grid.geRect entry
+  in case cpFaceDir $ monstPose $ Grid.geValue entry of
+       FaceLeft -> Point x y
+       FaceRight -> Point (x + w - 1) y
+
+-------------------------------------------------------------------------------
 
 data MonsterType = MonsterType
   { mtAgility :: Int,
@@ -144,5 +158,31 @@ data MonsterType = MonsterType
     mtSpeed :: Double,
     mtSpells :: [MonsterSpellTag],
     mtWalksFast :: Bool }
+
+-------------------------------------------------------------------------------
+
+data MonsterAttack = MonsterAttack
+  { maAppearance :: AttackAppearance,
+    maCriticalChance :: Double,
+    maDamageCount :: Int,
+    maDamageRange :: (Int, Int),
+    maElement :: AttackElement,
+    maEffects :: [AttackEffect],
+    maRange :: AttackRange }
+
+data MonsterSummoning = MonsterSummoning
+  { msMaxFrames :: Int,
+    msRemainingFrames :: Int,
+    msSummmoner :: Either CharacterNumber (Grid.Key Monster),
+    msUnsummonWhenSummonerGone :: Bool }
+  deriving (Read, Show)
+
+data MonsterTownAI = ChaseAI -- chase party relentlessly
+                   | DrunkAI PRect -- random walk within rect
+                   | GuardAI Position
+                   | ImmobileAI -- never move; start combat when could attack
+                   | MindlessAI -- chase party only when visible
+                   | PatrolAI Position Position
+  deriving (Read, Show)
 
 -------------------------------------------------------------------------------

@@ -23,7 +23,7 @@ module Fallback.Scenario.Compile
   (-- * Reading the scenario
    ScenarioTriggers, scenarioInitialProgress,
    getAreaDevice, getAreaEntrance, getAreaExits, getAreaLinks, getAreaTerrain,
-   getAreaTriggers, getRegionBackground,
+   getAreaTriggers, getMonsterScript, getRegionBackground,
    -- * Defining the scenario
    CompileScenario, compileScenario, newGlobalVar, compileRegion, compileArea,
    -- * Defining an area
@@ -104,6 +104,13 @@ getAreaTriggers :: ScenarioTriggers -> AreaTag
                 -> [Trigger TownState TownEffect]
 getAreaTriggers scenario tag =
   aspecTriggers $ TM.get tag $ scenarioAreas scenario
+
+getMonsterScript :: ScenarioTriggers -> AreaTag -> MonsterScriptId
+                 -> Grid.Entry Monster -> Script TownEffect ()
+getMonsterScript scenario tag scriptId =
+  fromMaybe (fail ("no such monster script: " ++ show scriptId)) $
+  Map.lookup scriptId $ aspecMonsterScripts $ TM.get tag $
+  scenarioAreas scenario
 
 getRegionBackground :: ScenarioTriggers -> Party -> RegionTag -> String
 getRegionBackground scenario party tag =
@@ -232,11 +239,11 @@ simpleTownsperson :: VarSeed -> MonsterTag -> Position -> MonsterTownAI
                   -> CompileArea ()
 simpleTownsperson vseed tag pos ai sfn = do
   (vseed', vseed'') <- splitVarSeed vseed
-  mscript <- newMonsterScript vseed' sfn
+  scriptId <- newMonsterScript vseed' sfn
   onStartDaily vseed'' $ do
     () <$ tryAddMonster pos (makeMonster tag)
       { monstIsAlly = True,
-        monstScript = Just mscript,
+        monstScript = Just scriptId,
         monstTownAI = ai }
 
 -------------------------------------------------------------------------------
@@ -336,18 +343,18 @@ uniqueDevice vseed position radius sfn = do
 -------------------------------------------------------------------------------
 -- Defining monster scripts:
 
+type MonsterScript = Grid.Entry Monster -> Script TownEffect ()
+
 class (HasVarSeeds m) => DefineMonsterScript m where
-  newMonsterScript :: VarSeed -> (Grid.Entry Monster -> Script TownEffect ())
-                   -> m MonsterScript
+  newMonsterScript :: VarSeed -> MonsterScript -> m MonsterScriptId
 
 instance DefineMonsterScript CompileArea where
   newMonsterScript vseed sfn = (useVarSeed vseed >>) $ CompileArea $ do
     cas <- State.get
     let msi = makeMonsterScriptId vseed
-    let mscript = MonsterScript { mscriptId = msi, mscriptScriptFn = sfn }
     State.put cas { casMonsterScripts =
-                      Map.insert msi mscript (casMonsterScripts cas) }
-    return mscript
+                      Map.insert msi sfn (casMonsterScripts cas) }
+    return msi
 
 -------------------------------------------------------------------------------
 -- Variables:

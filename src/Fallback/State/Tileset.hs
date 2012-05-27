@@ -140,6 +140,8 @@ tilesList = [
  Tile 5308 (Still 8 2) TerrainSolid darkgreen, -- dense trees
  Tile 7966 (Still 8 3) TerrainWindow green, -- sparse trees
  Tile 0723 (Still 8 4) TerrainWindow green, -- small tree
+ Tile 7888 (Still 21 2) TerrainWindow green, -- three thin trees
+ Tile 9930 (Still 21 3) TerrainWindow green, -- large bush
  Tile 8596 (Still 21 4) TerrainOpen green, -- six small bushes
  Tile 8799 (Still 22 9) TerrainWindow green, -- signpost
 
@@ -165,6 +167,11 @@ tilesList = [
  Tile 3404 (Still 3 4) TerrainOpen darkgreen, -- dark grass
  Tile 1953 (Still 3 5) TerrainWindow gray, -- w/ rocks
  Tile 8040 (Still 37 7) TerrainWindow gray, -- w/ boulder
+ Tile 2201 (Still 35 5) TerrainSolid darkgreen, -- big tree dark
+ Tile 2297 (Still 35 2) TerrainSolid darkgreen, -- big tree light
+ Tile 2868 (Still 35 3) TerrainSolid darkgreen, -- two trees
+ Tile 0442 (Still 35 6) TerrainSolid darkgreen, -- dense trees
+ Tile 2768 (Still 35 4) TerrainSolid darkgreen, -- three thin trees
 
  Tile 2851 (Still 1 10) TerrainSolid brown, -- grass wall
  Tile 4461 (Still 2 2) TerrainSolid brown,
@@ -239,6 +246,33 @@ tilesList = [
  Tile 3403 (Still 11 11) TerrainSolid white, -- adobe decoration
  Tile 5216 (Still 12 2) TerrainWindow white, -- adobe window
 
+ Tile 9250 (Still 43 3) TerrainSolid white, -- wooden wall
+ Tile 6162 (Still 43 5) TerrainSolid gray, -- wooden closed door
+ Tile 0534 (Still 43 6) TerrainOpen gray, -- wooden open door
+ Tile 6605 (Still 43 7) TerrainWindow gray, -- wooden closed gate
+ Tile 1167 (Still 43 8) TerrainOpen gray, -- wooden open gate
+ Tile 5047 (Still 43 9) TerrainSolid white, -- wooden sign
+ Tile 6908 (Still 43 10) TerrainSolid white, -- wooden crack
+ Tile 3212 (Still 44 2) TerrainSolid white, -- wooden poster
+ Tile 8449 (Still 44 3) TerrainWindow white, -- wooden window
+ Tile 5593 (Still 44 4) TerrainSolid white, -- bookshelves
+ Tile 0323 (Still 44 5) TerrainSolid white, -- empty shelves
+ Tile 1036 (Still 44 6) TerrainSolid white, -- shelves w/ stuff leaning left
+ Tile 0260 (Still 44 7) TerrainSolid white, -- shelves w/ stuff leaning right
+
+ Tile 4891 (Still 25 6) TerrainSolid white, -- whitestone wall
+ Tile 4988 (Still 25 7) TerrainSmoke white, -- whitestone secret door
+ Tile 2135 (Still 25 8) TerrainSolid gray, -- whitestone closed door
+ Tile 6648 (Still 25 9) TerrainOpen gray, -- whitestone open door
+ Tile 3318 (Still 25 10) TerrainWindow gray, -- whitestone closed gate
+ Tile 0851 (Still 25 11) TerrainOpen gray, -- whitestone open gate
+ Tile 2121 (Still 26 2) TerrainSolid white, -- whitestone sign
+ Tile 3340 (Still 26 3) TerrainSolid white, -- whitestone crack
+ Tile 3100 (Still 26 4) TerrainSolid white, -- whitestone dirty
+ Tile 3703 (Still 26 5) TerrainSolid white, -- whitestone decoration
+ Tile 5844 (Still 26 6) TerrainSolid white, -- whitestone painting
+ Tile 6394 (Still 26 7) TerrainWindow white, -- whitestone window
+
  Tile 8559 (Still 13 0) TerrainOpen darkgray, -- stairs up
  Tile 5724 (Still 13 1) TerrainOpen darkgray, -- stairs up
  Tile 9605 (Still 14 0) TerrainOpen darkgray, -- stairs down
@@ -246,7 +280,7 @@ tilesList = [
  Tile 0832 (Still 15 0) TerrainHover black, -- pit
 
  Tile 8222 (Still 12 5) TerrainOpen gray, -- stone floor
- Tile 0957 (Still 6 0) TerrainOpen gray,
+ Tile 0957 (Still 6 0) TerrainOpen gray, -- w/ white border
  Tile 9622 (Still 6 1) TerrainOpen gray,
  Tile 2040 (Still 7 0) TerrainOpen gray,
  Tile 6842 (Still 7 1) TerrainOpen gray,

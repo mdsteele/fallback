@@ -32,6 +32,7 @@ import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Scenario.Script
 import Fallback.State.Area
+import Fallback.State.Creature
 import Fallback.State.Pathfind (allPathsFrom)
 import Fallback.State.Resources (SoundTag(..), StripTag(..))
 import Fallback.State.Simple
