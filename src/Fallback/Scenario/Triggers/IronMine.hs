@@ -91,7 +91,9 @@ compileIronMine globals = compileArea IronMine Nothing $ do
   mineCartFilledWithRocks <- newPersistentVar 699149 False
 
   -- Switching station lever:
-  uniqueDevice 646620 (Point 39 31) signRadius $ \ge _ -> do
+  let leverPosition = Point 39 31 :: Position
+  let leverTileTag turn = if turn then LeverRightTile else LeverLeftTile
+  uniqueDevice 646620 leverPosition signRadius $ \_ _ -> do
     let labelStr turn = if turn then "TURN" else "STRAIGHT"
     current <- readVar tracksSetToTurn
     change <- forcedChoice
@@ -103,24 +105,24 @@ compileIronMine globals = compileArea IronMine Nothing $ do
         "\" position", True), ("Leave it alone.", False)]
     when change $ do
     playSound SndLever
-    tile <- getTerrainTile (if current then LeverLeftTile
-                            else LeverRightTile)
-    setTerrain [(rectTopleft (Grid.geRect ge), tile)]
+    massSetTerrain (leverTileTag $ not current) [leverPosition]
     writeVar tracksSetToTurn (not current)
     narrate "You hear several loud, metallic {i}clank{_} sounds echo through\
       \ the mine, and then silence."
+  onStartDaily 789534 $ do
+    turn <- readVar tracksSetToTurn
+    massSetTerrain (leverTileTag turn) [leverPosition]
 
   let addCartAtLocation cartDevice cartLoc = do
         let mbPos = listToMaybe $ snd $ cartPath False False cartLoc
         maybeM mbPos $ \position -> do
           cartFull <- readVar mineCartFilledWithRocks
-          tile <- getTerrainTile $
-                  if cartLoc == 1
-                  then (if cartFull then MineCartFullVertTile
-                        else MineCartEmptyVertTile)
-                  else (if cartFull then MineCartFullHorzTile
-                        else MineCartEmptyHorzTile)
-          setTerrain [(position, tile)]
+          let tile = if cartLoc == 1
+                     then (if cartFull then MineCartFullVertTile
+                           else MineCartEmptyVertTile)
+                     else (if cartFull then MineCartFullHorzTile
+                           else MineCartEmptyHorzTile)
+          massSetTerrain tile [position]
           addDevice_ cartDevice position
 
   let wallPositions = [Point x 26 | x <- [25, 26, 27]]
@@ -175,8 +177,7 @@ compileIronMine globals = compileArea IronMine Nothing $ do
     cartLoc <- readVar mineCartLocation
     addCartAtLocation mineCart cartLoc
     when (cartLoc /= 5) $ do
-      tile <- getTerrainTile AdobeCrackedWallTile
-      setTerrain $ map (flip (,) tile) $ wallPositions
+      massSetTerrain AdobeCrackedWallTile wallPositions
 
   once 542400 (walkIn (Rect 45 1 9 7) `andP` varEq mineCartLocation 0) $ do
     narrate "Ah ha!  There's a mine cart sitting at the end of the tracks in\
