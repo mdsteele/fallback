@@ -344,9 +344,8 @@ addSummonDoodad prect = do
 addUnsummonDoodad :: (FromAreaEffect f) => Grid.Entry Monster -> Script f ()
 addUnsummonDoodad entry = do
   resources <- areaGet arsResources
-  let mtype = monstType $ Grid.geValue entry
   let sprite = ciStand (cpFaceDir $ monstPose $ Grid.geValue entry) $
-               rsrcMonsterImages resources (mtSize mtype) (mtImageRow mtype)
+               rsrcMonsterImages resources $ monstType $ Grid.geValue entry
   let prect = Grid.geRect entry
   addSimpleDoodad LowDood 9 $ \_ topleft -> do
     blitStretch sprite (prectRect prect `rectMinus` topleft)

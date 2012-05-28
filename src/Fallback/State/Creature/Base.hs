@@ -127,8 +127,8 @@ data Monster = Monster
     monstStatus :: StatusEffects,
     monstSummoning :: Maybe MonsterSummoning,
     monstTag :: MonsterTag,
-    monstTownAI :: MonsterTownAI,
-    monstType :: MonsterType }
+    monstTownAI :: MonsterTownAI }
+  deriving (Read, Show)
 
 monstHeadPos :: Grid.Entry Monster -> Position
 monstHeadPos entry =

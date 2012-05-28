@@ -275,8 +275,7 @@ dealRawDamageToMonster gentle key damage stun = do
     resources <- areaGet arsResources
     let mtype = monstType monst
     -- Add a death doodad.
-    addDeathDoodad (rsrcMonsterImages resources (mtSize mtype)
-                                      (mtImageRow mtype))
+    addDeathDoodad (rsrcMonsterImages resources mtype)
                    (cpFaceDir $ monstPose monst) (Grid.geRect entry)
     -- If the monster has a "dead" var, set it to True.
     maybeM (monstDeadVar monst) (emitAreaEffect . flip EffSetVar True)
@@ -667,7 +666,7 @@ trySummonMonster summonerKey tag lifetime dieWhenGone = do
         entry <- demandMonsterEntry monstKey
         return (monstIsAlly (Grid.geValue entry), monstHeadPos entry)
   let monster = makeMonster tag
-  let size = sizeSize $ mtSize $ monstType monster
+  let size = monstRectSize monster
   mbSpot <- do
     let blocked ars pos = arsOccupied pos ars ||
                           cannotWalkOn (arsTerrainOpenness pos ars)

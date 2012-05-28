@@ -678,11 +678,10 @@ tickMonsterWaiting entry = (monst', mbScript) where
       emitAreaEffect $ EffReplaceMonster key $
         Just (Grid.geValue entry') { monstMoments = 0 }
   moments' = max moments $ min (maxActionPoints * momentsPerActionPoint) $
-             round (mtSpeed mtype * seSpeedMultiplier status *
+             round (monstSpeed monst * seSpeedMultiplier status *
                     fromIntegral baseMomentsPerFrame) + moments
   moments = monstMoments monst
   status' = decayStatusEffects baseActionPointsPerFrame status
-  mtype = monstType monst
   status = monstStatus monst
   summoning' = tickSummoning <$> monstSummoning monst
   tickSummoning ms = ms { msRemainingFrames = max 0 $ subtract 1 $

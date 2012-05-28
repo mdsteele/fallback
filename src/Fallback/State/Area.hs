@@ -48,7 +48,7 @@ import Fallback.State.Progress
   (DeviceId, HasProgress, TriggerId, Var, VarType, progressSetVar)
 import Fallback.State.Resources (MusicTag, Resources, musicPath)
 import Fallback.State.Simple
-import Fallback.State.Status (Invisibility(..), StatusEffects, seInvisibility)
+import Fallback.State.Status (Invisibility(..))
 import Fallback.State.Tags (AreaTag, ItemTag, QuestTag)
 import Fallback.State.Terrain
 
@@ -79,8 +79,7 @@ tickAnimations cameraGoalTopleft eyes acs =
     tickMonsterPose entry = monst { monstPose = pose' } where
       monst = Grid.geValue entry
       pose' = tickCreaturePose invis canSee (monstPose monst)
-      invis = max (mtInherentInvisibility $ monstType monst)
-                  (seInvisibility $ monstStatus monst)
+      invis = monstInvisibility monst
       canSee =
         case invis of
           NoInvisibility -> True
@@ -191,7 +190,7 @@ arsIsBlockedForMonster :: (AreaState a) => Grid.Entry Monster -> a -> Position
                        -> Bool
 arsIsBlockedForMonster ge ars pos =
   any (rectContains rect') (arsPartyPositions ars) ||
-  any ((if mtCanFly $ monstType $ Grid.geValue ge
+  any ((if monstCanFly $ Grid.geValue ge
         then cannotFlyOver else cannotWalkOn) .
        flip arsTerrainOpenness ars) (prectPositions rect') ||
   not (Grid.couldMove (Grid.geKey ge) rect' $ arsMonsters ars)
@@ -493,8 +492,8 @@ executeAreaCommonEffect eff ars = do
         Just (entry, devices') ->
           return (Just entry, set acs { acsDevices = devices' })
     EffTryAddMonster topleft monster -> do
-      case Grid.tryInsert (makeRect topleft $ sizeSize $ mtSize $
-                           monstType monster) monster (acsMonsters acs) of
+      case Grid.tryInsert (makeRect topleft $ monstRectSize monster) monster
+                          (acsMonsters acs) of
         Nothing -> return (Nothing, ars)
         Just (entry, monsters') ->
           return (Just entry, set acs { acsMonsters = monsters' })

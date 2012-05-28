@@ -48,7 +48,7 @@ defaultMonsterCombatAI key = do
   done <- tryMonsterSpells key
   unless done $ do
   ge <- demandMonsterEntry key
-  let attacks = mtAttacks $ monstType $ Grid.geValue ge
+  let attacks = monstAttacks $ Grid.geValue ge
   if null attacks then fleeMonsterCombatAI ge else do
   attack <- getRandomElem attacks
   let sqDist = rangeSqDist $ maRange attack
@@ -139,7 +139,7 @@ monsterTownStep ge = do
           return False
     ImmobileAI -> do
       if monstIsAlly monst then return False else do
-      let attacks = mtAttacks $ monstType monst
+      let attacks = monstAttacks monst
       if null attacks then return False else do
       let sqDist = maximum $ map (rangeSqDist . maRange) attacks
       if not (rangeTouchesRect partyPos sqDist rect) then return False else do
@@ -165,8 +165,7 @@ monsterTownStep ge = do
     key = Grid.geKey ge
     takeStep_ path = () <$ takeStep path
     takeStep path = do
-      let (time, steps) = if mtWalksFast $ monstType monst
-                          then (2, 2) else (4, 1)
+      let (time, steps) = if monstWalksFast monst then (2, 2) else (4, 1)
       mapM_ (walkMonster time key) $ take steps path
       return (length path - steps)
     stepTowardsParty path = do

@@ -19,10 +19,12 @@
 
 module Fallback.State.Creature
   (module Fallback.State.Creature.Base,
-   module Fallback.State.Creature.Monsters)
+   module Fallback.State.Creature.Monsters,
+   module Fallback.State.Creature.Utility)
 where
 
 import Fallback.State.Creature.Base
 import Fallback.State.Creature.Monsters
+import Fallback.State.Creature.Utility
 
 -------------------------------------------------------------------------------

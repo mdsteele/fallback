@@ -155,8 +155,7 @@ paintMonsters acs inCombat = mapM_ paintMonster monsters where
     let sprite = (case cpAnim pose of
                     { AttackAnim _ -> ciAttack; _ -> ciStand})
                  (cpFaceDir pose)
-                 (rsrcMonsterImages resources (mtSize mtype)
-                                    (mtImageRow mtype))
+                 (rsrcMonsterImages resources mtype)
     let offset = animOffset (cpAnim pose) (rectTopleft rect)
     blitStretchTinted (Tint 255 255 255 (cpAlpha pose)) sprite
                       (prectRect rect `rectPlus` (offset `pSub` cameraTopleft))

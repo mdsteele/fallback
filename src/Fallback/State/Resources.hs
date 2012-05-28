@@ -50,7 +50,8 @@ import Fallback.Data.Point (IRect, LocSpec, Rect(Rect))
 import qualified Fallback.Data.TotalMap as TM
 import Fallback.Draw
 import Fallback.Sound (Sound, loadSound)
-import Fallback.State.Creature (CreatureImages(CreatureImages))
+import Fallback.State.Creature
+  (CreatureImages(CreatureImages), MonsterType, mtImageRow, mtSize)
 import Fallback.State.Simple
   (CharacterClass, CharacterAppearance, CreatureSize(..))
 import Fallback.State.Tileset (Tileset, loadTileset)
@@ -155,8 +156,9 @@ rsrcCharacterImages rsrc cls app =
 rsrcItemIcon :: Resources -> (Int, Int) -> Sprite
 rsrcItemIcon rsrc coords = rsrcItemIcons rsrc ! coords
 
-rsrcMonsterImages :: Resources -> CreatureSize -> Int -> CreatureImages
-rsrcMonsterImages rsrc size row = TM.get size (rsrcAllMonsterImages rsrc) ! row
+rsrcMonsterImages :: Resources -> MonsterType -> CreatureImages
+rsrcMonsterImages rsrc mtype =
+  TM.get (mtSize mtype) (rsrcAllMonsterImages rsrc) ! mtImageRow mtype
 
 rsrcTerrainSprite :: Resources -> (Int, Int) -> Sprite
 rsrcTerrainSprite rsrc coords = rsrcTerrainSheet rsrc ! coords

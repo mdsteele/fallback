@@ -18,7 +18,7 @@
 ============================================================================ -}
 
 module Fallback.State.Creature.Monsters
-  (getMonsterType, makeMonster)
+  (getMonsterType)
 where
 
 import Control.Applicative (liftA2)
@@ -27,35 +27,8 @@ import Data.List (foldl')
 import qualified Fallback.Data.TotalMap as TM (set)
 import Fallback.State.Creature.Base
 import Fallback.State.Simple
-import Fallback.State.Status (Invisibility(..), initStatusEffects)
+import Fallback.State.Status (Invisibility(..))
 import Fallback.State.Tags (MonsterSpellTag(..), MonsterTag(..))
-
--------------------------------------------------------------------------------
-
--- | Make a monster of the given type, settings its fields to sane default
--- values (full health, non-ally, immobile AI, and everything else zeroed out).
--- You will probably need to override some or all of these values after calling
--- this function.
-makeMonster :: MonsterTag -> Monster
-makeMonster tag = Monster
-  { monstAdrenaline = 0,
-    monstDeadVar = Nothing,
-    monstHealth = mtMaxHealth mtype,
-    monstIsAlly = False,
-    monstMoments = 0,
-    monstName = mtName mtype,
-    monstPose = CreaturePose { cpAlpha = alpha, cpAnim = NoAnim,
-                               cpFaceDir = FaceLeft },
-    monstScript = Nothing,
-    monstSpells = map (flip (,) 0) $ mtSpells mtype,
-    monstStatus = initStatusEffects,
-    monstSummoning = Nothing,
-    monstTag = tag,
-    monstTownAI = ImmobileAI,
-    monstType = mtype }
-  where
-    mtype = getMonsterType tag
-    alpha = if mtInherentInvisibility mtype == NoInvisibility then 255 else 0
 
 -------------------------------------------------------------------------------
 

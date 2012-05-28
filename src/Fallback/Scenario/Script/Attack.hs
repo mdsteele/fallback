@@ -182,7 +182,7 @@ determineIfAttackMisses attacker target isRanged = do
     case attacker of
       -- TODO take EagleEye rank 1 into account
       Left charNum -> chrGetStat Agility <$> areaGet (arsGetCharacter charNum)
-      Right monstKey -> mtAgility . monstType . Grid.geValue <$>
+      Right monstKey -> monstAgility . Grid.geValue <$>
                         demandMonsterEntry monstKey
   let playMissSound = playSound =<< getRandomElem [SndMiss1, SndMiss2]
   let missWithProb probMiss onMiss = do
@@ -216,7 +216,7 @@ determineIfAttackMisses attacker target isRanged = do
       if parry then return True else do
       doTryAvoid (chrGetStat Agility char)
     Just (Right monstEntry) -> do
-      doTryAvoid (mtAgility $ monstType $ Grid.geValue monstEntry)
+      doTryAvoid (monstAgility $ Grid.geValue monstEntry)
     Nothing -> True <$ playMissSound
 
 attackHit :: AttackAppearance -> AttackElement -> [AttackEffect] -> Position
