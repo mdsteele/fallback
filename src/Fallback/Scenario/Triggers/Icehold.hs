@@ -23,9 +23,9 @@ where
 
 import Control.Applicative ((<$>))
 import Control.Monad (forM_, when)
-import Data.Maybe (isNothing)
 
 import Fallback.Constants (combatArenaSize)
+import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
@@ -373,15 +373,18 @@ compileIcehold globals = do
     let bossChamberTopleft = Point 1 9
     let bossChamberRect = makeRect bossChamberTopleft combatArenaSize
     vhaegystDead <- newPersistentVar 459822 False
+    vhaegystKey <- newTransientVar 109250 Grid.nilKey
     onStartDaily 209103 $ do
       whenP (varFalse vhaegystDead) $ do
         mbEntry <- tryAddMonster (Point 9 13) (makeMonster Vhaegyst)
           { monstDeadVar = Just vhaegystDead,
             monstIsAlly = True, -- don't attack yet
             monstTownAI = ImmobileAI }
-        when (isNothing mbEntry) $ fail "failed to place Vhaegyst"
+        maybe (fail "failed to place Vhaegyst")
+              (writeVar vhaegystKey . Grid.geKey) mbEntry
     once 729892 (walkIn bossChamberRect) $ do
-      -- TODO conversation and so forth; set Vhaegyst to non-ally
+      -- TODO conversation and so forth
+      setMonsterIsAlly False =<< readVar vhaegystKey
       massSetTerrain BasaltGateClosedTile [Point 9 22, Point 10 22]
       startCombatWithTopleft (Point 1 9)
     trigger 099022 (varTrue vhaegystDead) $ do

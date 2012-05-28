@@ -146,13 +146,12 @@ compileScenario (CompileScenario compile) =
                         scenarioInitialProgress = cssProgress css }
 
 newGlobalVar :: (VarType a) => VarSeed -> a -> CompileScenario (Var a)
-newGlobalVar vseed value = (useVarSeed vseed >>) $ CompileScenario $ do
-  css <- State.get
-  let var = makeVar vseed
-  maybe (fail $ "Repeated Var: " ++ show var)
-        (\pu -> State.put css { cssProgress = pu })
-        (progressAddVar var value $ cssProgress css)
-  return var
+newGlobalVar vseed value = do
+  var <- newVar vseed
+  CompileScenario $ do
+    css <- State.get
+    State.put css { cssProgress = progressSetVar var value $ cssProgress css }
+    return var
 
 compileRegion :: RegionTag -> (Party -> String) -> CompileScenario ()
 compileRegion tag backgroundFn = CompileScenario $ do
@@ -200,13 +199,12 @@ data CompileAreaState = CompileAreaState
     casTriggers :: [Trigger TownState TownEffect] }
 
 newPersistentVar :: (VarType a) => VarSeed -> a -> CompileArea (Var a)
-newPersistentVar vseed value = (useVarSeed vseed >>) $ CompileArea $ do
-  cas <- State.get
-  let var = makeVar vseed
-  maybe (fail $ "Repeated Var: " ++ show var)
-        (\pu -> State.put cas { casProgress = pu })
-        (progressAddVar var value $ casProgress cas)
-  return var
+newPersistentVar vseed value = do
+  var <- newVar vseed
+  CompileArea $ do
+    cas <- State.get
+    State.put cas { casProgress = progressSetVar var value $ casProgress cas }
+    return var
 
 newTransientVar :: (VarType a) => VarSeed -> a -> CompileArea (Var a)
 newTransientVar vseed value = do
@@ -275,10 +273,10 @@ instance DefineTrigger CompileArea where
   type TriggerState CompileArea = TownState
   type TriggerEffect CompileArea = TownEffect
   trigger vseed (Predicate predicate) action = do
-    useVarSeed vseed
+    tid <- newTriggerId vseed
     CompileArea $ do
       cas <- State.get
-      let trig = Trigger { triggerId = makeTriggerId vseed,
+      let trig = Trigger { triggerId = tid,
                            triggerPredicate = predicate,
                            triggerAction = action }
       State.put cas { casTriggers = trig : casTriggers cas }
@@ -312,24 +310,26 @@ class (HasVarSeeds m) => DefineDevice m where
             -> m Device
 
 instance DefineDevice CompileScenario where
-  newDevice vseed radius sfn = (useVarSeed vseed >>) $ CompileScenario $ do
-    css <- State.get
-    let di = makeDeviceId vseed
-    when (Map.member di (cssDevices css)) $ do
-      fail ("Internal error: Repeated device ID: " ++ show di)
-    let device = Device { devId = di, devInteract = sfn, devRadius = radius }
-    State.put css { cssDevices = Map.insert di device (cssDevices css) }
-    return device
+  newDevice vseed radius sfn = do
+    di <- newDeviceId vseed
+    CompileScenario $ do
+      css <- State.get
+      when (Map.member di (cssDevices css)) $ do
+        fail ("Internal error: Repeated device ID: " ++ show di)
+      let device = Device { devId = di, devInteract = sfn, devRadius = radius }
+      State.put css { cssDevices = Map.insert di device (cssDevices css) }
+      return device
 
 instance DefineDevice CompileArea where
-  newDevice vseed radius sfn = (useVarSeed vseed >>) $ CompileArea $ do
-    cas <- State.get
-    let di = makeDeviceId vseed
-    when (Map.member di $ casDevices cas) $ do
-      fail ("Internal error: Repeated device ID: " ++ show di)
-    let device = Device { devId = di, devInteract = sfn, devRadius = radius }
-    State.put cas { casDevices = Map.insert di device (casDevices cas) }
-    return device
+  newDevice vseed radius sfn = do
+    di <- newDeviceId vseed
+    CompileArea $ do
+      cas <- State.get
+      when (Map.member di $ casDevices cas) $ do
+        fail ("Internal error: Repeated device ID: " ++ show di)
+      let device = Device { devId = di, devInteract = sfn, devRadius = radius }
+      State.put cas { casDevices = Map.insert di device (casDevices cas) }
+      return device
 
 uniqueDevice :: VarSeed -> Position -> Int
              -> (Grid.Entry Device -> CharacterNumber -> Script AreaEffect ())
@@ -348,12 +348,13 @@ class (HasVarSeeds m) => DefineMonsterScript m where
   newMonsterScript :: VarSeed -> MonsterScript -> m MonsterScriptId
 
 instance DefineMonsterScript CompileArea where
-  newMonsterScript vseed sfn = (useVarSeed vseed >>) $ CompileArea $ do
-    cas <- State.get
-    let msi = makeMonsterScriptId vseed
-    State.put cas { casMonsterScripts =
-                      Map.insert msi sfn (casMonsterScripts cas) }
-    return msi
+  newMonsterScript vseed sfn = do
+    msi <- newMonsterScriptId vseed
+    CompileArea $ do
+      cas <- State.get
+      State.put cas { casMonsterScripts = Map.insert msi sfn
+                                                     (casMonsterScripts cas) }
+      return msi
 
 -------------------------------------------------------------------------------
 -- Variables:

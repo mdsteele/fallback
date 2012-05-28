@@ -20,39 +20,48 @@
 module Fallback.State.Progress
   (-- * Progress
    Progress, emptyProgress, HasProgress(..),
-   -- * Vars
+   -- * VarSeeds
    VarSeed, HasVarSeeds(..), splitVarSeed,
-   Var, makeVar,
-   DeviceId, makeDeviceId,
-   MonsterScriptId, makeMonsterScriptId,
-   TriggerId, makeTriggerId,
-   VarType(..))
+   -- * Vars
+   Var, newVar, VarType(..),
+   -- * Other IDs
+   DeviceId, newDeviceId,
+   MonsterScriptId, newMonsterScriptId,
+   TriggerId, newTriggerId)
 where
 
-import qualified Data.Map as Map
-import Data.Maybe (fromMaybe)
+import qualified Fallback.Data.Grid as Grid
+import qualified Fallback.Data.SparseMap as SM
 
 -------------------------------------------------------------------------------
+-- Progress:
 
--- TODO: Use SparseMaps here.
 data Progress = Progress
-  { progBoolVars :: Map.Map (Var Bool) Bool,
-    progIntVars :: Map.Map (Var Int) Int }
+  { progBoolVars :: SM.SparseMap (Var Bool) Bool,
+    progIntVars :: SM.SparseMap (Var Int) Int,
+    progKeyVars :: SM.SparseMap (Var (Grid.Key ())) (Grid.Key ()) }
   deriving (Read, Show)
 
 emptyProgress :: Progress
 emptyProgress = Progress
-  { progBoolVars = Map.empty,
-    progIntVars = Map.empty }
+  { progBoolVars = SM.make False,
+    progIntVars = SM.make 0,
+    progKeyVars = SM.make Grid.nilKey }
 
 class HasProgress a where
   getProgress :: a -> Progress
 
 -------------------------------------------------------------------------------
+-- VarSeeds:
 
+-- | A seed used to create 'Var's and other kinds of unique IDs.  Each
+-- 'VarSeed' must only be used once.  They can be created either from an
+-- integer using 'fromInteger' (typically implicitly, using a integer literal),
+-- or from another 'VarSeed' using 'splitVarSeed'.
 data VarSeed = VarSeed Int Int
   deriving (Eq, Ord, Read, Show)
 
+-- | Only 'fromInteger' is valid; all other methods raise an error.
 instance Num VarSeed where
   fromInteger n = VarSeed (fromInteger n) 1
   (+) = error "VarSeed.+"
@@ -62,67 +71,97 @@ instance Num VarSeed where
   negate = error "VarSeed.negate"
   signum = error "VarSeed.signum"
 
+-- | Represents a monad that tracks which 'VarSeed's have been used, and
+-- prevents the same one from being used twice.
 class (Monad m) => HasVarSeeds m where
+  -- | Use up the given 'VarSeed'.  If the 'VarSeed' has been used before, this
+  -- should signal some kind of error in the monad; otherwise, it should
+  -- succeed and remember that this 'VarSeed' has now been used.
   useVarSeed :: VarSeed -> m ()
 
+-- | Use up the given 'VarSeed', and generate two fresh, unused ones.
 splitVarSeed :: (HasVarSeeds m) => VarSeed -> m (VarSeed, VarSeed)
 splitVarSeed vseed@(VarSeed n m) = do
   useVarSeed vseed
   return (VarSeed n (2 * m), VarSeed n (2 * m + 1))
 
 -------------------------------------------------------------------------------
+-- Vars:
 
-newtype Var a = Var VarSeed
+-- | Represents a storage key for a value in a 'Progress'.  Note that in order
+-- to actually be stored in a 'Progress', the value type must be an instance
+-- of 'VarType'.
+newtype Var a = Var { fromVar :: VarSeed }
   deriving (Eq, Ord, Read, Show)
 
-makeVar :: VarSeed -> Var a
-makeVar = Var
+-- | Create a new 'Var' (of any desired type) from the given 'VarSeed'.  This
+-- uses up the 'VarSeed'.
+newVar :: (HasVarSeeds m) => VarSeed -> m (Var a)
+newVar vseed = do
+  useVarSeed vseed
+  return (Var vseed)
+
+-- | Represents a value that can be stored in a 'Progress'.
+class VarType a where
+  progressGetVar :: Var a -> Progress -> a
+  progressSetVar :: Var a -> a -> Progress -> Progress
+
+instance VarType Bool where
+  progressGetVar = getVar progBoolVars
+  progressSetVar var value prog =
+    prog { progBoolVars = SM.set var value (progBoolVars prog) }
+
+instance VarType Int where
+  progressGetVar = getVar progIntVars
+  progressSetVar var value prog =
+    prog { progIntVars = SM.set var value (progIntVars prog) }
+
+instance VarType (Grid.Key a) where
+  progressGetVar var = Grid.coerceKey . getVar progKeyVars (coerceVar var)
+  progressSetVar var value prog =
+    prog { progKeyVars = SM.set (coerceVar var) (Grid.coerceKey value)
+                                (progKeyVars prog) }
+
+-------------------------------------------------------------------------------
+-- Other IDs:
 
 newtype DeviceId = DeviceId VarSeed
   deriving (Eq, Ord, Read, Show)
 
-makeDeviceId :: VarSeed -> DeviceId
-makeDeviceId = DeviceId
+-- | Create a new 'DeviceId' from the given 'VarSeed'.  This uses up the
+-- 'VarSeed'.
+newDeviceId :: (HasVarSeeds m) => VarSeed -> m DeviceId
+newDeviceId vseed = do
+  useVarSeed vseed
+  return (DeviceId vseed)
 
 newtype MonsterScriptId = MonsterScriptId VarSeed
   deriving (Eq, Ord, Read, Show)
 
-makeMonsterScriptId :: VarSeed -> MonsterScriptId
-makeMonsterScriptId = MonsterScriptId
+-- | Create a new 'MonsterScriptId' from the given 'VarSeed'.  This uses up the
+-- 'VarSeed'.
+newMonsterScriptId :: (HasVarSeeds m) => VarSeed -> m MonsterScriptId
+newMonsterScriptId vseed = do
+  useVarSeed vseed
+  return (MonsterScriptId vseed)
 
 newtype TriggerId = TriggerId VarSeed
   deriving (Eq, Ord, Read, Show)
 
-makeTriggerId :: VarSeed -> TriggerId
-makeTriggerId = TriggerId
-
-class VarType a where
-  progressGetVar :: Var a -> Progress -> a
-  progressSetVar :: Var a -> a -> Progress -> Progress
-  progressAddVar :: Var a -> a -> Progress -> Maybe Progress
-
-instance VarType Bool where
-  progressGetVar = getVar progBoolVars
-  progressSetVar vid value prog =
-    prog { progBoolVars = Map.insert vid value (progBoolVars prog) }
-  progressAddVar vid value prog =
-    if Map.member vid (progBoolVars prog) then Nothing else
-      Just (progressSetVar vid value prog)
-
-instance VarType Int where
-  progressGetVar = getVar progIntVars
-  progressSetVar vid value prog =
-    prog { progIntVars = Map.insert vid value (progIntVars prog) }
-  progressAddVar vid value prog =
-    if Map.member vid (progIntVars prog) then Nothing else
-      Just (progressSetVar vid value prog)
+-- | Create a new 'TriggerId' from the given 'VarSeed'.  This uses up the
+-- 'VarSeed'.
+newTriggerId :: (HasVarSeeds m) => VarSeed -> m TriggerId
+newTriggerId vseed = do
+  useVarSeed vseed
+  return (TriggerId vseed)
 
 -------------------------------------------------------------------------------
 -- Private functions:
 
-getVar :: (Progress -> Map.Map (Var a) a) -> Var a -> Progress -> a
-getVar fn vid prog =
-  fromMaybe (error $ "Var lookup failure: " ++ show vid) $
-  Map.lookup vid $ fn prog
+coerceVar :: Var a -> Var b
+coerceVar = Var . fromVar
+
+getVar :: (Progress -> SM.SparseMap (Var a) a) -> Var a -> Progress -> a
+getVar fn vid prog = SM.get vid $ fn prog
 
 -------------------------------------------------------------------------------

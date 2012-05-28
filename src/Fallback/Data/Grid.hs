@@ -31,7 +31,7 @@ module Fallback.Data.Grid
   (-- * Grid type
    Grid, empty,
    Entry(..),
-   Key, nilKey,
+   Key, nilKey, coerceKey,
    -- * Query
    null, size, entries,
    lookup, occupied, search, searchRect,
@@ -68,9 +68,9 @@ data Grid a = Grid
     gridMap2 :: Map.Map Position (Key a) }
 
 instance Functor Grid where
-  fmap fn grid = Grid { gridNextKey = rekey (gridNextKey grid),
+  fmap fn grid = Grid { gridNextKey = coerceKey (gridNextKey grid),
                         gridMap1 = fmap (fmap fn) (gridMap1 grid),
-                        gridMap2 = fmap rekey (gridMap2 grid) }
+                        gridMap2 = fmap coerceKey (gridMap2 grid) }
 
 instance Fold.Foldable Grid where
   foldr fn start grid = foldr fn start $ map geValue $ entries grid
@@ -78,10 +78,10 @@ instance Fold.Foldable Grid where
 instance Trav.Traversable Grid where
   traverse fn grid = fmap mkGrid $ Trav.traverse fn' $ gridMap1 grid
     where
-      mkGrid map1' = Grid { gridNextKey = rekey (gridNextKey grid),
+      mkGrid map1' = Grid { gridNextKey = coerceKey (gridNextKey grid),
                             gridMap1 = map1',
-                            gridMap2 = fmap rekey (gridMap2 grid) }
-      fn' ge = let mkEntry value' = ge { geKey = rekey (geKey ge),
+                            gridMap2 = fmap coerceKey (gridMap2 grid) }
+      fn' ge = let mkEntry value' = ge { geKey = coerceKey (geKey ge),
                                          geValue = value' }
                in fmap mkEntry $ fn $ geValue ge
 
@@ -115,15 +115,22 @@ data Entry a = Entry
   deriving (Eq, Read, Show)
 
 instance Functor Entry where
-  fmap fn ge = ge { geKey = rekey (geKey ge), geValue = fn (geValue ge) }
+  fmap fn ge = ge { geKey = coerceKey (geKey ge), geValue = fn (geValue ge) }
 
--- | The key type for 'Grid' values.
+-- | The key type for 'Grid' values.  The type parameter serves only to help
+-- prevent accidentally using a key from one grid on another grid (where it
+-- would be invalid); however, if necessary the type of a key can be explicitly
+-- changed with 'coerceKey'.
 newtype Key a = Key { fromKey :: Int }
   deriving (Eq, Ord, Read, Show)
 
 -- | A key that will never be a member of any grid.
 nilKey :: Key a
 nilKey = Key 0
+
+-- | Change a key of one type into a key of another type.
+coerceKey :: Key a -> Key b
+coerceKey = Key . fromKey
 
 -------------------------------------------------------------------------------
 -- Query:
@@ -268,9 +275,6 @@ valid grid = (all assoc1ok $ IntMap.assocs map1) &&
 regenMap2 :: IntMap.IntMap (Entry a) -> Map.Map Position (Key a)
 regenMap2 map1 = Map.fromList $ concatMap fn $ IntMap.elems map1 where
   fn entry = map (flip (,) $ geKey entry) $ prectPositions $ geRect entry
-
-rekey :: Key a -> Key b
-rekey = Key . fromKey
 
 tryAddEntry :: Entry a -> Grid a -> Maybe (Grid a)
 tryAddEntry entry grid =
