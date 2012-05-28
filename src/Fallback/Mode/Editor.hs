@@ -327,6 +327,53 @@ autoPaintTile tileset tmap pos = get $
             | water e && caveFloor w -> 6446
             | caveFloor e && caveFloor w -> 8790
             | otherwise -> ignore
+      | openOcean c ->
+        case nearbyTileIds of
+          (e, s, w, n, se, sw, nw, ne)
+            | all ocean [e, s, w, n, se, sw, nw, ne] -> 4181
+            | all ocean [e, w, n] && lightg s -> 7279
+            | all ocean [w, n] && all lightg [e, s] -> 1729
+            | all ocean [s, w, n] && lightg e -> 3908
+            | all ocean [s, w] && all lightg [n, e] -> 1479
+            | all ocean [e, s, w] && lightg n -> 6744
+            | all ocean [e, s] && all lightg [n, w] -> 8336
+            | all ocean [e, s, n] && lightg w -> 4855
+            | all ocean [e, n] && all lightg [s, w] -> 9373
+            | all ocean [e, s, w, n, se, nw, ne] && lightg sw -> 5854
+            | all ocean [e, s, w, n, se, sw, ne] && lightg nw -> 1359
+            | all ocean [e, s, w, n, se, sw, nw] && lightg ne -> 5285
+            | all ocean [e, s, w, n, sw, nw, ne] && lightg se -> 6087
+            | all ocean [e, w, n] && darkg s -> 7918
+            | all ocean [w, n] && all darkg [e, s] -> 2692
+            | all ocean [s, w, n] && darkg e -> 9192
+            | all ocean [s, w] && all darkg [n, e] -> 4633
+            | all ocean [e, s, w] && darkg n -> 0107
+            | all ocean [e, s] && all darkg [n, w] -> 5792
+            | all ocean [e, s, n] && darkg w -> 6899
+            | all ocean [e, n] && all darkg [s, w] -> 9623
+            | all ocean [e, s, w, n, se, nw, ne] && darkg sw -> 0255
+            | all ocean [e, s, w, n, se, sw, ne] && darkg nw -> 0773
+            | all ocean [e, s, w, n, se, sw, nw] && darkg ne -> 8557
+            | all ocean [e, s, w, n, sw, nw, ne] && darkg se -> 2909
+            | otherwise -> ignore
+      | oceanVBridge c ->
+        case nearbyTileIds of
+          (_, s, _, n, _, _, _, _)
+            | ocean s && ocean n -> 0153
+            | lightg s && ocean n -> 7584
+            | ocean s && lightg n -> 3226
+            | darkg s && ocean n -> 4591
+            | ocean s && darkg n -> 4132
+            | otherwise -> ignore
+      | oceanHBridge c ->
+        case nearbyTileIds of
+          (e, _, w, _, _, _, _, _)
+            | ocean e && ocean w -> 7779
+            | lightg e && ocean w -> 0387
+            | ocean e && lightg w -> 3320
+            | darkg e && ocean w -> 5134
+            | ocean e && darkg w -> 7987
+            | otherwise -> ignore
       | otherwise -> ignore
   where
     wall tid = caveWall tid || buildingWall tid || grassWall tid ||
@@ -345,7 +392,12 @@ autoPaintTile tileset tmap pos = get $
     darkGrass = (`elem` [3404, 1783, 8052, 6875, 2628, 1435, 3002, 7912, 3602,
                          7088, 3632, 7401, 8417])
     darkg tid = darkGrass tid || grassWall tid ||
-                tid `elem` [1953, 8040, 2201, 2297, 2868, 0442, 2768]
+                tid `elem` [2246, 1953, 8040, 2201, 2297, 2868, 0442, 2768,
+                            4029, 2427, 0198, 3181, 7002, 8274, 1673, 6343,
+                            4307, 9527, 6531, 5342, 9524, 8978, 4215, 8515,
+                            1010, 0754, 6984, 9122, 4007, 0541, 8044, 4977]
+    lightg = (`elem` [8983, 2583, 2938, 8301, 8740, 0678, 8415, 1397, 5398,
+                      7100, 5308, 7966, 0723, 7888, 9930, 8596, 8799])
     caveFloor = (`elem` [1171, 6498, 8959, 4581, 9760, 1376, 0772, 0179, 6341,
                          5892, 6109, 6914, 7234, 5653, 5073, 6814, 3086, 6852,
                          0545, 5306, 4196, 3431, 4408, 3899, 0486, 2317, 9224,
@@ -362,6 +414,14 @@ autoPaintTile tileset tmap pos = get $
                          0073])
     waterVBridge = (`elem` [7629, 7108, 7264, 7739])
     waterHBridge = (`elem` [1917, 5497, 6446, 8790])
+    ocean tid = openOcean tid || oceanVBridge tid || oceanHBridge tid ||
+                tid `elem` [9702, 2467]
+    openOcean = (`elem` [4181, 7279, 1729, 3908, 1479, 6744, 8336, 4855, 9373,
+                         5854, 1359, 5285, 6087, 4632, 7733, 8007, 1868, 0176,
+                         4465, 1750, 1919, 7918, 2692, 9192, 4633, 0107, 5792,
+                         6899, 9623, 0255, 0773, 8557, 2909])
+    oceanVBridge = (`elem` [0153, 3226, 7584, 4132, 4591])
+    oceanHBridge = (`elem` [7779, 3320, 0387, 7987, 5134])
 
     tile = tmapGet tmap pos
     get tid = fromMaybe (error $ "no such tile: " ++ show tid) $

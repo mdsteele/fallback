@@ -127,9 +127,9 @@ tilesList = [
  Tile 0000 (Still 0 0) TerrainSolid black, -- unexplored
  Tile 0001 (Still 0 1) TerrainSolid magenta, -- null tile
 
- Tile 8983 (Still 0 4) TerrainOpen green, -- grass
- Tile 2583 (Still 0 5) TerrainOpen green, -- grass w/ pebbles
- Tile 2938 (Still 0 6) TerrainOpen green, -- grass w/ shrubs
+ Tile 8983 (Still 0 4) TerrainOpen lightgreen, -- grass
+ Tile 2583 (Still 0 5) TerrainOpen lightgreen, -- grass w/ pebbles
+ Tile 2938 (Still 0 6) TerrainOpen lightgreen, -- grass w/ shrubs
  Tile 8301 (Still 7 9) TerrainWindow gray, -- boulder
  Tile 8740 (Still 8 7) TerrainWindow gray, -- small rock pile
  Tile 0678 (Still 8 8) TerrainWindow gray, -- big rock pile left
@@ -139,11 +139,11 @@ tilesList = [
  Tile 7100 (Still 20 10) TerrainSolid darkgreen, -- two trees
  Tile 5308 (Still 8 2) TerrainSolid darkgreen, -- dense trees
  Tile 7966 (Still 8 3) TerrainWindow green, -- sparse trees
- Tile 0723 (Still 8 4) TerrainWindow green, -- small tree
- Tile 7888 (Still 21 2) TerrainWindow green, -- three thin trees
- Tile 9930 (Still 21 3) TerrainWindow green, -- large bush
- Tile 8596 (Still 21 4) TerrainOpen green, -- six small bushes
- Tile 8799 (Still 22 9) TerrainWindow green, -- signpost
+ Tile 0723 (Still 8 4) TerrainWindow lightgreen, -- small tree
+ Tile 7888 (Still 21 2) TerrainWindow lightgreen, -- three thin trees
+ Tile 9930 (Still 21 3) TerrainWindow lightgreen, -- large bush
+ Tile 8596 (Still 21 4) TerrainOpen lightgreen, -- six small bushes
+ Tile 8799 (Still 22 9) TerrainWindow lightgreen, -- signpost
 
  Tile 2276 (Still 21 7) TerrainOpen gray, -- stone road
  Tile 8769 (Still 20 0) TerrainOpen gray,
@@ -151,27 +151,52 @@ tilesList = [
  Tile 6847 (Still 21 0) TerrainOpen gray,
  Tile 6145 (Still 21 1) TerrainOpen gray,
 
- Tile 1783 (Still 3 6) TerrainOpen darkgreen, -- dark/grass border
- Tile 8052 (Still 3 7) TerrainOpen darkgreen,
- Tile 6875 (Still 3 8) TerrainOpen darkgreen,
- Tile 2628 (Still 3 9) TerrainOpen darkgreen,
- Tile 1435 (Still 3 10) TerrainOpen darkgreen,
- Tile 3002 (Still 3 11) TerrainOpen darkgreen,
- Tile 7912 (Still 4 2) TerrainOpen darkgreen,
- Tile 3602 (Still 4 3) TerrainOpen darkgreen,
- Tile 7088 (Still 4 4) TerrainOpen darkgreen,
- Tile 3632 (Still 4 5) TerrainOpen darkgreen,
- Tile 7401 (Still 4 6) TerrainOpen darkgreen,
- Tile 8417 (Still 4 7) TerrainOpen darkgreen,
+ Tile 1783 (Still 3 6) TerrainOpen green, -- dark/grass border
+ Tile 8052 (Still 3 7) TerrainOpen green,
+ Tile 6875 (Still 3 8) TerrainOpen green,
+ Tile 2628 (Still 3 9) TerrainOpen green,
+ Tile 1435 (Still 3 10) TerrainOpen green,
+ Tile 3002 (Still 3 11) TerrainOpen green,
+ Tile 7912 (Still 4 2) TerrainOpen green,
+ Tile 3602 (Still 4 3) TerrainOpen green,
+ Tile 7088 (Still 4 4) TerrainOpen green,
+ Tile 3632 (Still 4 5) TerrainOpen green,
+ Tile 7401 (Still 4 6) TerrainOpen green,
+ Tile 8417 (Still 4 7) TerrainOpen green,
+ Tile 4029 (Still 37 8) TerrainWindow gray, -- boulder (light W, dark E)
+ Tile 2427 (Still 35 7) TerrainSolid darkgreen, -- big tree light
+ Tile 0198 (Still 35 8) TerrainSolid darkgreen, -- two trees
+ Tile 3181 (Still 35 9) TerrainWindow green, -- three thin trees
+ Tile 7002 (Still 35 10) TerrainSolid darkgreen, -- big tree dark
+ Tile 8274 (Still 35 11) TerrainSolid darkgreen, -- dense trees
+ Tile 1673 (Still 37 9) TerrainWindow gray, -- boulder (light S, dark N)
+ Tile 6343 (Still 36 2) TerrainSolid darkgreen, -- big tree light
+ Tile 4307 (Still 36 3) TerrainSolid darkgreen, -- two trees
+ Tile 9527 (Still 36 4) TerrainWindow green, -- three thin trees
+ Tile 6531 (Still 36 5) TerrainSolid darkgreen, -- big tree dark
+ Tile 5342 (Still 36 6) TerrainSolid darkgreen, -- dense trees
+ Tile 9524 (Still 37 10) TerrainWindow gray, -- boulder (light E, dark W)
+ Tile 8978 (Still 36 7) TerrainSolid darkgreen, -- big tree light
+ Tile 4215 (Still 36 8) TerrainSolid darkgreen, -- two trees
+ Tile 8515 (Still 36 9) TerrainWindow green, -- three thin trees
+ Tile 1010 (Still 36 10) TerrainSolid darkgreen, -- big tree dark
+ Tile 0754 (Still 36 11) TerrainSolid darkgreen, -- dense trees
+ Tile 6984 (Still 37 11) TerrainWindow gray, -- boulder (light N, dark S)
+ Tile 9122 (Still 37 2) TerrainSolid darkgreen, -- big tree light
+ Tile 4007 (Still 37 3) TerrainSolid darkgreen, -- two trees
+ Tile 0541 (Still 37 4) TerrainWindow green, -- three thin trees
+ Tile 8044 (Still 37 5) TerrainSolid darkgreen, -- big tree dark
+ Tile 4977 (Still 37 6) TerrainSolid darkgreen, -- dense trees
 
- Tile 3404 (Still 3 4) TerrainOpen darkgreen, -- dark grass
- Tile 1953 (Still 3 5) TerrainWindow gray, -- w/ rocks
- Tile 8040 (Still 37 7) TerrainWindow gray, -- w/ boulder
- Tile 2201 (Still 35 5) TerrainSolid darkgreen, -- big tree dark
+ Tile 3404 (Still 3 4) TerrainOpen green, -- dark grass
+ Tile 2246 (Still 21 10) TerrainOpen green, -- dark grass w/ shrubs
+ Tile 1953 (Still 3 5) TerrainWindow gray, -- rocks
+ Tile 8040 (Still 37 7) TerrainWindow gray, -- boulder
  Tile 2297 (Still 35 2) TerrainSolid darkgreen, -- big tree light
  Tile 2868 (Still 35 3) TerrainSolid darkgreen, -- two trees
+ Tile 2201 (Still 35 5) TerrainSolid darkgreen, -- big tree dark
+ Tile 2768 (Still 35 4) TerrainWindow green, -- three thin trees
  Tile 0442 (Still 35 6) TerrainSolid darkgreen, -- dense trees
- Tile 2768 (Still 35 4) TerrainSolid darkgreen, -- three thin trees
 
  Tile 2851 (Still 1 10) TerrainSolid brown, -- grass wall
  Tile 4461 (Still 2 2) TerrainSolid brown,
@@ -188,7 +213,9 @@ tilesList = [
  Tile 3394 (Still 3 3) TerrainSolid brown,
 
  Tile 4181 (Still 4 8) TerrainHover blue, -- ocean
- Tile 7279 (Still 4 9) TerrainHover blue, -- shore
+ Tile 9702 (Still 6 2) TerrainHover blue, -- ocean rock
+ Tile 2467 (Still 5 11) TerrainHover blue, -- tiny island
+ Tile 7279 (Still 4 9) TerrainHover blue, -- light grass shore
  Tile 1729 (Still 4 10) TerrainHover blue,
  Tile 3908 (Still 4 11) TerrainHover blue,
  Tile 1479 (Still 5 2) TerrainHover blue,
@@ -200,15 +227,36 @@ tilesList = [
  Tile 1359 (Still 5 8) TerrainHover blue,
  Tile 5285 (Still 5 9) TerrainHover blue,
  Tile 6087 (Still 5 10) TerrainHover blue,
- Tile 2467 (Still 5 11) TerrainHover blue,
- Tile 9702 (Still 6 2) TerrainHover blue,
-
- Tile 3320 (Still 6 3) TerrainOpen gray, -- bridge
- Tile 7779 (Still 6 4) TerrainOpen gray,
- Tile 0387 (Still 6 5) TerrainOpen gray,
- Tile 3226 (Still 6 6) TerrainOpen gray,
- Tile 0153 (Still 6 7) TerrainOpen gray,
- Tile 7584 (Still 6 8) TerrainOpen gray,
+ Tile 4632 (Still 39 8) TerrainHover blue, -- light/dark shore
+ Tile 7733 (Still 39 9) TerrainHover blue,
+ Tile 8007 (Still 39 10) TerrainHover blue,
+ Tile 1868 (Still 39 11) TerrainHover blue,
+ Tile 0176 (Still 40 2) TerrainHover blue,
+ Tile 4465 (Still 40 3) TerrainHover blue,
+ Tile 1750 (Still 40 4) TerrainHover blue,
+ Tile 1919 (Still 40 5) TerrainHover blue,
+ Tile 7918 (Still 38 2) TerrainHover blue, -- dark grass shore
+ Tile 2692 (Still 38 3) TerrainHover blue,
+ Tile 9192 (Still 38 4) TerrainHover blue,
+ Tile 4633 (Still 38 5) TerrainHover blue,
+ Tile 0107 (Still 38 6) TerrainHover blue,
+ Tile 5792 (Still 38 7) TerrainHover blue,
+ Tile 6899 (Still 38 8) TerrainHover blue,
+ Tile 9623 (Still 38 9) TerrainHover blue,
+ Tile 0255 (Still 38 10) TerrainHover blue,
+ Tile 0773 (Still 38 11) TerrainHover blue,
+ Tile 8557 (Still 39 2) TerrainHover blue,
+ Tile 2909 (Still 39 3) TerrainHover blue,
+ Tile 0153 (Still 6 7) TerrainOpen gray, -- ocean vert bridge
+ Tile 3226 (Still 6 6) TerrainOpen gray, -- bridge light shore north
+ Tile 7584 (Still 6 8) TerrainOpen gray, -- bridge light shore south
+ Tile 4132 (Still 39 6) TerrainOpen gray, -- bridge dark shore north
+ Tile 4591 (Still 39 7) TerrainOpen gray, -- bridge dark shore south
+ Tile 7779 (Still 6 4) TerrainOpen gray, -- ocean horz bridge
+ Tile 3320 (Still 6 3) TerrainOpen gray, -- bridge light shore west
+ Tile 0387 (Still 6 5) TerrainOpen gray, -- bridge light shore east
+ Tile 7987 (Still 39 4) TerrainOpen gray, -- bridge dark shore west
+ Tile 5134 (Still 39 5) TerrainOpen gray, -- bridge dark shore east
 
  Tile 7292 (Still 8 10) TerrainSolid white, -- stone wall
  Tile 3112 (Still 8 11) TerrainSmoke white, -- stone secret door
@@ -529,10 +577,11 @@ tilesList = [
     brown = Color 128 64 0
     cyan = Color 0 255 255
     darkgray = Color 64 64 64
-    darkgreen = Color 0 96 0
+    darkgreen = Color 10 70 0
     gray = Color 128 128 128
-    green = Color 0 128 0
+    green = Color 0 104 0
     lightgray = Color 192 192 192
+    lightgreen = Color 0 140 0
     magenta = Color 255 0 255
     orange = Color 255 128 0
     purple = Color 64 16 32
