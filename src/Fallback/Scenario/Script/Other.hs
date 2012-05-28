@@ -79,7 +79,6 @@ import Fallback.Control.Script
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import qualified Fallback.Data.TotalMap as TM (get)
-import Fallback.Scenario.Monsters (makeMonster)
 import Fallback.Scenario.Script.Base
 import Fallback.Scenario.Script.Doodad
 import Fallback.State.Action (TargetKind(..))

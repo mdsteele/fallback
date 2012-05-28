@@ -54,7 +54,6 @@ import qualified Fallback.Data.Grid as Grid (Entry)
 import Fallback.Data.Point (Position, PRect, pZero, rectContains)
 import qualified Fallback.Data.SparseMap as SM
 import qualified Fallback.Data.TotalMap as TM
-import Fallback.Scenario.Monsters (makeMonster)
 import Fallback.Scenario.Script
 import Fallback.State.Area
 import Fallback.State.Creature

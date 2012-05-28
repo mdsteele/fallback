@@ -35,7 +35,6 @@ import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import qualified Fallback.Data.Queue as Queue
 import qualified Fallback.Data.TotalMap as TM (make)
-import Fallback.Scenario.Monsters (makeMonster)
 import Fallback.Scenario.Script
 import Fallback.State.Action
 import Fallback.State.Area

@@ -28,11 +28,10 @@ import Data.Maybe (isNothing)
 import Fallback.Constants (combatArenaSize)
 import Fallback.Data.Point
 import Fallback.Scenario.Compile
-import Fallback.Scenario.Monsters (makeMonster)
 import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Globals
 import Fallback.Scenario.Triggers.Script
-import Fallback.State.Creature (Monster(..), MonsterTownAI(..))
+import Fallback.State.Creature (Monster(..), MonsterTownAI(..), makeMonster)
 import Fallback.State.Resources (SoundTag(SndLever))
 import Fallback.State.Tags
   (AreaTag(..), InertItemTag(BrassKey), ItemTag(InertItemTag), MonsterTag(..))

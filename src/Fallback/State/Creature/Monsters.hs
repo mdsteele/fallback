@@ -17,7 +17,7 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
-module Fallback.Scenario.Monsters
+module Fallback.State.Creature.Monsters
   (getMonsterType, makeMonster)
 where
 
@@ -25,7 +25,7 @@ import Control.Applicative (liftA2)
 import Data.List (foldl')
 
 import qualified Fallback.Data.TotalMap as TM (set)
-import Fallback.State.Creature
+import Fallback.State.Creature.Base
 import Fallback.State.Simple
 import Fallback.State.Status (Invisibility(..), initStatusEffects)
 import Fallback.State.Tags (MonsterSpellTag(..), MonsterTag(..))
