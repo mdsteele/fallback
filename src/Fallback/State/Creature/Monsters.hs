@@ -219,6 +219,23 @@ getMonsterType Zombie = baseMonsterType
     mtMaxHealth = 150,
     mtName = "Zombie",
     mtSpeed = 0.9 }
+getMonsterType Vhaegyst = baseMonsterType
+  { mtAgility = 60,
+    mtAttacks = [baseMonsterAttack
+      { maAppearance = ClawAttack,
+        maCriticalChance = 0.8,
+        maDamageCount = 8,
+        maDamageRange = (1, 20),
+        maElement = IceAttack }],
+    mtExperienceValue = 500,
+    mtImageRow = 3,
+    mtIsUndead = True,
+    mtMaxHealth = 2000,
+    mtName = "Vhaegyst",
+    mtResistances = resistances [ResistCold =% 75, ResistMental =% 100,
+                                 ResistStun =% 50],
+    mtSpeed = 1.8,
+    mtSpells = [] }
 getMonsterType TownManRed = townsperson { mtImageRow = 10 }
 getMonsterType TownManApron = townsperson { mtImageRow = 14 }
 getMonsterType TownWomanApron = townsperson { mtImageRow = 15 }

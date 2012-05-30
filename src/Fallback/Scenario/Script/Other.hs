@@ -25,7 +25,7 @@ module Fallback.Scenario.Script.Other
 
    -- * Effects
    -- ** Damage
-   dealDamage, dealDamageTotal, healDamage,
+   dealDamage, dealDamageTotal, healDamage, reviveTarget,
    -- ** Mojo/adrenaline
    alterMana, alterCharacterMojo, restoreMojoToFull, alterAdrenaline,
    -- ** Status effects
@@ -68,9 +68,9 @@ import Control.Exception (assert)
 import Control.Monad (foldM, forM_, unless, when)
 import Data.Array (range)
 import qualified Data.Foldable as Fold (any)
-import Data.List (foldl1')
+import Data.List (find, foldl1')
 import qualified Data.Map as Map
-import Data.Maybe (fromMaybe, isNothing, listToMaybe)
+import Data.Maybe (fromMaybe, isNothing)
 import qualified Data.Set as Set
 
 import Fallback.Constants
@@ -221,11 +221,11 @@ dealRawDamageToCharacter gentle charNum damage stun = do
   -- Do damage:
   minHealth <- emitAreaEffect $ EffIfCombat (return 0) (return 1)
   let health' = max minHealth (chrHealth char - damage)
+  unless (gentle && damage == 0) $ do
+    addFloatingNumberOnTarget damage (HitCharacter charNum)
   emitAreaEffect $ EffAlterCharacter charNum $ \c -> c { chrHealth = health' }
   emitAreaEffect $ EffIfCombat (setCharacterAnim charNum $ HurtAnim 12)
                                (setPartyAnim $ HurtAnim 12)
-  unless (gentle && damage == 0) $ do
-    addFloatingNumberOnTarget damage (HitCharacter charNum)
   -- If we're in combat, the character can die:
   whenCombat $ when (health' <= 0) $ do
     alterCharacterMojo charNum (const 0)
@@ -267,9 +267,9 @@ dealRawDamageToMonster gentle key damage stun = do
                    { monstAdrenaline = adrenaline',
                      monstPose = (monstPose monst) { cpAnim = HurtAnim 12 },
                      monstHealth = health', monstMoments = moments' }
-  emitAreaEffect $ EffReplaceMonster key mbMonst'
   unless (gentle && damage == 0) $ do
     addFloatingNumberOnTarget damage (HitMonster key)
+  emitAreaEffect $ EffReplaceMonster key mbMonst'
   -- If the monster is now dead, we need do to several things.
   when (isNothing mbMonst') $ do
     resources <- areaGet arsResources
@@ -308,8 +308,10 @@ healDamage hits = do
 
 healCharacter :: (FromAreaEffect f) => CharacterNumber -> Double -> Script f ()
 healCharacter charNum baseAmount = do
-  multiplier <- recuperationMultiplier <$> areaGet (arsGetCharacter charNum)
-  let amount = max 0 $ round (multiplier * baseAmount)
+  conscious <- areaGet (chrIsConscious . arsGetCharacter charNum)
+  when conscious $ do
+  amount <- areaGet (max 0 . round . (baseAmount *) .
+                     recuperationMultiplier . arsGetCharacter charNum)
   party <- areaGet arsParty
   emitAreaEffect $ EffAlterCharacter charNum $ \char ->
     char { chrHealth = min (chrMaxHealth party char)
@@ -329,6 +331,33 @@ healMonster key baseAmount = withMonsterEntry key $ \entry -> do
   let prect = Grid.geRect entry
   forM_ (prectPositions prect) $ addBoomDoodadAtPosition HealBoom 4
   addFloatingNumberOnTarget amount (HitMonster key)
+
+reviveTarget :: HitTarget -> Double -> Script CombatEffect ()
+reviveTarget hitTarget baseAmount = do
+  let simpleHeal = healDamage [(hitTarget, baseAmount)]
+  case hitTarget of
+    HitCharacter charNum -> do
+      conscious <- areaGet (chrIsConscious . arsGetCharacter charNum)
+      if conscious then simpleHeal else do
+      lastPos <- areaGet (arsCharacterPosition charNum)
+      mbPos <- do
+        blocked <- areaGet arsIsBlockedForParty
+        directions <- randomPermutation allDirections
+        areaGet (find (not . blocked) . (lastPos :) .
+                 arsAccessiblePositions directions lastPos)
+      maybeM mbPos (emitEffect . EffSetCharPosition charNum)
+      emitEffect $ EffSetCharAnim charNum NoAnim
+      health <- do
+        party <- areaGet arsParty
+        let char = partyGetCharacter party charNum
+        return (max 1 $ min (chrMaxHealth party char) $ round $
+                (baseAmount *) $ recuperationMultiplier char)
+      emitAreaEffect $ EffAlterCharacter charNum $ \char -> char
+        { chrHealth = health }
+      addBoomDoodadAtPosition HealBoom 4 =<<
+        areaGet (arsCharacterPosition charNum)
+      addFloatingNumberOnTarget health (HitCharacter charNum)
+    _ -> simpleHeal
 
 -------------------------------------------------------------------------------
 -- Mojo/adrenaline:
@@ -400,7 +429,7 @@ grantInvisibility hitTarget invis = do
   mbOccupant <- getHitTargetOccupant hitTarget
   case mbOccupant of
     Just (Left charNum) -> do
-      status <- chrStatus <$> areaGet (arsGetCharacter charNum)
+      status <- areaGet (chrStatus . arsGetCharacter charNum)
       when (seInvisibility status < invis) $ do
         alterCharacterStatus charNum $ seSetInvisibility invis
     Just (Right monstEntry) -> do
@@ -609,7 +638,6 @@ grantExperience xp = do
   newLevel <- areaGet (partyLevel . arsParty)
   when (newLevel > oldLevel) $ do
     setMessage $ "Party is now level " ++ show newLevel ++ "!"
-    mapM_ return =<< areaGet arsPartyPositions -- FIXME doodads
     playSound SndLevelUp
 
 grantItem :: (FromAreaEffect f) => ItemTag -> Script f ()
@@ -673,8 +701,7 @@ trySummonMonster summonerKey tag lifetime dieWhenGone = do
     unblocked <- areaGet $ \ars pos ->
       not $ any (blocked ars) $ prectPositions $ makeRect pos size
     directions <- randomPermutation allDirections
-    listToMaybe . filter unblocked <$>
-      areaGet (arsAccessiblePositions directions summonerPos)
+    areaGet (find unblocked . arsAccessiblePositions directions summonerPos)
   flip (maybe $ return False) mbSpot $ \spot -> do
   faceDir <- getRandomElem [FaceLeft, FaceRight]
   addSummonDoodad $ makeRect spot size
@@ -754,7 +781,7 @@ tickSummonsByOneRound = do
 
 inflictAllPeriodicDamage :: (FromAreaEffect f) => Script f ()
 inflictAllPeriodicDamage = do
-  fields <- Map.assocs <$> areaGet arsFields
+  fields <- areaGet (Map.assocs . arsFields)
   fieldDamages <- forMaybeM fields $ \(pos, field) -> do
     case field of
       BarrierWall _ -> return Nothing
@@ -779,7 +806,7 @@ inflictAllPeriodicDamage = do
       let damage = totalPoison `ceilDiv` 5
       alterCharacterStatus charNum $ seAlterPoison $ subtract damage
       return $ Just (HitCharacter charNum, RawDamage, fromIntegral damage)
-  monsters <- Grid.entries <$> areaGet arsMonsters
+  monsters <- areaGet (Grid.entries . arsMonsters)
   monstPoisonDamages <- forMaybeM monsters $ \monstEntry -> do
     let totalPoison = sePoison $ monstStatus $ Grid.geValue monstEntry
     if totalPoison <= 0 then return Nothing else do

@@ -196,11 +196,13 @@ arsIsBlockedForMonster ge ars pos =
   not (Grid.couldMove (Grid.geKey ge) rect' $ arsMonsters ars)
   where rect' = makeRect pos $ rectSize $ Grid.geRect ge
 
+-- | Determine if a character could occupy the given position without falling
+-- afoul of terrain, monsters, or other characters.
 arsIsBlockedForParty :: (AreaState a) => a -> Position -> Bool
 arsIsBlockedForParty ars pos =
-  arsIsBlockedForPartyModuloMonsters ars pos ||
-  Grid.occupied (arsMonsters ars) pos
+  arsIsBlockedForPartyModuloMonsters ars pos || arsOccupied pos ars
 
+-- TODO: deprecated
 arsIsBlockedForPartyModuloMonsters :: (AreaState a) => a -> Position -> Bool
 arsIsBlockedForPartyModuloMonsters ars pos =
   cannotWalkOn $ arsTerrainOpenness pos ars
@@ -211,6 +213,8 @@ arsIsBlockedForPartyModuloMonsters ars pos =
 -- not count.
 arsAreMonstersNearby :: (AreaState a) => a -> Bool
 arsAreMonstersNearby ars = check (Set.fromList origins) origins where
+  -- TODO: use arsAccessiblePositions
+  -- TODO: don't count allied monsters
   check _ [] = False
   check visited (next : rest) =
     let ps = filter (\p -> any ((ofRadius 4 >=) . pSqDist p) origins) $

@@ -342,7 +342,7 @@ getAbility characterClass abilityNumber rank =
       combat (mix Brimstone Limestone) (aoeTarget 5 $ SqDist 4) $
       \caster power (endPos, targets) -> do
         characterBeginOffensiveAction caster endPos
-        -- TODO sound
+        playSound SndDrain
         let swooshTint = Tint 255 255 255 96
             swooshThickness = 4
         forM_ [0 .. 3] $ \idx -> do
@@ -447,7 +447,13 @@ getAbility characterClass abilityNumber rank =
     Restore -> PassiveAbility -- FIXME
     Hinder -> PassiveAbility -- FIXME
     Clarity -> PassiveAbility
-    Revive -> PassiveAbility -- FIXME
+    Revive ->
+      combat (ManaCost 1) (AllyTarget 9) $ \caster power eith -> do
+        intBonus <- getIntellectBonus caster
+        health <- (power * intBonus * ranked 50 80 95 *) <$> getRandomR 0.9 1.1
+        playSound SndRevive
+        let hitTarget = either HitPosition HitCharacter eith
+        reviveTarget hitTarget health
     GroupHeal ->
       general (ManaCost 20) AutoTarget $ \caster power () -> do
         intBonus <- getIntellectBonus caster

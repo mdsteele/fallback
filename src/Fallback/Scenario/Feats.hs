@@ -24,17 +24,19 @@ where
 import Control.Monad (forM_, unless)
 
 import Fallback.Constants (maxAdrenaline)
+import Fallback.Data.Color (Tint(Tint))
 import qualified Fallback.Data.Grid as Grid (geKey)
 import Fallback.Data.Point
 import Fallback.Scenario.Script
 import Fallback.State.Action
-import Fallback.State.Area (arsGetCharacter)
+import Fallback.State.Area (arsCharacterPosition, arsGetCharacter)
 import Fallback.State.Creature (CreatureAnim(..))
 import Fallback.State.Party (chrEquippedWeaponData)
 import Fallback.State.Resources
 import Fallback.State.Simple
-import Fallback.State.Status (Invisibility(..))
+import Fallback.State.Status
 import Fallback.State.Tags (FeatTag(..))
+import Fallback.State.Terrain (positionCenter)
 
 -------------------------------------------------------------------------------
 
@@ -52,8 +54,17 @@ featEffect Energize =
       restoreMojoToFull charNum
       unless (charNum == caster) $ do
         alterAdrenaline charNum (const maxAdrenaline)
+featEffect StarShield =
+  StandardFeat autoTarget $ \_caster () -> do
+    -- TODO doodad
+    let rounds = 15
+    playSound SndShielding
+    hitTargets <- getAllAllyTargets
+    forM_ hitTargets $ \hitTarget -> do
+      alterStatus hitTarget $
+        seApplyMagicShield rounds . seApplyDefense (Beneficial rounds)
 featEffect Zodiac =
-  StandardFeat autoTarget $ \_ () -> do
+  StandardFeat autoTarget $ \_caster () -> do
     entries <- randomPermutation =<< getAllEnemyMonsters
     forM_ entries $ \entry -> do
       damage <- getRandomR 40 60 -- TODO how much damage?
@@ -67,6 +78,30 @@ featEffect Eclipse =
     forM_ hitTargets $ \hitTarget -> do
       -- TODO add doodad and wait
       grantInvisibility hitTarget MajorInvisibility
+featEffect LunarBeam =
+  StandardFeat (const $ beamTarget) $ \caster (endPos, targets) -> do
+    characterBeginOffensiveAction caster endPos
+    startPos <- areaGet (arsCharacterPosition caster)
+    let startPt = positionCenter startPos :: DPoint
+    let endPt = startPt `pAdd`
+                (positionCenter endPos `pSub` startPt) `pMul`
+                 (fromIntegral (length targets) /
+                  fromIntegral (length (takeWhile (/= endPos) targets) + 1))
+    playSound SndFreeze
+    addBeamDoodad (Tint 96 255 255 192) startPt endPt (length targets + 24)
+    concurrent_ (zip targets [0..]) $ \(target, n) -> do
+      wait n
+      addBoomDoodadAtPosition IceBoom 3 target
+      wait 4
+      damage <- getRandomR 175 225
+      dealDamage [(HitPosition target, ColdDamage, damage)]
+    wait 20
+featEffect PulseOfLife =
+  StandardFeat (const $ AllyTarget 9) $ \_ eith -> do
+    let hitTarget = either HitPosition HitCharacter eith
+    health <- getRandomR 450 550 -- TODO full health
+    playSound SndRevive
+    reviveTarget hitTarget health
 featEffect JumpSlash =
   StandardFeat (const $ JumpTarget areaFn 3) $ \caster (endPos, targets) -> do
     characterBeginOffensiveAction caster endPos
@@ -115,18 +150,18 @@ featEffect _ = MetaAbility NormalCost 1.1 -- FIXME
 -------------------------------------------------------------------------------
 
 featCastingCost :: FeatTag -> CastingCost
-featCastingCost Offering = AdrenalineCost 10
-featCastingCost SolarFlare = AdrenalineCost 30
-featCastingCost Energize = AdrenalineCost 100
-featCastingCost StarShield = AdrenalineCost 25
-featCastingCost Zodiac = AdrenalineCost 50
-featCastingCost Imprison = AdrenalineCost 100
-featCastingCost TidalForce = AdrenalineCost 40
-featCastingCost Eclipse = AdrenalineCost 60
-featCastingCost LunarBeam = AdrenalineCost 100
-featCastingCost PulseOfLife = AdrenalineCost 50
-featCastingCost Avatar = AdrenalineCost 80
-featCastingCost AllCreation = AdrenalineCost 100
+-- featCastingCost Offering = AdrenalineCost 10
+-- featCastingCost SolarFlare = AdrenalineCost 30
+-- featCastingCost Energize = AdrenalineCost 100
+-- featCastingCost StarShield = AdrenalineCost 25
+-- featCastingCost Zodiac = AdrenalineCost 50
+-- featCastingCost Imprison = AdrenalineCost 100
+-- featCastingCost TidalForce = AdrenalineCost 40
+-- featCastingCost Eclipse = AdrenalineCost 60
+-- featCastingCost LunarBeam = AdrenalineCost 100
+-- featCastingCost PulseOfLife = AdrenalineCost 50
+-- featCastingCost Avatar = AdrenalineCost 80
+-- featCastingCost AllCreation = AdrenalineCost 100
 featCastingCost _ = NoCost -- FIXME
 
 featDescription :: FeatTag -> String

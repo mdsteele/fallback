@@ -295,6 +295,7 @@ data SoundTag = SndArrow
               | SndCombatEnd | SndCombatStart
               | SndDie1 | SndDie2
               | SndDoorOpen | SndDoorShut
+              | SndDrain
               | SndFireDamage | SndFreeze
               | SndHeal
               | SndHit1 | SndHit2 | SndHit3 | SndHit4
@@ -303,6 +304,7 @@ data SoundTag = SndArrow
               | SndLevelUp | SndLever | SndLightning | SndLuminaire
               | SndMineCartStop | SndMineCartTurn
               | SndMiss1 | SndMiss2
+              | SndRevive
               | SndShielding | SndSummon | SndSunbeam
               | SndThrow
               | SndUnlock
@@ -324,6 +326,7 @@ soundPath SndDie1 = "die1-31.wav"
 soundPath SndDie2 = "die2-32.wav"
 soundPath SndDoorOpen = "door-open-58.wav"
 soundPath SndDoorShut = "door-shut-59.wav"
+soundPath SndDrain = "drain-cfxr.wav"
 soundPath SndFireDamage = "fire-damage-73.wav"
 soundPath SndFreeze = "freeze-75.wav"
 soundPath SndHeal = "heal-68.wav"
@@ -342,6 +345,7 @@ soundPath SndMineCartStop = "minecart-stop-cfxr.wav"
 soundPath SndMineCartTurn = "minecart-turn-cfxr.wav"
 soundPath SndMiss1 = "miss1-2.wav"
 soundPath SndMiss2 = "miss2-19.wav"
+soundPath SndRevive = "resurrect-24.wav"
 soundPath SndShielding = "shielding-51.wav"
 soundPath SndSummon = "summon-61.wav"
 soundPath SndSunbeam = "sunbeam-25.wav"

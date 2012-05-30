@@ -30,6 +30,8 @@ import Fallback.State.Simple
 -- Targeting:
 
 data TargetKind :: * -> * where
+  -- TODO Perhaps remove range limit from AllyTarget?  Maybe add a Bool
+  -- indicating whether targeting unconscious characters is permitted?
   AllyTarget :: Int -> TargetKind (Either Position CharacterNumber)
   AreaTarget :: (forall a. (AreaState a) => a -> Position -> Position ->
                  [Position]) -> Int -> TargetKind (Position, [Position])
