@@ -207,24 +207,45 @@ arsIsBlockedForPartyModuloMonsters :: (AreaState a) => a -> Position -> Bool
 arsIsBlockedForPartyModuloMonsters ars pos =
   cannotWalkOn $ arsTerrainOpenness pos ars
 
--- | Determine if there are any monsters "nearby" one or more party members.
--- Monsters that are close by, but blocked off (e.g. by terrain), don't count.
--- Monsters that are not currently within line-of-sight to the party also do
--- not count.
-arsAreMonstersNearby :: (AreaState a) => a -> Bool
-arsAreMonstersNearby ars = check (Set.fromList origins) origins where
-  -- TODO: use arsAccessiblePositions
-  -- TODO: don't count allied monsters
-  check _ [] = False
-  check visited (next : rest) =
-    let ps = filter (\p -> any ((ofRadius 4 >=) . pSqDist p) origins) $
-             filter (`Set.notMember` visited) $
-             map (next `plusDir`) allDirections
-    in any (\p -> Grid.occupied (arsMonsters ars) p &&
-                  arsIsVisible ars p) ps ||
-       check (foldr Set.insert visited ps)
-             (filter (not . arsIsBlockedForPartyModuloMonsters ars) ps ++ rest)
-  origins = arsPartyPositions ars
+-- | Determine if there are any enemy monsters that could reach one or more
+-- party members within four steps, taking into account both terrain and the
+-- whether the monster(s) can fly.  Monsters that are not currently within
+-- line-of-sight to the party do not count.
+arsAreEnemiesNearby :: (AreaState a) => a -> Bool
+arsAreEnemiesNearby ars = check initQueue initVisited where
+
+  check :: PQ.PriorityQueue (Bool, Int) Position -> Set.Set Position -> Bool
+  check queue visited =
+    case PQ.popWithPriority queue of
+      Just (((flying, steps), pos), queue') ->
+        (pos `Set.member` arsVisibleForParty ars && hasEnemy pos flying) ||
+        (if steps >= maxSteps then check queue' visited
+         else expand flying (steps + 1) pos queue' visited)
+      Nothing -> False
+
+  expand :: Bool -> Int -> Position -> PQ.PriorityQueue (Bool, Int) Position
+         -> Set.Set Position -> Bool
+  expand flying steps pos queue visited =
+    let children = filter (`Set.notMember` visited) $
+                   map (pos `plusDir`) allDirections
+        enqueueChild child =
+          let open = arsTerrainOpenness child ars
+          in if canWalkOn open then PQ.insert (flying, steps) child
+             else if canFlyOver open then PQ.insert (True, steps) child else id
+    in check (foldr enqueueChild queue children)
+             (foldr Set.insert visited children)
+
+  hasEnemy :: Position -> Bool -> Bool
+  hasEnemy pos fly =
+    case Grid.search (arsMonsters ars) pos of
+      Just entry ->
+        let monst = Grid.geValue entry
+        in not (monstIsAlly monst) && (not fly || monstCanFly monst)
+      Nothing -> False
+
+  initVisited = Set.fromList $ arsPartyPositions ars
+  initQueue = PQ.fromList $ map ((,) (False, 0)) $ arsPartyPositions ars
+  maxSteps = 4 :: Int
 
 -- | Lazily compute all positions that can be reached via walking from the
 -- given start position (ignoring any creatures that may be in the way).  The

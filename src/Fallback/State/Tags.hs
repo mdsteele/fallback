@@ -301,7 +301,7 @@ data InertItemTag = IronKey | BrassKey
 
 data MonsterTag = Revenant | Revenantor | MasterRevenant
                 -- Animals:
-                | Wolf | DemonWolf
+                | Wolf | DemonWolf | CaveBat
                 -- Undead:
                 | Ghoul | Ghast | Invisighoul | Skeleton | Wight | Wraith
                 | Zombie

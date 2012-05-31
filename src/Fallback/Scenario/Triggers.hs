@@ -122,6 +122,7 @@ scenarioTriggers = compileScenario $ do
     simpleMonster 660633 DemonWolf (Point 6 20) ChaseAI
     simpleMonster 660634 Wolf (Point 27 16)
                   (PatrolAI (Point 27 16) (Point 36 16))
+    simpleMonster 978292 CaveBat (Point 10 38) (GuardAI (Point 10 38))
 
   compileArea MountainPath Nothing $ do
 

@@ -413,7 +413,7 @@ newTownMode resources modes initState = do
 
     tryToManuallyStartCombat :: TownState -> IO NextMode
     tryToManuallyStartCombat ts = do
-      if arsAreMonstersNearby ts then do
+      if arsAreEnemiesNearby ts then do
         doStartCombat ts (tsPartyPosition ts `pSub`
                           Point (half combatArenaCols) (half combatArenaRows))
        else do

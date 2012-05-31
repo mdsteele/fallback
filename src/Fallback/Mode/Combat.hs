@@ -423,7 +423,7 @@ newCombatMode resources modes initState = do
 
     tryToManuallyEndCombat :: CombatState -> IO NextMode
     tryToManuallyEndCombat cs = do
-      if not (arsAreMonstersNearby cs) then doEndCombat cs else do
+      if not (arsAreEnemiesNearby cs) then doEndCombat cs else do
         let msg = "Can't end combat -- there are still enemies nearby."
         writeIORef stateRef $ csSetMessage msg cs
         return SameMode
@@ -533,8 +533,8 @@ Execution:
 
 tickWaiting :: CombatState -> IO (CombatState, Maybe Interrupt)
 tickWaiting cs = do
+  if noMoreEnemyMonsters cs then return (cs, Just DoEndCombat) else do
   let acs = csCommon cs
-  if Grid.null (acsMonsters acs) then return (cs, Just DoEndCombat) else do
   -- Update monster status effects and time bars, and see if any monsters are
   -- ready for a turn.
   let (monsters', mbScript) =
@@ -573,8 +573,8 @@ doTickExecution cs ce = do
   (cs', mbScriptInterrupt) <- executeScript cs (ceScript ce)
   case mbScriptInterrupt of
     Nothing ->
-      if (Grid.null (arsMonsters cs') ||
-          cePendingEndCombat ce && not (arsAreMonstersNearby cs'))
+      if (noMoreEnemyMonsters cs' ||
+          cePendingEndCombat ce && not (arsAreEnemiesNearby cs'))
       then return (cs', Just DoEndCombat) else
         let endTurn cs'' = do
               let mbInterrupt = do
@@ -659,6 +659,9 @@ ccssCharThatWantsATurn ccss party =
   let fn charNum = ccsWantsTurn (TM.get charNum ccss) &&
                    chrCanTakeTurn (partyGetCharacter party charNum)
   in find fn [minBound .. maxBound]
+
+noMoreEnemyMonsters :: CombatState -> Bool
+noMoreEnemyMonsters = all monstIsAlly . Grid.values . arsMonsters
 
 tickMonsterWaiting :: Grid.Entry Monster
                    -> (Monster, Maybe (Script CombatEffect ()))

@@ -33,7 +33,7 @@ module Fallback.Data.Grid
    Entry(..),
    Key, nilKey, coerceKey,
    -- * Query
-   null, size, entries,
+   null, size, keys, values, entries,
    lookup, occupied, search, searchRect,
    couldMove,
    -- * Update
@@ -143,7 +143,15 @@ null = IntMap.null . gridMap1
 size :: Grid a -> Int
 size = IntMap.size . gridMap1
 
--- | Return the list of entries in the grid.
+-- | Return the list of keys in the grid, in sorted order.
+keys :: Grid a -> [Key a]
+keys = map Key . IntMap.keys . gridMap1
+
+-- | Return the list of values in the grid, in key order.
+values :: Grid a -> [a]
+values = map geValue . IntMap.elems . gridMap1
+
+-- | Return the list of entries in the grid, in key order.
 entries :: Grid a -> [Entry a]
 entries = IntMap.elems . gridMap1
 

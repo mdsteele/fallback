@@ -84,7 +84,7 @@ prepMonsterSpell FireSpray ge = do
   let rect = Grid.geRect ge
   targets <- randomPermutation =<<
              filter (flip3 rangeTouchesRect (ofRadius maxRange) rect) <$>
-             areaGet arsPartyPositions
+             areaGet arsPartyPositions -- TODO target ally monsters too
   -- TODO only hit targets we can see
   let numTargets = length targets
   ifSatisfies (numTargets >= 2) $ do

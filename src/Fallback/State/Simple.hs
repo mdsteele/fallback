@@ -322,6 +322,9 @@ canSeeThrough TerrainWindow = True
 cannotSeeThrough :: TerrainOpenness -> Bool
 cannotSeeThrough = not . canSeeThrough
 
+canFlyOver :: TerrainOpenness -> Bool
+canFlyOver = not . cannotFlyOver
+
 cannotFlyOver :: TerrainOpenness -> Bool
 cannotFlyOver t = t == TerrainSolid || t == TerrainWindow
 
