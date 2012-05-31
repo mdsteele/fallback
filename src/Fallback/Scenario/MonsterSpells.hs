@@ -18,7 +18,7 @@
 ============================================================================ -}
 
 module Fallback.Scenario.MonsterSpells
-  (prepMonsterSpell)
+  (prepMonsterSpell, getMonsterOpponentPositions, getMonsterVisibility)
 where
 
 import Control.Applicative ((<$>))
@@ -26,19 +26,24 @@ import Control.Monad (filterM, forM, forM_)
 import Data.List (maximumBy)
 import Data.Maybe (catMaybes)
 import Data.Ord (comparing)
+import qualified Data.Set as Set
 
+import Fallback.Constants (sightRangeSquared)
 import Fallback.Data.Color (Tint(Tint))
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Scenario.Script
 import Fallback.State.Area
 import Fallback.State.Creature
+import Fallback.State.FOV (fieldOfView)
+import Fallback.State.Party (chrStatus)
 import Fallback.State.Pathfind (allPathsFrom)
 import Fallback.State.Resources (SoundTag(..), StripTag(..))
 import Fallback.State.Simple
+import Fallback.State.Status (Invisibility(..), seInvisibility)
 import Fallback.State.Tags (MonsterSpellTag(..))
-import Fallback.State.Terrain (positionCenter)
-import Fallback.Utility (flip3, sumM)
+import Fallback.State.Terrain (positionCenter, terrainSize)
+import Fallback.Utility (flip3, forMaybeM, sumM)
 
 -------------------------------------------------------------------------------
 
@@ -50,6 +55,7 @@ prepMonsterSpell CrossBeam ge = do
   (numTargets, path) <- maximizePosition key $ \pos -> do
     flip sumM [DirE, DirS, DirW, DirN] $ \dir -> do
       targets <- areaGet (flip3 arsBeamPositions pos (pos `plusDir` dir))
+      -- TODO don't count foes we can't see
       sumM (scoreForTarget isAlly) targets
   ifSatisfies (numTargets >= 2) $ do
   ifRandom (fromIntegral numTargets * 0.25) $ do
@@ -82,10 +88,11 @@ prepMonsterSpell FireSpray ge = do
   let maxRange = 5
   let key = Grid.geKey ge
   let rect = Grid.geRect ge
-  targets <- randomPermutation =<<
-             filter (flip3 rangeTouchesRect (ofRadius maxRange) rect) <$>
-             areaGet arsPartyPositions -- TODO target ally monsters too
-  -- TODO only hit targets we can see
+  viewField <- getMonsterVisibility key
+  targets <- fmap (take 5) $ randomPermutation =<<
+             filter (flip3 rangeTouchesRect (ofRadius maxRange) rect) .
+             filter (`Set.member` viewField) <$>
+             getMonsterOpponentPositions key
   let numTargets = length targets
   ifSatisfies (numTargets >= 2) $ do
   yieldSpell numTargets $ do
@@ -111,6 +118,39 @@ prepMonsterSpell TeleportAway ge = do
   -- FIXME perform teleport to destination
   return 5
 prepMonsterSpell _ _ = return Nothing -- FIXME
+
+-------------------------------------------------------------------------------
+
+-- | Return the list of positions occupied by foes of the given monster,
+-- excepting those that are invisible to the monster.
+getMonsterOpponentPositions :: (FromAreaEffect f) => Grid.Key Monster
+                            -> Script f [Position]
+getMonsterOpponentPositions key = do
+  maybeMonsterEntry key [] $ \entry -> do
+  let isAlly = monstIsAlly $ Grid.geValue entry
+  let eyePrect = adjustRect1 (-1) $ Grid.geRect entry
+  positions1 <- if isAlly then return [] else do
+    charNums <- getAllConsciousCharacters
+    forMaybeM charNums $ \charNum -> do
+      let getPosition = areaGet (arsCharacterPosition charNum)
+      invis <- areaGet (seInvisibility . chrStatus . arsGetCharacter charNum)
+      case invis of
+        NoInvisibility -> Just <$> getPosition
+        MinorInvisibility -> do
+          pos <- getPosition
+          return $ if rectContains eyePrect pos then Just pos else Nothing
+        MajorInvisibility -> return Nothing
+  positions2 <- do
+    entries <- if isAlly then getAllEnemyMonsters else getAllAllyMonsters
+    return $ flip concatMap entries $ \entry' ->
+      let prect' = Grid.geRect entry'
+          positions = prectPositions prect'
+      in case monstInvisibility $ Grid.geValue entry' of
+           NoInvisibility -> positions
+           MinorInvisibility ->
+             if rectIntersects eyePrect prect' then positions else []
+           MajorInvisibility -> []
+  return (positions1 ++ positions2)
 
 -------------------------------------------------------------------------------
 
@@ -176,5 +216,15 @@ foesInRect isAlly prect = do
     return $ map Grid.geKey $ filter ((isAlly ==) . monstIsAlly .
                                       Grid.geValue) allMonsters
   return (map Left charNums ++ map Right monsters)
+
+-- | Return the set of positions visible to the specified monster.
+getMonsterVisibility :: (FromAreaEffect f) => Grid.Key Monster
+                     -> Script f (Set.Set Position)
+getMonsterVisibility key = do
+  maybeMonsterEntry key Set.empty $ \entry -> do
+  size <- terrainSize <$> areaGet arsTerrain
+  isOpaque <- areaGet arsIsOpaque
+  return (foldr (fieldOfView size isOpaque sightRangeSquared) Set.empty $
+          prectPositions $ Grid.geRect entry)
 
 -------------------------------------------------------------------------------

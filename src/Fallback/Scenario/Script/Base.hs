@@ -28,7 +28,7 @@ module Fallback.Scenario.Script.Base
    forkScript, whenCombat, unlessCombat, whenDifficulty,
    -- * Query
    HitTarget(..), getHitTargetOccupant,
-   lookupMonsterEntry, demandMonsterEntry, withMonsterEntry,
+   lookupMonsterEntry, demandMonsterEntry, maybeMonsterEntry, withMonsterEntry,
    getAllConsciousCharacters, getAllAllyMonsters, getAllEnemyMonsters,
    getAllAllyTargets,
    -- * Randomization
@@ -191,11 +191,23 @@ lookupMonsterEntry :: (FromAreaEffect f) => Grid.Key Monster
                    -> Script f (Maybe (Grid.Entry Monster))
 lookupMonsterEntry key = areaGet (Grid.lookup key . arsMonsters)
 
+-- | Get the monster's grid entry and throw an error if the monster doesn't
+-- exist.  Use this with caution.
 demandMonsterEntry :: (FromAreaEffect f) => Grid.Key Monster
                    -> Script f (Grid.Entry Monster)
 demandMonsterEntry key =
   maybe (fail "demandMonsterEntry") return =<< lookupMonsterEntry key
 
+-- | Perform an action with the monster's grid entry, or return the given
+-- default value if the monster doesn't exist.
+maybeMonsterEntry :: (FromAreaEffect f) => Grid.Key Monster -> a
+                  -> (Grid.Entry Monster -> Script f a) -> Script f a
+maybeMonsterEntry key defaultValue action = do
+  mbEntry <- lookupMonsterEntry key
+  maybe (return defaultValue) action mbEntry
+
+-- | Perform an action with the monster's grid entry, or do nothing if the
+-- monster doesn't exist.
 withMonsterEntry :: (FromAreaEffect f) => Grid.Key Monster
                  -> (Grid.Entry Monster -> Script f ()) -> Script f ()
 withMonsterEntry key action = do

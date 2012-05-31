@@ -27,18 +27,16 @@ import Control.Monad (forM, unless, when)
 import Data.List (partition)
 import qualified Data.Set as Set
 
-import Fallback.Constants (sightRangeSquared)
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
-import Fallback.Scenario.MonsterSpells (prepMonsterSpell)
+import Fallback.Scenario.MonsterSpells
+  (prepMonsterSpell, getMonsterOpponentPositions, getMonsterVisibility)
 import Fallback.Scenario.Script
 import Fallback.State.Area
 import Fallback.State.Creature
-import Fallback.State.FOV (fieldOfView)
 import Fallback.State.Pathfind (pathfindRectToRange, pathfindRectToRanges)
 import Fallback.State.Simple
 import Fallback.State.Tags (MonsterSpellTag)
-import Fallback.State.Terrain (terrainSize)
 import Fallback.Utility (forEither, maybeM)
 
 -------------------------------------------------------------------------------
@@ -125,6 +123,8 @@ monsterTownStep ge = do
       maybe (return False) stepTowardsParty
             (pathfindRectToRange isBlocked rect partyPos (SqDist 2) 30)
     DrunkAI zone -> do
+      -- TODO if non-ally and party nearby, chase party
+      -- TODO if outside of zone, pathfind back to zone
       pos' <- (rectTopleft rect `plusDir`) <$> getRandomElem allDirections
       when (rectContains zone pos') $ do
         blocked <- areaGet (flip (arsIsBlockedForMonster ge) pos')
@@ -174,39 +174,12 @@ monsterTownStep ge = do
 
 -------------------------------------------------------------------------------
 
-getMonsterOpponentPositions :: (FromAreaEffect f) => Grid.Key Monster
-                            -> Script f [Position]
-getMonsterOpponentPositions key = do
-  maybeMonsterEntry key [] $ \entry -> do
-  let isAlly = monstIsAlly $ Grid.geValue entry
-  positions1 <- if isAlly then return [] else areaGet arsPartyPositions
-  positions2 <- concatMap (prectPositions . Grid.geRect) <$>
-                if isAlly then getAllEnemyMonsters else getAllAllyMonsters
-  return (positions1 ++ positions2)
-
--- | Return the set of positions visible to the specified monster.
-getMonsterVisibility :: (FromAreaEffect f) => Grid.Key Monster
-                     -> Script f (Set.Set Position)
-getMonsterVisibility key = do
-  maybeMonsterEntry key Set.empty $ \entry -> do
-  size <- terrainSize <$> areaGet arsTerrain
-  isOpaque <- areaGet arsIsOpaque
-  return (foldr (fieldOfView size isOpaque sightRangeSquared) Set.empty $
-          prectPositions $ Grid.geRect entry)
-
--- | Return 'True' if the monster can see the party, 'False' otherwise.
+-- | Return 'True' if the party is within the monster's field of view, 'False'
+-- otherwise.
 canMonsterSeeParty :: Grid.Key Monster -> Script TownEffect Bool
 canMonsterSeeParty key = do
   maybeMonsterEntry key False $ \entry -> do
   visible <- areaGet arsVisibleForParty
   return $ any (`Set.member` visible) $ prectPositions $ Grid.geRect entry
-
--- | Call an action with the monster's grid entry, or return the given default
--- value if the monster doesn't exist.
-maybeMonsterEntry :: (FromAreaEffect f) => Grid.Key Monster -> a
-                  -> (Grid.Entry Monster -> Script f a) -> Script f a
-maybeMonsterEntry key defaultValue action = do
-  mbEntry <- lookupMonsterEntry key
-  maybe (return defaultValue) action mbEntry
 
 -------------------------------------------------------------------------------
