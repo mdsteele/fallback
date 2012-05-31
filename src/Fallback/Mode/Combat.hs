@@ -423,10 +423,15 @@ newCombatMode resources modes initState = do
 
     tryToManuallyEndCombat :: CombatState -> IO NextMode
     tryToManuallyEndCombat cs = do
-      if not (arsAreEnemiesNearby cs) then doEndCombat cs else do
-        let msg = "Can't end combat -- there are still enemies nearby."
-        writeIORef stateRef $ csSetMessage msg cs
-        return SameMode
+      let doNotEndCombat reason = do
+            let msg = "Can't end combat -- " ++ reason
+            writeIORef stateRef $ csSetMessage msg cs
+            return SameMode
+      if not $ csCanRunAway cs then
+        doNotEndCombat "you must win this battle." else do
+      if arsAreEnemiesNearby cs then
+        doNotEndCombat "there are still enemies nearby." else do
+      doEndCombat cs
 
     doEndCombat :: CombatState -> IO NextMode
     doEndCombat cs = do
@@ -574,7 +579,8 @@ doTickExecution cs ce = do
   case mbScriptInterrupt of
     Nothing ->
       if (noMoreEnemyMonsters cs' ||
-          cePendingEndCombat ce && not (arsAreEnemiesNearby cs'))
+          cePendingEndCombat ce && csCanRunAway cs' &&
+          not (arsAreEnemiesNearby cs'))
       then return (cs', Just DoEndCombat) else
         let endTurn cs'' = do
               let mbInterrupt = do

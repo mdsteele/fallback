@@ -28,7 +28,7 @@ module Fallback.Scenario.Triggers.Script
    getTerrainTile, setTerrain, massSetTerrain, resetTerrain,
    -- * Miscellaneous
    doesPartyHaveItem, playDoorUnlockSound, setAreaCleared,
-   setQuestStatus, startCombatWithTopleft, startShopping)
+   setQuestStatus, startBossFight, startShopping)
 where
 
 import Fallback.Data.Point (Position)
@@ -144,10 +144,10 @@ setAreaCleared tag cleared = emitAreaEffect $ EffSetAreaCleared tag cleared
 setQuestStatus :: (FromAreaEffect f) => QuestTag -> QuestStatus -> Script f ()
 setQuestStatus tag status = emitAreaEffect $ EffSetQuestStatus tag status
 
--- | Start combat, with the top left corner of the combat area being the given
--- position.
-startCombatWithTopleft :: (FromTownEffect f) => Position -> Script f ()
-startCombatWithTopleft = emitTownEffect . EffStartCombat
+-- | Start combat, with running away disallowed, and with the top left corner
+-- of the combat area being the given position.
+startBossFight :: (FromTownEffect f) => Position -> Script f ()
+startBossFight = emitTownEffect . EffStartCombat False
 
 startShopping :: (FromTownEffect f) => [Either Ingredient ItemTag]
               -> Script f ()

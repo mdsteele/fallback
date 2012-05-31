@@ -386,7 +386,7 @@ compileIcehold globals = do
       -- TODO conversation and so forth
       setMonsterIsAlly False =<< readVar vhaegystKey
       massSetTerrain BasaltGateClosedTile [Point 9 22, Point 10 22]
-      startCombatWithTopleft (Point 1 9)
+      startBossFight bossChamberTopleft
     trigger 099022 (varTrue vhaegystDead) $ do
       setAreaCleared Icehold True
       massSetTerrain BasaltGateOpenTile [Point 9 22, Point 10 22, Point 9 8]

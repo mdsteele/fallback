@@ -49,18 +49,19 @@ import Fallback.State.Terrain (terrainSize)
 
 {-
 Combat starts if:
-  - a town trigger executes a `combat' statement and any monsters are in view
+  - a town trigger executes a `combat' statement and any enemies are in view
   - a wandering monster passes near the party
-  - the player asks for combat to start, with a monster close enough
+  - the player asks for combat to start, with an enemy close enough
 
 Combat ends if:
-  - all monsters are defeated
+  - all enemies are defeated
   - a combat trigger executes an `end combat' statement
-  - the player asks for combat to end, and no monsters are close
+  - the player asks for combat to end, and no enemies are close by
 -}
 
 data CombatState = CombatState
   { csArenaTopleft :: Position,
+    csCanRunAway :: Bool, -- Can the player ask combat to end?
     csCharStates :: TM.TotalMap CharacterNumber CombatCharState,
     csCommon :: AreaCommonState,
     csMonstersNotInArena :: Grid.Grid Monster,

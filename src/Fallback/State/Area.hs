@@ -465,7 +465,8 @@ data TownEffect :: * -> * where
   EffSetPartyFaceDir :: FaceDir -> TownEffect ()
   EffSetPartyPosition :: Position -> TownEffect ()
   EffShop :: [Either Ingredient ItemTag] -> TownEffect ()
-  EffStartCombat :: Position -> TownEffect ()
+  EffStartCombat :: Bool {-can run away-} -> Position {-arena topleft-}
+                 -> TownEffect ()
   EffTeleportToArea :: AreaTag -> Position -> TownEffect ()
 
 -------------------------------------------------------------------------------
