@@ -83,7 +83,7 @@ characterWeaponBaseDamage char wd = do
   extraDie <- (strength `mod` 5 >) <$> getRandomR 0 4
   damage <- fromIntegral <$>
     rollDice (wdDamageBonus wd + strength `div` 5 + if extraDie then 1 else 0)
-  return (damage * chrAbilityMultiplier EagleEye 1 1.15 1.15 char)
+  return (damage * chrWeaponDamageMultiplier char)
 
 characterWeaponChooseCritical :: (FromAreaEffect f) => Character -> Double
                               -> Script f (Bool, Double)

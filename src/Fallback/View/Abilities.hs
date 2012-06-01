@@ -268,13 +268,13 @@ canUseActiveAbility abils cost eff =
 
 attackDescription :: Maybe WeaponItemTag -> String
 attackDescription mbTag =
-  "{b}Attack{_}  >  " ++ weaponName mbTag ++ "  >  " ++
+  "{b}Attack{_}  --  " ++ weaponName mbTag ++ "  --  " ++
   costDescription NoCost ++ "\nAttack with " ++
   (if isNothing mbTag then "your bare hands." else "your equipped weapon.")
 
 featFullDescription :: Maybe WeaponItemTag -> FeatTag -> String
 featFullDescription mbWTag featTag =
-  "{b}" ++ featName featTag ++ "{_}  >  " ++ weaponName mbWTag ++ "  >  " ++
+  "{b}" ++ featName featTag ++ "{_}  --  " ++ weaponName mbWTag ++ "  --  " ++
   costDescription (featCastingCost featTag) ++ "\n" ++ featDescription featTag
 
 weaponName :: Maybe WeaponItemTag -> String

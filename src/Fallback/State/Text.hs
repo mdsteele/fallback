@@ -94,7 +94,8 @@ wrapText resources width = map TextLine . reverse . fst .
           return (maybe id (:) mbPiece pieces, font'')
 
       pieceParser :: Font -> ReadP (Maybe Piece, Font, Bool)
-      pieceParser font = specialParser font <++ stringParser font
+      pieceParser font =
+        specialParser font <++ hyphParser font <++ stringParser font
 
       stringParser :: Font -> ReadP (Maybe Piece, Font, Bool)
       stringParser font = do
@@ -104,6 +105,11 @@ wrapText resources width = map TextLine . reverse . fst .
         return $ if null hyphs
                  then (Just (StringPiece font chars), font, False)
                  else (Just (StringPiece font (chars ++ hyphs)), font, True)
+
+      hyphParser :: Font -> ReadP (Maybe Piece, Font, Bool)
+      hyphParser font = do
+        hyphs <- ReadP.munch1 (== '-')
+        return (Just (StringPiece font hyphs), font, False)
 
       specialParser :: Font -> ReadP (Maybe Piece, Font, Bool)
       specialParser font = ReadP.between (ReadP.char '{') (ReadP.char '}') $ do

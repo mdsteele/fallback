@@ -693,8 +693,8 @@ getAbility characterClass abilityNumber rank =
 
 abilityFullDescription :: AbilityTag -> AbilityRank -> String
 abilityFullDescription abilTag abilRank =
-  "{b}" ++ abilityName abilTag ++ "{_}  >  Rank " ++
-  show (abilityRankNumber abilRank) ++ "  >  " ++ costString ++ "\n" ++
+  "{b}" ++ abilityName abilTag ++ "{_}  --  Rank " ++
+  show (abilityRankNumber abilRank) ++ "  --  " ++ costString ++ "\n" ++
   abilityDescription abilTag where
     costString =
       case getAbility characterClass abilNum abilRank of

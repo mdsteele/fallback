@@ -373,26 +373,23 @@ chrPurgeItem (ArmorItemTag tag) char =
 chrPurgeItem (AccessoryItemTag tag) char =
   if Just tag /= eqpAccessory (chrEquipment char) then char
   else char { chrEquipment = (chrEquipment char) { eqpAccessory = Nothing } }
-chrPurgeItem _ char = char -- FIXME
--- chrPurgeItem tag char =
---   char { chrItems = Map.filter ((tag /=) . fst) (chrItems char) }
+chrPurgeItem _ char = char
 
 -- | Get all resistance values for a character (including item bonuses).
 chrResistances :: Character -> Resistances
 chrResistances char =
-  let stats = chrStats char
-      -- TODO: take relevant passive skills into account
+  let strength = chrGetStat Strength char
+      agility = chrGetStat Agility char
+      intellect = chrGetStat Intellect char
       baseResist Armor = chrAbilityMultiplier Hardiness 0.97 0.94 0.90 char
-      baseResist ResistFire = 0.9975 ^^ TM.get Strength stats
-      baseResist ResistCold = 0.9975 ^^ TM.get Agility stats
-      baseResist ResistEnergy = 0.9975 ^^ TM.get Intellect stats
+      baseResist ResistFire = 0.9975 ^^ strength
+      baseResist ResistCold = 0.9975 ^^ agility
+      baseResist ResistEnergy = 0.9975 ^^ intellect
       baseResist ResistChemical =
-        0.9966 ^^ TM.get Strength stats *
-        chrAbilityMultiplier Immunity 0.9 0.8 0.6 char
+        0.9966 ^^ strength * chrAbilityMultiplier Immunity 0.9 0.8 0.6 char
       baseResist ResistMental =
-        0.9966 ^^ TM.get Intellect stats *
-        chrAbilityMultiplier Clarity 0.8 0.6 0.3 char
-      baseResist ResistStun = 0.9966 ^^ TM.get Agility stats
+        0.9966 ^^ intellect * chrAbilityMultiplier Clarity 0.8 0.6 0.3 char
+      baseResist ResistStun = 0.9966 ^^ agility
   in (*) <$> TM.make baseResist <*> bonusResistances (chrBonuses char)
 
 -- | Get the specified resistance value for a character (including item
@@ -400,13 +397,9 @@ chrResistances char =
 chrGetResistance :: Resistance -> Character -> Double
 chrGetResistance resist char = TM.get resist $ chrResistances char
 
--- | Get the total value of all stats for a character (including item bonuses).
-chrStats :: Character -> Stats
-chrStats char = (+) <$> chrBaseStats char <*> (bonusStats $ chrBonuses char)
-
 -- | Get the total value of a stat for a character (including item bonuses).
 chrGetStat :: Stat -> Character -> Int
-chrGetStat stat char =
+chrGetStat stat char = max 1 $
   TM.get stat (chrBaseStats char) +
   (sum $ map (TM.get stat . bonusStats) $ chrBonusesList char)
 
@@ -415,7 +408,20 @@ chrGetStat stat char =
 chrSpeed :: Character -> Double
 chrSpeed char =
   1.01 ^^ chrGetStat Agility char *
+  (product $ map bonusSpeedMultiplier $ chrBonusesList char) *
   chrAbilityMultiplier Alacrity 1.05 1.10 1.20 char
+
+chrWeaponDamageMultiplier :: Character -> Double
+chrWeaponDamageMultiplier char =
+  case eqpWeapon $ chrEquipment char of
+    Just tag ->
+      case wdRange $ getWeaponData tag of
+        Melee -> bonus bonusMeleeWeaponDamageMultiplier
+        Ranged _ ->
+          chrAbilityMultiplier EagleEye 1 1.15 1.15 char *
+          bonus bonusRangedWeaponDamageMultiplier
+    Nothing -> bonus bonusFistsDamageMultiplier
+  where bonus fn = product $ map fn $ chrBonusesList char
 
 -------------------------------------------------------------------------------
 

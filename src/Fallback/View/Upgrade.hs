@@ -127,7 +127,7 @@ newStatWidget resources upgradeSink stat = do
               Agility -> "Agility:"
               Intellect -> "Intellect:"
   let getStatValue ups =
-        (TM.get stat $ chrStats $ upsGetCharacter ups) +
+        (TM.get stat $ chrBaseStats $ upsGetCharacter ups) +
         SM.get (upsActiveCharacter ups, stat) (upsSpentStats ups)
   let plusFn ups =
         if chrStatPoints (upsGetCharacter ups) > upsStatPointsSpent ups

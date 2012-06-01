@@ -86,7 +86,7 @@ newResources = do
   abilityIcons <- loadSheet "abilities.png" (10, 10)
   charSheet <- loadSheet "characters.png" (24, 4)
   cursors <- loadVStrip "gui/cursors.png" 20
-  itemIcons <- loadSheet "items.png" (8, 8)
+  itemIcons <- loadSheetWithTileSize (34, 34) "items.png"
   sheetSmallButtons <- loadSheet "gui/small-buttons.png" (4, 6)
   fonts <- TM.makeA (uncurry loadFont . fontSpec)
   monsterImages <- TM.makeA loadMonsterImages

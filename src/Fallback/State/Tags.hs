@@ -280,10 +280,15 @@ data WeaponItemTag = Sunrod | Starspear | Moonbow | Lifeblade
                    | ChronosScepter
   deriving (Bounded, Enum, Eq, Ord, Read, Show)
 
-data ArmorItemTag = LeatherArmor | AdamantPlate
+data ArmorItemTag = AdamantPlate | BrawlersTunic | CottonShirt | DeadeyeJacket
+                  | LeatherArmor | IronMail | IronPlate | SteelMail
+                  | SteelPlate | SwampLeather
   deriving (Bounded, Enum, Eq, Ord, Read, Show)
 
-data AccessoryItemTag = GroundedAmulet | MedalOfValor | TitanFists
+data AccessoryItemTag = Alkamulet | ArmorRing | EverwarmPendant | FightersRing
+                      | GlovesOfTanth | GroundedCharm | IcyNecklace
+                      | JeweledPin | LeatherGloves | MedalOfValor
+                      | MercuricRing | ShieldRing | TrogloHelmet | WizardHat
   deriving (Bounded, Enum, Eq, Ord, Read, Show)
 
 data PotionItemTag = HealingTincture | HealingPotion | HealingElixir

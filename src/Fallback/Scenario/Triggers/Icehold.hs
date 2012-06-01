@@ -373,7 +373,7 @@ compileIcehold globals = do
     let bossChamberTopleft = Point 1 9
     let bossChamberRect = makeRect bossChamberTopleft combatArenaSize
     vhaegystDead <- newPersistentVar 459822 False
-    vhaegystKey <- newTransientVar 109250 Grid.nilKey
+    vhaegystKey <- newPersistentVar 109250 Grid.nilKey -- TODO make transient
     onStartDaily 209103 $ do
       whenP (varFalse vhaegystDead) $ do
         mbEntry <- tryAddMonster (Point 9 13) (makeMonster Vhaegyst)
@@ -395,7 +395,7 @@ compileIcehold globals = do
     uniqueDevice 977299 (Point 16 3) 1 $ \_ _ -> do
       narrate "FIXME You get a Sunrod, yay!"
 
-    uniqueDevice 449872 (Point 43 2) signRadius $ \_ _ -> do
+    uniqueDevice 449872 (Point 9 1) signRadius $ \_ _ -> do
       narrate "The sign mounted on the wall reads:\n\n\
         \      {b}SUNROOM{_}"
 

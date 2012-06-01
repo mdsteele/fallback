@@ -28,7 +28,6 @@ where
 
 import Control.Applicative ((<$>), (<*>))
 import Data.List (foldl', intercalate, partition)
-import Data.Maybe (maybeToList)
 import Data.Monoid (Monoid(..))
 
 import qualified Fallback.Data.TotalMap as TM
@@ -56,13 +55,32 @@ weaponName ChronosScepter = "Chronos Scepter"
 weaponName tag = show tag
 
 armorName :: ArmorItemTag -> String
-armorName LeatherArmor = "Leather Armor"
 armorName AdamantPlate = "Adamant Plate"
+armorName BrawlersTunic = "Brawler's Tunic"
+armorName CottonShirt = "Cotton Shirt"
+armorName DeadeyeJacket = "Deadeye Jacket"
+armorName LeatherArmor = "Leather Armor"
+armorName IronMail = "Iron Mail"
+armorName IronPlate = "Iron Plate"
+armorName SteelMail = "Steel Mail"
+armorName SteelPlate = "Steel Plate"
+armorName SwampLeather = "Swamp Leather"
 
 accessoryName :: AccessoryItemTag -> String
-accessoryName GroundedAmulet = "Grounded Amulet"
+accessoryName Alkamulet = "Alkamulet"
+accessoryName ArmorRing = "Armor Ring"
+accessoryName EverwarmPendant = "Everwarm Pendant"
+accessoryName FightersRing = "Fighter's Ring"
+accessoryName GlovesOfTanth = "Gloves of Tanth"
+accessoryName GroundedCharm = "Grounded Charm"
+accessoryName IcyNecklace = "Icy Necklace"
+accessoryName JeweledPin = "Jeweled Pin"
+accessoryName LeatherGloves = "Leather Gloves"
 accessoryName MedalOfValor = "Medal of Valor"
-accessoryName TitanFists = "Titan Fists"
+accessoryName MercuricRing = "Mercuric Ring"
+accessoryName ShieldRing = "Shield Ring"
+accessoryName TrogloHelmet = "Troglo Helmet"
+accessoryName WizardHat = "Wizard Hat"
 
 potionName :: PotionItemTag -> String
 potionName HealingTincture = "Healing Tincture"
@@ -72,7 +90,7 @@ potionName ManaPhilter = "Mana Philter"
 potionName ManaElixir = "Mana Elixer"
 potionName CuringPotion = "Curing Potion"
 potionName MiracleElixir = "Miracle Elixer"
-potionName tag = show tag -- FIXME
+potionName tag = show tag
 
 inertName :: InertItemTag -> String
 inertName IronKey = "Iron Key"
@@ -106,10 +124,32 @@ weaponIconCoords ChronosScepter = (4, 4)
 weaponIconCoords _ = (0, 5) -- FIXME
 
 armorIconCoords :: ArmorItemTag -> (Int, Int)
-armorIconCoords _ = (0, 5) -- FIXME
+armorIconCoords AdamantPlate = (10, 6)
+armorIconCoords BrawlersTunic = (10, 0) -- FIXME temporary
+armorIconCoords CottonShirt = (10, 0)
+armorIconCoords DeadeyeJacket = (10, 1) -- FIXME temporary
+armorIconCoords LeatherArmor = (10, 2)
+armorIconCoords IronMail = (10, 3)
+armorIconCoords IronPlate = (10, 4)
+armorIconCoords SteelMail = (11, 3)
+armorIconCoords SteelPlate = (11, 4)
+armorIconCoords SwampLeather = (11, 2)
 
 accessoryIconCoords :: AccessoryItemTag -> (Int, Int)
-accessoryIconCoords _ = (0, 5) -- FIXME
+accessoryIconCoords Alkamulet = (8, 3)
+accessoryIconCoords ArmorRing = (9, 0)
+accessoryIconCoords EverwarmPendant = (8, 0)
+accessoryIconCoords FightersRing = (9, 5)
+accessoryIconCoords GlovesOfTanth = (12, 7)
+accessoryIconCoords GroundedCharm = (8, 1)
+accessoryIconCoords IcyNecklace = (8, 2)
+accessoryIconCoords LeatherGloves = (12, 6)
+accessoryIconCoords JeweledPin = (8, 5)
+accessoryIconCoords MedalOfValor = (8, 4)
+accessoryIconCoords MercuricRing = (9, 3)
+accessoryIconCoords ShieldRing = (9, 4)
+accessoryIconCoords TrogloHelmet = (12, 1)
+accessoryIconCoords WizardHat = (12, 0)
 
 potionIconCoords :: PotionItemTag -> (Int, Int)
 potionIconCoords HealingTincture = (2, 0)
@@ -169,7 +209,6 @@ armorValue :: ArmorItemTag -> ItemValue
 armorValue _ = CanSell 10 -- FIXME
 
 accessoryValue :: AccessoryItemTag -> ItemValue
-accessoryValue TitanFists = CanSell 660
 accessoryValue _ = CanSell 10 -- FIXME
 
 potionValue :: PotionItemTag -> ItemValue
@@ -281,14 +320,19 @@ bonusesSubDesc bonuses = if null bonusLines then "" else
                            "Bonuses:\n" ++ concatMap indent bonusLines where
   bonusLines = (map statLine $ filter ((0 /=) . snd) $ TM.assocs $
                 bonusStats bonuses) ++
-               (maybeToList mbAdrenMultLine) ++
+               multLine bonusAdrenalineMultiplier " adrenaline gain\n" ++
+               multLine bonusFistsDamageMultiplier " bare-handed damage\n" ++
+               multLine bonusMeleeWeaponDamageMultiplier
+                        " melee weapon damage\n" ++
+               multLine bonusRangedWeaponDamageMultiplier
+                        " ranged weapon damage\n" ++
+               multLine bonusSpeedMultiplier " speed\n" ++
                (map resistLine $ filter ((1 /=) . snd) $ TM.assocs $
                 bonusResistances bonuses)
   statLine (stat, delta) = showSignedInt delta ++ " " ++ statName stat ++ "\n"
-  mbAdrenMultLine =
-    let mult = bonusAdrenalineMultiplier bonuses
-    in if mult == 1 then Nothing
-       else Just (showSignedPercent (mult - 1) ++ " adrenaline gain\n")
+  multLine fn desc =
+    let mult = fn bonuses
+    in if mult == 1 then [] else [showSignedPercent (mult - 1) ++ desc]
   resistLine (resist, mult) = showSignedPercent (1 - mult) ++ " " ++
                               resistName resist ++ "\n"
   statName Strength = "strength"
@@ -450,7 +494,7 @@ getWeaponData ThrowingStar = baseWeaponData
     wdDamageRange = (1, 4),
     wdFeats = [Pierce],
     wdRange = Ranged 4,
-    wdUsableBy = roguesOnly }
+    wdUsableBy = only [RogueClass] }
 getWeaponData RazorStar = baseWeaponData
   { wdAppearance = ThrownAttack,
     wdDamageBonus = 3,
@@ -458,7 +502,7 @@ getWeaponData RazorStar = baseWeaponData
     wdElement = PhysicalAttack,
     wdFeats = [Pierce],
     wdRange = Ranged 5,
-    wdUsableBy = roguesOnly }
+    wdUsableBy = only [RogueClass] }
 getWeaponData NeutronStar = baseWeaponData
   { wdAppearance = ThrownAttack,
     wdDamageBonus = 5,
@@ -466,21 +510,21 @@ getWeaponData NeutronStar = baseWeaponData
     wdEffects = [InflictCurse 0.03],
     wdFeats = [Pierce, NeutronBomb],
     wdRange = Ranged 5,
-    wdUsableBy = roguesOnly }
+    wdUsableBy = only [RogueClass] }
 getWeaponData Shortbow = baseWeaponData
   { wdAppearance = BowAttack,
     wdDamageBonus = 2,
     wdDamageRange = (1, 4),
     wdFeats = [Shortshot],
     wdRange = Ranged 4,
-    wdUsableBy = archersOnly }
+    wdUsableBy = anyoneExcept [AlchemistClass] }
 getWeaponData Longbow = baseWeaponData
   { wdAppearance = BowAttack,
     wdDamageBonus = 2,
     wdDamageRange = (1, 5),
     wdFeats = [Longshot],
     wdRange = Ranged 5,
-    wdUsableBy = archersOnly }
+    wdUsableBy = only [WarriorClass, RogueClass, HunterClass] }
 getWeaponData SilverWand = baseWeaponData
   { wdAppearance = WandAttack,
     wdDamageBonus = 1,
@@ -534,7 +578,7 @@ baseWeaponData = WeaponData
     wdElement = PhysicalAttack,
     wdFeats = [],
     wdRange = Melee,
-    wdUsableBy = usableByAll,
+    wdUsableBy = anyone,
     wdVsDaemonic = NormalDamage,
     wdVsUndead = NormalDamage }
 
@@ -546,21 +590,82 @@ data ArmorData = ArmorData
 
 getArmorData :: ArmorItemTag -> ArmorData
 getArmorData AdamantPlate = ArmorData
-  { adBonuses = sumBonuses [Armor +% 60, ResistStun +% 80],
-    adUsableBy = warriorsOnly }
-getArmorData _ = ArmorData -- FIXME
-  { adBonuses = nullBonuses, adUsableBy = usableByAll }
+  { adBonuses = sumBonuses [Agility -= 10, Armor +% 60, ResistStun +% 80],
+    adUsableBy = only [WarriorClass] }
+getArmorData BrawlersTunic = ArmorData
+  { adBonuses = sumBonuses [Armor +% 2, meleeDamageMult 1.25],
+    adUsableBy = anyone }
+getArmorData CottonShirt = ArmorData
+  { adBonuses = sumBonuses [Armor +% 3, ResistStun +% 2],
+    adUsableBy = anyone }
+getArmorData DeadeyeJacket = ArmorData
+  { adBonuses = sumBonuses [Agility += 6, Armor +% 20, ResistStun +% 15,
+                            rangedDamageMult 1.08],
+    adUsableBy = only [HunterClass] }
+getArmorData LeatherArmor = ArmorData
+  { adBonuses = sumBonuses [Agility -= 1, Armor +% 15, ResistStun +% 10],
+    adUsableBy = anyoneExcept [MagusClass] }
+getArmorData IronMail = ArmorData
+  { adBonuses = sumBonuses [Agility -= 4, Armor +% 20, ResistStun +% 20],
+    adUsableBy = anyoneExcept [MagusClass] }
+getArmorData IronPlate = ArmorData
+  { adBonuses = sumBonuses [Agility -= 8, Armor +% 40, ResistStun +% 50],
+    adUsableBy = only [WarriorClass, AlchemistClass] }
+getArmorData SteelMail = ArmorData
+  { adBonuses = sumBonuses [Agility -= 4, Armor +% 30, ResistStun +% 22],
+    adUsableBy = anyoneExcept [MagusClass] }
+getArmorData SteelPlate = ArmorData
+  { adBonuses = sumBonuses [Agility -= 7, Armor +% 45, ResistStun +% 50],
+    adUsableBy = only [WarriorClass, AlchemistClass] }
+getArmorData SwampLeather = ArmorData
+  { adBonuses = sumBonuses [Agility -= 1, Armor +% 15, ResistChemical +% 20,
+                            ResistStun +% 10],
+    adUsableBy = anyoneExcept [ClericClass, MagusClass] }
 
 getAccessoryData :: AccessoryItemTag -> ArmorData
-getAccessoryData GroundedAmulet = ArmorData
-  { adBonuses = sumBonuses [ResistEnergy +% 15],
-    adUsableBy = usableByAll }
+getAccessoryData Alkamulet = ArmorData
+  { adBonuses = sumBonuses [ResistChemical +% 25],
+    adUsableBy = anyone }
+getAccessoryData ArmorRing = ArmorData
+  { adBonuses = sumBonuses [Armor +% 20, speedMult 0.95],
+    adUsableBy = anyone }
+getAccessoryData EverwarmPendant = ArmorData
+  { adBonuses = (ResistCold +% 25),
+    adUsableBy = anyone }
+getAccessoryData FightersRing = ArmorData
+  { adBonuses = sumBonuses [meleeDamageMult 1.1, rangedDamageMult 1.1],
+    adUsableBy = anyoneExcept [MagusClass] }
+getAccessoryData GlovesOfTanth = ArmorData
+  { adBonuses = sumBonuses [Armor +% 6, Strength += 8, fistsDamageMult 3],
+    adUsableBy = anyoneExcept [MagusClass] }
+getAccessoryData GroundedCharm = ArmorData
+  { adBonuses = sumBonuses [ResistEnergy +% 25],
+    adUsableBy = anyone }
+getAccessoryData IcyNecklace = ArmorData
+  { adBonuses = sumBonuses [ResistFire +% 25],
+    adUsableBy = anyone }
+getAccessoryData JeweledPin = ArmorData
+  { adBonuses = sumBonuses [ResistFire +% 10, ResistCold +% 10,
+                            ResistEnergy +% 10],
+    adUsableBy = anyone }
+getAccessoryData LeatherGloves = ArmorData
+  { adBonuses = (Armor +% 2),
+    adUsableBy = anyone }
 getAccessoryData MedalOfValor = ArmorData
   { adBonuses = sumBonuses [adrenMult 1.2, ResistStun +% 10],
-    adUsableBy = usableByAll }
-getAccessoryData TitanFists = ArmorData
-  { adBonuses = sumBonuses [Strength += 10, Armor +% 8],
-    adUsableBy = warriorsOnly }
+    adUsableBy = anyone }
+getAccessoryData MercuricRing = ArmorData
+  { adBonuses = sumBonuses [Strength -= 5, speedMult 1.1],
+    adUsableBy = anyone }
+getAccessoryData ShieldRing = ArmorData
+  { adBonuses = (Armor +% 10),
+    adUsableBy = anyone }
+getAccessoryData TrogloHelmet = ArmorData
+  { adBonuses = sumBonuses [Strength += 12, Intellect -= 12, Armor +% 10],
+    adUsableBy = anyoneExcept [ClericClass, MagusClass] }
+getAccessoryData WizardHat = ArmorData
+  { adBonuses = sumBonuses [Intellect += 10, Armor +% 2],
+    adUsableBy = manaUsersOnly }
 
 -------------------------------------------------------------------------------
 
@@ -595,7 +700,11 @@ getPotionAction _ = RestoreHealth 42 -- FIXME
 -- | Represents the bonuses conferred onto a character for equipping an item.
 data Bonuses = Bonuses
   { bonusAdrenalineMultiplier :: Double,
+    bonusFistsDamageMultiplier :: Double,
+    bonusMeleeWeaponDamageMultiplier :: Double,
+    bonusRangedWeaponDamageMultiplier :: Double,
     bonusResistances :: Resistances,
+    bonusSpeedMultiplier :: Double,
     bonusStats :: Stats }
 
 instance Monoid Bonuses where
@@ -607,14 +716,25 @@ instance Monoid Bonuses where
 nullBonuses :: Bonuses
 nullBonuses = Bonuses
   { bonusAdrenalineMultiplier = 1,
+    bonusFistsDamageMultiplier = 1,
+    bonusMeleeWeaponDamageMultiplier = 1,
+    bonusRangedWeaponDamageMultiplier = 1,
     bonusResistances = nullResistances,
+    bonusSpeedMultiplier = 1,
     bonusStats = nullStats }
 
 addBonuses :: Bonuses -> Bonuses -> Bonuses
 addBonuses b1 b2 = Bonuses
   { bonusAdrenalineMultiplier = bonusAdrenalineMultiplier b1 *
                                 bonusAdrenalineMultiplier b2,
+    bonusFistsDamageMultiplier = bonusFistsDamageMultiplier b1 *
+                                 bonusFistsDamageMultiplier b2,
+    bonusMeleeWeaponDamageMultiplier = bonusMeleeWeaponDamageMultiplier b1 *
+                                       bonusMeleeWeaponDamageMultiplier b2,
+    bonusRangedWeaponDamageMultiplier = bonusRangedWeaponDamageMultiplier b1 *
+                                        bonusRangedWeaponDamageMultiplier b2,
     bonusResistances = (*) <$> bonusResistances b1 <*> bonusResistances b2,
+    bonusSpeedMultiplier = bonusSpeedMultiplier b1 * bonusSpeedMultiplier b2,
     bonusStats = (+) <$> bonusStats b1 <*> bonusStats b2 }
 
 sumBonuses :: [Bonuses] -> Bonuses
@@ -625,8 +745,23 @@ sumBonuses = foldl' addBonuses nullBonuses
 adrenMult :: Double -> Bonuses
 adrenMult x = nullBonuses { bonusAdrenalineMultiplier = x }
 
+fistsDamageMult :: Double -> Bonuses
+fistsDamageMult x = nullBonuses { bonusFistsDamageMultiplier = x }
+
+meleeDamageMult :: Double -> Bonuses
+meleeDamageMult x = nullBonuses { bonusMeleeWeaponDamageMultiplier = x }
+
+rangedDamageMult :: Double -> Bonuses
+rangedDamageMult x = nullBonuses { bonusRangedWeaponDamageMultiplier = x }
+
+speedMult :: Double -> Bonuses
+speedMult x = nullBonuses { bonusSpeedMultiplier = x }
+
 (+=) :: Stat -> Int -> Bonuses
 stat += n = nullBonuses { bonusStats = TM.set stat n nullStats }
+
+(-=) :: Stat -> Int -> Bonuses
+stat -= n = nullBonuses { bonusStats = TM.set stat (negate n) nullStats }
 
 (+%) :: Resistance -> Double -> Bonuses
 resist +% n = nullBonuses { bonusResistances =
@@ -634,24 +769,21 @@ resist +% n = nullBonuses { bonusResistances =
 
 -------------------------------------------------------------------------------
 
-usableByAll :: TM.TotalMap CharacterClass Bool
-usableByAll = TM.make (const True)
+anyone :: TM.TotalMap CharacterClass Bool
+anyone = TM.make (const True)
+
+anyoneExcept :: [CharacterClass] -> TM.TotalMap CharacterClass Bool
+anyoneExcept cs = TM.make (`notElem` cs)
+
+only :: [CharacterClass] -> TM.TotalMap CharacterClass Bool
+only cs = TM.make (`elem` cs)
 
 castersOnly :: TM.TotalMap CharacterClass Bool
 castersOnly = TM.make $ \c ->
   c == AlchemistClass || c == ClericClass || c == MagusClass
 
-archersOnly :: TM.TotalMap CharacterClass Bool
-archersOnly = TM.make $ \c -> c == RogueClass || c == HunterClass
-
 manaUsersOnly :: TM.TotalMap CharacterClass Bool
 manaUsersOnly = TM.make $ \c -> c == ClericClass || c == MagusClass
-
-warriorsOnly :: TM.TotalMap CharacterClass Bool
-warriorsOnly = TM.make (== WarriorClass)
-
-roguesOnly :: TM.TotalMap CharacterClass Bool
-roguesOnly = TM.make (== RogueClass)
 
 -------------------------------------------------------------------------------
 
