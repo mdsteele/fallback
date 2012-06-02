@@ -25,7 +25,7 @@ import Control.Monad (forM_, unless)
 
 import Fallback.Constants (maxAdrenaline)
 import Fallback.Data.Color (Tint(Tint))
-import qualified Fallback.Data.Grid as Grid (geKey)
+import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Scenario.Script
 import Fallback.State.Action
@@ -36,7 +36,7 @@ import Fallback.State.Resources
 import Fallback.State.Simple
 import Fallback.State.Status
 import Fallback.State.Tags (FeatTag(..))
-import Fallback.State.Terrain (positionCenter)
+import Fallback.State.Terrain (positionCenter, prectRect)
 
 -------------------------------------------------------------------------------
 
@@ -68,9 +68,25 @@ featEffect Zodiac =
     entries <- randomPermutation =<< getAllEnemyMonsters
     forM_ entries $ \entry -> do
       damage <- getRandomR 40 60 -- TODO how much damage?
-      dealDamage [(HitMonster (Grid.geKey entry), EnergyDamage, damage)]
-      -- TODO doodad/sound
+      -- TODO sound
+      addBoomDoodadAtPoint EnergyBoom 3 $ rectCenter $ prectRect $
+        Grid.geRect entry
       wait 3
+      dealDamage [(HitMonster (Grid.geKey entry), EnergyDamage, damage)]
+    wait 24
+featEffect TidalForce =
+  StandardFeat (flip aoeTarget (ofRadius 2) . (1 +)) $
+  \caster (endPos, targets) -> do
+    startPos <- areaGet (arsCharacterPosition caster)
+    addBlasterDoodad (Tint 64 192 255 192) 6 100 startPos endPos 500 >>= wait
+    let innerFn t th = (0.1 * t, Tint 0 (64 + round (60 * sin (th * 5))) 128 0)
+        outerFn t _ = (t, Tint 255 255 255 (255 - round (t * 255)))
+    addShockwaveDoodad 24 (positionCenter endPos) 132 165 innerFn outerFn
+    wait 12
+    damage <- getRandomR 35 45 -- TODO how much damage?
+    dealDamage $ map (\p -> (HitPosition p, ColdDamage, damage)) targets
+    -- TODO daze
+    wait 12
 featEffect Eclipse =
   StandardFeat autoTarget $ \_caster () -> do
     hitTargets <- getAllAllyTargets
@@ -102,6 +118,17 @@ featEffect PulseOfLife =
     health <- getRandomR 450 550 -- TODO full health
     playSound SndRevive
     reviveTarget hitTarget health
+featEffect Avatar =
+  StandardFeat autoTarget $ \caster () -> do
+    let hitTarget = HitCharacter caster
+    playSound SndHeal
+    healDamage . (:[]) . (,) hitTarget =<< getRandomR 90 110
+    playSound SndBlessing
+    -- TODO fully cure all negative effects
+    playSound SndShielding
+    alterStatus hitTarget $
+      (seApplyHaste $ Beneficial 12) . (seApplyMagicShield 13) .
+      (seApplyDefense $ Beneficial 14) . (seApplyBlessing $ Beneficial 15)
 featEffect JumpSlash =
   StandardFeat (const $ JumpTarget areaFn 3) $ \caster (endPos, targets) -> do
     characterBeginOffensiveAction caster endPos
@@ -170,7 +197,7 @@ featDescription SolarFlare =
   "Deal massive fire damage to up to three enemies.  Any undead targets, no\
   \ matter how strong, are instantly destroyed."
 featDescription Energize =
-  "Completely refill mana/focus/adrenaline for all allies."
+  "Completely refill mana, focus, and adrenaline for all allies."
 featDescription StarShield =
   "Put a powerful shield around all allies, protecting them from both physical\
   \ and magical attacks."
