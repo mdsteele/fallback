@@ -30,7 +30,7 @@ module Fallback.State.Tags
    ItemTag(..), allItemTags, WeaponItemTag(..), ArmorItemTag(..),
    AccessoryItemTag(..), PotionItemTag(..), InertItemTag(..),
    -- * Monsters
-   MonsterTag(..), MonsterSpellTag(..),
+   MonsterTag(..),
    -- * Quests
    QuestTag(..), questName, questDescription)
 where
@@ -320,10 +320,6 @@ data MonsterTag = Revenant | Revenantor | MasterRevenant
                 | RogueIllusion0 | RogueIllusion1
                 | RogueIllusion2 | RogueIllusion3
   deriving (Bounded, Enum, Eq, Ix, Ord, Read, Show)
-
-data MonsterSpellTag = BladeSweep | BlessMonsters | CrossBeam | EntangleSpray
-                     | FireSpray | TeleportAway
-  deriving (Eq, Read, Show)
 
 -------------------------------------------------------------------------------
 

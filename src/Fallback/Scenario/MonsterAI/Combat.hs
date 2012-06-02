@@ -36,7 +36,6 @@ import Fallback.State.Area
 import Fallback.State.Creature
 import Fallback.State.Pathfind (pathfindRectToRanges)
 import Fallback.State.Simple
-import Fallback.State.Tags (MonsterSpellTag)
 import Fallback.Utility (forEither)
 
 -------------------------------------------------------------------------------
@@ -100,7 +99,7 @@ tryMonsterSpells key = do
 
 -- | Make changes to the monster's spells, if the monster's still alive.
 alterMonsterSpells :: (FromAreaEffect f) => Grid.Key Monster
-                   -> ([(MonsterSpellTag, Int)] -> [(MonsterSpellTag, Int)])
+                   -> ([(MonsterSpell, Int)] -> [(MonsterSpell, Int)])
                    -> Script f ()
 alterMonsterSpells key fn = do
   withMonsterEntry key $ \entry -> do

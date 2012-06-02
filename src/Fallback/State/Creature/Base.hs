@@ -21,7 +21,7 @@ module Fallback.State.Creature.Base
   (CreaturePose(..), tickCreaturePose,
    CreatureAnim(..), animOffset,
    CreatureImages(..), ciStand, ciAttack,
-   Monster(..), monstHeadPos,  MonsterType(..),
+   Monster(..), monstHeadPos,  MonsterType(..), MonsterSpell(..),
    MonsterAttack(..), MonsterSummoning(..), MonsterTownAI(..))
 where
 
@@ -34,7 +34,7 @@ import Fallback.Draw (Sprite)
 import Fallback.State.Progress (MonsterScriptId, Var)
 import Fallback.State.Simple
 import Fallback.State.Status (Invisibility(..), StatusEffects)
-import Fallback.State.Tags (MonsterTag, MonsterSpellTag)
+import Fallback.State.Tags (MonsterTag)
 
 -------------------------------------------------------------------------------
 
@@ -122,8 +122,8 @@ data Monster = Monster
     monstPose :: CreaturePose,
     -- Script to execute when talking to monster (used for townspeople)
     monstScript :: Maybe MonsterScriptId,
-    -- Spell tags, with cooldown (num rounds until we can use that spell again)
-    monstSpells :: [(MonsterSpellTag, Int)],
+    -- Spells, with cooldowns (num rounds until we can use that spell again)
+    monstSpells :: [(MonsterSpell, Int)],
     monstStatus :: StatusEffects,
     monstSummoning :: Maybe MonsterSummoning,
     monstTag :: MonsterTag,
@@ -156,8 +156,17 @@ data MonsterType = MonsterType
     mtResistances :: Resistances,
     mtSize :: CreatureSize,
     mtSpeed :: Double,
-    mtSpells :: [MonsterSpellTag],
+    mtSpells :: [MonsterSpell],
     mtWalksFast :: Bool }
+
+-------------------------------------------------------------------------------
+
+data MonsterSpell = BladeSweep | BlessMonsters | CrossBeam | EntangleSpray
+                  | FireSpray
+                  -- dieWhenGone, benefit, cooldown, duration (rounds), tags
+                  | SummonOne Bool Int Int Double [MonsterTag]
+                  | TeleportAway
+  deriving (Eq, Read, Show)
 
 -------------------------------------------------------------------------------
 

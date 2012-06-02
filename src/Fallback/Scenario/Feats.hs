@@ -111,6 +111,7 @@ featEffect LunarBeam =
       wait 4
       damage <- getRandomR 175 225
       dealDamage [(HitPosition target, ColdDamage, damage)]
+      setFields (IceWall 10) [target]
     wait 20
 featEffect PulseOfLife =
   StandardFeat (const $ AllyTarget 9) $ \_ eith -> do

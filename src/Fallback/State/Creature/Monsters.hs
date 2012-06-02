@@ -28,7 +28,7 @@ import qualified Fallback.Data.TotalMap as TM (set)
 import Fallback.State.Creature.Base
 import Fallback.State.Simple
 import Fallback.State.Status (Invisibility(..))
-import Fallback.State.Tags (MonsterSpellTag(..), MonsterTag(..))
+import Fallback.State.Tags (MonsterTag(..))
 
 -------------------------------------------------------------------------------
 
@@ -249,7 +249,8 @@ getMonsterType Vhaegyst = baseMonsterType
     mtResistances = resistances [ResistCold =% 75, ResistMental =% 100,
                                  ResistStun =% 50],
     mtSpeed = 3.5,
-    mtSpells = [] }
+    mtSpells = [SummonOne True 4 5 20 [Ghoul, Skeleton, Zombie],
+                SummonOne True 2 5 20 [Ghoul, Skeleton, Zombie]] }
 getMonsterType TownManRed = townsperson { mtImageRow = 10 }
 getMonsterType TownManApron = townsperson { mtImageRow = 14 }
 getMonsterType TownWomanApron = townsperson { mtImageRow = 15 }

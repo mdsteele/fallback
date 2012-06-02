@@ -28,6 +28,7 @@ import Data.Maybe (catMaybes)
 import Data.Ord (comparing)
 import qualified Data.Set as Set
 
+import Fallback.Constants (baseFramesPerActionPoint)
 import Fallback.Data.Color (Tint(Tint))
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
@@ -38,13 +39,12 @@ import Fallback.State.Creature
 import Fallback.State.Pathfind (allPathsFrom)
 import Fallback.State.Resources (SoundTag(..), StripTag(..))
 import Fallback.State.Simple
-import Fallback.State.Tags (MonsterSpellTag(..))
 import Fallback.State.Terrain (positionCenter)
 import Fallback.Utility (flip3, sumM)
 
 -------------------------------------------------------------------------------
 
-prepMonsterSpell :: MonsterSpellTag -> Grid.Entry Monster
+prepMonsterSpell :: MonsterSpell -> Grid.Entry Monster
                  -> Script CombatEffect (Maybe (Int, Script CombatEffect Int))
 prepMonsterSpell CrossBeam ge = do
   let key = Grid.geKey ge
@@ -105,6 +105,16 @@ prepMonsterSpell FireSpray ge = do
     dealDamage [(HitPosition target, FireDamage, 30)]
     wait 20
   return 3
+prepMonsterSpell (SummonOne dep benefit cooldown duration tags) ge = do
+  ifSatisfies (not $ null tags) $ do
+  tag <- getRandomElem tags
+  yieldSpell benefit $ do
+  let lifetime = round (duration * fromIntegral baseFramesPerActionPoint)
+  let summoner = Right $ Grid.geKey ge
+  degradeMonstersSummonedBy summoner
+  playSound SndSummon
+  _ <- trySummonMonster summoner tag lifetime dep
+  return cooldown
 prepMonsterSpell TeleportAway ge = do
   ifSatisfies False $ do -- FIXME
   numAdjacentFoes <- length <$> foesInRect (monstIsAlly $ Grid.geValue ge)
