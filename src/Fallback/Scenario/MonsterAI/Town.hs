@@ -18,95 +18,21 @@
 ============================================================================ -}
 
 module Fallback.Scenario.MonsterAI.Town
-  (defaultMonsterCombatAI, monsterTownStep)
+  (monsterTownStep)
 where
 
 import Control.Applicative ((<$), (<$>))
-import Control.Arrow ((***), second)
-import Control.Monad (forM, unless, when)
-import Data.List (partition)
+import Control.Monad (unless, when)
 import qualified Data.Set as Set
 
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
-import Fallback.Scenario.MonsterAI.Spells
-  (prepMonsterSpell, getMonsterOpponentPositions, getMonsterVisibility)
 import Fallback.Scenario.Script
 import Fallback.State.Area
 import Fallback.State.Creature
-import Fallback.State.Pathfind (pathfindRectToRange, pathfindRectToRanges)
+import Fallback.State.Pathfind (pathfindRectToRange)
 import Fallback.State.Simple
-import Fallback.State.Tags (MonsterSpellTag)
-import Fallback.Utility (forEither, maybeM)
-
--------------------------------------------------------------------------------
-
-defaultMonsterCombatAI :: Grid.Key Monster -> Script CombatEffect ()
-defaultMonsterCombatAI key = do
-  done <- tryMonsterSpells key
-  unless done $ do
-  ge <- demandMonsterEntry key
-  let attacks = monstAttacks $ Grid.geValue ge
-  if null attacks then fleeMonsterCombatAI ge else do
-  attack <- getRandomElem attacks
-  let sqDist = rangeSqDist $ maRange attack
-  isBlocked <- areaGet (arsIsBlockedForMonster ge)
-  goals <- getMonsterOpponentPositions key
-  loopM (4 :: Int) $ \ap -> do
-    rect <- Grid.geRect <$> demandMonsterEntry key
-    case pathfindRectToRanges isBlocked rect goals sqDist 20 of
-      Just (pos : _) -> do
-        walkMonster 4 key pos
-        return $ if ap <= 1 then Nothing else Just (ap - 1)
-      Just [] -> Nothing <$ do
-        visible <- getMonsterVisibility key
-        let targets = filter (\pos -> rangeTouchesRect pos sqDist rect &&
-                              Set.member pos visible) goals
-        if null targets then return () else do
-        target <- getRandomElem targets
-        monsterPerformAttack key attack target
-      Nothing -> return Nothing
-
-loopM :: (Monad m) => a -> (a -> m (Maybe a)) -> m ()
-loopM input fn = maybe (return ()) (flip loopM fn) =<< fn input
-
-fleeMonsterCombatAI :: Grid.Entry Monster -> Script CombatEffect ()
-fleeMonsterCombatAI _ge = do
-  return () -- FIXME
-
--------------------------------------------------------------------------------
-
-tryMonsterSpells :: Grid.Key Monster -> Script CombatEffect Bool
-tryMonsterSpells key = do
-  alterMonsterSpells key $ map $ second $ max 0 . subtract 1
-  entry <- demandMonsterEntry key
-  let (ready, notReady) = partition ((0 >=) . snd) $ monstSpells $
-                          Grid.geValue entry
-  prepped <- forM ready $ \(tag, _) -> (,) tag <$> prepMonsterSpell tag entry
-  let (able, notAble) =
-        forEither prepped $ \(tag, mbCasting) ->
-          case mbCasting of
-            Nothing -> Right (tag, 0)
-            Just (impact, action) -> Left (impact, (tag, action))
-  if null able then return False else do
-  let (best, notBest) = (map snd *** map snd) $
-                        partition ((maximum (map fst able) ==) . fst) able
-  ((chosenTag, chosenAction), notChosen) <- removeRandomElem best
-  alterMonsterSpells key $ const $
-    map (flip (,) 0 . fst) (notChosen ++ notBest) ++ notAble ++ notReady
-  cooldown <- chosenAction
-  alterMonsterSpells key ((chosenTag, cooldown) :)
-  return True
-
--- | Make changes to the monster's spells, if the monster's still alive.
-alterMonsterSpells :: (FromAreaEffect f) => Grid.Key Monster
-                   -> ([(MonsterSpellTag, Int)] -> [(MonsterSpellTag, Int)])
-                   -> Script f ()
-alterMonsterSpells key fn = do
-  withMonsterEntry key $ \entry -> do
-    let monst = Grid.geValue entry
-    emitAreaEffect $ EffReplaceMonster key $
-      Just monst { monstSpells = fn (monstSpells monst) }
+import Fallback.Utility (maybeM)
 
 -------------------------------------------------------------------------------
 

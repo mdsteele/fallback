@@ -21,7 +21,7 @@ module Fallback.Scenario.MonsterAI
   (defaultMonsterCombatAI, monsterTownStep)
 where
 
-import Fallback.Scenario.MonsterAI.Town
-  (defaultMonsterCombatAI, monsterTownStep)
+import Fallback.Scenario.MonsterAI.Combat (defaultMonsterCombatAI)
+import Fallback.Scenario.MonsterAI.Town (monsterTownStep)
 
 -------------------------------------------------------------------------------
