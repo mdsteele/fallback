@@ -17,7 +17,7 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
-module Fallback.Scenario.MonsterSpells
+module Fallback.Scenario.MonsterAI.Spells
   (prepMonsterSpell, getMonsterOpponentPositions, getMonsterVisibility)
 where
 
