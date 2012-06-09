@@ -403,6 +403,9 @@ chrGetStat stat char = max 1 $
   TM.get stat (chrBaseStats char) +
   (sum $ map (TM.get stat . bonusStats) $ chrBonusesList char)
 
+chrRecuperation :: Character -> Double
+chrRecuperation = chrAbilityMultiplier Recuperation 1.1 1.2 1.4
+
 -- | Get the speed multiplier for a character, taking skills and item bonuses
 -- into account.
 chrSpeed :: Character -> Double

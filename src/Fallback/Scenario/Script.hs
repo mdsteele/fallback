@@ -21,6 +21,7 @@ module Fallback.Scenario.Script
   (module Fallback.Control.Script,
    module Fallback.Scenario.Script.Attack,
    module Fallback.Scenario.Script.Base,
+   module Fallback.Scenario.Script.Damage,
    module Fallback.Scenario.Script.Doodad,
    module Fallback.Scenario.Script.Other)
 where
@@ -28,6 +29,7 @@ where
 import Fallback.Control.Script
 import Fallback.Scenario.Script.Attack
 import Fallback.Scenario.Script.Base
+import Fallback.Scenario.Script.Damage
 import Fallback.Scenario.Script.Doodad
 import Fallback.Scenario.Script.Other
 

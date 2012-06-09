@@ -32,6 +32,7 @@ import Fallback.Data.Color (Tint(Tint))
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Scenario.Script.Base
+import Fallback.Scenario.Script.Damage (dealDamage, killTarget)
 import Fallback.Scenario.Script.Doodad
 import Fallback.Scenario.Script.Other
 import Fallback.State.Area
