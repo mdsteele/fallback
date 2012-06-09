@@ -29,7 +29,7 @@ import Data.List (delete, find, sort)
 import Data.Maybe (catMaybes, fromMaybe, isJust)
 import qualified Data.Set as Set
 
-import Fallback.Constants (baseFramesPerActionPoint)
+import Fallback.Constants (framesPerRound)
 import Fallback.Data.Color (Tint(Tint))
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
@@ -115,8 +115,7 @@ getAbility characterClass abilityNumber rank =
       general (FocusCost 1) (aoeTarget 5 $ ofRadius $ ranked 1 2 3) $
       \caster power (endPos, targets) -> do
         whenCombat $ characterBeginOffensiveAction caster endPos
-        let halflife = power * ranked 3 4 5 *
-                       fromIntegral baseFramesPerActionPoint
+        let halflife = power * ranked 3 4 5 * fromIntegral framesPerRound
         -- TODO sound/doodad
         setFields (SmokeScreen halflife) targets
     Immunity -> PassiveAbility
@@ -333,7 +332,7 @@ getAbility characterClass abilityNumber rank =
         whenCombat $ characterBeginOffensiveAction caster endPos
         intBonus <- getIntellectBonus caster
         let baseDuration = intBonus * power * ranked 3 4 5 *
-                           fromIntegral baseFramesPerActionPoint
+                           fromIntegral framesPerRound
         playSound SndBarrier
         forM_ targets $ \target -> do
           duration <- round . (baseDuration *) <$> getRandomR 0.9 1.1
@@ -1030,6 +1029,6 @@ attackWithExtraEffects caster target effects = do
 -- monster, return the lifetime in frames.
 summonedLifetime :: PowerModifier -> Double -> Int
 summonedLifetime power rounds =
-  round (power * rounds * fromIntegral baseFramesPerActionPoint)
+  round (power * rounds * fromIntegral framesPerRound)
 
 -------------------------------------------------------------------------------

@@ -24,9 +24,11 @@ import Fallback.Data.Point (Point(Point), Rect(Rect), SqDist, ofRadius)
 -------------------------------------------------------------------------------
 -- Real time:
 
+-- | The number of animation frames the game draws each second.
 framesPerSecond :: Int
 framesPerSecond = 40
 
+-- | The reciprocal of 'framesPerSecond'.
 secondsPerFrame :: Double
 secondsPerFrame = recip (fromIntegral framesPerSecond)
 
@@ -57,9 +59,11 @@ cameraCenterOffset =
 -------------------------------------------------------------------------------
 -- Terrain:
 
+-- | The width of each terrain tile, in pixels.
 tileWidth :: Int
 tileWidth = 28
 
+-- | The height of each terrain tile, in pixels.
 tileHeight :: Int
 tileHeight = 36
 
@@ -82,21 +86,31 @@ combatCameraOffset = Point ((cameraWidth  `mod` tileWidth)  `div` 2)
 -------------------------------------------------------------------------------
 -- Combat time:
 
+-- | The number of moments required for one action point, where a moment is the
+-- smallest unit of a creature's time bar.
 momentsPerActionPoint :: Int
 momentsPerActionPoint = 100000
 
+-- | The number of moments a creature with a speed of 1 will gain per frame
+-- during the combat waiting phase.
 baseMomentsPerFrame :: Int
 baseMomentsPerFrame =
   round (fromIntegral momentsPerActionPoint * secondsPerFrame /
          baseSecondsPerActionPoint) where baseSecondsPerActionPoint = 1.0
 
-baseActionPointsPerFrame :: Double
-baseActionPointsPerFrame =
-  fromIntegral baseMomentsPerFrame / fromIntegral momentsPerActionPoint
+-- | The number of frames per combat round, where a round is the unit of time
+-- between period damage hits (e.g. poison), and also the length of time
+-- required for a creature with a speed of 1 to gain one action point.  A town
+-- step is consided roughly equivalent to one combat round.
+framesPerRound :: Int
+framesPerRound = round (fromIntegral momentsPerActionPoint /
+                        fromIntegral baseMomentsPerFrame :: Double)
 
-baseFramesPerActionPoint :: Int
-baseFramesPerActionPoint = round (recip baseActionPointsPerFrame)
+-- | The reciprocal of 'framesPerRound'.
+roundsPerFrame :: Double
+roundsPerFrame = recip (fromIntegral framesPerRound)
 
+-- | The maximum number of action points that a creature can have at once.
 maxActionPoints :: Int
 maxActionPoints = 4
 

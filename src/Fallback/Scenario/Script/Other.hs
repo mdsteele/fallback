@@ -74,7 +74,7 @@ import Data.Maybe (fromMaybe, isNothing)
 import qualified Data.Set as Set
 
 import Fallback.Constants
-  (baseFramesPerActionPoint, maxAdrenaline, momentsPerActionPoint, sightRange)
+  (framesPerRound, maxAdrenaline, momentsPerActionPoint, sightRange)
 import Fallback.Control.Script
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
@@ -790,8 +790,7 @@ tickSummonsByOneRound = do
     case monstSummoning monst of
       Nothing -> return Nothing
       Just ms -> do
-        let frames' = max 0 $ subtract baseFramesPerActionPoint $
-                      msRemainingFrames ms
+        let frames' = max 0 $ subtract framesPerRound $ msRemainingFrames ms
         if frames' <= 0 then return $ Just $ Grid.geKey entry else do
         emitAreaEffect $ EffReplaceMonster (Grid.geKey entry) $ Just monst
           { monstSummoning = Just ms { msRemainingFrames = frames' } }

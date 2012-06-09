@@ -31,7 +31,7 @@ import Data.IORef
 import qualified Data.Set as Set
 
 import Fallback.Constants
-  (baseFramesPerActionPoint, combatArenaCols, combatArenaRows, combatArenaSize,
+  (combatArenaCols, combatArenaRows, combatArenaSize, framesPerRound,
    momentsPerActionPoint, screenRect)
 import Fallback.Control.Script
 import qualified Fallback.Data.Grid as Grid
@@ -327,7 +327,7 @@ newTownMode resources modes initState = do
               let pos' = pos `plusDir` dir
               if arsIsBlockedForParty ts pos' then ignore else do
               let acs = tsCommon ts
-              fields' <- decayFields baseFramesPerActionPoint (acsFields acs)
+              fields' <- decayFields framesPerRound (acsFields acs)
               changeState ts { tsCommon = acs { acsFields = fields' },
                                tsPhase = ScriptPhase (doTownStep pos') }
             _ -> ignore

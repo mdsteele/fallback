@@ -28,7 +28,7 @@ import Data.Maybe (catMaybes)
 import Data.Ord (comparing)
 import qualified Data.Set as Set
 
-import Fallback.Constants (baseFramesPerActionPoint)
+import Fallback.Constants (framesPerRound)
 import Fallback.Data.Color (Tint(Tint))
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
@@ -109,7 +109,7 @@ prepMonsterSpell (SummonOne dep benefit cooldown duration tags) ge = do
   ifSatisfies (not $ null tags) $ do
   tag <- getRandomElem tags
   yieldSpell benefit $ do
-  let lifetime = round (duration * fromIntegral baseFramesPerActionPoint)
+  let lifetime = round (duration * fromIntegral framesPerRound)
   let summoner = Right $ Grid.geKey ge
   degradeMonstersSummonedBy summoner
   playSound SndSummon

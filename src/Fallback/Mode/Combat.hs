@@ -32,8 +32,8 @@ import Data.Maybe (fromMaybe, isJust)
 import qualified Data.Set as Set
 
 import Fallback.Constants
-  (baseActionPointsPerFrame, baseFramesPerActionPoint, baseMomentsPerFrame,
-   combatCameraOffset, maxActionPoints, momentsPerActionPoint)
+  (baseMomentsPerFrame, combatCameraOffset, framesPerRound, maxActionPoints,
+   momentsPerActionPoint, roundsPerFrame)
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import qualified Fallback.Data.TotalMap as TM
@@ -551,7 +551,7 @@ tickWaiting cs = do
   -- See if any party characters are ready for a turn.
   let mbCharNum = ccssCharThatWantsATurn ccss' party'
   -- Update the periodic timer.
-  let timer' = (csPeriodicTimer cs + 1) `mod` baseFramesPerActionPoint
+  let timer' = (csPeriodicTimer cs + 1) `mod` framesPerRound
   -- Decay fields.
   fields' <- decayFields 1 (acsFields acs)
   -- Ready characters take precedence over ready monsters.
@@ -566,8 +566,7 @@ tickWaiting cs = do
     tickPartyWaiting party =
       party { partyCharacters = tickCharWaiting <$> partyCharacters party }
     tickCharWaiting char =
-      char { chrStatus = decayStatusEffects baseActionPointsPerFrame
-                                            (chrStatus char) }
+      char { chrStatus = decayStatusEffects roundsPerFrame (chrStatus char) }
     tickCharStatesWaiting ccss =
       TM.make $ \charNum ->
         tickCharStateWaiting (arsGetCharacter charNum cs) (TM.get charNum ccss)
@@ -690,7 +689,7 @@ tickMonsterWaiting entry = (monst', mbScript) where
              round (monstSpeed monst * seSpeedMultiplier status *
                     fromIntegral baseMomentsPerFrame) + moments
   moments = monstMoments monst
-  status' = decayStatusEffects baseActionPointsPerFrame status
+  status' = decayStatusEffects roundsPerFrame status
   status = monstStatus monst
   summoning' = tickSummoning <$> monstSummoning monst
   tickSummoning ms = ms { msRemainingFrames = max 0 $ subtract 1 $
