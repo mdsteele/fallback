@@ -19,8 +19,10 @@
 
 module Fallback.State.Creature.Utility
   (makeMonster, monstAgility, monstAttacks, monstCanFly, monstInvisibility,
-   monstRectSize, monstSpeed, monstType, monstWalksFast)
+   monstIsSummoned, monstRectSize, monstSpeed, monstType, monstWalksFast)
 where
+
+import Data.Maybe (isJust)
 
 import Fallback.State.Creature.Base
 import Fallback.State.Creature.Monsters (getMonsterType)
@@ -73,6 +75,10 @@ monstCanFly = mtCanFly . monstType
 monstInvisibility :: Monster -> Invisibility
 monstInvisibility monst = max (mtInherentInvisibility $ monstType monst)
                               (seInvisibility $ monstStatus monst)
+
+-- | Return 'True' if this is a summoned monster, 'False' otherwise.
+monstIsSummoned :: Monster -> Bool
+monstIsSummoned = isJust . monstSummoning
 
 -- | Get the size of the 'PRect' taken up by the monster.
 monstRectSize :: Monster -> (Int, Int)

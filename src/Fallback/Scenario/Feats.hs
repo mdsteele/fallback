@@ -23,14 +23,14 @@ where
 
 import Control.Monad (forM_, unless)
 
-import Fallback.Constants (maxAdrenaline)
+import Fallback.Constants (framesPerRound, maxAdrenaline)
 import Fallback.Data.Color (Tint(Tint))
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Scenario.Script
 import Fallback.State.Action
-import Fallback.State.Area (arsCharacterPosition, arsGetCharacter)
-import Fallback.State.Creature (CreatureAnim(..))
+import Fallback.State.Area
+import Fallback.State.Creature (CreatureAnim(..), monstIsAlly, monstIsSummoned)
 import Fallback.State.Party (chrEquippedWeaponData)
 import Fallback.State.Resources
 import Fallback.State.Simple
@@ -74,6 +74,39 @@ featEffect Zodiac =
       wait 3
       dealDamage [(HitMonster (Grid.geKey entry), EnergyDamage, damage)]
     wait 24
+featEffect Banish =
+  StandardFeat (const $ aoeTarget 6 (ofRadius 2)) $
+  \_caster (_endPos, targets) -> do
+    -- TODO sound/doodad
+    -- Unsummon all summoned monsters in the area:
+    forM_ targets $ \target -> do
+      mbOccupant <- areaGet (arsOccupant target)
+      case mbOccupant of
+        Just (Right entry)
+          | monstIsSummoned (Grid.geValue entry) -> do
+              unsummonMonster (Grid.geKey entry)
+          | otherwise -> return ()
+        _ -> return ()
+    -- Imprison remaining enemies:
+    let imprison prect = do
+          forM_ (prectPositions $ adjustRect1 (-1) prect) $ \pos -> do
+            blocked <- areaGet $ \ars ->
+              arsOccupied pos ars ||
+              case arsTerrainOpenness pos ars of
+                TerrainOpen -> False
+                TerrainHover -> False
+                _ -> True
+            unless blocked $ do
+              duration <- getRandomR (8 * framesPerRound) (12 * framesPerRound)
+              setFields (BarrierWall duration) [pos]
+    forM_ targets $ \target -> do
+      mbOccupant <- areaGet (arsOccupant target)
+      case mbOccupant of
+        Just (Right entry)
+          | not $ monstIsAlly (Grid.geValue entry) -> do
+              imprison (Grid.geRect entry)
+          | otherwise -> return ()
+        _ -> return ()
 featEffect TidalForce =
   StandardFeat (flip aoeTarget (ofRadius 2) . (1 +)) $
   \caster (endPos, targets) -> do
@@ -183,7 +216,7 @@ featCastingCost :: FeatTag -> CastingCost
 -- featCastingCost Energize = AdrenalineCost 100
 -- featCastingCost StarShield = AdrenalineCost 25
 -- featCastingCost Zodiac = AdrenalineCost 50
--- featCastingCost Imprison = AdrenalineCost 100
+-- featCastingCost Banish = AdrenalineCost 100
 -- featCastingCost TidalForce = AdrenalineCost 40
 -- featCastingCost Eclipse = AdrenalineCost 60
 -- featCastingCost LunarBeam = AdrenalineCost 100
@@ -203,7 +236,9 @@ featDescription StarShield =
   "Put a powerful shield around all allies, protecting them from both physical\
   \ and magical attacks."
 featDescription Zodiac = "Deal major energy damage to all enemies."
-featDescription Imprison = "??? FIXME"
+featDescription Banish =
+  "Banish all summoned monsters in a wide area, and imprison any remaining\
+  \ enemies in barriers."
 featDescription TidalForce =
   "Inflict ice damage and daze everything in a wide area."
 featDescription Eclipse =
@@ -239,7 +274,7 @@ featIconCoords SolarFlare = (6, 1)
 featIconCoords Energize = (6, 2)
 featIconCoords StarShield = (7, 0)
 featIconCoords Zodiac = (7, 1)
-featIconCoords Imprison = (7, 2)
+featIconCoords Banish = (7, 2)
 featIconCoords TidalForce = (8, 0)
 featIconCoords Eclipse = (8, 1)
 featIconCoords LunarBeam = (8, 2)

@@ -221,7 +221,7 @@ classAbility cls num = Bij.getB abilityBijection (cls, num)
 data FeatTag = Concentrate
              -- For astral weapons:
              | Offering | SolarFlare | Energize
-             | StarShield | Zodiac | Imprison
+             | StarShield | Zodiac | Banish
              | TidalForce | Eclipse | LunarBeam
              | PulseOfLife | Avatar | AllCreation
              -- For bladed weapons:
