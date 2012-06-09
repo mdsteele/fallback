@@ -36,7 +36,7 @@ import Fallback.Scenario.Script.Doodad
 import Fallback.Scenario.Script.Other
 import Fallback.State.Area
 import Fallback.State.Creature
-import Fallback.State.Item (WeaponData(..))
+import Fallback.State.Item (DamageModifier(..), WeaponData(..))
 import Fallback.State.Party
 import Fallback.State.Resources
 import Fallback.State.Simple
@@ -94,8 +94,29 @@ characterWeaponChooseCritical char damage = do
 characterWeaponHit :: WeaponData -> Position -> Bool -> Double
                    -> Script CombatEffect ()
 characterWeaponHit wd target critical damage = do
-  attackHit (wdAppearance wd) (wdElement wd) (wdEffects wd)
-            target critical damage
+  mbOccupant <- areaGet (arsOccupant target)
+  let multOrKill ZeroDamage = Just 0
+      multOrKill HalfDamage = Just 0.5
+      multOrKill NormalDamage = Just 1
+      multOrKill DoubleDamage = Just 2
+      multOrKill InstantKill = Nothing
+  let mbMult =
+        case mbOccupant of
+          Nothing -> Just 1
+          Just (Left _) -> multOrKill (wdVsHuman wd)
+          Just (Right entry) ->
+            let mtype = monstType $ Grid.geValue entry
+                dmgVs wdFn mtFn =
+                  if mtFn mtype then multOrKill (wdFn wd) else Just 1
+            in fmap product $ sequence $
+               [dmgVs wdVsDaemonic mtIsDaemonic, dmgVs wdVsHuman mtIsHuman,
+                dmgVs wdVsUndead mtIsUndead]
+  case mbMult of
+    Just mult -> attackHit (wdAppearance wd) (wdElement wd) (wdEffects wd)
+                           target critical (mult * damage)
+    Nothing -> instantKill (wdAppearance wd) (wdElement wd) target critical
+
+-------------------------------------------------------------------------------
 
 monsterBeginOffensiveAction :: Grid.Key Monster -> Position
                             -> Script CombatEffect ()
@@ -219,9 +240,9 @@ determineIfAttackMisses attacker target isRanged = do
       doTryAvoid (monstAgility $ Grid.geValue monstEntry)
     Nothing -> True <$ playMissSound
 
-attackHit :: AttackAppearance -> AttackElement -> [AttackEffect] -> Position
-          -> Bool -> Double -> Script CombatEffect ()
-attackHit appearance element effects target critical damage = do
+attackHitAnimation :: (FromAreaEffect f) => AttackAppearance -> AttackElement
+                   -> Position -> Bool -> Script f ()
+attackHitAnimation appearance element target critical = do
   -- TODO take attack effects into account (in addition to main attack element)
   -- when choosing sound/doodad
   let elementSnd AcidAttack = SndChemicalDamage
@@ -258,6 +279,11 @@ attackHit appearance element effects target critical damage = do
     ClawAttack -> addBoomDoodadAtPosition SlashRight 2 target -- FIXME
     ThrownAttack -> addBoomDoodadAtPosition SlashRight 2 target -- FIXME
     WandAttack -> elementBoom
+
+attackHit :: AttackAppearance -> AttackElement -> [AttackEffect] -> Position
+          -> Bool -> Double -> Script CombatEffect ()
+attackHit appearance element effects target critical damage = do
+  attackHitAnimation appearance element target critical
   let hitTarget = HitPosition target
   extraHits <- flip3 foldM [] effects $ \hits effect -> do
     case effect of
@@ -292,6 +318,23 @@ attackHit appearance element effects target critical damage = do
           PhysicalAttack -> PhysicalDamage
   when critical $ addFloatingWordOnTarget WordCritical hitTarget
   dealDamage ((hitTarget, damageElement, damage) : extraHits)
+  wait 16
+
+instantKill :: AttackAppearance -> AttackElement -> Position -> Bool
+            -> Script CombatEffect ()
+instantKill appearance element target critical = do
+  attackHitAnimation appearance element target critical
+  mbOccupant <- areaGet (arsOccupant target)
+  case mbOccupant of
+    Just (Left charNum) -> do
+      let hitTarget = HitCharacter charNum
+      addFloatingWordOnTarget WordKO hitTarget
+      killTarget hitTarget
+    Just (Right entry) -> do
+      let hitTarget = HitMonster $ Grid.geKey entry
+      addFloatingWordOnTarget WordDeath hitTarget
+      killTarget hitTarget
+    Nothing -> return ()
   wait 16
 
 -------------------------------------------------------------------------------

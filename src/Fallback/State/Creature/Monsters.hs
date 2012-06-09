@@ -264,6 +264,7 @@ getMonsterType GuardArcher = baseMonsterType
         maDamageRange = (1, 5),
         maRange = Ranged 5 }],
     mtImageRow = 27,
+    mtIsHuman = True,
     mtMaxHealth = 150,
     mtName = "Guard",
     mtResistances = (Armor =% 30) }
@@ -284,6 +285,7 @@ baseMonsterType = MonsterType
     mtImageRow = 0,
     mtInherentInvisibility = NoInvisibility,
     mtIsDaemonic = False,
+    mtIsHuman = False,
     mtIsUndead = False,
     mtLevel = 0,
     mtMaxHealth = 100,
@@ -308,6 +310,7 @@ townsperson :: MonsterType
 townsperson = baseMonsterType
   { mtExperienceValue = 100,
     mtImageRow = 10,
+    mtIsHuman = True,
     mtMaxHealth = 40,
     mtName = "Townsperson" }
 
@@ -318,6 +321,7 @@ rogueillusion = baseMonsterType
       { maAppearance = BladeAttack,
         maDamageCount = 1,
         maDamageRange = (1, 3) }],
+    mtIsHuman = True,
     mtMaxHealth = 100,
     mtName = "Illusion",
     mtResistances = (ResistMental =% 100),

@@ -241,15 +241,17 @@ stripSpec SlashRight = ("doodads/slash-right.png", 8)
 rsrcStrip :: Resources -> StripTag -> Strip
 rsrcStrip rsrc tag = TM.get tag $ rsrcStrips rsrc
 
-data WordTag = WordBackstab | WordCritical | WordDodge | WordFinalBlow
-             | WordMiss | WordParry | WordRiposte
+data WordTag = WordBackstab | WordCritical | WordDeath | WordDodge
+             | WordFinalBlow | WordKO | WordMiss | WordParry | WordRiposte
   deriving (Bounded, Eq, Ix, Ord)
 
 wordRect :: WordTag -> IRect
 wordRect WordBackstab = Rect 0 27 35 9
 wordRect WordCritical = Rect 36 27 29 9
+wordRect WordDeath = Rect 0 36 23 9
 wordRect WordDodge = Rect 23 9 22 9
 wordRect WordFinalBlow = Rect 0 18 36 9
+wordRect WordKO = Rect 24 36 11 9
 wordRect WordMiss = Rect 46 9 17 9
 wordRect WordParry = Rect 0 9 22 9
 wordRect WordRiposte = Rect 37 27 28 9

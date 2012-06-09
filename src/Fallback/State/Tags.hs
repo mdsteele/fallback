@@ -266,7 +266,7 @@ allItemTags =
 
 data WeaponItemTag = Sunrod | Starspear | Moonbow | Lifeblade
                    -- Light swords:
-                   | Dagger | Shortsword
+                   | Dagger | Shortsword | DaemonicDagger
                    -- Heavy swords:
                    | Longsword | Flameblade | Soultaker
                    -- Polearms:

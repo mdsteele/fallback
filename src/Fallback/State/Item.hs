@@ -44,6 +44,7 @@ itemName (PotionItemTag tag) = potionName tag
 itemName (InertItemTag tag) = inertName tag
 
 weaponName :: WeaponItemTag -> String
+weaponName DaemonicDagger = "Daemonic Dagger"
 weaponName ThrowingStar = "Throwing Star"
 weaponName RazorStar = "Razor Star"
 weaponName NeutronStar = "Neutron Star"
@@ -297,14 +298,15 @@ wdSubDesc wd = attackDesc ++ bonusesSubDesc (wdBonuses wd) ++ featsDesc ++
   effectLine _ = "FIXME some effect\n"
   effectNum x = " (effect " ++ show (round (100 * x) :: Int) ++ ")\n"
   damageModsDesc = concatMap damageModDesc $
-                   [(wdVsDaemonic, "daemonic"), (wdVsUndead, "undead")]
+                   [(wdVsDaemonic, "daemonic creatures"),
+                    (wdVsHuman, "humans"), (wdVsUndead, "the undead")]
   damageModDesc (fn, name) =
     case fn wd of
-      ZeroDamage -> indent $ "Cannot damage " ++ name ++ " creatures\n"
+      ZeroDamage -> indent $ "Cannot damage " ++ name ++ "\n"
+      HalfDamage -> indent $ "Half damage against " ++ name ++ "\n"
       NormalDamage -> ""
-      DoubleDamage ->
-        indent $ "Double damage against " ++ name ++ " creatures\n"
-      InstantKill -> indent $ "Instant death to " ++ name ++ " creatures\n"
+      DoubleDamage -> indent $ "Double damage against " ++ name ++ "\n"
+      InstantKill -> indent $ "Instant death to " ++ name ++ "\n"
 
 adSubDesc :: ArmorData -> String
 adSubDesc ad = bonusesSubDesc (adBonuses ad) ++ usableSubDesc (adUsableBy ad)
@@ -438,9 +440,11 @@ data WeaponData = WeaponData
     wdRange :: AttackRange,
     wdUsableBy :: TM.TotalMap CharacterClass Bool,
     wdVsDaemonic :: DamageModifier,
+    wdVsHuman :: DamageModifier,
     wdVsUndead :: DamageModifier }
 
-data DamageModifier = ZeroDamage | NormalDamage | DoubleDamage | InstantKill
+data DamageModifier = ZeroDamage | HalfDamage | NormalDamage | DoubleDamage
+                    | InstantKill
 
 getWeaponData :: WeaponItemTag -> WeaponData
 getWeaponData Sunrod = baseWeaponData
@@ -488,6 +492,15 @@ getWeaponData Shortsword = baseWeaponData
     wdDamageRange = (1, 5),
     wdFeats = [JumpSlash, JumpStrike], -- FIXME
     wdRange = Melee }
+getWeaponData DaemonicDagger = baseWeaponData
+  { wdAppearance = BladeAttack,
+    wdDamageBonus = 5,
+    wdDamageRange = (1, 4),
+    wdFeats = [Concentrate], -- FIXME
+    wdRange = Melee,
+    wdUsableBy = anyoneExcept [ClericClass],
+    wdVsHuman = DoubleDamage,
+    wdVsUndead = HalfDamage }
 getWeaponData ThrowingStar = baseWeaponData
   { wdAppearance = ThrownAttack,
     wdDamageBonus = 2,
@@ -580,6 +593,7 @@ baseWeaponData = WeaponData
     wdRange = Melee,
     wdUsableBy = anyone,
     wdVsDaemonic = NormalDamage,
+    wdVsHuman = NormalDamage,
     wdVsUndead = NormalDamage }
 
 -------------------------------------------------------------------------------

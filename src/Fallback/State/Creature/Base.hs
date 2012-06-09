@@ -149,6 +149,7 @@ data MonsterType = MonsterType
     mtImageRow :: Int,
     mtInherentInvisibility :: Invisibility,
     mtIsDaemonic :: Bool,
+    mtIsHuman :: Bool,
     mtIsUndead :: Bool,
     mtLevel :: Int,
     mtMaxHealth :: Int,

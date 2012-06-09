@@ -25,7 +25,7 @@ module Fallback.Scenario.Script.Other
 
    -- * Effects
    -- ** Damage
-   dealDamage, dealDamageTotal, healDamage, reviveTarget,
+   dealDamage, dealDamageTotal, killTarget, healDamage, reviveTarget,
    -- ** Mojo/adrenaline
    alterMana, alterCharacterMojo, restoreMojoToFull, alterAdrenaline,
    -- ** Status effects
@@ -227,23 +227,7 @@ dealRawDamageToCharacter gentle charNum damage stun = do
   emitAreaEffect $ EffIfCombat (setCharacterAnim charNum $ HurtAnim 12)
                                (setPartyAnim $ HurtAnim 12)
   -- If we're in combat, the character can die:
-  whenCombat $ when (health' <= 0) $ do
-    alterCharacterMojo charNum (const 0)
-    alterAdrenaline charNum (const 0)
-    alterCharacterStatus charNum (const initStatusEffects)
-    resources <- areaGet arsResources
-    let images = rsrcCharacterImages resources (chrClass char)
-                                     (chrAppearance char)
-    faceDir <- emitEffect $ EffGetCharFaceDir charNum
-    playSound (characterScreamSound char)
-    playSound SndDie1
-    pos <- areaGet (arsCharacterPosition charNum)
-    addDeathDoodad images faceDir (makeRect pos (1, 1))
-    -- Unsummon monsters as necessary.
-    unsummonDependentsOf (Left charNum)
-    -- If all characters are now dead, it's game over:
-    alive <- areaGet (Fold.any chrIsConscious . partyCharacters . arsParty)
-    unless alive $ emitAreaEffect EffGameOver
+  whenCombat $ when (health' <= 0) $ onCharacterDead charNum
   return damage
 
 -- | Inflict damage and stun on a monster, ignoring armor and resistances.
@@ -251,11 +235,11 @@ dealRawDamageToCharacter gentle charNum damage stun = do
 dealRawDamageToMonster :: (FromAreaEffect f) => Bool -> Grid.Key Monster
                        -> Int -> Double -> Script f Int
 dealRawDamageToMonster gentle key damage stun = do
-  entry <- demandMonsterEntry key
-  let monst = Grid.geValue entry
   -- If this is non-gentle damage, wake us up from being dazed and add
   -- adrenaline.
   unless gentle $ alterMonsterStatus key seWakeFromDaze
+  entry <- demandMonsterEntry key
+  let monst = Grid.geValue entry
   let adrenaline' = monstAdrenaline monst +
         if gentle then 0 else
           adrenalineForDamage 1 damage $ mtMaxHealth $ monstType monst
@@ -271,25 +255,62 @@ dealRawDamageToMonster gentle key damage stun = do
     addFloatingNumberOnTarget damage (HitMonster key)
   emitAreaEffect $ EffReplaceMonster key mbMonst'
   -- If the monster is now dead, we need do to several things.
-  when (isNothing mbMonst') $ do
-    resources <- areaGet arsResources
-    let mtype = monstType monst
-    -- Add a death doodad.
-    addDeathDoodad (rsrcMonsterImages resources mtype)
-                   (cpFaceDir $ monstPose monst) (Grid.geRect entry)
-    -- If the monster has a "dead" var, set it to True.
-    maybeM (monstDeadVar monst) (emitAreaEffect . flip EffSetVar True)
-    -- If this was an enemy monster, grant experience for killing it.
-    unless (monstIsAlly monst) $ do
-      grantExperience $ mtExperienceValue $ monstType monst
-    -- Unsummon other monsters as necessary.
-    unsummonDependentsOf (Right key)
+  when (isNothing mbMonst') $ onMonsterDead entry
   return damage
 
 adrenalineForDamage :: Double -> Int -> Int -> Int
 adrenalineForDamage multiplier damage maxHealth =
   round $ (fromIntegral maxAdrenaline * multiplier *) $ square $ min 1 $
   2 * fromIntegral damage / (fromIntegral maxHealth :: Double)
+
+killTarget :: (FromAreaEffect f) => HitTarget -> Script f ()
+killTarget hitTarget = do
+  mbOccupant <- getHitTargetOccupant hitTarget
+  case mbOccupant of
+    Just (Left charNum) -> do
+      minHealth <- emitAreaEffect $ EffIfCombat (return 0) (return 1)
+      emitAreaEffect $ EffAlterCharacter charNum $ \c ->
+        c { chrHealth = minHealth }
+      whenCombat $ onCharacterDead charNum
+    Just (Right entry) -> do
+      emitAreaEffect $ EffReplaceMonster (Grid.geKey entry) Nothing
+      onMonsterDead entry
+    Nothing -> return ()
+
+onCharacterDead :: CharacterNumber -> Script CombatEffect ()
+onCharacterDead charNum = do
+  alterCharacterMojo charNum (const 0)
+  alterAdrenaline charNum (const 0)
+  alterCharacterStatus charNum (const initStatusEffects)
+  resources <- areaGet arsResources
+  char <- areaGet (arsGetCharacter charNum)
+  let images = rsrcCharacterImages resources (chrClass char)
+                                   (chrAppearance char)
+  faceDir <- emitEffect $ EffGetCharFaceDir charNum
+  playSound (characterScreamSound char)
+  playSound SndDie1
+  pos <- areaGet (arsCharacterPosition charNum)
+  addDeathDoodad images faceDir (makeRect pos (1, 1))
+  -- Unsummon monsters as necessary.
+  unsummonDependentsOf (Left charNum)
+  -- If all characters are now dead, it's game over:
+  alive <- areaGet (Fold.any chrIsConscious . partyCharacters . arsParty)
+  unless alive $ emitAreaEffect EffGameOver
+
+onMonsterDead :: (FromAreaEffect f) => Grid.Entry Monster -> Script f ()
+onMonsterDead entry = do
+  let monst = Grid.geValue entry
+  -- Add a death doodad.
+  resources <- areaGet arsResources
+  addDeathDoodad (rsrcMonsterImages resources $ monstType monst)
+                 (cpFaceDir $ monstPose monst) (Grid.geRect entry)
+  -- If the monster has a "dead" var, set it to True.
+  maybeM (monstDeadVar monst) (emitAreaEffect . flip EffSetVar True)
+  -- If this was an enemy monster, grant experience for killing it.
+  unless (monstIsAlly monst) $ do
+    grantExperience $ mtExperienceValue $ monstType monst
+  -- Unsummon other monsters as necessary.
+  unsummonDependentsOf $ Right $ Grid.geKey entry
 
 -------------------------------------------------------------------------------
 -- Healing:
