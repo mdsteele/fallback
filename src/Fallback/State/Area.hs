@@ -460,6 +460,7 @@ data CombatEffect :: * -> * where
 data TownEffect :: * -> * where
   EffTownArea :: AreaEffect a -> TownEffect a
   EffExitTowardArea :: AreaTag -> TownEffect ()
+  EffGetPartyFaceDir :: TownEffect FaceDir
   EffGetPartyPosition :: TownEffect Position
   EffSetPartyAnim :: CreatureAnim -> TownEffect ()
   EffSetPartyFaceDir :: FaceDir -> TownEffect ()

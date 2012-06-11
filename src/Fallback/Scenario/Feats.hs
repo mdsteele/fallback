@@ -173,7 +173,7 @@ featEffect JumpSlash =
     concurrent_ targets $ \target -> do
       (critical, damage) <- characterWeaponChooseCritical char =<<
                             characterWeaponBaseDamage char wd
-      characterWeaponHit wd target critical (damage * 2)
+      characterWeaponHit wd endPos target critical (damage * 2)
   where areaFn _ start end = [end `plusDir` ipointDir (end `pSub` start)]
 featEffect JumpStrike =
   StandardFeat (const $ JumpTarget areaFn 3) $ \caster (endPos, targets) -> do
@@ -184,24 +184,26 @@ featEffect JumpStrike =
     setCharacterAnim caster (AttackAnim 8)
     concurrent_ targets $ \target -> do
       damage <- characterWeaponBaseDamage char wd
-      characterWeaponHit wd target False damage
+      characterWeaponHit wd endPos target False damage
   where areaFn _ _ center = map (center `plusDir`) allDirections
 featEffect Shortshot =
   StandardFeat (SingleTarget . (subtract 1)) $ \caster target -> do
     char <- areaGet (arsGetCharacter caster)
+    origin <- areaGet (arsCharacterPosition caster)
     let wd = chrEquippedWeaponData char
     characterWeaponInitialAnimation caster target wd
     (critical, damage) <- characterWeaponChooseCritical char =<<
                           characterWeaponBaseDamage char wd
-    characterWeaponHit wd target critical (damage * 2)
+    characterWeaponHit wd origin target critical (damage * 2)
 featEffect Longshot =
   StandardFeat (SingleTarget . (+ 3)) $ \caster target -> do
     char <- areaGet (arsGetCharacter caster)
+    origin <- areaGet (arsCharacterPosition caster)
     let wd = chrEquippedWeaponData char
     characterWeaponInitialAnimation caster target wd
     (critical, damage) <- characterWeaponChooseCritical char =<<
                           characterWeaponBaseDamage char wd
-    characterWeaponHit wd target critical (damage * 1.5)
+    characterWeaponHit wd origin target critical (damage * 1.5)
 featEffect Glow = MetaAbility OneThirdCost 1
 featEffect Amplify = MetaAbility NormalCost 1.5
 featEffect Radiate = MetaAbility ZeroCost 1

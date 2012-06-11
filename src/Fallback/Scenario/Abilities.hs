@@ -60,9 +60,9 @@ getAbility characterClass abilityNumber rank =
     Bash ->
       meta (FocusCost 1) MeleeOnly SingleTarget $
       \caster power endPos -> do
-        let stun = power * ranked 0.4 0.7 0.9
-        let effects = (if rank >= Rank3 then (InflictDaze 0.5 :) else id)
-                      [InflictStun stun]
+        let effects = (if rank >= Rank3 then (InflictDaze 0.5 :) else id) $
+                      (if rank >= Rank2 then (KnockBack :) else id) $
+                      [InflictStun (power * ranked 0.4 0.7 0.9)]
         attackWithExtraEffects caster endPos effects
     Valiance -> PassiveAbility
     SecondWind ->
@@ -94,7 +94,8 @@ getAbility characterClass abilityNumber rank =
         characterWeaponInitialAnimation caster endPos wd
         damage <- characterWeaponBaseDamage char wd
         let damage' = damage * power * ranked 1.5 1.75 2.0
-        characterWeaponHit wd endPos True damage'
+        startPos <- areaGet (arsCharacterPosition caster)
+        characterWeaponHit wd startPos endPos True damage'
     FinalBlow -> PassiveAbility
     QuickAttack ->
       meta (FocusCost 1) MeleeOrRanged SingleTarget $
@@ -161,7 +162,7 @@ getAbility characterClass abilityNumber rank =
                            wdEffects = if rank < Rank2 then []
                                        else [InflictStun 1] }
               damage <- characterWeaponBaseDamage char wd
-              characterWeaponHit wd endPos True (power * damage)
+              characterWeaponHit wd startPos endPos True (power * damage)
             addRetractingHookshotDoodad startPos endPos
             unless (newPos == monstPos) $ withMonsterEntry key $ \entry' -> do
               let time = round (2 * pDist (fromIntegral <$> monstPos)
@@ -229,35 +230,32 @@ getAbility characterClass abilityNumber rank =
     FireShot ->
       meta (mix Naphtha Naphtha) RangedOnly SingleTarget $
       \caster power endPos -> do
-        char <- areaGet (arsGetCharacter caster)
-        let extra = power * ranked 0.4 0.7 0.9
-        let wd = chrEquippedWeaponData char
-        let wd' = wd { wdEffects = ExtraFireDamage extra : wdEffects wd }
-        characterWeaponInitialAnimation caster endPos wd'
-        (critical, damage) <- characterWeaponChooseCritical char =<<
-                              characterWeaponBaseDamage char wd'
-        when (rank >= Rank3) $ do
-          setFields (FireWall $ power * 8) [endPos]
-        characterWeaponHit wd' endPos critical damage
+        let effects = (if rank < Rank3 then id
+                       else ((SetField $ FireWall $ power * 8) :)) $
+                      [ExtraFireDamage (power * ranked 0.4 0.7 0.9)]
+        attackWithExtraEffects caster endPos effects
     Entangle -> PassiveAbility -- FIXME
     Recuperation -> PassiveAbility
     PoisonShot ->
       meta (mix Mandrake Mandrake) RangedOnly SingleTarget $
       \caster power endPos -> do
-        char <- areaGet (arsGetCharacter caster)
         let effects = ranked
               [InflictPoison (0.3 * power)]
               [InflictPoison (0.4 * power), ExtraAcidDamage (0.3 * power)]
-              [InflictPoison (0.6 * power), ExtraAcidDamage (0.4 * power)]
-        let wd = chrEquippedWeaponData char
-        let wd' = wd { wdEffects = effects ++ wdEffects wd }
-        characterWeaponInitialAnimation caster endPos wd'
-        (critical, damage) <- characterWeaponChooseCritical char =<<
-                              characterWeaponBaseDamage char wd'
-        characterWeaponHit wd' endPos critical damage
+              [InflictPoison (0.6 * power), ExtraAcidDamage (0.4 * power),
+               (SetField $ PoisonCloud $ power * 8)]
+        attackWithExtraEffects caster endPos effects
     Charm -> PassiveAbility -- FIXME
     EagleEye -> PassiveAbility
-    CurseShot -> PassiveAbility -- FIXME
+    CurseShot ->
+      meta (mix Brimstone Brimstone) RangedOnly SingleTarget $
+      \caster power endPos -> do
+        let effects = ranked
+              [InflictCurse (0.15 * power)]
+              [InflictCurse (0.25 * power), InflictSlow (0.15 * power)]
+              [InflictCurse (0.35 * power), InflictSlow (0.25 * power),
+               InflictWeakness (0.15 * power)]
+        attackWithExtraEffects caster endPos effects
     Summon -> PassiveAbility -- FIXME
     FrostShot -> PassiveAbility -- FIXME
     Fireball ->
@@ -704,7 +702,7 @@ abilityFullDescription abilTag abilRank =
 abilityDescription :: AbilityTag -> String
 abilityDescription Bash =
   "Make a melee weapon attack, stunning the target.\n\
-  \At rank 2, stuns the target more heavily.\n\
+  \At rank 2, also knocks the target backwards.\n\
   \At rank 3, may also daze the target."
 abilityDescription Valiance =
   "Permanently increases the rate at which you gain adrenaline by 10%.\n\
@@ -815,7 +813,7 @@ abilityDescription Recuperation =
 abilityDescription PoisonShot =
   "Poison the target of your next ranged weapon attack.\n\
   \At rank 2, also deals additional acid damage.\n\
-  \At rank 3, deals even more damage."
+  \At rank 3, also releases a small cloud of poisonous gas."
 abilityDescription Charm =
   "Confuse a single enemy, so that it will sometimes attack its own allies.\n\
   \At rank 2, charms the target, so that it always attacks its allies.\n\
@@ -1023,7 +1021,8 @@ attackWithExtraEffects caster target effects = do
   characterWeaponInitialAnimation caster target wd'
   (critical, damage) <- characterWeaponChooseCritical char =<<
                         characterWeaponBaseDamage char wd'
-  characterWeaponHit wd' target critical damage
+  origin <- areaGet (arsCharacterPosition caster)
+  characterWeaponHit wd' origin target critical damage
 
 -- | Given a power modifier and a base lifetime in rounds for a summoned
 -- monster, return the lifetime in frames.

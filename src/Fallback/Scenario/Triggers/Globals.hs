@@ -80,7 +80,8 @@ newDoorDevices vseed cTag oTag tryOpen tryClose = do
           replaceDevice ge open
           playSound SndDoorOpen
       open <- newDevice oSeed 1 $ \ge charNum -> do
-        -- TODO: don't allow door to be closed if enemies are nearby
+        -- TODO: Don't allow door to be closed if enemies are nearby, or if
+        --       space is occupied, or if we're in combat.
         whenM (tryClose ge charNum) $ do
           massSetTerrain cTag $ prectPositions $ Grid.geRect ge
           replaceDevice ge closed

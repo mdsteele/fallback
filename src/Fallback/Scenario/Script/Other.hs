@@ -21,7 +21,7 @@ module Fallback.Scenario.Script.Other
   (-- * Actions
    -- ** Movement
    getPartyPosition, setPartyPosition, partyWalkTo, charWalkTo, charLeapTo,
-   teleport, exitTo, walkMonster, setMonsterTownAI,
+   teleport, exitTo, walkMonster, setMonsterTownAI, tryKnockBack,
 
    -- * Effects
    -- ** Mojo/adrenaline
@@ -36,8 +36,9 @@ module Fallback.Scenario.Script.Other
    -- ** Camera motion
    shakeCamera,
    -- ** Creature animation
-   faceCharacterToward, faceMonsterToward, faceMonsterAwayFrom,
-   facePartyToward, setCharacterAnim, setMonsterAnim, setPartyAnim,
+   faceCharacterToward, faceCharacterAwayFrom, faceMonsterToward,
+   faceMonsterAwayFrom, facePartyToward, facePartyAwayFrom,
+   setCharacterAnim, setMonsterAnim, setPartyAnim,
    getHitTargetHeadPos, getMonsterHeadPos, alterMonsterPose,
 
    -- * UI
@@ -61,7 +62,7 @@ where
 
 import Control.Applicative ((<$), (<$>))
 import Control.Arrow (second)
-import Control.Monad (forM_, when)
+import Control.Monad (forM_, when, unless)
 import Data.Array (range)
 import Data.List (find)
 import Data.Maybe (isNothing)
@@ -147,6 +148,40 @@ setMonsterTownAI :: (FromAreaEffect f) => Grid.Key Monster -> MonsterTownAI
 setMonsterTownAI key townAI = withMonsterEntry key $ \entry -> do
   emitAreaEffect (EffReplaceMonster key $
                   Just (Grid.geValue entry) { monstTownAI = townAI })
+
+-- | Knocks the given target in the given direction (if possible) and returns
+-- whether the target moved successfully.
+tryKnockBack :: (FromAreaEffect f) => HitTarget -> Direction -> Script f Bool
+tryKnockBack hitTarget dir = do
+  mbOccupant <- getHitTargetOccupant hitTarget
+  case mbOccupant of
+    Just (Left charNum) -> do
+      oldPos <- areaGet (arsCharacterPosition charNum)
+      let newPos = oldPos `plusDir` dir
+      blocked <- areaGet (flip arsIsBlockedForParty newPos)
+      if blocked then return False else do
+      emitAreaEffect $ EffIfCombat
+        (do faceCharacterAwayFrom charNum newPos
+            emitEffect $ EffSetCharPosition charNum newPos
+            emitEffect $ EffSetCharAnim charNum $ makeAnim oldPos)
+        (do facePartyAwayFrom newPos
+            setPartyPosition newPos
+            emitEffect $ EffSetPartyAnim $ makeAnim oldPos)
+      return True
+    Just (Right entry) -> do
+      let oldPos = rectTopleft $ Grid.geRect entry
+      let newPos = oldPos `plusDir` dir
+      blocked <- areaGet (flip (arsIsBlockedForMonster entry) newPos)
+      if blocked then return False else do
+      ok <- emitAreaEffect $ EffTryMoveMonster (Grid.geKey entry) $
+            makeRect newPos $ rectSize $ Grid.geRect entry
+      unless ok $ do
+        fail "tryKnockBack: couldn't move monster even though unblocked"
+      alterMonsterPose (Grid.geKey entry) $ \cp ->
+        cp { cpAnim = makeAnim oldPos }
+      return True
+    Nothing -> return False
+  where makeAnim = JumpAnim 16 16
 
 -------------------------------------------------------------------------------
 -- Mojo/adrenaline:
@@ -296,6 +331,12 @@ faceCharacterToward charNum pos = do
     let dir = if deltaX < 0 then FaceLeft else FaceRight
     emitEffect $ EffSetCharFaceDir charNum dir
 
+faceCharacterAwayFrom :: CharacterNumber -> Position -> Script CombatEffect ()
+faceCharacterAwayFrom charNum pos = do
+  faceCharacterToward charNum pos
+  face <- emitEffect (EffGetCharFaceDir charNum)
+  emitEffect $ EffSetCharFaceDir charNum $ oppositeFaceDir face
+
 faceMonsterToward :: (FromAreaEffect f) => Grid.Key Monster -> Position
                   -> Script f ()
 faceMonsterToward key pos = do
@@ -317,6 +358,12 @@ facePartyToward pos = do
   when (deltaX /= 0) $ do
     let dir = if deltaX < 0 then FaceLeft else FaceRight
     emitEffect $ EffSetPartyFaceDir dir
+
+facePartyAwayFrom :: Position -> Script TownEffect ()
+facePartyAwayFrom pos = do
+  facePartyToward pos
+  face <- emitEffect EffGetPartyFaceDir
+  emitEffect $ EffSetPartyFaceDir $ oppositeFaceDir face
 
 setCharacterAnim :: CharacterNumber -> CreatureAnim -> Script CombatEffect ()
 setCharacterAnim charNum anim = emitEffect $ EffSetCharAnim charNum anim

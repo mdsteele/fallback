@@ -64,9 +64,10 @@ characterWeaponAttack charNum target = do
   unless miss $ do
   (critical, damage) <- characterWeaponChooseCritical char =<<
                         characterWeaponBaseDamage char wd
+  origin <- areaGet (arsCharacterPosition charNum)
   -- TODO take Backstab into account for damage
   -- TODO take FinalBlow into account somehow
-  characterWeaponHit wd target critical damage
+  characterWeaponHit wd origin target critical damage
 
 characterWeaponInitialAnimation  :: CharacterNumber -> Position
                                  -> WeaponData -> Script CombatEffect ()
@@ -92,9 +93,9 @@ characterWeaponChooseCritical char damage = do
   critical <- randomBool (1 - 0.998 ^^ chrGetStat Intellect char)
   return (critical, if critical then damage * 1.5 else damage)
 
-characterWeaponHit :: WeaponData -> Position -> Bool -> Double
+characterWeaponHit :: WeaponData -> Position -> Position -> Bool -> Double
                    -> Script CombatEffect ()
-characterWeaponHit wd target critical damage = do
+characterWeaponHit wd origin target critical damage = do
   mbOccupant <- areaGet (arsOccupant target)
   let multOrKill ZeroDamage = Just 0
       multOrKill HalfDamage = Just 0.5
@@ -114,7 +115,7 @@ characterWeaponHit wd target critical damage = do
                 dmgVs wdVsUndead mtIsUndead]
   case mbMult of
     Just mult -> attackHit (wdAppearance wd) (wdElement wd) (wdEffects wd)
-                           target critical (mult * damage)
+                           origin target critical (mult * damage)
     Nothing -> instantKill (wdAppearance wd) (wdElement wd) target critical
 
 -------------------------------------------------------------------------------
@@ -134,7 +135,8 @@ monsterPerformAttack key attack target = do
   unless miss $ do
   (critical, damage) <- monsterAttackChooseCritical attack =<<
                         monsterAttackBaseDamage attack
-  monsterAttackHit attack target critical damage
+  origin <- getMonsterHeadPos key
+  monsterAttackHit attack origin target critical damage
 
 monsterAttackInitialAnimation :: Grid.Key Monster -> MonsterAttack -> Position
                               -> Script CombatEffect ()
@@ -157,11 +159,11 @@ monsterAttackChooseCritical attack damage = do
   critical <- randomBool (maCriticalChance attack)
   return (critical, if critical then damage * 1.5 else damage)
 
-monsterAttackHit :: MonsterAttack -> Position -> Bool -> Double
+monsterAttackHit :: MonsterAttack -> Position -> Position -> Bool -> Double
                  -> Script CombatEffect ()
-monsterAttackHit ma target critical damage = do
-  attackHit (maAppearance ma) (maElement ma) (maEffects ma)
-            target critical damage
+monsterAttackHit ma origin target critical damage = do
+  attackHit (maAppearance ma) (maElement ma) (maEffects ma) origin target
+            critical damage
 
 -------------------------------------------------------------------------------
 
@@ -282,8 +284,8 @@ attackHitAnimation appearance element target critical = do
     WandAttack -> elementBoom
 
 attackHit :: AttackAppearance -> AttackElement -> [AttackEffect] -> Position
-          -> Bool -> Double -> Script CombatEffect ()
-attackHit appearance element effects target critical damage = do
+          -> Position -> Bool -> Double -> Script CombatEffect ()
+attackHit appearance element effects origin target critical damage = do
   attackHitAnimation appearance element target critical
   let hitTarget = HitPosition target
   extraHits <- flip3 foldM [] effects $ \hits effect -> do
@@ -309,6 +311,8 @@ attackHit appearance element effects target critical damage = do
       InflictWeakness mult ->
         hits <$ (alterStatus hitTarget $ seApplyDefense $
                  Harmful (mult * damage))
+      KnockBack -> return hits
+      SetField field -> hits <$ setFields field [target]
       _ -> return hits -- FIXME other effects
   let damageElement =
         case element of
@@ -319,6 +323,9 @@ attackHit appearance element effects target critical damage = do
           PhysicalAttack -> PhysicalDamage
   when critical $ addFloatingWordOnTarget WordCritical hitTarget
   dealDamage ((hitTarget, damageElement, damage) : extraHits)
+  when (KnockBack `elem` effects) $ do
+    _ <- tryKnockBack hitTarget $ ipointDir (target `pSub` origin)
+    return ()
   wait 16
 
 instantKill :: AttackAppearance -> AttackElement -> Position -> Bool

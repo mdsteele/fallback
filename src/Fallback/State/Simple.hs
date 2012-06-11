@@ -86,7 +86,10 @@ data AttackEffect = DrainMana Double -- mana drained per base damage
                   | InflictSlow Double -- duration (in rounds) per base damage
                   | InflictStun Double -- AP stun per base damage
                   | InflictWeakness Double -- duration (in rounds) per base dmg
+                  | KnockBack -- knock target back one space
                   | ReduceBuffs Double
+                  | SetField Field -- set field on target position
+  deriving (Eq)
 
 -- | Determines the maximum range of an attack, and whether the attack counts
 -- as \"melee\" or \"ranged\" for the purposes of e.g. meta-attacks or the
