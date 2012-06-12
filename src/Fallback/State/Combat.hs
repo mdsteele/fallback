@@ -197,10 +197,12 @@ updateCombatVisibility :: CombatState -> IO CombatState
 updateCombatVisibility cs = do
   let acs = csCommon cs
   let terrain = acsTerrain acs
-  let updateCcs ccs = ccs { ccsVisible =
-        fieldOfView (terrainSize terrain) (arsIsOpaque cs) sightRangeSquared
-                    (ccsPosition ccs) Set.empty }
-  let ccss' = fmap updateCcs (csCharStates cs)
+  let updateCcs charNum ccs = ccs { ccsVisible =
+        if not $ chrIsConscious $ partyGetCharacter (acsParty acs) charNum
+        then Set.empty else
+          fieldOfView (terrainSize terrain) (arsIsOpaque cs) sightRangeSquared
+                      (ccsPosition ccs) Set.empty }
+  let ccss' = TM.mapWithKey updateCcs (csCharStates cs)
   let visible' = Set.unions $ map ccsVisible $ toList ccss'
   let party' = partyUpdateExploredMap terrain visible' (acsParty acs)
   updateMinimap acs (Set.toList visible')
