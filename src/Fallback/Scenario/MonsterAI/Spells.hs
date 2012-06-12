@@ -21,8 +21,9 @@ module Fallback.Scenario.MonsterAI.Spells
   (prepMonsterSpell)
 where
 
-import Control.Applicative ((<$>))
-import Control.Monad (filterM, forM, forM_)
+import Control.Applicative ((<$), (<$>))
+import Control.Arrow (right)
+import Control.Monad (filterM, foldM, forM, forM_, when)
 import Data.List (maximumBy)
 import Data.Maybe (catMaybes)
 import Data.Ord (comparing)
@@ -36,11 +37,12 @@ import Fallback.Scenario.MonsterAI.Script
 import Fallback.Scenario.Script
 import Fallback.State.Area
 import Fallback.State.Creature
+import Fallback.State.Party (partyDifficulty)
 import Fallback.State.Pathfind (allPathsFrom)
 import Fallback.State.Resources (SoundTag(..), StripTag(..))
 import Fallback.State.Simple
-import Fallback.State.Terrain (positionCenter)
-import Fallback.Utility (flip3, sumM)
+import Fallback.State.Terrain (positionCenter, prectRect)
+import Fallback.Utility (ceilDiv, flip3, sumM)
 
 -------------------------------------------------------------------------------
 
@@ -105,6 +107,46 @@ prepMonsterSpell FireSpray ge = do
     dealDamage [(HitPosition target, FireDamage, 30)]
     wait 20
   return 3
+prepMonsterSpell FrostMissiles ge = do
+  numHits <- do
+    difficulty <- areaGet (partyDifficulty . arsParty)
+    let maxHits = if difficulty < Ruthless then 5 else 8
+    let monst = Grid.geValue ge
+    let maxHealth = monstMaxHealth monst
+    return ((maxHealth - monstHealth monst) `ceilDiv`
+            (maxHealth `div` maxHits))
+  let key = Grid.geKey ge
+  viewField <- getMonsterFieldOfView key
+  potentialTargets <- filter (`Set.member` viewField) <$>
+                      getMonsterOpponentPositions key
+  ifSatisfies (not $ null potentialTargets) $ do
+  yieldSpell numHits $ do
+  targets <- fmap fst $ flip3 foldM ([], Set.empty) [1 .. numHits] $
+             \(targets, victims) _ -> do
+    target <- getRandomElem potentialTargets
+    mbVictim <- areaGet (fmap (right Grid.geKey) . arsOccupant target)
+    return ((target, maybe False (`Set.notMember` victims) mbVictim) : targets,
+            maybe victims (flip Set.insert victims) mbVictim)
+  let p0 = rectCenter $ fmap fromIntegral $ prectRect $ Grid.geRect ge
+  concurrent_ (zip targets [0..]) $ \((target, knockback), index) -> do
+    wait (index * (51 - 3 * index) `div` 2)
+    dir <- if not knockback then getRandomElem allDirections else do
+      getRandomElem allDirections -- TODO choose best knockback dir
+    p1 <- pAdd p0 . flip pPolar 400 <$> getRandomR 0 (2 * pi)
+    let p3 = positionCenter target
+    let p2 = p3 `pSub` (fromIntegral <$> dirDelta dir) `pMul` 300
+    let delay = 24
+    addSwooshDoodad (Tint 128 96 255 192) 4 delay 12 $
+      cubicBezierCurve p0 p1 p2 p3
+    wait delay
+    playSound SndFreeze
+    addBoomDoodadAtPosition IceBoom 2 target
+    wait 4
+    damage <- getRandomR 30 50
+    dealDamage [(HitPosition target, ColdDamage, damage)]
+    when knockback $ do
+      () <$ tryKnockBack (HitPosition target) dir
+  return 2
 prepMonsterSpell (SummonOne dep benefit cooldown duration tags) ge = do
   ifSatisfies (not $ null tags) $ do
   tag <- getRandomElem tags
