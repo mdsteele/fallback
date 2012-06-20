@@ -33,7 +33,7 @@ module Fallback.Data.Point
    -- * Direction type
    Direction(..), allDirections, isCardinal, ipointDir, dirDelta, plusDir,
    -- * Position type
-   Position, PRect, adjacent, bresenhamPositions, prectPositions,
+   Position, PRect, adjacent, bresenhamPositions, expandPrect, prectPositions,
    SqDist(..), sqDistRadius, pSqDist, ofRadius, rangeTouchesRect)
 where
 
@@ -311,6 +311,10 @@ bresenhamPositions (Point x1'' y1'') (Point x2'' y2'') =
                    else (x + 1, y, err'))
       positions = unfoldr yield (x1, y1, dx `div` 2)
   in if reversed then reverse positions else positions
+
+-- | Expand a 'PRect' by one position in each direction.
+expandPrect :: PRect -> PRect
+expandPrect = adjustRect1 (negate 1)
 
 -- | Return a list of all positions within a position-rectangle.
 prectPositions :: PRect -> [Position]

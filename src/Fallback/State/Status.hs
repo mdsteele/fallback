@@ -18,9 +18,10 @@
 ============================================================================ -}
 
 module Fallback.State.Status
-  (HarmOrBenefit(..),
+  (-- * Status effects
    StatusEffects, initStatusEffects, decayStatusEffects,
-   -- * Getters
+   HarmOrBenefit(..),
+   -- ** Getters
    seBlessing, --seBlessingMultiplier,
    seDefense, seArmorMultiplier,
    seHaste, seSpeedMultiplier,
@@ -29,16 +30,25 @@ module Fallback.State.Status
    seMentalEffect, MentalEffect(..),
    seIsEntangled,
    seIsShielded, seMagicShieldMultiplier,
-   -- * Setters and modifiers
-   seAlterPoison, seApplyBlessing, seApplyDefense, seApplyEntanglement,
-   seApplyHaste, seApplyMagicShield, sePurgeMentalEffects, seSetInvisibility,
-   seWakeFromDaze,
+   -- ** Setters and modifiers
+   seApplyBlessing, seReduceBlessing, seReduceCurse,
+   seApplyDefense, seReduceDefense, seReduceWeakness,
+   seApplyHaste, seReduceHaste, seReduceSlow,
+   seAlterPoison,
+   seSetInvisibility,
+   sePurgeMentalEffects, seWakeFromDaze,
+   seApplyEntanglement, sePurgeEntanglement,
+   seApplyMagicShield, seReduceMagicShield,
+   -- * Status deltas
+   StatusDelta, zeroStatusDelta, makeStatusDelta, applyStatusDelta,
+   addStatusDeltas, sumStatusDeltas, divStatusDelta,
    -- * Utilities
    compress, townifyStatus)
 where
 
 import Control.Exception (assert)
-import Data.Maybe (isJust)
+import Data.Maybe (fromMaybe, isJust)
+import Data.List (foldl')
 
 import Fallback.Utility (isFinite)
 
@@ -73,14 +83,38 @@ mergeHarmOrBenefit hb1 hb2 = merge (validate hb1) (validate hb2) where
   -- otherwise you get a reduced effect.
   stack a b = sqrt (max a b * (a + b))
 
-  validate (Harmful a) = assert (isFinite a && a > 0) (Harmful a)
+  validate (Harmful a) = assert (isFinitePositive a) (Harmful a)
   validate Unaffected = Unaffected
-  validate (Beneficial a) = assert (isFinite a && a > 0) (Beneficial a)
+  validate (Beneficial a) = assert (isFinitePositive a) (Beneficial a)
 
 mergeMaybe :: Double -> Maybe Double -> Maybe Double
-mergeMaybe a Nothing = Just a
-mergeMaybe a (Just b) =
-  assert (isFinite b && b > 0) $ Just $ sqrt (max a b * (a + b))
+mergeMaybe 0 mb = mb
+mergeMaybe a mb = assert (isFinitePositive a) $
+  case mb of
+    Nothing -> Just a
+    Just b -> assert (isFinitePositive b) $ Just $ sqrt (max a b * (a + b))
+
+hobToDouble :: HarmOrBenefit -> Double
+hobToDouble (Harmful x) = assert (isFinitePositive x) $ negate x
+hobToDouble Unaffected = 0
+hobToDouble (Beneficial x) = assert (isFinitePositive x) x
+
+hobFromDouble :: Double -> HarmOrBenefit
+hobFromDouble x = assert (isFinite x) $ if x == 0 then Unaffected else
+  if x < 0 then Harmful (negate x) else Beneficial x
+
+reduceBenefit :: Double -> HarmOrBenefit -> HarmOrBenefit
+reduceBenefit x (Beneficial y) =
+  if x < y then Beneficial (y - x) else Unaffected
+reduceBenefit _ hob = hob
+
+reduceHarm :: Double -> HarmOrBenefit -> HarmOrBenefit
+reduceHarm x (Harmful y) = if x < y then Harmful (y - x) else Unaffected
+reduceHarm _ hob = hob
+
+reduceMaybe :: Double -> Maybe Double -> Maybe Double
+reduceMaybe x (Just y) = if x < y then Just (y - x) else Nothing
+reduceMaybe _ Nothing = Nothing
 
 -------------------------------------------------------------------------------
 
@@ -161,21 +195,51 @@ seApplyBlessing :: HarmOrBenefit -> StatusEffects -> StatusEffects
 seApplyBlessing hb se =
   se { seBlessing = mergeHarmOrBenefit hb (seBlessing se) }
 
+seReduceBlessing :: Double -> StatusEffects -> StatusEffects
+seReduceBlessing x se = se { seBlessing = reduceBenefit x (seBlessing se) }
+
+seReduceCurse :: Double -> StatusEffects -> StatusEffects
+seReduceCurse x se = se { seBlessing = reduceHarm x (seBlessing se) }
+
 seApplyDefense :: HarmOrBenefit -> StatusEffects -> StatusEffects
 seApplyDefense hb se = se { seDefense = mergeHarmOrBenefit hb (seDefense se) }
 
--- | Add (approximately) the given amount of entanglement, in rounds.
+seReduceDefense :: Double -> StatusEffects -> StatusEffects
+seReduceDefense x se = se { seDefense = reduceBenefit x (seDefense se) }
+
+seReduceWeakness :: Double -> StatusEffects -> StatusEffects
+seReduceWeakness x se = se { seDefense = reduceHarm x (seDefense se) }
+
+-- | Apply the given number of rounds of entanglement.  The argument must be
+-- finite and non-negative.
 seApplyEntanglement :: Double -> StatusEffects -> StatusEffects
 seApplyEntanglement x se =
   se { seEntanglement = mergeMaybe x (seEntanglement se) }
 
+-- | Completely remove all entanglement.
+sePurgeEntanglement :: StatusEffects -> StatusEffects
+sePurgeEntanglement se = se { seEntanglement = Nothing }
+
 seApplyHaste :: HarmOrBenefit -> StatusEffects -> StatusEffects
 seApplyHaste hb se = se { seHaste = mergeHarmOrBenefit hb (seHaste se) }
 
+seReduceHaste :: Double -> StatusEffects -> StatusEffects
+seReduceHaste x se = se { seHaste = reduceBenefit x (seHaste se) }
+
+seReduceSlow :: Double -> StatusEffects -> StatusEffects
+seReduceSlow x se = se { seHaste = reduceHarm x (seHaste se) }
+
+-- | Apply the given number of rounds of magical shielding.  The argument must
+-- be finite and non-negative.
 seApplyMagicShield :: Double -> StatusEffects -> StatusEffects
 seApplyMagicShield x se =
   se { seMagicShield = mergeMaybe x (seMagicShield se) }
 
+seReduceMagicShield :: Double -> StatusEffects -> StatusEffects
+seReduceMagicShield x se =
+  se { seMagicShield = reduceMaybe x (seMagicShield se) }
+
+-- | Completely remove all mental effects.
 sePurgeMentalEffects :: StatusEffects -> StatusEffects
 sePurgeMentalEffects se = se { seMentalEffect = Nothing }
 
@@ -187,6 +251,64 @@ seWakeFromDaze se =
   case seMentalEffect se of
     Just (DazedEffect, _) -> se { seMentalEffect = Nothing }
     _ -> se
+
+-------------------------------------------------------------------------------
+-- Status deltas:
+
+data StatusDelta = StatusDelta
+  { sdBlessing :: !Double,
+    sdDefense :: !Double,
+    sdEntanglement :: !Double,
+    sdHaste :: !Double,
+    sdMagicShield :: !Double,
+    sdPoison :: !Int }
+  deriving Show
+
+zeroStatusDelta :: StatusDelta
+zeroStatusDelta = StatusDelta
+  { sdBlessing = 0, sdDefense = 0, sdEntanglement = 0, sdHaste = 0,
+    sdMagicShield = 0, sdPoison = 0 }
+
+addStatusDeltas :: StatusDelta -> StatusDelta -> StatusDelta
+addStatusDeltas sd1 sd2 = StatusDelta
+  { sdBlessing = sdBlessing sd1 + sdBlessing sd2,
+    sdDefense = sdDefense sd1 + sdDefense sd2,
+    sdEntanglement = sdEntanglement sd1 + sdEntanglement sd2,
+    sdHaste = sdHaste sd1 + sdHaste sd2,
+    sdMagicShield = sdMagicShield sd1 + sdMagicShield sd2,
+    sdPoison = sdPoison sd1 + sdPoison sd2 }
+
+sumStatusDeltas :: [StatusDelta] -> StatusDelta
+sumStatusDeltas = foldl' addStatusDeltas zeroStatusDelta
+
+-- | Divide the status delta by the given positive integer.
+divStatusDelta :: StatusDelta -> Int -> StatusDelta
+divStatusDelta sd di = assert (di > 0) $ StatusDelta
+  { sdBlessing = sdBlessing sd / dd, sdDefense = sdDefense sd / dd,
+    sdEntanglement = sdEntanglement sd / dd, sdHaste = sdHaste sd / dd,
+    sdMagicShield = sdMagicShield sd / dd, sdPoison = sdPoison sd `div` di }
+  where dd = fromIntegral di
+
+-- | Make a status delta by subtracting the second set of status effects from
+-- the first.
+makeStatusDelta :: StatusEffects -> StatusEffects -> StatusDelta
+makeStatusDelta se1 se2 = StatusDelta
+  { sdBlessing = hobToDouble (seBlessing se1) - hobToDouble (seBlessing se2),
+    sdDefense = hobToDouble (seDefense se1) - hobToDouble (seDefense se2),
+    sdEntanglement = fromMaybe 0 (seEntanglement se1) -
+                     fromMaybe 0 (seEntanglement se2),
+    sdHaste = hobToDouble (seHaste se1) - hobToDouble (seHaste se2),
+    sdMagicShield = fromMaybe 0 (seMagicShield se1) -
+                    fromMaybe 0 (seMagicShield se2),
+    sdPoison = sePoison se1 - sePoison se2 }
+
+applyStatusDelta :: StatusDelta -> StatusEffects -> StatusEffects
+applyStatusDelta sd =
+  (seApplyBlessing $ hobFromDouble $ sdBlessing sd) .
+  (seApplyDefense $ hobFromDouble $ sdDefense sd) .
+  (seApplyEntanglement $ sdEntanglement sd) .
+  (seApplyHaste $ hobFromDouble $ sdHaste sd) .
+  (seApplyMagicShield $ sdMagicShield sd) . (seAlterPoison (+ sdPoison sd))
 
 -------------------------------------------------------------------------------
 -- Types:
@@ -212,5 +334,8 @@ townifyStatus :: StatusEffects -> StatusEffects
 townifyStatus status = status
   { seInvisibility = NoInvisibility,
     seMentalEffect = Nothing }
+
+isFinitePositive :: Double -> Bool
+isFinitePositive x = isFinite x && x > 0
 
 -------------------------------------------------------------------------------

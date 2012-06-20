@@ -339,22 +339,34 @@ getAbility characterClass abilityNumber rank =
       combat (mix Brimstone Limestone) (aoeTarget 5 $ SqDist 4) $
       \caster power (endPos, targets) -> do
         characterBeginOffensiveAction caster endPos
+        mult <- (power *) <$> getIntellectBonus caster
         playSound SndDrain
+        -- Start a whirlwind doodad over the targeted area.
         let swooshTint = Tint 255 255 255 96
             swooshThickness = 4
         forM_ [0 .. 3] $ \idx -> do
           addSwooshDoodad swooshTint swooshThickness 32 12 $ \t ->
             positionCenter endPos `pSub` Point 0 (t * t * 120) `pAdd`
             pPolar (90 * (1 - t) * (1 - t)) (4 * pi * t + idx * pi/2)
+        -- Wait for the whirlwind doodad to partially complete before dealing
+        -- damage.
         wait 10
-        intBonus <- getIntellectBonus caster
-        let baseDamage = ranked 10 20 30 * power * intBonus
+        -- If we're at rank 3, drain beneficial status effects from the area.
+        totalDelta <- if rank < Rank3 then return zeroStatusDelta else do
+          massAlterStatus targets $ \hitTarget -> do
+            alterStatus hitTarget $
+              seReduceBlessing (mult * 8) . seReduceDefense (mult * 8) .
+              seReduceHaste (mult * 8) . seReduceMagicShield (mult * 8) .
+              seSetInvisibility NoInvisibility
+        -- Deal damage to the area.
+        let baseDamage = mult * ranked 10 20 30
         hits <- forM targets $ \target -> do
           damage <- (baseDamage *) <$> getRandomR 0.8 1.2
           return (HitPosition target, MagicDamage, damage)
         totalDamage <- dealDamageTotal hits
-        -- TODO at rank 3, also drain status buffs
+        -- Wait for the whirlwind doodad to mostly finish.
         wait 22
+        -- Start a new doodad, sending the whirlwind swooshes to each ally.
         allyTargets <- getAllAllyTargets
         do let p1 = positionCenter endPos `pSub` Point 0 110
            let p2 = p1 `pSub` Point 0 90
@@ -364,10 +376,20 @@ getAbility characterClass abilityNumber rank =
              p4 <- positionCenter <$> getHitTargetHeadPos target
              addSwooshDoodad swooshTint swooshThickness 32 12 $
                cubicBezierCurve p1 p2 p3 p4
+        -- Wait for the swooshes to reach the allies.
         wait 32
+        -- Divide up the total damage done and distribute it to all allies.
+        playSound SndHeal
         let healAmount = fromIntegral totalDamage /
                          fromIntegral (length allyTargets)
         healDamage $ map (flip (,) healAmount) $ allyTargets
+        -- If we're at rank 3, divide up the status effects drained and
+        -- distribute them to all allies.
+        unless (rank < Rank3 || null allyTargets) $ do
+          let delta = totalDelta `divStatusDelta` length allyTargets
+          forM_ allyTargets $ \target -> do
+            alterStatus target (applyStatusDelta delta)
+        -- Wait for the healing animation to complete.
         wait 24
     Detonate ->
       combat (mix Brimstone Potash) (aoeTarget 4 $ ofRadius 1) $
@@ -415,7 +437,23 @@ getAbility characterClass abilityNumber rank =
         let healAmount = randMult * intBonus * power * ranked 20 35 55
         playSound SndHeal
         healDamage [(either HitPosition HitCharacter eith, healAmount)]
-    Blessing -> PassiveAbility -- FIXME
+    Blessing | rank < Rank3 ->
+      general cost (AllyTarget 6) $ \caster power eith -> do
+        -- TODO when rank=2, also affect allies adjacent to target
+        doSpell caster power [either HitPosition HitCharacter eith]
+             | otherwise ->
+      general cost AutoTarget $ \caster power () -> do
+        doSpell caster power =<< getAllAllyTargets
+      where
+        cost = ManaCost 1
+        doSpell caster power hitTargets = do
+          intBonus <- getIntellectBonus caster
+          playSound SndBlessing
+          concurrent_ hitTargets $ \hitTarget -> do
+            randMult <- getRandomR 0.9 1.1
+            -- TODO: add doodad, maybe wait a bit before applying status
+            let rounds = randMult * power * intBonus * ranked 10 12 12
+            alterStatus hitTarget $ seApplyBlessing $ Beneficial rounds
     Disruption ->
       combat (ManaCost 6) (MultiTarget (ranked 1 3 3) 4) $
       \caster power targets -> do
@@ -441,7 +479,26 @@ getAbility characterClass abilityNumber rank =
                              MagicDamage, dmg)
             Nothing -> return Nothing
         dealDamage hits >> wait 12
-    Restore -> PassiveAbility -- FIXME
+    Restore ->
+      general (ManaCost 6) (aoeTarget 8 $ ofRadius 1) $
+      \caster power (endPos, targets) -> do
+        mult <- (power *) <$> getIntellectBonus caster
+        -- TODO doodad/sound
+        totalDelta <- massAlterStatus targets $ \hitTarget -> do
+          curePoison hitTarget (mult * ranked 100 150 200)
+          alterStatus hitTarget (sePurgeEntanglement . sePurgeMentalEffects)
+          when (rank >= Rank2) $ alterStatus hitTarget $
+            seReduceCurse (mult * 8) . seReduceWeakness (mult * 8) .
+            seReduceSlow (mult * 8)
+        when (rank >= Rank3) $ do
+          let prect = makeRect (endPos `pSub` Point 2 2) (5, 5)
+          enemies <- areaGet (map (HitMonster . Grid.geKey) .
+                              filter (not . monstIsAlly . Grid.geValue) .
+                              flip Grid.searchRect prect . arsMonsters)
+          unless (null enemies) $ do
+            let delta = totalDelta `divStatusDelta` length enemies
+            forM_ enemies $ \hitTarget -> do
+              alterStatus hitTarget (applyStatusDelta delta)
     Hinder -> PassiveAbility -- FIXME
     Clarity -> PassiveAbility
     Revive ->
@@ -565,7 +622,16 @@ getAbility characterClass abilityNumber rank =
           if rank >= Rank2 then MajorInvisibility else MinorInvisibility
         when (rank >= Rank3) $ do
           return () -- FIXME grantBlessing hitTarget (power * whatever)
-    Hasten -> PassiveAbility -- FIXME
+    Hasten ->
+      combat (ManaCost 10) (AllyTarget 6) $ \caster power eith -> do
+        intBonus <- getIntellectBonus caster
+        randMult <- getRandomR 0.9 1.1
+        let amount = intBonus * randMult * power * ranked 8 12 12
+        playSound SndHaste
+        alterStatus (either HitPosition HitCharacter eith) $
+          seApplyHaste $ Beneficial amount
+        when (rank >= Rank3) $ do
+          alterStatus (HitCharacter caster) $ seApplyHaste $ Beneficial amount
     Lightning ->
       combat (ManaCost 5) (SingleTarget 4) $ \caster power endPos -> do
         characterBeginOffensiveAction caster endPos
@@ -719,7 +785,7 @@ abilityDescription Hardiness =
 abilityDescription Shieldbreaker =
   "Make a melee weapon attack, weakening the enemy's defenses so that future\
   \ attacks will deal more damage.\n\
-  \At rank 2, reduces the target's defenses more.\n\
+  \At rank 2, the target stays weakened for longer.\n\
   \At rank 3, this attack will be unmitigated by the target's armor."
 abilityDescription Parry =
   "Permanently gives you an extra 3% chance to avoid any melee attack.\n\
@@ -729,24 +795,25 @@ abilityDescription Spellshatter =
   "Make a melee weapon attack, reducing any and all beneficial status effects\
   \ currently affecting the target.\n\
   \At rank 2, also curses the target.\n\
-  \At rank 3, FIXME."
+  \At rank 3, the status changes also affect enemies adjacent to the target."
 abilityDescription Riposte =
-  "Permanently gives you a 5% chance to counterattack every time you are\
+  "Permanently gives you a 10% chance to counterattack every time you are\
   \ attacked in melee.\n\
-  \At rank 2, your chance of counterattacking rises to 10%.\n\
-  \At rank 3, your chance of counterattacking rises to 20%."
+  \At rank 2, your chance of counterattacking rises to 20%.\n\
+  \At rank 3, your chance of counterattacking rises to 35%."
 abilityDescription Critical =
-  "Make a single weapon attack, automatically scoring a critical hit and\
-  \ dealing 1.5x damage.\n\
-  \At rank 2, deals 1.75x damage.\n\
-  \At rank 3, deals 2x damage."
+  "Attack with your weapon, automatically scoring a critical hit and dealing\
+  \ 1.5x damage.\n\
+  \At rank 2, the critical hit deals double damage.\n\
+  \At rank 3, the critical hit deals triple damage."
 abilityDescription FinalBlow =
   "Any time an enemy would barely survive your melee attack, the attack will\
   \ deal up to 15% more damage in order to leave the enemy dead.\n\
   \At rank 2, a final blow can deal up to 30% extra damage.\n\
   \At rank 3, a final blow can deal up to 50% extra damage."
 abilityDescription QuickAttack =
-  "Make a weapon attack, using only three action points instead of four.\n\
+  "Make a weapon attack, using only three action points instead of four.  This\
+  \ attack will not reveal you if you were invisible.\n\
   \At rank 2, requires only two action points.\n\
   \At rank 3, requires only one action point."
 abilityDescription Backstab =
@@ -893,7 +960,7 @@ abilityDescription Disruption = "Deals major damage to an undead target.\n\
 abilityDescription Restore =
   "Cures poison, alleviates mental effects, and washes away entanglement\
   \ from everyone within an area.\n\
-  \At rank 2, also removes curses, weakness, and slowness.\n\
+  \At rank 2, also reduces curses, weakness, and slowness.\n\
   \At rank 3, the removed effects are inflicted upon any nearby enemies."
 abilityDescription Hinder =
   "Slow several targets, causing them to take turns less often.\n\
@@ -990,7 +1057,7 @@ abilityMinPartyLevel abilTag abilRank = ranked $
     Sunbeam -> (10, 20, 30)
     -- Magus abilities:
     Shock -> (1, 5, 15)
-    IceBolts -> (2, 6, 10)
+    IceBolts -> (2, 4, 10)
     Vitriol -> (2, 8, 12)
     Invisibility -> (3, 8, 10)
     Lightning -> (5, 10, 12)
@@ -1023,6 +1090,17 @@ attackWithExtraEffects caster target effects = do
                         characterWeaponBaseDamage char wd'
   origin <- areaGet (arsCharacterPosition caster)
   characterWeaponHit wd' origin target critical damage
+
+massAlterStatus :: (FromAreaEffect f) => [Position]
+                -> (HitTarget -> Script f ()) -> Script f StatusDelta
+massAlterStatus positions action = do
+  occupants <- areaGet (arsOccupants positions)
+  fmap sumStatusDeltas $ forM occupants $ \occupant -> do
+    let hitTarget = either HitCharacter (HitMonster . Grid.geKey) occupant
+    oldStatus <- getStatus hitTarget
+    action hitTarget
+    newStatus <- getStatus hitTarget
+    return $ makeStatusDelta oldStatus newStatus
 
 -- | Given a power modifier and a base lifetime in rounds for a summoned
 -- monster, return the lifetime in frames.

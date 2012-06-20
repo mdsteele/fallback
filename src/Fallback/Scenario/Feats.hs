@@ -67,7 +67,7 @@ featEffect Zodiac =
   StandardFeat autoTarget $ \_caster () -> do
     entries <- randomPermutation =<< getAllEnemyMonsters
     forM_ entries $ \entry -> do
-      damage <- getRandomR 40 60 -- TODO how much damage?
+      damage <- getRandomR 60 90
       -- TODO sound
       addBoomDoodadAtPoint EnergyBoom 3 $ rectCenter $ prectRect $
         Grid.geRect entry
@@ -89,7 +89,7 @@ featEffect Banish =
         _ -> return ()
     -- Imprison remaining enemies:
     let imprison prect = do
-          forM_ (prectPositions $ adjustRect1 (-1) prect) $ \pos -> do
+          forM_ (prectPositions $ expandPrect prect) $ \pos -> do
             blocked <- areaGet $ \ars ->
               arsOccupied pos ars ||
               case arsTerrainOpenness pos ars of
@@ -158,11 +158,13 @@ featEffect Avatar =
     playSound SndHeal
     healDamage . (:[]) . (,) hitTarget =<< getRandomR 90 110
     playSound SndBlessing
-    -- TODO fully cure all negative effects
     playSound SndShielding
+    playSound SndHaste
+    -- TODO fully cure slow/weakness/curse before applying positive buffs
     alterStatus hitTarget $
       (seApplyHaste $ Beneficial 12) . (seApplyMagicShield 13) .
-      (seApplyDefense $ Beneficial 14) . (seApplyBlessing $ Beneficial 15)
+      (seApplyDefense $ Beneficial 14) . (seApplyBlessing $ Beneficial 15) .
+      seAlterPoison (const 0) . sePurgeEntanglement . sePurgeMentalEffects
 featEffect JumpSlash =
   StandardFeat (const $ JumpTarget areaFn 3) $ \caster (endPos, targets) -> do
     characterBeginOffensiveAction caster endPos

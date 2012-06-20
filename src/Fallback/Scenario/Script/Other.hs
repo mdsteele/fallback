@@ -27,7 +27,7 @@ module Fallback.Scenario.Script.Other
    -- ** Mojo/adrenaline
    alterMana, alterCharacterMojo, restoreMojoToFull, alterAdrenaline,
    -- ** Status effects
-   alterStatus, alterCharacterStatus, alterMonsterStatus,
+   getStatus, alterStatus, alterCharacterStatus, alterMonsterStatus,
    grantInvisibility, inflictPoison, curePoison, inflictStun,
    -- ** Other
    grantExperience, removeFields, setFields,
@@ -219,6 +219,15 @@ alterAdrenaline charNum fn =
 
 -------------------------------------------------------------------------------
 -- Status effects:
+
+-- | Get the current status effects on the given target.
+getStatus :: (FromAreaEffect f) => HitTarget -> Script f StatusEffects
+getStatus hitTarget = do
+  mbOccupant <- getHitTargetOccupant hitTarget
+  case mbOccupant of
+    Just (Left charNum) -> areaGet (chrStatus . arsGetCharacter charNum)
+    Just (Right monstEntry) -> return $ monstStatus $ Grid.geValue monstEntry
+    Nothing -> return initStatusEffects
 
 -- | Directly alters the status effects of the target.
 alterStatus :: (FromAreaEffect f) => HitTarget

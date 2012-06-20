@@ -21,10 +21,12 @@
 
 module Fallback.State.Area where
 
+import Control.Arrow (right)
 import Control.Applicative ((<$), (<$>))
-import Data.List (find)
+import Data.Function (on)
+import Data.List (find, nubBy)
 import qualified Data.Map as Map
-import Data.Maybe (fromMaybe, isJust)
+import Data.Maybe (fromMaybe, isJust, mapMaybe)
 import qualified Data.Set as Set
 import Data.Traversable (for)
 import System.Random (Random, randomRIO)
@@ -84,7 +86,7 @@ tickAnimations cameraGoalTopleft eyes acs =
         case invis of
           NoInvisibility -> True
           MinorInvisibility ->
-            any (rectContains $ adjustRect1 (-1) $ Grid.geRect entry) eyes
+            any (rectContains $ expandPrect $ Grid.geRect entry) eyes
           MajorInvisibility -> False
 
 updateMinimap :: AreaCommonState -> [Position] -> IO ()
@@ -307,6 +309,8 @@ arsCharacterJumpDestinations radius charNum ars =
               (arsCharacterPosition charNum ars) Set.empty
   where isBlocked pos = cannotWalkOn (arsTerrainOpenness pos ars)
 
+-- | Get the occupant of the given position (either a character or a monster),
+-- if any.
 arsOccupant :: (AreaState a) => Position -> a
             -> Maybe (Either CharacterNumber (Grid.Entry Monster))
 arsOccupant pos ars =
@@ -314,10 +318,21 @@ arsOccupant pos ars =
     Just charNum -> Just (Left charNum)
     Nothing -> Right <$> Grid.search (arsMonsters ars) pos
 
+-- | Return 'True' if the given position is occupied (either by a character or
+-- a monster), 'False' otherwise.
 arsOccupied :: (AreaState a) => Position -> a -> Bool
 arsOccupied pos ars = isJust (arsOccupant pos ars)
 
--- | Return a list of all positions occupied by a character or an ally monster.
+-- | Return a list of all occupants of the given positions, with no occupant
+-- appearing more than once (e.g. in the case that a larger monster occupies
+-- multiple positions).
+arsOccupants :: (AreaState a) => [Position] -> a
+             -> [Either CharacterNumber (Grid.Entry Monster)]
+arsOccupants ps ars = nubBy ((==) `on` (right Grid.geKey)) $
+                      mapMaybe (flip arsOccupant ars) ps
+
+-- | Return a list of all positions that are occupied by a character or by an
+-- ally monster.
 arsAllyOccupiedPositions :: (AreaState a) => a -> [Position]
 arsAllyOccupiedPositions ars =
   (arsPartyPositions ars ++) $ concatMap (prectPositions . Grid.geRect) $

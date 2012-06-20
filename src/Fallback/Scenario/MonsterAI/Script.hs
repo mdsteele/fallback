@@ -55,7 +55,7 @@ getMonsterOpponentPositions :: (FromAreaEffect f) => Grid.Key Monster
 getMonsterOpponentPositions key = do
   maybeMonsterEntry key [] $ \entry -> do
   let isAlly = monstIsAlly $ Grid.geValue entry
-  let eyePrect = adjustRect1 (-1) $ Grid.geRect entry
+  let eyePrect = expandPrect $ Grid.geRect entry
   positions1 <- if isAlly then return [] else do
     charNums <- getAllConsciousCharacters
     forMaybeM charNums $ \charNum -> do

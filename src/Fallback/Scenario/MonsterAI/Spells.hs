@@ -160,7 +160,7 @@ prepMonsterSpell (SummonOne dep benefit cooldown duration tags) ge = do
 prepMonsterSpell TeleportAway ge = do
   ifSatisfies False $ do -- FIXME
   numAdjacentFoes <- length <$> foesInRect (monstIsAlly $ Grid.geValue ge)
-                                           (adjustRect1 (-1) $ Grid.geRect ge)
+                                           (expandPrect $ Grid.geRect ge)
   ifRandom (fromIntegral numAdjacentFoes * 0.25) $ do
   -- FIXME pick destination far from foes
   yieldSpell numAdjacentFoes $ do
