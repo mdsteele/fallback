@@ -27,7 +27,7 @@ module Fallback.Scenario.Script.Base
    wait, alsoWith, also_, concurrent, concurrent_, concurrentAny,
    forkScript, whenCombat, unlessCombat, whenDifficulty,
    -- * Query
-   HitTarget(..), getHitTargetOccupant,
+   HitTarget(..), getHitTargetOccupant, uniquifyHitTargets,
    lookupMonsterEntry, demandMonsterEntry, maybeMonsterEntry, withMonsterEntry,
    getAllConsciousCharacters, getAllAllyMonsters, getAllEnemyMonsters,
    getAllAllyTargets,
@@ -40,9 +40,10 @@ module Fallback.Scenario.Script.Base
 where
 
 import Control.Applicative ((<$>))
-import Control.Monad (forM_, replicateM_, when)
+import Control.Monad (forM, forM_, replicateM_, when)
 import Data.Array (elems)
 import qualified Data.Array.ST as STArray
+import Data.List (nub)
 import System.Random (Random)
 
 import Fallback.Control.Script
@@ -176,6 +177,7 @@ whenDifficulty fn script = do
 data HitTarget = HitCharacter CharacterNumber
                | HitMonster (Grid.Key Monster)
                | HitPosition Position
+  deriving (Eq)
 
 -- | Determine the character or monster at the given 'HitTarget', if any.
 getHitTargetOccupant :: (FromAreaEffect f) => HitTarget
@@ -185,6 +187,20 @@ getHitTargetOccupant (HitCharacter charNum) = return $ Just $ Left charNum
 getHitTargetOccupant (HitMonster monstKey) =
   fmap Right <$> lookupMonsterEntry monstKey
 getHitTargetOccupant (HitPosition pos) = areaGet (arsOccupant pos)
+
+-- | Transform and/or filter a list of HitTargets so that no character or
+-- monster is targeted more than once (even by HitPositions).
+uniquifyHitTargets :: (FromAreaEffect f) => [HitTarget] -> Script f [HitTarget]
+uniquifyHitTargets hitTargets = do
+  fmap nub $ forM hitTargets $ \hitTarget -> do
+    case hitTarget of
+      HitPosition _ -> do
+        mbOccupant <- getHitTargetOccupant hitTarget
+        return $ case mbOccupant of
+                   Just (Left charNum) -> HitCharacter charNum
+                   Just (Right entry) -> HitMonster (Grid.geKey entry)
+                   Nothing -> hitTarget
+      _ -> return hitTarget
 
 -- | Attempt to retrieve the entry for a given monster key.
 lookupMonsterEntry :: (FromAreaEffect f) => Grid.Key Monster

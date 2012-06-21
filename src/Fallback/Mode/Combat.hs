@@ -233,7 +233,7 @@ newCombatMode resources modes initState = do
               if not (hasEnoughActionPoints cs cc apNeeded) then ignore else do
               -- Check that the terrain isn't blocking us:
               let pos' = ccsPosition ccs `plusDir` dir
-              if arsIsBlockedForPartyModuloMonsters cs pos' then ignore else do
+              if cannotWalkOn (arsTerrainOpenness pos' cs) then ignore else do
               -- Check if the square is occupied:
               case arsOccupant pos' cs of
                 Nothing -> -- Walk

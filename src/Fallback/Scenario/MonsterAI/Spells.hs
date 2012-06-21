@@ -41,6 +41,7 @@ import Fallback.State.Party (partyDifficulty)
 import Fallback.State.Pathfind (allPathsFrom)
 import Fallback.State.Resources (SoundTag(..), StripTag(..))
 import Fallback.State.Simple
+import Fallback.State.Status
 import Fallback.State.Terrain (positionCenter, prectRect)
 import Fallback.Utility (ceilDiv, flip3, sumM)
 
@@ -147,6 +148,13 @@ prepMonsterSpell FrostMissiles ge = do
     when knockback $ do
       () <$ tryKnockBack (HitPosition target) dir
   return 2
+prepMonsterSpell (Shell benefit cooldown duration) ge = do
+  ifSatisfies (not $ isBeneficial $ seDefense $ monstStatus $
+               Grid.geValue ge) $ do
+  yieldSpell benefit $ do
+  playSound SndShielding
+  alterMonsterStatus (Grid.geKey ge) $ seApplyDefense (Beneficial duration)
+  return cooldown
 prepMonsterSpell (SummonOne dep benefit cooldown duration tags) ge = do
   ifSatisfies (not $ null tags) $ do
   tag <- getRandomElem tags

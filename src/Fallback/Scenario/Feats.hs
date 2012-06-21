@@ -43,8 +43,9 @@ import Fallback.State.Terrain (positionCenter, prectRect)
 featEffect :: FeatTag -> FeatEffect
 featEffect Offering = MetaAbility ZeroCost 3
 featEffect SolarFlare =
-  StandardFeat (MultiTarget 3) $ \_caster _targets -> do
-    return ()  -- FIXME
+  StandardFeat (MultiTarget 3) $ \caster targets -> do
+    -- TODO arrange to play one SndLuminaire, rather than N SndFireDamage's
+    concurrent_ targets $ characterWeaponAttack caster
 featEffect Energize =
   StandardFeat autoTarget $ \caster () -> do
     charNums <- getAllConsciousCharacters
@@ -90,15 +91,8 @@ featEffect Banish =
     -- Imprison remaining enemies:
     let imprison prect = do
           forM_ (prectPositions $ expandPrect prect) $ \pos -> do
-            blocked <- areaGet $ \ars ->
-              arsOccupied pos ars ||
-              case arsTerrainOpenness pos ars of
-                TerrainOpen -> False
-                TerrainHover -> False
-                _ -> True
-            unless blocked $ do
-              duration <- getRandomR (8 * framesPerRound) (12 * framesPerRound)
-              setFields (BarrierWall duration) [pos]
+            duration <- getRandomR (8 * framesPerRound) (12 * framesPerRound)
+            setFields (BarrierWall duration) [pos]
     forM_ targets $ \target -> do
       mbOccupant <- areaGet (arsOccupant target)
       case mbOccupant of
@@ -118,7 +112,7 @@ featEffect TidalForce =
     wait 12
     damage <- getRandomR 35 45 -- TODO how much damage?
     dealDamage $ map (\p -> (HitPosition p, ColdDamage, damage)) targets
-    -- TODO daze
+    massInflictMentalEffect DazedEffect 8 targets
     wait 12
 featEffect Eclipse =
   StandardFeat autoTarget $ \_caster () -> do
@@ -160,11 +154,10 @@ featEffect Avatar =
     playSound SndBlessing
     playSound SndShielding
     playSound SndHaste
-    -- TODO fully cure slow/weakness/curse before applying positive buffs
     alterStatus hitTarget $
       (seApplyHaste $ Beneficial 12) . (seApplyMagicShield 13) .
       (seApplyDefense $ Beneficial 14) . (seApplyBlessing $ Beneficial 15) .
-      seAlterPoison (const 0) . sePurgeEntanglement . sePurgeMentalEffects
+      sePurgeAllBadEffects
 featEffect JumpSlash =
   StandardFeat (const $ JumpTarget areaFn 3) $ \caster (endPos, targets) -> do
     characterBeginOffensiveAction caster endPos

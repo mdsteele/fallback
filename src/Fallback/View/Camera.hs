@@ -159,8 +159,8 @@ paintMonsters acs inCombat = mapM_ paintMonster monsters where
     let offset = animOffset (cpAnim pose) (rectTopleft rect)
     blitStretchTinted (Tint 255 255 255 (cpAlpha pose)) sprite
                       (prectRect rect `rectPlus` (offset `pSub` cameraTopleft))
-    paintStatusDecorations resources cameraTopleft (acsClock acs) rect
-                           (monstStatus monst)
+    paintStatusDecorations resources cameraTopleft (acsClock acs) offset rect
+                           (monstHeadPos entry) (monstStatus monst)
     when inCombat $ do
       paintHealthBar cameraTopleft (monstIsAlly monst) rect offset
                      (monstHealth monst) (mtMaxHealth mtype)
@@ -170,11 +170,13 @@ paintMonsters acs inCombat = mapM_ paintMonster monsters where
   monsters = Grid.entries $ acsMonsters acs
   resources = acsResources acs
 
-paintStatusDecorations :: Resources -> IPoint -> Clock -> PRect
-                       -> StatusEffects -> Paint ()
-paintStatusDecorations resources cameraTopleft clock prect status = do
+paintStatusDecorations :: Resources -> IPoint -> Clock -> IPoint -> PRect
+                       -> Position -> StatusEffects -> Paint ()
+paintStatusDecorations resources cameraTopleft clock offset
+                       prect headPos status = do
   let decor = rsrcStatusDecorations resources
-  let rect = fmap fromIntegral $ prectRect prect `rectMinus` cameraTopleft
+  let rect = fmap fromIntegral $
+             prectRect prect `rectPlus` (offset `pSub` cameraTopleft)
   let halfW = rectW rect / 2
       halfH = rectH rect / 2
   let centerPlus x y = rectCenter rect `pAdd` Point x y
@@ -182,9 +184,9 @@ paintStatusDecorations resources cameraTopleft clock prect status = do
   -- TODO decoration for bless/curse
   case seDefense status of
     Harmful _ -> do
-      let offset = 3 + clockZigzag 4 5 clock
-      let offsetX = fromIntegral (offset * rectW prect)
-          offsetY = fromIntegral (offset * rectH prect)
+      let offset' = 3 + clockZigzag 4 5 clock
+      let offsetX = fromIntegral (offset' * rectW prect)
+          offsetY = fromIntegral (offset' * rectH prect)
       let paint signx signy theta =
             blitRotate (sdWeaknessSprite decor)
             (centerPlus (signx * (halfW - offsetX))
@@ -230,6 +232,20 @@ paintStatusDecorations resources cameraTopleft clock prect status = do
           LocCenter $ centerPlus ((halfW - 2) * cos th) ((halfH - 2) * sin th)
     mapM_ paint [spinTheta + pi / 4, spinTheta + 3 * (pi / 4),
                  spinTheta + 5 * (pi / 4), spinTheta + 7 * (pi / 4)]
+  maybeM (seMentalEffect status) $ \mental -> do
+    let mentalTop = positionCenter headPos `pSub` Point 0 18 `pAdd`
+                    offset `pSub` cameraTopleft
+    case fst mental of
+      DazedEffect -> do
+        let idx = clockMod 4 8 clock
+        when (idx < 3) $ do
+          blitLoc (sdDazedStrip decor ! idx) (LocMidtop mentalTop)
+      ConfusedEffect -> do
+        blitLoc (sdConfusedSprite decor) $ LocMidtop $
+          mentalTop `pAdd` Point 0 (clockZigzag 3 10 clock)
+      CharmedEffect -> do
+        blitLoc (sdCharmedSprite decor) $ LocMidtop $
+          mentalTop `pAdd` Point 0 (clockZigzag 3 10 clock)
 
 paintHealthBar :: IPoint -> Bool -> PRect -> IPoint -> Int -> Int
                -> Maybe (Int, Int) -> Paint ()

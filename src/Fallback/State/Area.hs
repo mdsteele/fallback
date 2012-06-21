@@ -176,7 +176,7 @@ arsTerrainOpenness pos ars =
     Just (SmokeScreen _) -> smokifyOpenness openness
     _ -> if rectContains (arsBoundaryRect ars) pos then openness
          else solidifyOpenness openness
-  where openness = ttOpenness $ terrainGetTile pos $ acsTerrain $ arsCommon ars
+  where openness = ttOpenness $ terrainGetTile pos $ arsTerrain ars
 
 arsVisibleForParty :: (AreaState a) => a -> Set.Set Position
 arsVisibleForParty = acsVisible . arsCommon
@@ -202,12 +202,7 @@ arsIsBlockedForMonster ge ars pos =
 -- afoul of terrain, monsters, or other characters.
 arsIsBlockedForParty :: (AreaState a) => a -> Position -> Bool
 arsIsBlockedForParty ars pos =
-  arsIsBlockedForPartyModuloMonsters ars pos || arsOccupied pos ars
-
--- TODO: deprecated
-arsIsBlockedForPartyModuloMonsters :: (AreaState a) => a -> Position -> Bool
-arsIsBlockedForPartyModuloMonsters ars pos =
-  cannotWalkOn $ arsTerrainOpenness pos ars
+  cannotWalkOn (arsTerrainOpenness pos ars) || arsOccupied pos ars
 
 -- | Determine if there are any enemy monsters that could reach one or more
 -- party members within four steps, taking into account both terrain and the
@@ -279,7 +274,7 @@ arsFindOpenSpot :: (AreaState a) => a -> Position -> IRect -> Set.Set Position
 arsFindOpenSpot ars start within claimed = check Set.empty [start] where
   check _ [] = start  -- There are no open spots; just give up.
   check visited (next : rest) =
-    let ps = filter (not . arsIsBlockedForPartyModuloMonsters ars) $
+    let ps = filter (canWalkOn . flip arsTerrainOpenness ars) $
              filter (flip Set.notMember visited) $
              filter (rectContains within) $ map (next `plusDir`) allDirections
     in fromMaybe (check (foldr Set.insert visited ps) (rest ++ ps))

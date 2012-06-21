@@ -197,8 +197,8 @@ paintCharacters resources cameraTopleft cs =
       blitStretchTinted (Tint 255 255 255 (cpAlpha pose)) sprite $
         positionRect pos `rectPlus` (offset `pSub` cameraTopleft)
       let prect = makeRect pos (1, 1)
-      paintStatusDecorations resources cameraTopleft (arsClock cs)
-                             prect (chrStatus char)
+      paintStatusDecorations resources cameraTopleft (arsClock cs) offset
+                             prect pos (chrStatus char)
       paintHealthBar cameraTopleft True prect offset (chrHealth char)
                      (chrMaxHealth (arsParty cs) char) Nothing
 

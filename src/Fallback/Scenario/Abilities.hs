@@ -60,7 +60,7 @@ getAbility characterClass abilityNumber rank =
     Bash ->
       meta (FocusCost 1) MeleeOnly SingleTarget $
       \caster power endPos -> do
-        let effects = (if rank >= Rank3 then (InflictDaze 0.5 :) else id) $
+        let effects = (if rank >= Rank3 then (InflictDaze 0.08 :) else id) $
                       (if rank >= Rank2 then (KnockBack :) else id) $
                       [InflictStun (power * ranked 0.4 0.7 0.9)]
         attackWithExtraEffects caster endPos effects
@@ -82,9 +82,13 @@ getAbility characterClass abilityNumber rank =
     Spellshatter ->
       meta (FocusCost 1) MeleeOnly SingleTarget $
       \caster power endPos -> do
-        let effect = power * ranked 0.4 0.7 0.9
-        attackWithExtraEffects caster endPos [ReduceBuffs effect,
-                                              InflictCurse effect]
+        let amount = power * ranked 0.04 0.07 0.09
+        let effects =
+              (if rank < Rank2 then id else (InflictCurse amount :))
+              [ReduceMagicShield (amount * 2), PurgeInvisibility,
+               ReduceBlessing amount, ReduceDefense amount, ReduceHaste amount]
+        attackWithExtraEffects caster endPos effects
+        -- TODO at rank 3, also change status of enemies adjacent to target
     Riposte -> PassiveAbility
     Critical ->
       meta (FocusCost 1) MeleeOrRanged SingleTarget $
@@ -245,7 +249,14 @@ getAbility characterClass abilityNumber rank =
               [InflictPoison (0.6 * power), ExtraAcidDamage (0.4 * power),
                (SetField $ PoisonCloud $ power * 8)]
         attackWithExtraEffects caster endPos effects
-    Charm -> PassiveAbility -- FIXME
+    Charm ->
+      combat (mix Potash Potash) (SingleTarget 4) $ \_caster power endPos -> do
+        -- TODO doodad/sound
+        duration <- (8 * power *) <$> getRandomR 0.9 1.1
+        inflictMentalEffect (HitPosition endPos)
+                            (ranked ConfusedEffect CharmedEffect CharmedEffect)
+                            duration
+        -- TODO at rank 3, deal damage if the effect fails
     EagleEye -> PassiveAbility
     CurseShot ->
       meta (mix Brimstone Brimstone) RangedOnly SingleTarget $

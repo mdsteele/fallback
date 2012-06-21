@@ -76,18 +76,24 @@ data AttackElement = AcidAttack | EnergyAttack | FireAttack | IceAttack
 -- | Describes an additional effect of an attack, such as bonus elemental
 -- damage or a status effect.
 data AttackEffect = DrainMana Double -- mana drained per base damage
+                  -- TODO Replace all Extra??Damage with ExtraDamage DamageType
                   | ExtraAcidDamage Double -- extra damage per base damage
                   | ExtraEnergyDamage Double -- extra damage per base damage
                   | ExtraFireDamage Double -- extra damage per base damage
                   | ExtraIceDamage Double -- extra damage per base damage
                   | InflictCurse Double -- duration (in rounds) per base damage
+                  -- TODO Replace InflictDace with InflictMental MentalEffect
                   | InflictDaze Double
                   | InflictPoison Double -- poison per base damage
                   | InflictSlow Double -- duration (in rounds) per base damage
                   | InflictStun Double -- AP stun per base damage
                   | InflictWeakness Double -- duration (in rounds) per base dmg
                   | KnockBack -- knock target back one space
-                  | ReduceBuffs Double
+                  | PurgeInvisibility
+                  | ReduceBlessing Double -- rounds reduced per base damage
+                  | ReduceDefense Double -- rounds reduced per base damage
+                  | ReduceHaste Double -- rounds reduced per base damage
+                  | ReduceMagicShield Double -- rounds reduced per base damage
                   | SetField Field -- set field on target position
   deriving (Eq)
 

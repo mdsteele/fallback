@@ -250,6 +250,7 @@ getMonsterType Vhaegyst = baseMonsterType
                                  ResistStun =% 50],
     mtSpeed = 3.5,
     mtSpells = [FrostMissiles,
+                Shell 2 15 5,
                 SummonOne True 4 5 20 [Ghoul, Skeleton, Zombie],
                 SummonOne True 2 5 20 [Ghoul, Skeleton, Zombie]] }
 getMonsterType TownManRed = townsperson { mtImageRow = 10 }

@@ -173,6 +173,9 @@ data StatusDecorations = StatusDecorations
   { sdDefenseSprite :: Sprite,
     sdWeaknessSprite :: Sprite,
     sdSlowSprite :: Sprite,
+    sdDazedStrip :: Strip,
+    sdConfusedSprite :: Sprite,
+    sdCharmedSprite :: Sprite,
     sdMagicShieldSprite :: Sprite }
 
 loadStatusDecorations :: IO StatusDecorations
@@ -182,6 +185,12 @@ loadStatusDecorations = do
     { sdDefenseSprite = makeSubSprite (Rect 0 0 4 12) texture,
       sdWeaknessSprite = makeSubSprite (Rect 5 1 7 7) texture,
       sdSlowSprite = makeSubSprite (Rect 21 1 6 25) texture,
+      sdDazedStrip = listArray (0, 2) $
+        [makeSubSprite (Rect 0 39 13 13) texture,
+         makeSubSprite (Rect 0 26 13 13) texture,
+         makeSubSprite (Rect 0 13 13 13) texture],
+      sdConfusedSprite = makeSubSprite (Rect 14 27 9 12) texture,
+      sdCharmedSprite = makeSubSprite (Rect 15 40 7 12) texture,
       sdMagicShieldSprite = makeSubSprite (Rect 13 1 7 7) texture }
 
 -------------------------------------------------------------------------------

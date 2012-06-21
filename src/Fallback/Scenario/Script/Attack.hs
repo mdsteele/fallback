@@ -289,31 +289,32 @@ attackHit appearance element effects origin target critical damage = do
   attackHitAnimation appearance element target critical
   let hitTarget = HitPosition target
   extraHits <- flip3 foldM [] effects $ \hits effect -> do
+    let addHit kind mult = return ((hitTarget, kind, mult * damage) : hits)
+    let affectStatus fn = hits <$ alterStatus hitTarget fn
     case effect of
       DrainMana mult ->
         hits <$ alterMana hitTarget (subtract $ round $ mult * damage)
-      ExtraAcidDamage mult -> do
-        return ((hitTarget, AcidDamage, mult * damage) : hits)
-      ExtraEnergyDamage mult -> do
-        return ((hitTarget, EnergyDamage, mult * damage) : hits)
-      ExtraFireDamage mult -> do
-        return ((hitTarget, FireDamage, mult * damage) : hits)
-      ExtraIceDamage mult -> do
-        return ((hitTarget, ColdDamage, mult * damage) : hits)
+      ExtraAcidDamage mult -> addHit AcidDamage mult
+      ExtraEnergyDamage mult -> addHit EnergyDamage mult
+      ExtraFireDamage mult -> addHit FireDamage mult
+      ExtraIceDamage mult -> addHit ColdDamage mult
       InflictCurse mult ->
-        hits <$ (alterStatus hitTarget $ seApplyBlessing $
-                 Harmful (mult * damage))
+        affectStatus $ seApplyBlessing $ Harmful (mult * damage)
+      InflictDaze mult ->
+        hits <$ inflictMentalEffect hitTarget DazedEffect (mult * damage)
       InflictPoison mult -> hits <$ inflictPoison hitTarget (mult * damage)
-      InflictSlow mult ->
-        hits <$ (alterStatus hitTarget $ seApplyHaste $
-                 Harmful (mult * damage))
+      InflictSlow mult -> affectStatus $ seApplyHaste $ Harmful (mult * damage)
       InflictStun mult -> hits <$ inflictStun hitTarget (mult * damage)
       InflictWeakness mult ->
-        hits <$ (alterStatus hitTarget $ seApplyDefense $
-                 Harmful (mult * damage))
+        affectStatus $ seApplyDefense $ Harmful (mult * damage)
       KnockBack -> return hits
+      PurgeInvisibility -> affectStatus $ seSetInvisibility NoInvisibility
+      ReduceBlessing mult -> affectStatus $ seReduceBlessing (mult * damage)
+      ReduceDefense mult -> affectStatus $ seReduceDefense (mult * damage)
+      ReduceHaste mult -> affectStatus $ seReduceHaste (mult * damage)
+      ReduceMagicShield mult ->
+        affectStatus $ seReduceMagicShield (mult * damage)
       SetField field -> hits <$ setFields field [target]
-      _ -> return hits -- FIXME other effects
   let damageElement =
         case element of
           AcidAttack -> AcidDamage

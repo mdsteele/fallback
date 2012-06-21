@@ -29,6 +29,7 @@ module Fallback.Scenario.Script.Other
    -- ** Status effects
    getStatus, alterStatus, alterCharacterStatus, alterMonsterStatus,
    grantInvisibility, inflictPoison, curePoison, inflictStun,
+   inflictMentalEffect, massInflictMentalEffect,
    -- ** Other
    grantExperience, removeFields, setFields,
 
@@ -85,6 +86,7 @@ import Fallback.State.Resources
 import Fallback.State.Simple
 import Fallback.State.Status
 import Fallback.State.Tags (AreaTag, ItemTag(..), MonsterTag, WeaponItemTag)
+import Fallback.State.Terrain (terrainGetTile, ttOpenness)
 import Fallback.Utility (ceilDiv, forMaybeM, maybeM)
 
 -------------------------------------------------------------------------------
@@ -323,6 +325,33 @@ inflictStun hitTarget stun = do
                          round (stun' * fromIntegral momentsPerActionPoint) }
     Nothing -> return ()
 
+inflictMentalEffect :: HitTarget -> MentalEffect -> Double
+                    -> Script CombatEffect ()
+inflictMentalEffect hitTarget eff duration = do
+  mbOccupant <- getHitTargetOccupant hitTarget
+  maybeM mbOccupant (inflictMentalEffectOnOccupant eff duration)
+
+massInflictMentalEffect :: MentalEffect -> Double -> [Position]
+                        -> Script CombatEffect ()
+massInflictMentalEffect eff duration positions = do
+  occupants <- areaGet (arsOccupants positions)
+  forM_ occupants $ inflictMentalEffectOnOccupant eff duration
+
+inflictMentalEffectOnOccupant :: MentalEffect -> Double
+                              -> Either CharacterNumber (Grid.Entry Monster)
+                              -> Script CombatEffect ()
+inflictMentalEffectOnOccupant eff duration occupant = do
+  let applyEffect = seApplyMentalEffect eff duration
+  case occupant of
+    Left charNum -> do
+      success <- randomBool =<< do
+        areaGet (chrGetResistance ResistMental . arsGetCharacter charNum)
+      when success $ alterCharacterStatus charNum applyEffect
+    Right entry -> do
+      success <- randomBool (TM.get ResistMental $ mtResistances $ monstType $
+                             Grid.geValue entry)
+      when success $ alterMonsterStatus (Grid.geKey entry) applyEffect
+
 -------------------------------------------------------------------------------
 -- Camera motion:
 
@@ -499,19 +528,35 @@ replaceDevice :: (FromAreaEffect f) => Grid.Entry Device -> Device
 replaceDevice entry device =
   emitAreaEffect $ EffReplaceDevice (Grid.geKey entry) (Just device)
 
+-- | Place the given field in the given positions, subject to terrain
+-- restrictions and merging with existing fields in those positions.
 setFields :: (FromAreaEffect f) => Field -> [Position] -> Script f ()
-setFields field = emitAreaEffect . EffAlterFields fn where
-  fn Nothing = Just field
-  fn (Just field') = Just $
-    case (field', field) of
-      (BarrierWall a, BarrierWall b) -> BarrierWall (max a b)
-      (BarrierWall a, _) -> BarrierWall a
-      (FireWall a, FireWall b) -> FireWall (max a b)
-      (IceWall a, IceWall b) -> IceWall (max a b)
-      (PoisonCloud a, PoisonCloud b) -> PoisonCloud (max a b)
-      (SmokeScreen a, SmokeScreen b) -> SmokeScreen (max a b)
-      (Webbing a, Webbing b) -> Webbing (max a b)
-      _ -> field
+setFields field positions = do
+  let fn Nothing = Just field
+      fn (Just field') = Just $
+        case (field', field) of
+          (BarrierWall a, BarrierWall b) -> BarrierWall (max a b)
+          (BarrierWall a, _) -> BarrierWall a
+          (FireWall a, FireWall b) -> FireWall (max a b)
+          (IceWall a, IceWall b) -> IceWall (max a b)
+          (PoisonCloud a, PoisonCloud b) -> PoisonCloud (max a b)
+          (SmokeScreen a, SmokeScreen b) -> SmokeScreen (max a b)
+          (Webbing a, Webbing b) -> Webbing (max a b)
+          _ -> field
+  -- Restrict which positions we put fields in, based on the actual raw terrain
+  -- openness (i.e. not counting other fields or the combat area boundary).
+  getOpenness <- areaGet $ \ars pos ->
+    ttOpenness $ terrainGetTile pos $ arsTerrain ars
+  isOccupied <- areaGet (flip arsOccupied)
+  let canSet = case field of
+                 BarrierWall _ -> \p -> canFlyOver (getOpenness p) &&
+                                        not (isOccupied p)
+                 FireWall _ -> canWalkOn . getOpenness
+                 IceWall _ -> canWalkOn . getOpenness
+                 PoisonCloud _ -> canFlyOver . getOpenness
+                 SmokeScreen _ -> canFlyOver . getOpenness
+                 Webbing _ -> canWalkOn . getOpenness
+  emitAreaEffect $ EffAlterFields fn $ filter canSet positions
 
 setMonsterIsAlly :: (FromAreaEffect f) => Bool -> Grid.Key Monster
                  -> Script f ()

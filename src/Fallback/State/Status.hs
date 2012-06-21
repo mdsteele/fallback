@@ -20,7 +20,7 @@
 module Fallback.State.Status
   (-- * Status effects
    StatusEffects, initStatusEffects, decayStatusEffects,
-   HarmOrBenefit(..),
+   HarmOrBenefit(..), isBeneficial, isHarmful,
    -- ** Getters
    seBlessing, --seBlessingMultiplier,
    seDefense, seArmorMultiplier,
@@ -36,9 +36,10 @@ module Fallback.State.Status
    seApplyHaste, seReduceHaste, seReduceSlow,
    seAlterPoison,
    seSetInvisibility,
-   sePurgeMentalEffects, seWakeFromDaze,
+   seApplyMentalEffect, sePurgeMentalEffects, seWakeFromDaze,
    seApplyEntanglement, sePurgeEntanglement,
    seApplyMagicShield, seReduceMagicShield,
+   sePurgeAllBadEffects,
    -- * Status deltas
    StatusDelta, zeroStatusDelta, makeStatusDelta, applyStatusDelta,
    addStatusDeltas, sumStatusDeltas, divStatusDelta,
@@ -60,7 +61,15 @@ import Fallback.Utility (isFinite)
 data HarmOrBenefit = Harmful Double
                    | Unaffected
                    | Beneficial Double
-  deriving (Read, Show)
+  deriving (Eq, Read, Show)
+
+isBeneficial :: HarmOrBenefit -> Bool
+isBeneficial (Beneficial _) = True
+isBeneficial _ = False
+
+isHarmful :: HarmOrBenefit -> Bool
+isHarmful (Harmful _) = True
+isHarmful _ = False
 
 mergeHarmOrBenefit :: HarmOrBenefit -> HarmOrBenefit -> HarmOrBenefit
 mergeHarmOrBenefit hb1 hb2 = merge (validate hb1) (validate hb2) where
@@ -77,12 +86,6 @@ mergeHarmOrBenefit hb1 hb2 = merge (validate hb1) (validate hb2) where
       EQ -> Unaffected
       LT -> Beneficial (bene - harm)
 
-  -- When stacking two harms (or two benefits), the resulting duration is the
-  -- geometric mean of the max and the sum.  Thus, if one of the effects is
-  -- zero (or rather, nearly zero), you get the full effect of the other, but
-  -- otherwise you get a reduced effect.
-  stack a b = sqrt (max a b * (a + b))
-
   validate (Harmful a) = assert (isFinitePositive a) (Harmful a)
   validate Unaffected = Unaffected
   validate (Beneficial a) = assert (isFinitePositive a) (Beneficial a)
@@ -92,7 +95,7 @@ mergeMaybe 0 mb = mb
 mergeMaybe a mb = assert (isFinitePositive a) $
   case mb of
     Nothing -> Just a
-    Just b -> assert (isFinitePositive b) $ Just $ sqrt (max a b * (a + b))
+    Just b -> assert (isFinitePositive b) $ Just $ stack a b
 
 hobToDouble :: HarmOrBenefit -> Double
 hobToDouble (Harmful x) = assert (isFinitePositive x) $ negate x
@@ -239,6 +242,12 @@ seReduceMagicShield :: Double -> StatusEffects -> StatusEffects
 seReduceMagicShield x se =
   se { seMagicShield = reduceMaybe x (seMagicShield se) }
 
+seApplyMentalEffect :: MentalEffect -> Double -> StatusEffects -> StatusEffects
+seApplyMentalEffect eff dur se = se { seMentalEffect = Just me } where
+  me = case seMentalEffect se of
+         Just (eff', dur') | eff' == eff -> (eff, stack dur dur')
+         _ -> (eff, dur)
+
 -- | Completely remove all mental effects.
 sePurgeMentalEffects :: StatusEffects -> StatusEffects
 sePurgeMentalEffects se = se { seMentalEffect = Nothing }
@@ -251,6 +260,15 @@ seWakeFromDaze se =
   case seMentalEffect se of
     Just (DazedEffect, _) -> se { seMentalEffect = Nothing }
     _ -> se
+
+sePurgeAllBadEffects :: StatusEffects -> StatusEffects
+sePurgeAllBadEffects se =
+  se { seBlessing = purgeHarmful (seBlessing se),
+       seDefense = purgeHarmful (seDefense se),
+       seEntanglement = Nothing, seHaste = purgeHarmful (seHaste se),
+       seMentalEffect = Nothing, sePoison = 0 }
+  where purgeHarmful (Harmful _) = Unaffected
+        purgeHarmful hob = hob
 
 -------------------------------------------------------------------------------
 -- Status deltas:
@@ -313,6 +331,7 @@ applyStatusDelta sd =
 -------------------------------------------------------------------------------
 -- Types:
 
+-- TODO s/DazedEffect/Dazed/, etc.
 data MentalEffect = DazedEffect | ConfusedEffect | CharmedEffect
   deriving (Eq, Read, Show)
 
@@ -329,6 +348,13 @@ data Invisibility = NoInvisibility | MinorInvisibility | MajorInvisibility
 -- its magnitude never exceeds the limit.  The limit must be positive.
 compress :: Double {-^limit-} -> Double {-^value-} -> Double
 compress limit value = 2 * limit / (1 + exp (-2 * value / limit)) - limit
+
+-- | When stacking two harms (or two benefits), the resulting duration is the
+-- geometric mean of the max and the sum.  Thus, if one of the effects is zero
+-- (or rather, nearly zero), you get the full effect of the other, but
+-- otherwise you get a reduced effect.
+stack :: Double -> Double -> Double
+stack a b = sqrt (max a b * (a + b))
 
 townifyStatus :: StatusEffects -> StatusEffects
 townifyStatus status = status
