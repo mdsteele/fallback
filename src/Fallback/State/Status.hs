@@ -26,8 +26,8 @@ module Fallback.State.Status
    seDefense, seArmorMultiplier,
    seHaste, seSpeedMultiplier,
    sePoison,
-   seInvisibility, Invisibility(..),
-   seMentalEffect, MentalEffect(..),
+   seInvisibility,
+   seMentalEffect,
    seIsEntangled,
    seIsShielded, seMagicShieldMultiplier,
    -- ** Setters and modifiers
@@ -51,6 +51,7 @@ import Control.Exception (assert)
 import Data.Maybe (fromMaybe, isJust)
 import Data.List (foldl')
 
+import Fallback.State.Simple (Invisibility(..), MentalEffect(..))
 import Fallback.Utility (isFinite)
 
 -------------------------------------------------------------------------------
@@ -173,7 +174,7 @@ seArmorMultiplier se =
 
 seSpeedMultiplier :: StatusEffects -> Double
 seSpeedMultiplier se =
-  if fmap fst (seMentalEffect se) == Just DazedEffect then 0 else
+  if fmap fst (seMentalEffect se) == Just Dazed then 0 else
     case seHaste se of
       Harmful _ -> 2/3
       Unaffected -> 1
@@ -258,7 +259,7 @@ seSetInvisibility invis se = se { seInvisibility = invis }
 seWakeFromDaze :: StatusEffects -> StatusEffects
 seWakeFromDaze se =
   case seMentalEffect se of
-    Just (DazedEffect, _) -> se { seMentalEffect = Nothing }
+    Just (Dazed, _) -> se { seMentalEffect = Nothing }
     _ -> se
 
 sePurgeAllBadEffects :: StatusEffects -> StatusEffects
@@ -327,16 +328,6 @@ applyStatusDelta sd =
   (seApplyEntanglement $ sdEntanglement sd) .
   (seApplyHaste $ hobFromDouble $ sdHaste sd) .
   (seApplyMagicShield $ sdMagicShield sd) . (seAlterPoison (+ sdPoison sd))
-
--------------------------------------------------------------------------------
--- Types:
-
--- TODO s/DazedEffect/Dazed/, etc.
-data MentalEffect = DazedEffect | ConfusedEffect | CharmedEffect
-  deriving (Eq, Read, Show)
-
-data Invisibility = NoInvisibility | MinorInvisibility | MajorInvisibility
-  deriving (Eq, Ord, Read, Show)
 
 -------------------------------------------------------------------------------
 -- Utilities:

@@ -28,7 +28,6 @@ where
 
 import Control.Applicative ((<$>), (<*>))
 import Data.List (foldl', intercalate, partition)
-import Data.Monoid (Monoid(..))
 
 import qualified Fallback.Data.TotalMap as TM
 import Fallback.State.Simple
@@ -274,27 +273,26 @@ wdSubDesc wd = attackDesc ++ bonusesSubDesc (wdBonuses wd) ++ featsDesc ++
                concatMap (indent . effectLine) (wdEffects wd) ++ damageModsDesc
   damageLine = let (lo, hi) = wdDamageRange wd
                in show (lo * wdDamageBonus wd) ++ "-" ++
-                  show (hi * wdDamageBonus wd) ++ " " ++
-                  (case wdElement wd of
-                     AcidAttack -> "acid "
-                     EnergyAttack -> "energy "
-                     FireAttack -> "fire "
-                     IceAttack -> "ice "
-                     PhysicalAttack -> "") ++ "damage + " ++
-                  show lo ++ "-" ++ show hi ++ " per 5 strength\n"
+                  show (hi * wdDamageBonus wd) ++ dtypeName (wdElement wd) ++
+                  " damage + " ++ show lo ++ "-" ++ show hi ++
+                  " per 5 strength\n"
   rangeDesc = case wdRange wd of Melee -> "melee"
                                  Ranged r -> "range " ++ show r
   featsDesc = if null (wdFeats wd) then ""
               else "Feats:\n" ++ concatMap featLine (wdFeats wd)
   featLine featTag = indent (featName featTag ++ "\n")
   effectLine (DrainMana x) = "Drains mana" ++ effectNum x
-  effectLine (ExtraAcidDamage p) = showSignedPercent p ++ " acid damage\n"
-  effectLine (ExtraEnergyDamage p) = showSignedPercent p ++ " energy damage\n"
-  effectLine (ExtraFireDamage p) = showSignedPercent p ++ " fire damage\n"
-  effectLine (ExtraIceDamage p) = showSignedPercent p ++ " ice damage\n"
+  effectLine (ExtraDamage dtype p) =
+    showSignedPercent p ++ dtypeName dtype ++ " damage\n"
   effectLine (InflictCurse x) = "Curses target" ++ effectNum x
+  effectLine (InflictMental eff x) =
+    mentalEffectName eff ++ " target" ++ effectNum x
   effectLine (InflictPoison x) = "Poisons target" ++ effectNum x
+  effectLine (InflictSlow x) = "Slows target" ++ effectNum x
   effectLine (InflictStun x) = "Stuns target" ++ effectNum (x * 100)
+  effectLine (InflictWeakness x) = "Weakens target's armor" ++ effectNum x
+  effectLine KnockBack = "Knocks target back\n"
+  effectLine PurgeInvisibility = "Purges invisibility from target\n"
   effectLine _ = "FIXME some effect\n"
   effectNum x = " (effect " ++ show (round (100 * x) :: Int) ++ ")\n"
   damageModsDesc = concatMap damageModDesc $
@@ -307,6 +305,16 @@ wdSubDesc wd = attackDesc ++ bonusesSubDesc (wdBonuses wd) ++ featsDesc ++
       NormalDamage -> ""
       DoubleDamage -> indent $ "Double damage against " ++ name ++ "\n"
       InstantKill -> indent $ "Instant death to " ++ name ++ "\n"
+  dtypeName AcidDamage = " acid"
+  dtypeName ColdDamage = " ice"
+  dtypeName EnergyDamage = " energy"
+  dtypeName FireDamage = " fire"
+  dtypeName MagicDamage = " magical"
+  dtypeName PhysicalDamage = ""
+  dtypeName RawDamage = " raw"
+  mentalEffectName Dazed = "Dazes"
+  mentalEffectName Confused = "Confuses"
+  mentalEffectName Charmed = "Charms"
 
 adSubDesc :: ArmorData -> String
 adSubDesc ad = bonusesSubDesc (adBonuses ad) ++ usableSubDesc (adUsableBy ad)
@@ -435,7 +443,7 @@ data WeaponData = WeaponData
     wdDamageBonus :: Int,
     wdDamageRange :: (Int, Int),
     wdEffects :: [AttackEffect],
-    wdElement :: AttackElement,
+    wdElement :: DamageType,
     wdFeats :: [FeatTag],
     wdRange :: AttackRange,
     wdUsableBy :: TM.TotalMap CharacterClass Bool,
@@ -451,7 +459,7 @@ getWeaponData Sunrod = baseWeaponData
   { wdAppearance = WandAttack,
     wdDamageBonus = 20,
     wdDamageRange = (1, 6),
-    wdElement = FireAttack,
+    wdElement = FireDamage,
     wdFeats = [Offering, SolarFlare, Energize],
     wdRange = Ranged 6,
     wdVsUndead = InstantKill }
@@ -460,7 +468,6 @@ getWeaponData Starspear = baseWeaponData
     wdBonuses = sumBonuses [Armor +% 30, Intellect += 10],
     wdDamageBonus = 5,
     wdDamageRange = (1, 8),
-    wdElement = PhysicalAttack,
     wdFeats = [StarShield, Zodiac, Banish],
     wdRange = Melee,
     wdVsDaemonic = DoubleDamage }
@@ -469,7 +476,7 @@ getWeaponData Moonbow = baseWeaponData
     wdBonuses = (Agility += 10),
     wdDamageBonus = 7,
     wdDamageRange = (1, 7),
-    wdEffects = [ExtraIceDamage 0.5],
+    wdEffects = [ExtraDamage ColdDamage 0.5],
     wdFeats = [TidalForce, Eclipse, LunarBeam],
     wdRange = Ranged 5 }
 getWeaponData Lifeblade = baseWeaponData
@@ -512,7 +519,6 @@ getWeaponData RazorStar = baseWeaponData
   { wdAppearance = ThrownAttack,
     wdDamageBonus = 3,
     wdDamageRange = (1, 5),
-    wdElement = PhysicalAttack,
     wdFeats = [Pierce],
     wdRange = Ranged 5,
     wdUsableBy = only [RogueClass] }
@@ -542,7 +548,7 @@ getWeaponData SilverWand = baseWeaponData
   { wdAppearance = WandAttack,
     wdDamageBonus = 1,
     wdDamageRange = (1, 4),
-    wdElement = IceAttack,
+    wdElement = ColdDamage,
     wdFeats = [Glow],
     wdRange = Ranged 4,
     wdUsableBy = manaUsersOnly }
@@ -550,7 +556,7 @@ getWeaponData JeweledRod = baseWeaponData
   { wdAppearance = WandAttack,
     wdDamageBonus = 1,
     wdDamageRange = (1, 4),
-    wdElement = EnergyAttack,
+    wdElement = EnergyDamage,
     wdFeats = [Amplify],
     wdRange = Ranged 4,
     wdUsableBy = castersOnly }
@@ -558,7 +564,7 @@ getWeaponData GoldenWand = baseWeaponData
   { wdAppearance = WandAttack,
     wdDamageBonus = 2,
     wdDamageRange = (1, 4),
-    wdElement = FireAttack,
+    wdElement = FireDamage,
     wdFeats = [Radiate],
     wdRange = Ranged 4,
     wdUsableBy = manaUsersOnly }
@@ -566,7 +572,7 @@ getWeaponData DiamondRod = baseWeaponData
   { wdAppearance = WandAttack,
     wdDamageBonus = 2,
     wdDamageRange = (1, 4),
-    wdElement = EnergyAttack,
+    wdElement = EnergyDamage,
     wdFeats = [Resonate],
     wdRange = Ranged 4,
     wdUsableBy = manaUsersOnly }
@@ -588,7 +594,7 @@ baseWeaponData = WeaponData
     wdDamageBonus = 0,
     wdDamageRange = (1, 1),
     wdEffects = [],
-    wdElement = PhysicalAttack,
+    wdElement = PhysicalDamage,
     wdFeats = [],
     wdRange = Melee,
     wdUsableBy = anyone,
@@ -720,11 +726,6 @@ data Bonuses = Bonuses
     bonusResistances :: Resistances,
     bonusSpeedMultiplier :: Double,
     bonusStats :: Stats }
-
-instance Monoid Bonuses where
-  mempty = nullBonuses
-  mappend = addBonuses
-  mconcat = sumBonuses
 
 -- | No bonuses of any kind.
 nullBonuses :: Bonuses

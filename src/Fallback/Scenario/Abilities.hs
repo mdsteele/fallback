@@ -60,9 +60,10 @@ getAbility characterClass abilityNumber rank =
     Bash ->
       meta (FocusCost 1) MeleeOnly SingleTarget $
       \caster power endPos -> do
-        let effects = (if rank >= Rank3 then (InflictDaze 0.08 :) else id) $
-                      (if rank >= Rank2 then (KnockBack :) else id) $
-                      [InflictStun (power * ranked 0.4 0.7 0.9)]
+        let effects =
+              (if rank >= Rank3 then (InflictMental Dazed 0.08 :) else id) $
+              (if rank >= Rank2 then (KnockBack :) else id) $
+              [InflictStun (power * ranked 0.4 0.7 0.9)]
         attackWithExtraEffects caster endPos effects
     Valiance -> PassiveAbility
     SecondWind ->
@@ -236,7 +237,7 @@ getAbility characterClass abilityNumber rank =
       \caster power endPos -> do
         let effects = (if rank < Rank3 then id
                        else ((SetField $ FireWall $ power * 8) :)) $
-                      [ExtraFireDamage (power * ranked 0.4 0.7 0.9)]
+                      [ExtraDamage FireDamage (power * ranked 0.4 0.7 0.9)]
         attackWithExtraEffects caster endPos effects
     Entangle -> PassiveAbility -- FIXME
     Recuperation -> PassiveAbility
@@ -245,8 +246,10 @@ getAbility characterClass abilityNumber rank =
       \caster power endPos -> do
         let effects = ranked
               [InflictPoison (0.3 * power)]
-              [InflictPoison (0.4 * power), ExtraAcidDamage (0.3 * power)]
-              [InflictPoison (0.6 * power), ExtraAcidDamage (0.4 * power),
+              [InflictPoison (0.4 * power),
+               ExtraDamage AcidDamage (0.3 * power)]
+              [InflictPoison (0.6 * power),
+               ExtraDamage AcidDamage (0.4 * power),
                (SetField $ PoisonCloud $ power * 8)]
         attackWithExtraEffects caster endPos effects
     Charm ->
@@ -254,8 +257,7 @@ getAbility characterClass abilityNumber rank =
         -- TODO doodad/sound
         duration <- (8 * power *) <$> getRandomR 0.9 1.1
         inflictMentalEffect (HitPosition endPos)
-                            (ranked ConfusedEffect CharmedEffect CharmedEffect)
-                            duration
+                            (ranked Confused Charmed Charmed) duration
         -- TODO at rank 3, deal damage if the effect fails
     EagleEye -> PassiveAbility
     CurseShot ->

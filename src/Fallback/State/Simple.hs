@@ -67,23 +67,12 @@ data AttackAppearance = BiteAttack | BladeAttack | BluntAttack | BowAttack
                       | BreathAttack | ClawAttack | ThrownAttack | WandAttack
   deriving (Eq)
 
--- | Determines the base damage element for an attack.  This is usually
--- 'PhysicalAttack', except for wands and e.g. monster breath weapons.
-data AttackElement = AcidAttack | EnergyAttack | FireAttack | IceAttack
-                   | PhysicalAttack
--- TODO eliminate AttackElement, replace with DamageType
-
 -- | Describes an additional effect of an attack, such as bonus elemental
 -- damage or a status effect.
 data AttackEffect = DrainMana Double -- mana drained per base damage
-                  -- TODO Replace all Extra??Damage with ExtraDamage DamageType
-                  | ExtraAcidDamage Double -- extra damage per base damage
-                  | ExtraEnergyDamage Double -- extra damage per base damage
-                  | ExtraFireDamage Double -- extra damage per base damage
-                  | ExtraIceDamage Double -- extra damage per base damage
+                  | ExtraDamage DamageType Double -- extra damage per base dmg
                   | InflictCurse Double -- duration (in rounds) per base damage
-                  -- TODO Replace InflictDace with InflictMental MentalEffect
-                  | InflictDaze Double
+                  | InflictMental MentalEffect Double -- rounds per base dmg
                   | InflictPoison Double -- poison per base damage
                   | InflictSlow Double -- duration (in rounds) per base damage
                   | InflictStun Double -- AP stun per base damage
@@ -189,6 +178,7 @@ data DamageType = AcidDamage -- subject to chemical resistance and magic armor
                 | MagicDamage -- subject to magic armor only
                 | PhysicalDamage -- subject to physical armor only
                 | RawDamage -- not subject to resistances at all
+  deriving (Eq)
 
 -------------------------------------------------------------------------------
 
@@ -267,6 +257,14 @@ ingredientCost Potash = 10
 ingredientCost Brimstone = 15
 ingredientCost DryIce = 25
 ingredientCost Quicksilver = 50
+
+-------------------------------------------------------------------------------
+
+data Invisibility = NoInvisibility | MinorInvisibility | MajorInvisibility
+  deriving (Eq, Ord, Read, Show)
+
+data MentalEffect = Dazed | Confused | Charmed
+  deriving (Eq, Read, Show)
 
 -------------------------------------------------------------------------------
 

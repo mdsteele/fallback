@@ -27,9 +27,8 @@ import Data.Maybe (isJust)
 
 import Fallback.State.Creature.Base
 import Fallback.State.Creature.Monsters (getMonsterType)
-import Fallback.State.Simple (FaceDir(..), sizeSize)
-import Fallback.State.Status
-  (Invisibility(..), initStatusEffects, seInvisibility)
+import Fallback.State.Simple (FaceDir(..), Invisibility(..), sizeSize)
+import Fallback.State.Status (initStatusEffects, seInvisibility)
 import Fallback.State.Tags (MonsterTag)
 
 -------------------------------------------------------------------------------

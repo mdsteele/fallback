@@ -50,7 +50,6 @@ import Fallback.State.Progress
   (DeviceId, HasProgress, TriggerId, Var, VarType, progressSetVar)
 import Fallback.State.Resources (MusicTag, Resources, musicPath)
 import Fallback.State.Simple
-import Fallback.State.Status (Invisibility(..))
 import Fallback.State.Tags (AreaTag, ItemTag, QuestTag)
 import Fallback.State.Terrain
 

@@ -33,7 +33,6 @@ import Fallback.State.FOV (fieldOfView)
 import Fallback.State.Party
 import Fallback.State.Progress (HasProgress, getProgress)
 import Fallback.State.Simple
-import Fallback.State.Status (Invisibility(NoInvisibility))
 import Fallback.State.Tags (AreaTag, ItemTag)
 import Fallback.State.Terrain (positionCenter, terrainSize)
 

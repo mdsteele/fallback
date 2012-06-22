@@ -50,7 +50,7 @@ import Fallback.State.Doodad (Message(..))
 import Fallback.State.Party
 import Fallback.State.Resources
 import Fallback.State.Simple
-  (AttackRange, CharacterNumber, Field(..), rangeSqDist)
+  (AttackRange, CharacterNumber, Field(..), MentalEffect(..), rangeSqDist)
 import Fallback.State.Status
 import Fallback.State.Terrain
 import Fallback.State.Tileset
@@ -236,14 +236,14 @@ paintStatusDecorations resources cameraTopleft clock offset
     let mentalTop = positionCenter headPos `pSub` Point 0 18 `pAdd`
                     offset `pSub` cameraTopleft
     case fst mental of
-      DazedEffect -> do
+      Dazed -> do
         let idx = clockMod 4 8 clock
         when (idx < 3) $ do
           blitLoc (sdDazedStrip decor ! idx) (LocMidtop mentalTop)
-      ConfusedEffect -> do
+      Confused -> do
         blitLoc (sdConfusedSprite decor) $ LocMidtop $
           mentalTop `pAdd` Point 0 (clockZigzag 3 10 clock)
-      CharmedEffect -> do
+      Charmed -> do
         blitLoc (sdCharmedSprite decor) $ LocMidtop $
           mentalTop `pAdd` Point 0 (clockZigzag 3 10 clock)
 

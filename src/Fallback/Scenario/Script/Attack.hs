@@ -168,7 +168,7 @@ monsterAttackHit ma origin target critical damage = do
 -------------------------------------------------------------------------------
 
 attackInitialAnimation :: (FromAreaEffect f) => AttackAppearance
-                       -> AttackElement -> Position -> Position -> Script f ()
+                       -> DamageType -> Position -> Position -> Script f ()
 attackInitialAnimation appearance element origin target = do
   case appearance of
     BiteAttack -> return ()
@@ -179,11 +179,13 @@ attackInitialAnimation appearance element origin target = do
       addBallisticDoodad ArrowProj origin target 250 >>= wait
     BreathAttack -> do
       let proj = case element of
-                   AcidAttack -> AcidProj
-                   EnergyAttack -> IceProj -- FIXME
-                   FireAttack -> FireProj
-                   IceAttack -> IceProj
-                   PhysicalAttack -> StarProj
+                   AcidDamage -> AcidProj
+                   ColdDamage -> IceProj
+                   EnergyDamage -> IceProj -- FIXME
+                   FireDamage -> FireProj
+                   MagicDamage -> IceProj -- FIXME
+                   PhysicalDamage -> StarProj
+                   RawDamage -> StarProj
       playSound SndBreath
       addBallisticDoodad proj origin target 220 >>= wait
     ClawAttack -> return ()
@@ -192,11 +194,13 @@ attackInitialAnimation appearance element origin target = do
       addBallisticDoodad StarProj origin target 200 >>= wait
     WandAttack -> do
       let tint = case element of
-                   AcidAttack -> Tint 0 255 0 192
-                   EnergyAttack -> Tint 255 192 64 192
-                   FireAttack -> Tint 255 0 0 192
-                   IceAttack -> Tint 0 255 255 192
-                   PhysicalAttack -> Tint 255 255 255 192
+                   AcidDamage -> Tint 0 255 0 192
+                   ColdDamage -> Tint 0 255 255 192
+                   EnergyDamage -> Tint 255 192 64 192
+                   FireDamage -> Tint 255 0 0 192
+                   MagicDamage -> Tint 192 64 255 192
+                   PhysicalDamage -> Tint 255 255 255 192
+                   RawDamage -> Tint 0 0 0 192
       addLightningDoodad tint origin target
 
 determineIfAttackMisses :: Either CharacterNumber (Grid.Key Monster)
@@ -243,16 +247,18 @@ determineIfAttackMisses attacker target isRanged = do
       doTryAvoid (monstAgility $ Grid.geValue monstEntry)
     Nothing -> True <$ playMissSound
 
-attackHitAnimation :: (FromAreaEffect f) => AttackAppearance -> AttackElement
+attackHitAnimation :: (FromAreaEffect f) => AttackAppearance -> DamageType
                    -> Position -> Bool -> Script f ()
 attackHitAnimation appearance element target critical = do
   -- TODO take attack effects into account (in addition to main attack element)
   -- when choosing sound/doodad
-  let elementSnd AcidAttack = SndChemicalDamage
-      elementSnd FireAttack = if critical then SndBoomSmall else SndFireDamage
-      elementSnd EnergyAttack = SndLightning
-      elementSnd IceAttack = SndFreeze
-      elementSnd PhysicalAttack = if critical then SndHit3 else SndHit4
+  let elementSnd AcidDamage = SndChemicalDamage
+      elementSnd ColdDamage = SndFreeze
+      elementSnd FireDamage = if critical then SndBoomSmall else SndFireDamage
+      elementSnd EnergyDamage = SndLightning
+      elementSnd MagicDamage = SndLightning
+      elementSnd PhysicalDamage = if critical then SndHit3 else SndHit4
+      elementSnd RawDamage = SndHit1
   playSound $
     case appearance of
       BiteAttack -> SndBite
@@ -265,11 +271,13 @@ attackHitAnimation appearance element target critical = do
       WandAttack -> elementSnd element
   let elementBoom = do
         let boom = case element of
-                     AcidAttack -> AcidBoom
-                     EnergyAttack -> EnergyBoom
-                     FireAttack -> FireBoom
-                     IceAttack -> IceBoom
-                     PhysicalAttack -> SlashRight
+                     AcidDamage -> AcidBoom
+                     ColdDamage -> IceBoom
+                     EnergyDamage -> EnergyBoom
+                     FireDamage -> FireBoom
+                     MagicDamage -> DarkBoom
+                     PhysicalDamage -> SlashRight
+                     RawDamage -> SlashRight
         addBoomDoodadAtPosition boom (if critical then 3 else 2) target
   case appearance of
     BiteAttack -> addBoomDoodadAtPosition SlashRight 2 target -- FIXME
@@ -283,25 +291,22 @@ attackHitAnimation appearance element target critical = do
     ThrownAttack -> addBoomDoodadAtPosition SlashRight 2 target -- FIXME
     WandAttack -> elementBoom
 
-attackHit :: AttackAppearance -> AttackElement -> [AttackEffect] -> Position
+attackHit :: AttackAppearance -> DamageType -> [AttackEffect] -> Position
           -> Position -> Bool -> Double -> Script CombatEffect ()
 attackHit appearance element effects origin target critical damage = do
   attackHitAnimation appearance element target critical
   let hitTarget = HitPosition target
   extraHits <- flip3 foldM [] effects $ \hits effect -> do
-    let addHit kind mult = return ((hitTarget, kind, mult * damage) : hits)
     let affectStatus fn = hits <$ alterStatus hitTarget fn
     case effect of
       DrainMana mult ->
         hits <$ alterMana hitTarget (subtract $ round $ mult * damage)
-      ExtraAcidDamage mult -> addHit AcidDamage mult
-      ExtraEnergyDamage mult -> addHit EnergyDamage mult
-      ExtraFireDamage mult -> addHit FireDamage mult
-      ExtraIceDamage mult -> addHit ColdDamage mult
+      ExtraDamage dtype mult ->
+        return ((hitTarget, dtype, mult * damage) : hits)
       InflictCurse mult ->
         affectStatus $ seApplyBlessing $ Harmful (mult * damage)
-      InflictDaze mult ->
-        hits <$ inflictMentalEffect hitTarget DazedEffect (mult * damage)
+      InflictMental eff mult ->
+        hits <$ inflictMentalEffect hitTarget eff (mult * damage)
       InflictPoison mult -> hits <$ inflictPoison hitTarget (mult * damage)
       InflictSlow mult -> affectStatus $ seApplyHaste $ Harmful (mult * damage)
       InflictStun mult -> hits <$ inflictStun hitTarget (mult * damage)
@@ -315,21 +320,14 @@ attackHit appearance element effects origin target critical damage = do
       ReduceMagicShield mult ->
         affectStatus $ seReduceMagicShield (mult * damage)
       SetField field -> hits <$ setFields field [target]
-  let damageElement =
-        case element of
-          AcidAttack -> AcidDamage
-          EnergyAttack -> EnergyDamage
-          FireAttack -> FireDamage
-          IceAttack -> ColdDamage
-          PhysicalAttack -> PhysicalDamage
   when critical $ addFloatingWordOnTarget WordCritical hitTarget
-  dealDamage ((hitTarget, damageElement, damage) : extraHits)
+  dealDamage ((hitTarget, element, damage) : extraHits)
   when (KnockBack `elem` effects) $ do
     _ <- tryKnockBack hitTarget $ ipointDir (target `pSub` origin)
     return ()
   wait 16
 
-instantKill :: AttackAppearance -> AttackElement -> Position -> Bool
+instantKill :: AttackAppearance -> DamageType -> Position -> Bool
             -> Script CombatEffect ()
 instantKill appearance element target critical = do
   attackHitAnimation appearance element target critical

@@ -32,7 +32,8 @@ import Fallback.State.Area
 import Fallback.State.Creature
 import Fallback.State.FOV (fieldOfView)
 import Fallback.State.Party (chrStatus)
-import Fallback.State.Status (Invisibility(..), seInvisibility)
+import Fallback.State.Simple (Invisibility(..))
+import Fallback.State.Status (seInvisibility)
 import Fallback.State.Terrain (terrainSize)
 import Fallback.Utility (forMaybeM)
 

@@ -27,7 +27,6 @@ import Data.List (foldl')
 import qualified Fallback.Data.TotalMap as TM (set)
 import Fallback.State.Creature.Base
 import Fallback.State.Simple
-import Fallback.State.Status (Invisibility(..))
 import Fallback.State.Tags (MonsterTag(..))
 
 -------------------------------------------------------------------------------
@@ -44,7 +43,7 @@ getMonsterType Dactylid = baseMonsterType
         maCriticalChance = 0.05,
         maDamageCount = 6,
         maDamageRange = (1, 8),
-        maElement = FireAttack,
+        maElement = FireDamage,
         maRange = Ranged 8 }],
     mtExperienceValue = 1000,
     mtImageRow = 28,
@@ -58,14 +57,11 @@ getMonsterType Dactylid = baseMonsterType
     mtSpeed = 2 }
 getMonsterType Revenant = baseMonsterType
   { mtAgility = 30,
-    mtAttacks = [MonsterAttack
+    mtAttacks = [baseMonsterAttack
       { maAppearance = BladeAttack,
         maCriticalChance = 0.05,
         maDamageCount = 10,
-        maDamageRange = (1, 10),
-        maElement = PhysicalAttack,
-        maEffects = [],
-        maRange = Melee }],
+        maDamageRange = (1, 10) }],
     mtExperienceValue = 100,
     mtImageRow = 0,
     mtIsUndead = True,
@@ -77,7 +73,7 @@ getMonsterType Revenant = baseMonsterType
     mtWalksFast = True }
 getMonsterType Revenantor = baseMonsterType
   { mtAgility = 50,
-    mtAttacks = map attack [EnergyAttack, FireAttack, IceAttack, AcidAttack],
+    mtAttacks = map attack [EnergyDamage, FireDamage, ColdDamage, AcidDamage],
     mtExperienceValue = 100,
     mtImageRow = 1,
     mtIsUndead = True,
@@ -99,14 +95,11 @@ getMonsterType Revenantor = baseMonsterType
         maRange = Ranged 3 }
 getMonsterType MasterRevenant = baseMonsterType
   { mtAgility = 50,
-    mtAttacks = [MonsterAttack
+    mtAttacks = [baseMonsterAttack
       { maAppearance = ClawAttack,
         maCriticalChance = 0.5,
         maDamageCount = 20,
-        maDamageRange = (1, 20),
-        maElement = PhysicalAttack,
-        maEffects = [],
-        maRange = Melee }],
+        maDamageRange = (1, 20) }],
     mtExperienceValue = 100,
     mtImageRow = 0,
     mtIsUndead = True,
@@ -141,7 +134,7 @@ getMonsterType DemonWolf = baseMonsterType
         maCriticalChance = 0.05,
         maDamageCount = 8,
         maDamageRange = (2, 6),
-        maElement = AcidAttack,
+        maElement = AcidDamage,
         maEffects = [InflictPoison 1.5],
         maRange = Ranged 4 }],
     mtExperienceValue = 30,
@@ -209,7 +202,7 @@ getMonsterType Wraith = baseMonsterType
         maDamageCount = 8,
         maDamageRange = (1, 6),
         maEffects = [InflictCurse 0.1],
-        maElement = EnergyAttack,
+        maElement = EnergyDamage,
         maRange = Ranged 6 }],
     mtExperienceValue = 150,
     mtImageRow = 5,
@@ -239,8 +232,7 @@ getMonsterType Vhaegyst = baseMonsterType
       { maAppearance = ClawAttack,
         maCriticalChance = 0.8,
         maDamageCount = 8,
-        maDamageRange = (1, 20),
-        maElement = IceAttack }],
+        maDamageRange = (1, 20) }],
     mtExperienceValue = 500,
     mtImageRow = 3,
     mtIsUndead = True,
@@ -304,7 +296,7 @@ baseMonsterAttack = MonsterAttack
     maCriticalChance = 0,
     maDamageCount = 1,
     maDamageRange = (1, 1),
-    maElement = PhysicalAttack,
+    maElement = PhysicalDamage,
     maEffects = [],
     maRange = Melee }
 

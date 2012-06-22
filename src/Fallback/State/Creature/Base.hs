@@ -33,7 +33,7 @@ import Fallback.Data.Point
 import Fallback.Draw (Sprite)
 import Fallback.State.Progress (MonsterScriptId, Var)
 import Fallback.State.Simple
-import Fallback.State.Status (Invisibility(..), StatusEffects)
+import Fallback.State.Status (StatusEffects)
 import Fallback.State.Tags (MonsterTag)
 
 -------------------------------------------------------------------------------
@@ -177,7 +177,7 @@ data MonsterAttack = MonsterAttack
     maCriticalChance :: Double,
     maDamageCount :: Int,
     maDamageRange :: (Int, Int),
-    maElement :: AttackElement,
+    maElement :: DamageType,
     maEffects :: [AttackEffect],
     maRange :: AttackRange }
 
