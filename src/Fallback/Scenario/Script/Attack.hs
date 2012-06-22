@@ -134,7 +134,7 @@ monsterPerformAttack key attack target = do
   miss <- determineIfAttackMisses (Right key) target (maRange attack /= Melee)
   unless miss $ do
   (critical, damage) <- monsterAttackChooseCritical attack =<<
-                        monsterAttackBaseDamage attack
+                        monsterAttackBaseDamage key attack
   origin <- getMonsterHeadPos key
   monsterAttackHit attack origin target critical damage
 
@@ -146,12 +146,15 @@ monsterAttackInitialAnimation key attack target = do
     attackInitialAnimation (maAppearance attack) (maElement attack)
                            (monstHeadPos entry) target
 
-monsterAttackBaseDamage :: (FromAreaEffect f) => MonsterAttack
-                        -> Script f Double
-monsterAttackBaseDamage attack = do
+monsterAttackBaseDamage :: (FromAreaEffect f) => Grid.Key Monster
+                        -> MonsterAttack -> Script f Double
+monsterAttackBaseDamage key attack = do
   let dieRoll = uncurry getRandomR (maDamageRange attack)
   let rollDice n = sum <$> replicateM n dieRoll
-  fromIntegral <$> rollDice (maDamageCount attack)
+  damage <- fromIntegral <$> rollDice (maDamageCount attack)
+  status <- maybe initStatusEffects (monstStatus . Grid.geValue) <$>
+            lookupMonsterEntry key
+  return (damage * seAttackDamageMultiplier status)
 
 monsterAttackChooseCritical :: (FromAreaEffect f) => MonsterAttack -> Double
                             -> Script f (Bool, Double)
@@ -208,18 +211,16 @@ determineIfAttackMisses :: Either CharacterNumber (Grid.Key Monster)
 determineIfAttackMisses attacker target isRanged = do
   attackAgil <- do
     case attacker of
-      -- TODO take EagleEye rank 1 into account
-      Left charNum -> chrGetStat Agility <$> areaGet (arsGetCharacter charNum)
-      Right monstKey -> monstAgility . Grid.geValue <$>
-                        demandMonsterEntry monstKey
+      Left charNum -> areaGet (chrAttackAgility . arsGetCharacter charNum)
+      Right monstKey -> do
+        monstAttackAgility . Grid.geValue <$> demandMonsterEntry monstKey
   let playMissSound = playSound =<< getRandomElem [SndMiss1, SndMiss2]
   let missWithProb probMiss onMiss = do
         miss <- randomBool probMiss
         if not miss then return False else do True <$ onMiss
-  let doTryAvoid defendAgil = do
-        -- TODO take bless/curse into account
-        -- TODO take invisibility into account
-        let input = fromIntegral (attackAgil - defendAgil) / 15 + 4
+  let doTryAvoid defendAgil inv = do
+        let defendAgil' = defendAgil + if inv == NoInvisibility then 0 else 20
+        let input = fromIntegral (attackAgil - defendAgil') / 15 + 4
         let probMiss = 1 - 0.5 * (1 + input / (1 + abs input))
         missWithProb probMiss $ do
           playMissSound
@@ -242,9 +243,10 @@ determineIfAttackMisses attacker target isRanged = do
           playMissSound -- TODO maybe different sound?  e.g. clang?
           addFloatingWordOnTarget WordParry (HitCharacter charNum)
       if parry then return True else do
-      doTryAvoid (chrGetStat Agility char)
+      doTryAvoid (chrAttackAgility char) (seInvisibility $ chrStatus char)
     Just (Right monstEntry) -> do
-      doTryAvoid (monstAgility $ Grid.geValue monstEntry)
+      let monst = Grid.geValue monstEntry
+      doTryAvoid (monstAttackAgility monst) (monstInvisibility monst)
     Nothing -> True <$ playMissSound
 
 attackHitAnimation :: (FromAreaEffect f) => AttackAppearance -> DamageType
@@ -343,5 +345,23 @@ instantKill appearance element target critical = do
       killTarget hitTarget
     Nothing -> return ()
   wait 16
+
+-------------------------------------------------------------------------------
+
+-- | Return the character's total agility as relevant to attacks, taking
+-- skills, item bonuses, and status effects into account.
+chrAttackAgility :: Character -> Int
+chrAttackAgility char =
+  chrGetStat Agility char +
+  seAttackAgilityModifier (chrStatus char) +
+  case wdRange $ chrEquippedWeaponData char of
+    Melee -> 0
+    Ranged _ -> if chrAbilityRank EagleEye char >= Just Rank1 then 20 else 0
+
+-- | Get the monster's total agility as relevant to attacks, taking into
+-- account status effects.
+monstAttackAgility :: Monster -> Int
+monstAttackAgility monst =
+  mtAgility (monstType monst) + seAttackAgilityModifier (monstStatus monst)
 
 -------------------------------------------------------------------------------

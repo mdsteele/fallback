@@ -232,10 +232,10 @@ paintStatusDecorations resources cameraTopleft clock offset
           LocCenter $ centerPlus ((halfW - 2) * cos th) ((halfH - 2) * sin th)
     mapM_ paint [spinTheta + pi / 4, spinTheta + 3 * (pi / 4),
                  spinTheta + 5 * (pi / 4), spinTheta + 7 * (pi / 4)]
-  maybeM (seMentalEffect status) $ \mental -> do
+  maybeM (seMentalEffect status) $ \eff -> do
     let mentalTop = positionCenter headPos `pSub` Point 0 18 `pAdd`
                     offset `pSub` cameraTopleft
-    case fst mental of
+    case eff of
       Dazed -> do
         let idx = clockMod 4 8 clock
         when (idx < 3) $ do

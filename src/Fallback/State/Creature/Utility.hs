@@ -18,9 +18,8 @@
 ============================================================================ -}
 
 module Fallback.State.Creature.Utility
-  (makeMonster, monstAgility, monstAttacks, monstCanFly, monstInvisibility,
-   monstIsSummoned, monstMaxHealth, monstRectSize, monstSpeed, monstType,
-   monstWalksFast)
+  (makeMonster, monstAttacks, monstCanFly, monstInvisibility, monstIsSummoned,
+   monstMaxHealth, monstRectSize, monstSpeed, monstType, monstWalksFast)
 where
 
 import Data.Maybe (isJust)
@@ -57,10 +56,6 @@ makeMonster tag = Monster
     alpha = if mtInherentInvisibility mtype == NoInvisibility then 255 else 0
 
 -------------------------------------------------------------------------------
-
--- | Get the monster's agility stat.
-monstAgility :: Monster -> Int
-monstAgility = mtAgility . monstType
 
 -- | Get all of the monster's available attacks.
 monstAttacks :: Monster -> [MonsterAttack]

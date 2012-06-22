@@ -36,12 +36,21 @@ import Fallback.State.Area
 import Fallback.State.Creature
 import Fallback.State.Pathfind (pathfindRectToRanges)
 import Fallback.State.Simple
+import Fallback.State.Status (seMentalEffect)
 import Fallback.Utility (forEither)
 
 -------------------------------------------------------------------------------
 
 defaultMonsterCombatAI :: Grid.Key Monster -> Script CombatEffect ()
 defaultMonsterCombatAI key = do
+  charmed <- do
+    se <- getStatus (HitMonster key)
+    case seMentalEffect se of
+      Just Dazed -> return False
+      Just Confused -> randomBool 0.5
+      Just Charmed -> return True
+      Nothing -> return False
+  if charmed then charmedMonsterCombatAI key else do
   done <- tryMonsterSpells key
   unless done $ do
   ge <- demandMonsterEntry key
@@ -68,6 +77,10 @@ defaultMonsterCombatAI key = do
 
 loopM :: (Monad m) => a -> (a -> m (Maybe a)) -> m ()
 loopM input fn = maybe (return ()) (flip loopM fn) =<< fn input
+
+charmedMonsterCombatAI :: Grid.Key Monster -> Script CombatEffect ()
+charmedMonsterCombatAI _key = do
+  return () -- FIXME
 
 fleeMonsterCombatAI :: Grid.Entry Monster -> Script CombatEffect ()
 fleeMonsterCombatAI _ge = do

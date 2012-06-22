@@ -34,7 +34,8 @@ import qualified Fallback.Data.SparseMap as SM
 import qualified Fallback.Data.TotalMap as TM
 import Fallback.State.Item
 import Fallback.State.Simple
-import Fallback.State.Status (StatusEffects, seMentalEffect)
+import Fallback.State.Status
+  (StatusEffects, seAttackDamageMultiplier, seMentalEffect, seSpeedMultiplier)
 import Fallback.State.Tags
 import Fallback.State.Terrain
   (ExploredMap, Terrain, setExplored, unexploredMap)
@@ -406,16 +407,18 @@ chrGetStat stat char = max 1 $
 chrRecuperation :: Character -> Double
 chrRecuperation = chrAbilityMultiplier Recuperation 1.1 1.2 1.4
 
--- | Get the speed multiplier for a character, taking skills and item bonuses
--- into account.
+-- | Get the current speed multiplier for a character, taking skills, item
+-- bonuses, and status effects into account.
 chrSpeed :: Character -> Double
 chrSpeed char =
   1.01 ^^ chrGetStat Agility char *
   (product $ map bonusSpeedMultiplier $ chrBonusesList char) *
-  chrAbilityMultiplier Alacrity 1.05 1.10 1.20 char
+  chrAbilityMultiplier Alacrity 1.05 1.10 1.20 char *
+  seSpeedMultiplier (chrStatus char)
 
 chrWeaponDamageMultiplier :: Character -> Double
 chrWeaponDamageMultiplier char =
+  seAttackDamageMultiplier (chrStatus char) *
   case eqpWeapon $ chrEquipment char of
     Just tag ->
       case wdRange $ getWeaponData tag of

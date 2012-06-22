@@ -899,7 +899,7 @@ abilityDescription Charm =
   \At rank 2, charms the target, so that it always attacks its allies.\n\
   \At rank 3, if the target resists being charmed, it takes damage."
 abilityDescription EagleEye =
-  "Permanently increases your chance to hit with a ranged attack.\n\
+  "Permanently increases your chance to hit with a ranged weapon attack.\n\
   \At rank 2, also increases your ranged attack damage by 15%.\n\
   \At rank 3, also increases the maximum range of all your ranged attacks."
 abilityDescription CurseShot =

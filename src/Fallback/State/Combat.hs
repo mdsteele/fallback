@@ -40,7 +40,6 @@ import Fallback.State.Party
 import Fallback.State.Progress (HasProgress, TriggerId, getProgress)
 import Fallback.State.Simple
   (CastingCost, CharacterNumber, CostModifier, PowerModifier)
-import Fallback.State.Status
 import Fallback.State.Tags (FeatTag, ItemTag)
 import Fallback.State.Terrain (terrainSize)
 
@@ -185,8 +184,7 @@ tickCharStateWaiting char ccs =
                  max (ccsMoments ccs) $
                  min (momentsPerActionPoint * maxActionPoints) $
                  ccsMoments ccs +
-                 round (chrSpeed char * seSpeedMultiplier (chrStatus char) *
-                        fromIntegral baseMomentsPerFrame)
+                 round (chrSpeed char * fromIntegral baseMomentsPerFrame)
     wantsTurn = aps < maxActionPoints && aps' >= maxActionPoints
     aps = ccsActionPoints ccs
     aps' = moments' `div` momentsPerActionPoint

@@ -22,7 +22,7 @@ module Fallback.State.Status
    StatusEffects, initStatusEffects, decayStatusEffects,
    HarmOrBenefit(..), isBeneficial, isHarmful,
    -- ** Getters
-   seBlessing, --seBlessingMultiplier,
+   seBlessing, seAttackAgilityModifier, seAttackDamageMultiplier,
    seDefense, seArmorMultiplier,
    seHaste, seSpeedMultiplier,
    sePoison,
@@ -129,7 +129,7 @@ data StatusEffects = StatusEffects
     seHaste :: HarmOrBenefit,
     seInvisibility :: Invisibility,
     seMagicShield :: Maybe Double, -- rounds remaining
-    seMentalEffect :: Maybe (MentalEffect, Double {-rounds remaining-}),
+    seMental :: Maybe (MentalEffect, Double {-rounds remaining-}),
     sePoison :: Int } -- damage remaining
   deriving (Read, Show)
 
@@ -141,7 +141,7 @@ initStatusEffects = StatusEffects
     seHaste = Unaffected,
     seInvisibility = NoInvisibility,
     seMagicShield = Nothing,
-    seMentalEffect = Nothing,
+    seMental = Nothing,
     sePoison = 0 }
 
 decayStatusEffects :: Double -> StatusEffects -> StatusEffects
@@ -151,8 +151,8 @@ decayStatusEffects rounds se =
        seEntanglement = decayMaybe (seEntanglement se),
        seHaste = decayHarmOrBenefit (seHaste se),
        seMagicShield = decayMaybe (seMagicShield se),
-       seMentalEffect =
-         case seMentalEffect se of
+       seMental =
+         case seMental se of
            Nothing -> Nothing
            Just (eff, t) -> decay (Just . (,) eff) Nothing t }
   where
@@ -165,6 +165,20 @@ decayStatusEffects rounds se =
 -------------------------------------------------------------------------------
 -- Getters:
 
+seAttackAgilityModifier :: StatusEffects -> Int
+seAttackAgilityModifier se =
+  case seBlessing se of
+    Harmful _ -> negate 20
+    Unaffected -> 0
+    Beneficial _ -> 20
+
+seAttackDamageMultiplier :: StatusEffects -> Double
+seAttackDamageMultiplier se =
+  case seBlessing se of
+    Harmful _ -> 0.9
+    Unaffected -> 1
+    Beneficial _ -> 1.15
+
 seArmorMultiplier :: StatusEffects -> Double
 seArmorMultiplier se =
   case seDefense se of
@@ -174,11 +188,14 @@ seArmorMultiplier se =
 
 seSpeedMultiplier :: StatusEffects -> Double
 seSpeedMultiplier se =
-  if fmap fst (seMentalEffect se) == Just Dazed then 0 else
+  if fmap fst (seMental se) == Just Dazed then 0 else
     case seHaste se of
       Harmful _ -> 2/3
       Unaffected -> 1
       Beneficial _ -> 1.5
+
+seMentalEffect :: StatusEffects -> Maybe MentalEffect
+seMentalEffect = fmap fst . seMental
 
 seIsEntangled :: StatusEffects -> Bool
 seIsEntangled = isJust . seEntanglement
@@ -244,22 +261,22 @@ seReduceMagicShield x se =
   se { seMagicShield = reduceMaybe x (seMagicShield se) }
 
 seApplyMentalEffect :: MentalEffect -> Double -> StatusEffects -> StatusEffects
-seApplyMentalEffect eff dur se = se { seMentalEffect = Just me } where
-  me = case seMentalEffect se of
+seApplyMentalEffect eff dur se = se { seMental = Just me } where
+  me = case seMental se of
          Just (eff', dur') | eff' == eff -> (eff, stack dur dur')
          _ -> (eff, dur)
 
 -- | Completely remove all mental effects.
 sePurgeMentalEffects :: StatusEffects -> StatusEffects
-sePurgeMentalEffects se = se { seMentalEffect = Nothing }
+sePurgeMentalEffects se = se { seMental = Nothing }
 
 seSetInvisibility :: Invisibility -> StatusEffects -> StatusEffects
 seSetInvisibility invis se = se { seInvisibility = invis }
 
 seWakeFromDaze :: StatusEffects -> StatusEffects
 seWakeFromDaze se =
-  case seMentalEffect se of
-    Just (Dazed, _) -> se { seMentalEffect = Nothing }
+  case seMental se of
+    Just (Dazed, _) -> se { seMental = Nothing }
     _ -> se
 
 sePurgeAllBadEffects :: StatusEffects -> StatusEffects
@@ -267,7 +284,7 @@ sePurgeAllBadEffects se =
   se { seBlessing = purgeHarmful (seBlessing se),
        seDefense = purgeHarmful (seDefense se),
        seEntanglement = Nothing, seHaste = purgeHarmful (seHaste se),
-       seMentalEffect = Nothing, sePoison = 0 }
+       seMental = Nothing, sePoison = 0 }
   where purgeHarmful (Harmful _) = Unaffected
         purgeHarmful hob = hob
 
@@ -350,7 +367,7 @@ stack a b = sqrt (max a b * (a + b))
 townifyStatus :: StatusEffects -> StatusEffects
 townifyStatus status = status
   { seInvisibility = NoInvisibility,
-    seMentalEffect = Nothing }
+    seMental = Nothing }
 
 isFinitePositive :: Double -> Bool
 isFinitePositive x = isFinite x && x > 0
