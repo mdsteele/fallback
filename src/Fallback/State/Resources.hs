@@ -176,6 +176,7 @@ data StatusDecorations = StatusDecorations
     sdDazedStrip :: Strip,
     sdConfusedSprite :: Sprite,
     sdCharmedSprite :: Sprite,
+    sdEntangledSprite :: Sprite,
     sdMagicShieldSprite :: Sprite }
 
 loadStatusDecorations :: IO StatusDecorations
@@ -191,6 +192,7 @@ loadStatusDecorations = do
          makeSubSprite (Rect 0 13 13 13) texture],
       sdConfusedSprite = makeSubSprite (Rect 14 27 9 12) texture,
       sdCharmedSprite = makeSubSprite (Rect 15 40 7 12) texture,
+      sdEntangledSprite = makeSubSprite (Rect 1 53 11 6) texture,
       sdMagicShieldSprite = makeSubSprite (Rect 13 1 7 7) texture }
 
 -------------------------------------------------------------------------------

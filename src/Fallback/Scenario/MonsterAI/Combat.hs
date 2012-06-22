@@ -64,12 +64,15 @@ attackAI charmed key = do
   isBlocked <- areaGet (arsIsBlockedForMonster ge)
   goals <- getMonsterOpponentPositions charmed key
   if null goals then drunkAI key else do
-  loopM (4 :: Int) $ \ap -> do
-    rect <- Grid.geRect <$> demandMonsterEntry key
+  loopM (4 :: Int) $ \actionPoints -> do
+    entry <- demandMonsterEntry key
+    let rect = Grid.geRect entry
     case pathfindRectToRanges isBlocked rect goals sqDist 20 of
       Just (pos : _) -> do
         walkMonster 4 key pos
-        return $ if ap <= 1 then Nothing else Just (ap - 1)
+        let entangled = monstIsEntangled $ Grid.geValue entry
+        let actionPoints' = actionPoints - (if entangled then 2 else 1)
+        return $ if actionPoints' <= 0 then Nothing else Just actionPoints'
       Just [] -> Nothing <$ do
         visible <- getMonsterFieldOfView key
         let targets = filter (\pos -> rangeTouchesRect pos sqDist rect &&

@@ -18,8 +18,9 @@
 ============================================================================ -}
 
 module Fallback.State.Creature.Utility
-  (makeMonster, monstAttacks, monstCanFly, monstInvisibility, monstIsSummoned,
-   monstMaxHealth, monstRectSize, monstSpeed, monstType, monstWalksFast)
+  (makeMonster, monstAttacks, monstCanFly, monstInvisibility, monstIsEntangled,
+   monstIsSummoned, monstMaxHealth, monstRectSize, monstSpeed, monstType,
+   monstWalksFast)
 where
 
 import Data.Maybe (isJust)
@@ -27,7 +28,7 @@ import Data.Maybe (isJust)
 import Fallback.State.Creature.Base
 import Fallback.State.Creature.Monsters (getMonsterType)
 import Fallback.State.Simple (FaceDir(..), Invisibility(..), sizeSize)
-import Fallback.State.Status (initStatusEffects, seInvisibility)
+import Fallback.State.Status
 import Fallback.State.Tags (MonsterTag)
 
 -------------------------------------------------------------------------------
@@ -70,6 +71,10 @@ monstCanFly = mtCanFly . monstType
 monstInvisibility :: Monster -> Invisibility
 monstInvisibility monst = max (mtInherentInvisibility $ monstType monst)
                               (seInvisibility $ monstStatus monst)
+
+-- | Return 'True' if the monster is currently entangled, 'False' otherwise.
+monstIsEntangled :: Monster -> Bool
+monstIsEntangled = seIsEntangled . monstStatus
 
 -- | Return 'True' if this is a summoned monster, 'False' otherwise.
 monstIsSummoned :: Monster -> Bool

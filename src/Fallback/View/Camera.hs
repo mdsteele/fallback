@@ -181,27 +181,14 @@ paintStatusDecorations resources cameraTopleft clock offset
       halfH = rectH rect / 2
   let centerPlus x y = rectCenter rect `pAdd` Point x y
   let spinTheta = fromIntegral (clockMod 60 1 clock) * (pi / 30)
+  when (seIsEntangled status) $ do
+      let offsetX = fromIntegral ((5 + clockZigzag 4 5 clock) * rectW prect)
+      let paint signx = blitLoc (sdEntangledSprite decor) $ LocCenter $
+                        centerPlus (signx * offsetX) (halfH - 5)
+      paint 1
+      paint (negate 1)
+  -- TODO decoration for poison
   -- TODO decoration for bless/curse
-  case seDefense status of
-    Harmful _ -> do
-      let offset' = 3 + clockZigzag 4 5 clock
-      let offsetX = fromIntegral (offset' * rectW prect)
-          offsetY = fromIntegral (offset' * rectH prect)
-      let paint signx signy theta =
-            blitRotate (sdWeaknessSprite decor)
-            (centerPlus (signx * (halfW - offsetX))
-                        (signy * (halfH - offsetY))) theta
-      paint 1 (negate 1) 0
-      paint 1 1 (pi / 2)
-      paint (negate 1) 1 pi
-      paint (negate 1) (negate 1) (3 * pi / 2)
-    Unaffected -> return ()
-    Beneficial _ -> do
-      let paint th =
-            blitRotateTinted (Tint 255 255 255 192) (sdDefenseSprite decor)
-              (centerPlus ((halfW - 2) * cos th) ((halfH - 2) * sin th)) th
-      mapM_ paint [spinTheta, spinTheta + pi/2, spinTheta + pi,
-                   spinTheta - pi/2]
   case seHaste status of
     Harmful _ -> do
       let offsetX = fromIntegral ((4 + clockZigzag 4 5 clock) * rectW prect)
@@ -223,9 +210,26 @@ paintStatusDecorations resources cameraTopleft clock offset
         drawLine (Tint 0 255 0 192)
                  (centerPlus (fx * r1 * cos theta) (fy * r1 * sin theta))
                  (centerPlus (fx * r2 * cos theta) (fy * r2 * sin theta))
-  -- TODO decoration for poison
-  -- TODO decoration for mental effect
-  -- TODO decoration for entanglement
+  case seDefense status of
+    Harmful _ -> do
+      let offset' = 3 + clockZigzag 4 5 clock
+      let offsetX = fromIntegral (offset' * rectW prect)
+          offsetY = fromIntegral (offset' * rectH prect)
+      let paint signx signy theta =
+            blitRotate (sdWeaknessSprite decor)
+            (centerPlus (signx * (halfW - offsetX))
+                        (signy * (halfH - offsetY))) theta
+      paint 1 (negate 1) 0
+      paint 1 1 (pi / 2)
+      paint (negate 1) 1 pi
+      paint (negate 1) (negate 1) (3 * pi / 2)
+    Unaffected -> return ()
+    Beneficial _ -> do
+      let paint th =
+            blitRotateTinted (Tint 255 255 255 192) (sdDefenseSprite decor)
+              (centerPlus ((halfW - 2) * cos th) ((halfH - 2) * sin th)) th
+      mapM_ paint [spinTheta, spinTheta + pi/2, spinTheta + pi,
+                   spinTheta - pi/2]
   when (seIsShielded status) $ do
     let paint th =
           blitLoc (sdMagicShieldSprite decor) $
