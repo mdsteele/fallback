@@ -92,7 +92,7 @@ prepMonsterSpell FireSpray ge = do
   targets <- fmap (take 5) $ randomPermutation =<<
              filter (flip3 rangeTouchesRect (ofRadius maxRange) rect) .
              filter (`Set.member` viewField) <$>
-             getMonsterOpponentPositions key
+             getMonsterOpponentPositions False key
   let numTargets = length targets
   ifSatisfies (numTargets >= 2) $ do
   yieldSpell numTargets $ do
@@ -119,7 +119,7 @@ prepMonsterSpell FrostMissiles ge = do
   let key = Grid.geKey ge
   viewField <- getMonsterFieldOfView key
   potentialTargets <- filter (`Set.member` viewField) <$>
-                      getMonsterOpponentPositions key
+                      getMonsterOpponentPositions False key
   ifSatisfies (not $ null potentialTargets) $ do
   yieldSpell numHits $ do
   targets <- fmap fst $ flip3 foldM ([], Set.empty) [1 .. numHits] $

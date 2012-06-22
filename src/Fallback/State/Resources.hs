@@ -211,6 +211,7 @@ rsrcProj rsrc tag = TM.get tag $ rsrcProjs rsrc
 
 data SpriteTag = MineCartEmptyHorzSprite | MineCartEmptyVertSprite
                | MineCartFullHorzSprite | MineCartFullVertSprite
+               | WebbingSprite
   deriving (Bounded, Eq, Ix, Ord)
 
 spriteCoords :: SpriteTag -> (Int, Int)
@@ -218,6 +219,7 @@ spriteCoords MineCartEmptyHorzSprite = (0, 0)
 spriteCoords MineCartEmptyVertSprite = (0, 1)
 spriteCoords MineCartFullHorzSprite = (0, 2)
 spriteCoords MineCartFullVertSprite = (0, 3)
+spriteCoords WebbingSprite = (1, 0)
 
 rsrcSprite :: Resources -> SpriteTag -> Sprite
 rsrcSprite rsrc tag = TM.get tag $ rsrcSprites rsrc

@@ -50,17 +50,20 @@ getMonsterFieldOfView key = do
           prectPositions $ Grid.geRect entry)
 
 -- | Return the list of positions occupied by foes of the given monster,
--- excepting those that are invisible to the monster.
-getMonsterOpponentPositions :: (FromAreaEffect f) => Grid.Key Monster
+-- excepting those that are invisible to the monster.  The first argument
+-- indicates whether the monster is charmed; if it is true, this will return
+-- positions of the monster's friends instead.
+getMonsterOpponentPositions :: (FromAreaEffect f) => Bool -> Grid.Key Monster
                             -> Script f [Position]
-getMonsterOpponentPositions key = do
+getMonsterOpponentPositions charmed key = do
   maybeMonsterEntry key [] $ \entry -> do
-  let isAlly = monstIsAlly $ Grid.geValue entry
+  let isAlly = charmed /= monstIsAlly (Grid.geValue entry)
   let eyePrect = expandPrect $ Grid.geRect entry
   positions1 <- if isAlly then return [] else do
     charNums <- getAllConsciousCharacters
     forMaybeM charNums $ \charNum -> do
       let getPosition = areaGet (arsCharacterPosition charNum)
+      if charmed then Just <$> getPosition else do
       invis <- areaGet (seInvisibility . chrStatus . arsGetCharacter charNum)
       case invis of
         NoInvisibility -> Just <$> getPosition
@@ -71,13 +74,15 @@ getMonsterOpponentPositions key = do
   positions2 <- do
     entries <- if isAlly then getAllEnemyMonsters else getAllAllyMonsters
     return $ flip concatMap entries $ \entry' ->
-      let prect' = Grid.geRect entry'
-          positions = prectPositions prect'
-      in case monstInvisibility $ Grid.geValue entry' of
-           NoInvisibility -> positions
-           MinorInvisibility ->
-             if rectIntersects eyePrect prect' then positions else []
-           MajorInvisibility -> []
+      if Grid.geKey entry' == key then [] else
+        let prect' = Grid.geRect entry'
+            positions = prectPositions prect'
+        in if charmed then positions else
+             case monstInvisibility $ Grid.geValue entry' of
+               NoInvisibility -> positions
+               MinorInvisibility ->
+                 if rectIntersects eyePrect prect' then positions else []
+               MajorInvisibility -> []
   return (positions1 ++ positions2)
 
 -------------------------------------------------------------------------------

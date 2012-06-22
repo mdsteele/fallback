@@ -50,16 +50,20 @@ defaultMonsterCombatAI key = do
       Just Confused -> randomBool 0.5
       Just Charmed -> return True
       Nothing -> return False
-  if charmed then charmedMonsterCombatAI key else do
+  if charmed then attackAI True key else do
   done <- tryMonsterSpells key
-  unless done $ do
+  unless done $ attackAI False key
+
+attackAI :: Bool -> Grid.Key Monster -> Script CombatEffect ()
+attackAI charmed key = do
   ge <- demandMonsterEntry key
   let attacks = monstAttacks $ Grid.geValue ge
-  if null attacks then fleeMonsterCombatAI ge else do
+  if null attacks then fleeAI charmed ge else do
   attack <- getRandomElem attacks
   let sqDist = rangeSqDist $ maRange attack
   isBlocked <- areaGet (arsIsBlockedForMonster ge)
-  goals <- getMonsterOpponentPositions key
+  goals <- getMonsterOpponentPositions charmed key
+  if null goals then drunkAI key else do
   loopM (4 :: Int) $ \ap -> do
     rect <- Grid.geRect <$> demandMonsterEntry key
     case pathfindRectToRanges isBlocked rect goals sqDist 20 of
@@ -75,16 +79,15 @@ defaultMonsterCombatAI key = do
         monsterPerformAttack key attack target
       Nothing -> return Nothing
 
+drunkAI :: Grid.Key Monster -> Script CombatEffect ()
+drunkAI _key = return () -- TODO move randomly
+
+fleeAI :: Bool -> Grid.Entry Monster -> Script CombatEffect ()
+fleeAI _charmed _ge = do
+  return () -- FIXME run away from opponents
+
 loopM :: (Monad m) => a -> (a -> m (Maybe a)) -> m ()
 loopM input fn = maybe (return ()) (flip loopM fn) =<< fn input
-
-charmedMonsterCombatAI :: Grid.Key Monster -> Script CombatEffect ()
-charmedMonsterCombatAI _key = do
-  return () -- FIXME
-
-fleeMonsterCombatAI :: Grid.Entry Monster -> Script CombatEffect ()
-fleeMonsterCombatAI _ge = do
-  return () -- FIXME
 
 -------------------------------------------------------------------------------
 

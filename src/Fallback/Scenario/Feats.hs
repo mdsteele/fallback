@@ -112,7 +112,7 @@ featEffect TidalForce =
     wait 12
     damage <- getRandomR 35 45 -- TODO how much damage?
     dealDamage $ map (\p -> (HitPosition p, ColdDamage, damage)) targets
-    massInflictMentalEffect Dazed 8 targets
+    massInflictMentalEffect True Dazed 8 targets
     wait 12
 featEffect Eclipse =
   StandardFeat autoTarget $ \_caster () -> do

@@ -125,10 +125,10 @@ paintFields resources cameraTopleft visible clock =
           IceWall _ -> blit SrpIceAura $ clockMod 4 5 clock
           PoisonCloud _ -> blit SrpGasAura $ clockMod 4 5 clock
           SmokeScreen _ -> blit SrpSmokeAura $ clockMod 4 8 clock
-          Webbing _ -> return () -- FIXME
+          Webbing _ -> blitStretch (rsrcSprite resources WebbingSprite) rect
       where
-        blit tag idx = blitStretch (rsrcStrip resources tag ! idx) $
-                       positionRect pos `rectMinus` cameraTopleft
+        blit tag idx = blitStretch (rsrcStrip resources tag ! idx) rect
+        rect = positionRect pos `rectMinus` cameraTopleft
 
 -- | Paint monsters, given the topleft position of the camera, a set of visible
 -- tile locations, a list of party member positions (used to determine if the

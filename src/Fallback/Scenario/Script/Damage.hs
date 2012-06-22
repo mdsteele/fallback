@@ -292,8 +292,11 @@ inflictAllPeriodicDamage = do
         Nothing <$ inflictPoison (HitPosition pos) poison
       SmokeScreen _ -> return Nothing
       Webbing rounds -> do
-        -- FIXME if something's there, remove the webbing
-        Nothing <$ alterStatus (HitPosition pos) (seApplyEntanglement rounds)
+        occupied <- areaGet (arsOccupied pos)
+        when occupied $ do
+          removeFields [pos]
+          alterStatus (HitPosition pos) (seApplyEntanglement rounds)
+        return Nothing
   charNums <- getAllConsciousCharacters
   party <- areaGet arsParty
   charPoisonDamages <- forMaybeM charNums $ \charNum -> do

@@ -220,7 +220,7 @@ getAbility characterClass abilityNumber rank =
               wait 4
     Alacrity -> PassiveAbility
     BeastCall ->
-      general (mix AquaVitae AquaVitae) AutoTarget $
+      general (3 `parts` AquaVitae) AutoTarget $
       \caster power () -> do
         degradeMonstersSummonedBy (Left caster)
         playSound SndSummon
@@ -233,16 +233,24 @@ getAbility characterClass abilityNumber rank =
           return ()
         wait 16
     FireShot ->
-      meta (mix Naphtha Naphtha) RangedOnly SingleTarget $
+      meta (2 `parts` Naphtha) RangedOnly SingleTarget $
       \caster power endPos -> do
         let effects = (if rank < Rank3 then id
                        else ((SetField $ FireWall $ power * 8) :)) $
                       [ExtraDamage FireDamage (power * ranked 0.4 0.7 0.9)]
         attackWithExtraEffects caster endPos effects
-    Entangle -> PassiveAbility -- FIXME
+    Entangle ->
+      combat (2 `parts` Limestone) (aoeTarget 5 $ ofRadius $ ranked 0 1 1) $
+      \caster power (endPos, targets) -> do
+        characterBeginOffensiveAction caster endPos
+        -- TODO doodad/sound
+        -- TODO at rank 3, deal damage
+        forM_ targets $ \target -> do
+          amount <- (8 * power *) <$> getRandomR 0.9 1.1
+          setFields (Webbing amount) [target]
     Recuperation -> PassiveAbility
     PoisonShot ->
-      meta (mix Mandrake Mandrake) RangedOnly SingleTarget $
+      meta (2 `parts` Mandrake) RangedOnly SingleTarget $
       \caster power endPos -> do
         let effects = ranked
               [InflictPoison (0.3 * power)]
@@ -253,15 +261,15 @@ getAbility characterClass abilityNumber rank =
                (SetField $ PoisonCloud $ power * 8)]
         attackWithExtraEffects caster endPos effects
     Charm ->
-      combat (mix Potash Potash) (SingleTarget 4) $ \_caster power endPos -> do
+      combat (2 `parts` Potash) (SingleTarget 4) $ \_caster power endPos -> do
         -- TODO doodad/sound
         duration <- (8 * power *) <$> getRandomR 0.9 1.1
-        inflictMentalEffect (HitPosition endPos)
+        inflictMentalEffect True (HitPosition endPos)
                             (ranked Confused Charmed Charmed) duration
         -- TODO at rank 3, deal damage if the effect fails
     EagleEye -> PassiveAbility
     CurseShot ->
-      meta (mix Brimstone Brimstone) RangedOnly SingleTarget $
+      meta (2 `parts` Brimstone) RangedOnly SingleTarget $
       \caster power endPos -> do
         let effects = ranked
               [InflictCurse (0.15 * power)]
@@ -760,6 +768,7 @@ getAbility characterClass abilityNumber rank =
       case rank of { Rank1 -> v1; Rank2 -> v2; Rank3 -> v3 }
     mix i1 i2 = IngredientCost $ TM.make $
                 \i -> (if i == i1 then 1 else 0) + (if i == i2 then 1 else 0)
+    parts n ing = IngredientCost $ TM.make $ \i -> if i == ing then n else 0
     combat cost tkind sfn = ActiveAbility cost $ CombatAbility tkind sfn
     meta cost matype tkindFn sfn =
       ActiveAbility cost $ MetaAttack matype tkindFn sfn

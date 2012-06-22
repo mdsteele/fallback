@@ -63,7 +63,7 @@ where
 
 import Control.Applicative ((<$), (<$>))
 import Control.Arrow (second)
-import Control.Monad (forM_, when, unless)
+import Control.Monad (filterM, forM_, when, unless)
 import Data.Array (range)
 import Data.List (find)
 import Data.Maybe (isNothing)
@@ -325,32 +325,47 @@ inflictStun hitTarget stun = do
                          round (stun' * fromIntegral momentsPerActionPoint) }
     Nothing -> return ()
 
-inflictMentalEffect :: HitTarget -> MentalEffect -> Double
+-- | Attempt to inflict a mental effect on the target, subject to the target's
+-- mental resistance.  The first argument indicates whether or not the
+-- inflictor is an ally (character or allied monster).  This matters because if
+-- any creature tries to charm a friend, it automatically succeeds and removes
+-- any mental effects on the friendly target.
+inflictMentalEffect :: Bool -> HitTarget -> MentalEffect -> Double
                     -> Script CombatEffect ()
-inflictMentalEffect hitTarget eff duration = do
+inflictMentalEffect casterIsAlly hitTarget eff duration = do
   mbOccupant <- getHitTargetOccupant hitTarget
-  maybeM mbOccupant (inflictMentalEffectOnOccupant eff duration)
+  maybeM mbOccupant (inflictMentalEffectOnOccupant casterIsAlly eff duration)
 
-massInflictMentalEffect :: MentalEffect -> Double -> [Position]
+-- | Like 'inflictMentalEffect', but operates on a set of positions, and only
+-- affects each creature in the region once, even if the creature occupies
+-- multiple positions in the region.
+massInflictMentalEffect :: Bool -> MentalEffect -> Double -> [Position]
                         -> Script CombatEffect ()
-massInflictMentalEffect eff duration positions = do
+massInflictMentalEffect casterIsAlly eff duration positions = do
   occupants <- areaGet (arsOccupants positions)
-  forM_ occupants $ inflictMentalEffectOnOccupant eff duration
+  forM_ occupants $ inflictMentalEffectOnOccupant casterIsAlly eff duration
 
-inflictMentalEffectOnOccupant :: MentalEffect -> Double
+inflictMentalEffectOnOccupant :: Bool -> MentalEffect -> Double
                               -> Either CharacterNumber (Grid.Entry Monster)
                               -> Script CombatEffect ()
-inflictMentalEffectOnOccupant eff duration occupant = do
+inflictMentalEffectOnOccupant casterIsAlly eff duration occupant = do
   let applyEffect = seApplyMentalEffect eff duration
   case occupant of
     Left charNum -> do
-      success <- randomBool =<< do
-        areaGet (chrGetResistance ResistMental . arsGetCharacter charNum)
-      when success $ alterCharacterStatus charNum applyEffect
+      if casterIsAlly && eff == Charmed then do
+        alterCharacterStatus charNum sePurgeMentalEffects
+       else do
+        success <- randomBool =<< do
+          areaGet (chrGetResistance ResistMental . arsGetCharacter charNum)
+        when success $ alterCharacterStatus charNum applyEffect
     Right entry -> do
-      success <- randomBool (TM.get ResistMental $ mtResistances $ monstType $
-                             Grid.geValue entry)
-      when success $ alterMonsterStatus (Grid.geKey entry) applyEffect
+      let monst = Grid.geValue entry
+      if casterIsAlly == monstIsAlly monst then do
+        alterMonsterStatus (Grid.geKey entry) sePurgeMentalEffects
+       else do
+        success <- randomBool (TM.get ResistMental $ mtResistances $
+                               monstType monst)
+        when success $ alterMonsterStatus (Grid.geKey entry) applyEffect
 
 -------------------------------------------------------------------------------
 -- Camera motion:
@@ -529,7 +544,9 @@ replaceDevice entry device =
   emitAreaEffect $ EffReplaceDevice (Grid.geKey entry) (Just device)
 
 -- | Place the given field in the given positions, subject to terrain
--- restrictions and merging with existing fields in those positions.
+-- restrictions and merging with existing fields in those positions.  In the
+-- case of webbing, attempting to place webbing on an occupied position will
+-- instead entangle the occupant.
 setFields :: (FromAreaEffect f) => Field -> [Position] -> Script f ()
 setFields field positions = do
   let fn Nothing = Just field
@@ -548,15 +565,20 @@ setFields field positions = do
   getOpenness <- areaGet $ \ars pos ->
     ttOpenness $ terrainGetTile pos $ arsTerrain ars
   isOccupied <- areaGet (flip arsOccupied)
-  let canSet = case field of
-                 BarrierWall _ -> \p -> canFlyOver (getOpenness p) &&
-                                        not (isOccupied p)
-                 FireWall _ -> canWalkOn . getOpenness
-                 IceWall _ -> canWalkOn . getOpenness
-                 PoisonCloud _ -> canFlyOver . getOpenness
-                 SmokeScreen _ -> canFlyOver . getOpenness
-                 Webbing _ -> canWalkOn . getOpenness
-  emitAreaEffect $ EffAlterFields fn $ filter canSet positions
+  let canSet pos = do
+        case field of
+          BarrierWall _ ->
+            return $ canFlyOver (getOpenness pos) && not (isOccupied pos)
+          FireWall _ -> return $ canWalkOn $ getOpenness pos
+          IceWall _ -> return $ canWalkOn $ getOpenness pos
+          PoisonCloud _ -> return $ canFlyOver $ getOpenness pos
+          SmokeScreen _ -> return $ canFlyOver $ getOpenness pos
+          Webbing amount ->
+            if isOccupied pos then do
+              alterStatus (HitPosition pos) (seApplyEntanglement amount)
+              return False
+            else return $ canWalkOn $ getOpenness pos
+  emitAreaEffect . EffAlterFields fn =<< filterM canSet positions
 
 setMonsterIsAlly :: (FromAreaEffect f) => Bool -> Grid.Key Monster
                  -> Script f ()

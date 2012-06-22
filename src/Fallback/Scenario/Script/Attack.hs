@@ -114,7 +114,7 @@ characterWeaponHit wd origin target critical damage = do
                [dmgVs wdVsDaemonic mtIsDaemonic, dmgVs wdVsHuman mtIsHuman,
                 dmgVs wdVsUndead mtIsUndead]
   case mbMult of
-    Just mult -> attackHit (wdAppearance wd) (wdElement wd) (wdEffects wd)
+    Just mult -> attackHit True (wdAppearance wd) (wdElement wd) (wdEffects wd)
                            origin target critical (mult * damage)
     Nothing -> instantKill (wdAppearance wd) (wdElement wd) target critical
 
@@ -136,7 +136,7 @@ monsterPerformAttack key attack target = do
   (critical, damage) <- monsterAttackChooseCritical attack =<<
                         monsterAttackBaseDamage key attack
   origin <- getMonsterHeadPos key
-  monsterAttackHit attack origin target critical damage
+  monsterAttackHit key attack origin target critical damage
 
 monsterAttackInitialAnimation :: Grid.Key Monster -> MonsterAttack -> Position
                               -> Script CombatEffect ()
@@ -162,11 +162,12 @@ monsterAttackChooseCritical attack damage = do
   critical <- randomBool (maCriticalChance attack)
   return (critical, if critical then damage * 1.5 else damage)
 
-monsterAttackHit :: MonsterAttack -> Position -> Position -> Bool -> Double
-                 -> Script CombatEffect ()
-monsterAttackHit ma origin target critical damage = do
-  attackHit (maAppearance ma) (maElement ma) (maEffects ma) origin target
-            critical damage
+monsterAttackHit :: Grid.Key Monster -> MonsterAttack -> Position -> Position
+                 -> Bool -> Double -> Script CombatEffect ()
+monsterAttackHit key ma origin target critical damage = do
+  isAlly <- maybe False (monstIsAlly . Grid.geValue) <$> lookupMonsterEntry key
+  attackHit isAlly (maAppearance ma) (maElement ma) (maEffects ma) origin
+            target critical damage
 
 -------------------------------------------------------------------------------
 
@@ -293,9 +294,10 @@ attackHitAnimation appearance element target critical = do
     ThrownAttack -> addBoomDoodadAtPosition SlashRight 2 target -- FIXME
     WandAttack -> elementBoom
 
-attackHit :: AttackAppearance -> DamageType -> [AttackEffect] -> Position
-          -> Position -> Bool -> Double -> Script CombatEffect ()
-attackHit appearance element effects origin target critical damage = do
+attackHit :: Bool -> AttackAppearance -> DamageType -> [AttackEffect]
+          -> Position -> Position -> Bool -> Double -> Script CombatEffect ()
+attackHit attackerIsAlly appearance element effects origin target critical
+          damage = do
   attackHitAnimation appearance element target critical
   let hitTarget = HitPosition target
   extraHits <- flip3 foldM [] effects $ \hits effect -> do
@@ -307,8 +309,8 @@ attackHit appearance element effects origin target critical damage = do
         return ((hitTarget, dtype, mult * damage) : hits)
       InflictCurse mult ->
         affectStatus $ seApplyBlessing $ Harmful (mult * damage)
-      InflictMental eff mult ->
-        hits <$ inflictMentalEffect hitTarget eff (mult * damage)
+      InflictMental eff mult -> hits <$
+        inflictMentalEffect attackerIsAlly hitTarget eff (mult * damage)
       InflictPoison mult -> hits <$ inflictPoison hitTarget (mult * damage)
       InflictSlow mult -> affectStatus $ seApplyHaste $ Harmful (mult * damage)
       InflictStun mult -> hits <$ inflictStun hitTarget (mult * damage)
