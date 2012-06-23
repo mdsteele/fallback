@@ -171,7 +171,8 @@ newCombatMode resources modes initState = do
               if not (partyCanAffordCastingCost charNum cost (arsParty cs))
                 then ignore else do
               case featEffect tag of
-                MetaAbility costMod powerMod -> do
+                MetaAbility _apMod costMod powerMod -> do
+                  -- TODO respect AP modifier
                   -- TODO arrange to charge adrenaline after using ability
                   changeState cs { csPhase = MetaAbilityPhase CombatMetability
                     { cmCommander = cc, cmCostModifier = costMod,

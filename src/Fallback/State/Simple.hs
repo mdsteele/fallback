@@ -53,6 +53,8 @@ abilityRankPlus mbRank n =
   if n <= 0 || mbRank == Just maxBound then mbRank
   else abilityRankPlus (Just $ nextAbilityRank mbRank) (n - 1)
 
+data APModifier = ZeroAP | FullAP
+
 type PowerModifier = Double
 
 -------------------------------------------------------------------------------
@@ -110,7 +112,7 @@ data CastingCost = AdrenalineCost Int
                  | ManaCost Int
                  | NoCost
 
-data CostModifier = ZeroCost | OneThirdCost | NormalCost
+data CostModifier = ZeroCost | OneThirdCost | NormalCost | DoubleCost
 
 modifyCost :: CostModifier -> CastingCost -> CastingCost
 modifyCost ZeroCost _ = NoCost
@@ -122,6 +124,13 @@ modifyCost OneThirdCost cost =
     ManaCost x -> ManaCost (x `ceilDiv` 3)
     NoCost -> NoCost
 modifyCost NormalCost cost = cost
+modifyCost DoubleCost cost =
+  case cost of
+    AdrenalineCost x -> AdrenalineCost (2 * x)
+    FocusCost x -> FocusCost (2 * x)
+    IngredientCost ing -> IngredientCost (fmap (2 *) ing)
+    ManaCost x -> ManaCost (2 * x)
+    NoCost -> NoCost
 
 costDescription :: CastingCost -> String
 costDescription (AdrenalineCost n) = "Cost: " ++ show n ++ " adrenaline"

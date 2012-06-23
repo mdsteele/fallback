@@ -41,7 +41,7 @@ import Fallback.State.Terrain (positionCenter, prectRect)
 -------------------------------------------------------------------------------
 
 featEffect :: FeatTag -> FeatEffect
-featEffect Offering = MetaAbility ZeroCost 3
+featEffect Offering = MetaAbility FullAP ZeroCost 3
 featEffect SolarFlare =
   StandardFeat (MultiTarget 3) $ \caster targets -> do
     -- TODO arrange to play one SndLuminaire, rather than N SndFireDamage's
@@ -199,11 +199,13 @@ featEffect Longshot =
     (critical, damage) <- characterWeaponChooseCritical char =<<
                           characterWeaponBaseDamage char wd
     characterWeaponHit wd origin target critical (damage * 1.5)
-featEffect Glow = MetaAbility OneThirdCost 1
-featEffect Amplify = MetaAbility NormalCost 1.5
-featEffect Radiate = MetaAbility ZeroCost 1
-featEffect Resonate = MetaAbility NormalCost 2
-featEffect _ = MetaAbility NormalCost 1.1 -- FIXME
+featEffect Glow = MetaAbility FullAP OneThirdCost 1
+featEffect Amplify = MetaAbility FullAP NormalCost 1.5
+featEffect Radiate = MetaAbility FullAP ZeroCost 1
+featEffect Resonate = MetaAbility FullAP NormalCost 2
+featEffect TimeStop = MetaAbility ZeroAP NormalCost 1
+featEffect Catalyze = MetaAbility FullAP DoubleCost 3
+featEffect _ = MetaAbility FullAP NormalCost 1.1 -- FIXME
 
 -------------------------------------------------------------------------------
 
@@ -251,17 +253,33 @@ featDescription Avatar =
   \ cures you of all negative effects."
 featDescription AllCreation =
   "Summon a multitude of wild animals and beasts to attack your enemies."
+featDescription Envenom = "Slash one enemy, with a deadly poison."
 featDescription JumpSlash = "Leap towards an enemy, bringing your blade down\
   \ on them for double damage."
 featDescription JumpStrike = "Leap amongst your enemies, slashing everything\
   \ near you when you land."
-featDescription Shortshot =
-  "Fire an arrow at reduced range, for double damage."
+featDescription Spincut =
+  "Spin your blade deftly around you, slashing all adjacent enemies and\
+  \ leaving allies untouched."
+featDescription SweepSlash =
+  "Sweep your blade in an arc, hitting multiple enemies, at +50% damage."
+featDescription Whirlwind =
+  "Spin your blade wildly around you, slashing everything next to you and\
+  \ knocking them back."
+featDescription NeutronBomb = "Damage and curse all enemies near the target."
+featDescription Pierce = "Strike all targets in a line."
 featDescription Longshot = "Fire an arrow at +3 range and +50% damage."
+featDescription Shortshot =
+  "Fire an arrow, at reduced range, for double damage."
+featDescription TripleTap = "Fire three arrows at the same target."
 featDescription Glow = "Use any one ability for one third of its normal cost."
 featDescription Amplify = "Use any one ability, at 1.5x power."
 featDescription Radiate = "Use any one ability for free."
 featDescription Resonate = "Use any one ability, at double power."
+featDescription TimeStop =
+  "Use any one ability, without using up any action points."
+featDescription Catalyze =
+  "Use any one ability, at triple power, for double its normal cost."
 featDescription _ = "??? FIXME ???"
 
 featIconCoords :: FeatTag -> (Int, Int)
@@ -280,13 +298,15 @@ featIconCoords Avatar = (9, 1)
 featIconCoords AllCreation = (9, 2)
 featIconCoords JumpSlash = (6, 5)
 featIconCoords JumpStrike = (6, 4)
-featIconCoords Shortshot = (7, 5)
 featIconCoords Longshot = (7, 4)
-featIconCoords Multishot = (7, 3)
+featIconCoords Shortshot = (7, 5)
+featIconCoords TripleTap = (7, 3)
 featIconCoords Glow = (9, 3)
 featIconCoords Amplify = (9, 4)
 featIconCoords Radiate = (9, 5)
 featIconCoords Resonate = (9, 6)
+featIconCoords TimeStop = (9, 7)
+featIconCoords Catalyze = (9, 8)
 featIconCoords _ = (9, 9) -- FIXME
 
 -------------------------------------------------------------------------------

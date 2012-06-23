@@ -224,14 +224,15 @@ data FeatTag = Concentrate
              | StarShield | Zodiac | Banish
              | TidalForce | Eclipse | LunarBeam
              | PulseOfLife | Avatar | AllCreation
-             -- For bladed weapons:
-             | Spincut | FireSpin | JumpSlash | JumpStrike
+             -- For melee weapons:
+             | Cleave | Envenom | FireSpin | JumpSlash | JumpStrike | Rampage
+             | Spincut | SweepSlash | Whirlwind
              -- For throwing stars:
-             | Pierce | NeutronBomb
+             | NeutronBomb | Pierce
              -- For bows:
-             | Shortshot | Longshot | Multishot
+             | Longshot | Shortshot | SprayArrows | TripleTap
              -- For wands:
-             | Glow | Amplify | Radiate | Resonate
+             | Glow | Amplify | Radiate | Resonate | TimeStop | Catalyze
   deriving (Eq, Show)
 
 featName :: FeatTag -> String
@@ -270,11 +271,13 @@ data WeaponItemTag = Sunrod | Starspear | Moonbow | Lifeblade
                    -- Heavy swords:
                    | Longsword | Flameblade | Soultaker
                    -- Polearms:
-                   | Quarterstaff | Spear
+                   | Quarterstaff | Voulge | Spear | Glaive | Ranseur
+                   | MixingPole
                    -- Throwing stars:
                    | ThrowingStar | RazorStar | NeutronStar
                    -- Bows:
-                   | Shortbow | Longbow | CompositeBow | RainBow | TrineBow
+                   | Shortbow | Longbow | AssassinsBow | CompositeBow | Bowser
+                   | RainBow | TrineBow | ArtemisBow
                    -- Wands:
                    | SilverWand | JeweledRod | GoldenWand | DiamondRod
                    | ChronosScepter

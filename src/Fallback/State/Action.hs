@@ -76,7 +76,7 @@ data CombatFeat = CombatFeat
     cfEffect :: FeatEffect }
 
 data FeatEffect :: * where
-  MetaAbility :: CostModifier -> PowerModifier -> FeatEffect
+  MetaAbility :: APModifier -> CostModifier -> PowerModifier -> FeatEffect
   StandardFeat :: (Int -> TargetKind a)
                -> (CharacterNumber -> a -> Script CombatEffect ())
                -> FeatEffect
