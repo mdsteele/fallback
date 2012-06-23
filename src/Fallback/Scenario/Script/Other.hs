@@ -25,7 +25,8 @@ module Fallback.Scenario.Script.Other
 
    -- * Effects
    -- ** Mojo/adrenaline
-   alterMana, alterCharacterMojo, restoreMojoToFull, alterAdrenaline,
+   alterMana, alterFocus, alterCharacterMojo, restoreMojoToFull,
+   alterAdrenaline,
    -- ** Status effects
    getStatus, alterStatus, alterCharacterStatus, alterMonsterStatus,
    grantInvisibility, inflictPoison, curePoison, inflictStun,
@@ -197,6 +198,18 @@ alterMana hitTarget fn = do
       case chrClass char of
         ClericClass -> alterCharacterMojo charNum fn
         MagusClass -> alterCharacterMojo charNum fn
+        _ -> return ()
+    _ -> return ()
+
+alterFocus :: (FromAreaEffect f) => HitTarget -> (Int -> Int) -> Script f ()
+alterFocus hitTarget fn = do
+  mbOccupant <- getHitTargetOccupant hitTarget
+  case mbOccupant of
+    Just (Left charNum) -> do
+      char <- areaGet (arsGetCharacter charNum)
+      case chrClass char of
+        WarriorClass -> alterCharacterMojo charNum fn
+        RogueClass -> alterCharacterMojo charNum fn
         _ -> return ()
     _ -> return ()
 
