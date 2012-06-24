@@ -46,7 +46,7 @@ data TargetKind :: * -> * where
 
 
 data Ability = PassiveAbility
-             | ActiveAbility CastingCost AbilityEffect
+             | ActiveAbility ActionPoints CastingCost AbilityEffect
 
 data AbilityEffect :: * where
   MetaAttack :: MetaAttackType -> (Int -> TargetKind a)

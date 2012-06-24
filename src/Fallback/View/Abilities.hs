@@ -132,7 +132,8 @@ newAbilityWidget resources tooltipSink abilNum = do
         Just ((as, char), (abilTag, abilRank))
   let eitherFn ((as, char), (abilTag, abilRank)) =
         case getAbility (chrClass char) abilNum abilRank of
-          ActiveAbility cost eff ->
+          ActiveAbility _ cost eff ->
+            -- TODO: take AP needed into account when deciding if can use
             Left (abilTag, canUseActiveAbility as cost eff)
           PassiveAbility -> Right abilTag
   active <- newActiveAbilityWidget resources abilNum

@@ -29,7 +29,7 @@ import Data.List (delete, find, sort)
 import Data.Maybe (catMaybes, fromMaybe, isJust)
 import qualified Data.Set as Set
 
-import Fallback.Constants (framesPerRound)
+import Fallback.Constants (framesPerRound, maxActionPoints)
 import Fallback.Data.Color (Tint(Tint))
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
@@ -67,12 +67,14 @@ getAbility characterClass abilityNumber rank =
         attackWithExtraEffects caster endPos effects
     Valiance -> PassiveAbility
     SecondWind ->
-      general (FocusCost 1) AutoTarget $ \caster power () -> do
+      general' (ranked 4 4 3) (FocusCost 1) AutoTarget $ \caster power () -> do
         intBonus <- getIntellectBonus caster
         randMult <- getRandomR 0.9 1.1
         let healAmount = randMult * intBonus * power * ranked 20 35 55
         playSound SndHeal
         healDamage [(HitCharacter caster, healAmount)]
+        when (rank >= Rank2) $ do
+          return () -- TODO reduce bad effects
     Hardiness -> PassiveAbility
     Shieldbreaker ->
       meta (FocusCost 1) MeleeOnly SingleTarget $
@@ -103,9 +105,15 @@ getAbility characterClass abilityNumber rank =
         characterWeaponHit wd startPos endPos True damage'
     FinalBlow -> PassiveAbility
     QuickAttack ->
-      meta (FocusCost 1) MeleeOrRanged SingleTarget $
-      \_ _ _ -> do
-        return () -- FIXME
+      meta' (ranked 3 2 1) (FocusCost 1) MeleeOrRanged SingleTarget $
+      \caster _power endPos -> do
+        -- TODO don't reveal if inivisible
+        char <- areaGet (arsGetCharacter caster)
+        let wd = chrEquippedWeaponData char
+        characterWeaponInitialAnimation caster endPos wd
+        damage <- characterWeaponBaseDamage char wd
+        startPos <- areaGet (arsCharacterPosition caster)
+        characterWeaponHit wd startPos endPos False damage
     Backstab -> PassiveAbility
     Vanish ->
       combat (FocusCost 1) (JumpTarget (const $ const $ const []) 6) $
@@ -769,10 +777,15 @@ getAbility characterClass abilityNumber rank =
     mix i1 i2 = IngredientCost $ TM.make $
                 \i -> (if i == i1 then 1 else 0) + (if i == i2 then 1 else 0)
     parts n ing = IngredientCost $ TM.make $ \i -> if i == ing then n else 0
-    combat cost tkind sfn = ActiveAbility cost $ CombatAbility tkind sfn
-    meta cost matype tkindFn sfn =
-      ActiveAbility cost $ MetaAttack matype tkindFn sfn
-    general cost tkind sfn = ActiveAbility cost $ GeneralAbility tkind sfn
+    combat = combat' maxActionPoints
+    combat' apNeeded cost tkind sfn =
+      ActiveAbility apNeeded cost $ CombatAbility tkind sfn
+    general = general' maxActionPoints
+    general' apNeeded cost tkind sfn =
+      ActiveAbility apNeeded cost $ GeneralAbility tkind sfn
+    meta = meta' maxActionPoints
+    meta' apNeeded cost matype tkindFn sfn =
+      ActiveAbility apNeeded cost $ MetaAttack matype tkindFn sfn
 
 -------------------------------------------------------------------------------
 
@@ -784,7 +797,7 @@ abilityFullDescription abilTag abilRank =
     costString =
       case getAbility characterClass abilNum abilRank of
         PassiveAbility -> "Passive ability"
-        ActiveAbility cost _ -> costDescription cost
+        ActiveAbility _ cost _ -> costDescription cost
     (characterClass, abilNum) = abilityClassAndNumber abilTag
 
 abilityDescription :: AbilityTag -> String
@@ -798,8 +811,8 @@ abilityDescription Valiance =
   \At rank 3, the increase rises to 30%."
 abilityDescription SecondWind =
   "Heal yourself of some damage.\n\
-  \At rank 2, requires only three action points instead of four.\n\
-  \At rank 3, requires only two action points."
+  \At rank 2, also partially cures you of negative effects.\n\
+  \At rank 3, requires only three action points instead of four."
 abilityDescription Hardiness =
   "Permanently increases your armor by 3%.\n\
   \At rank 2, the increase rises to 6%.\n\

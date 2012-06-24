@@ -245,7 +245,11 @@ featName AllCreation = "All Creation"
 featName FireSpin = "Fire Spin"
 featName JumpSlash = "Jump Slash"
 featName JumpStrike = "Jump Strike"
+featName SweepSlash = "Sweep Slash"
 featName NeutronBomb = "Neutron Bomb"
+featName SprayArrows = "Spray Arrows"
+featName TripleTap = "Triple Tap"
+featName TimeStop = "Time Stop"
 featName tag = show tag
 
 -------------------------------------------------------------------------------

@@ -158,10 +158,11 @@ newCombatMode resources modes initState = do
         Just (CombatSidebar _) -> ignore -- FIXME other sidebar commands
         Just (CombatAbilities (UseAbility abilNum)) -> do
           case csPhase cs of
-            ChooseAbilityPhase cc -> useAbility cs cc abilNum NormalCost 1
+            ChooseAbilityPhase cc ->
+              useAbility cs cc abilNum FullAP NormalCost 1
             MetaAbilityPhase cm ->
-              useAbility cs (cmCommander cm) abilNum (cmCostModifier cm)
-                         (cmPowerModifier cm)
+              useAbility cs (cmCommander cm) abilNum (cmAPModifier cm)
+                         (cmCostModifier cm) (cmPowerModifier cm)
             _ -> ignore
         Just (CombatAbilities (UseCombatFeat tag)) -> do
           case csPhase cs of
@@ -171,16 +172,17 @@ newCombatMode resources modes initState = do
               if not (partyCanAffordCastingCost charNum cost (arsParty cs))
                 then ignore else do
               case featEffect tag of
-                MetaAbility _apMod costMod powerMod -> do
-                  -- TODO respect AP modifier
+                MetaAbility apMod costMod powerMod -> do
                   -- TODO arrange to charge adrenaline after using ability
                   changeState cs { csPhase = MetaAbilityPhase CombatMetability
-                    { cmCommander = cc, cmCostModifier = costMod,
-                      cmFeatTag = tag, cmPowerModifier = powerMod } }
+                    { cmAPModifier = apMod, cmCommander = cc,
+                      cmCostModifier = costMod, cmFeatTag = tag,
+                      cmPowerModifier = powerMod } }
                 StandardFeat tkindFn sfn -> do
                   let tk = tkindFn $ rangeRadius $ wdRange $
                            chrEquippedWeaponData $ arsGetCharacter charNum cs
-                  switchToTargetingPhase cc cs cost tk $ sfn charNum
+                  switchToTargetingPhase cc cs maxActionPoints cost tk
+                                         (sfn charNum)
             _ -> ignore
         Just (CombatAbilities UseNormalAttack) -> do
           case csPhase cs of
@@ -188,8 +190,8 @@ newCombatMode resources modes initState = do
               let charNum = ccCharacterNumber cc
               let wd = chrEquippedWeaponData $ arsGetCharacter charNum cs
               let tk = SingleTarget $ rangeRadius $ wdRange wd
-              switchToTargetingPhase cc cs NoCost tk $ \target -> do
-                characterWeaponAttack charNum target
+              switchToTargetingPhase cc cs maxActionPoints NoCost tk $
+                \target -> characterWeaponAttack charNum target
             _ -> ignore
         Just (CombatInventory invAct) -> do
           case csPhase cs of
@@ -277,7 +279,8 @@ newCombatMode resources modes initState = do
             _ -> ignore
         Just (CombatTargetPosition pos) ->
           (case csPhase cs of
-             TargetingPhase CombatTargeting { ctCastingCost = cost,
+             TargetingPhase CombatTargeting { ctActionPointsNeeded = apNeeded,
+                                              ctCastingCost = cost,
                                               ctCommander = cc,
                                               ctTargeting = targeting,
                                               ctScriptFn = sfn } ->
@@ -301,7 +304,8 @@ newCombatMode resources modes initState = do
                    where
                      switch ps' = SameMode <$ writeIORef stateRef cs
                                   { csPhase = TargetingPhase CombatTargeting
-                                    { ctCastingCost = cost, ctCommander = cc,
+                                    { ctActionPointsNeeded = apNeeded,
+                                      ctCastingCost = cost, ctCommander = cc,
                                       ctTargeting = TargetingMulti n rng ps',
                                       ctScriptFn = sfn } }
                  TargetingSingle rng ->
@@ -311,28 +315,29 @@ newCombatMode resources modes initState = do
                    not (arsIsVisibleToCharacter charNum cs pos) ||
                    pSqDist pos originPos > ofRadius rng
                  charNum = ccCharacterNumber cc
-                 execute = executeCommand cs cc cost maxActionPoints
+                 execute = executeCommand cs cc cost apNeeded
                  originPos = arsCharacterPosition charNum cs
              _ -> ignore) :: IO NextMode
         Just (CombatTargetCharacter charNum) ->
           (case csPhase cs of
-             TargetingPhase (CombatTargeting { ctCastingCost = cost,
+             TargetingPhase (CombatTargeting { ctActionPointsNeeded = apNeeded,
+                                               ctCastingCost = cost,
                                                ctCommander = cc,
                                                ctTargeting = TargetingAlly _,
                                                ctScriptFn = sfn }) ->
                -- FIXME check in-range and visible to character
-               executeCommand cs cc cost maxActionPoints
-                              (sfn $ Right charNum)
+               executeCommand cs cc cost apNeeded $ sfn $ Right charNum
              _ -> ignore) :: IO NextMode
         Just CombatEndTargeting ->
           (case csPhase cs of
              TargetingPhase (CombatTargeting {
+                               ctActionPointsNeeded = apNeeded,
                                ctCastingCost = cost,
                                ctCommander = cc,
                                ctTargeting = TargetingMulti _ _ ps,
                                ctScriptFn = sfn }) ->
                if null ps then ignore else
-                 executeCommand cs cc cost maxActionPoints (sfn ps)
+                 executeCommand cs cc cost apNeeded (sfn ps)
              _ -> ignore) :: IO NextMode
 
     switchToCommandPhase :: CharacterNumber -> CombatState -> IO NextMode
@@ -346,14 +351,14 @@ newCombatMode resources modes initState = do
                           { ccActionPointsUsed = 0,
                             ccCharacterNumber = charNum } }
 
-    switchToTargetingPhase :: CombatCommander -> CombatState -> CastingCost
-                           -> TargetKind a -> (a -> Script CombatEffect ())
-                           -> IO NextMode
-    switchToTargetingPhase cc cs cost tk sfn = do
+    switchToTargetingPhase :: CombatCommander -> CombatState -> ActionPoints
+                           -> CastingCost -> TargetKind a
+                           -> (a -> Script CombatEffect ()) -> IO NextMode
+    switchToTargetingPhase cc cs actionPoints cost tk sfn = do
       case tk of
         AllyTarget r -> setTargeting (TargetingAlly r)
         AreaTarget f r -> setTargeting (TargetingArea f r)
-        AutoTarget -> executeCommand cs cc cost maxActionPoints $ sfn ()
+        AutoTarget -> executeCommand cs cc cost actionPoints $ sfn ()
         JumpTarget areaFn radius ->
           setTargeting $ TargetingJump areaFn $
           arsCharacterJumpDestinations radius (ccCharacterNumber cc) cs
@@ -361,20 +366,23 @@ newCombatMode resources modes initState = do
         SingleTarget r -> setTargeting (TargetingSingle r)
       where setTargeting targeting =
               changeState cs { csPhase = TargetingPhase CombatTargeting
-                                 { ctCastingCost = cost,
+                                 { ctActionPointsNeeded = actionPoints,
+                                   ctCastingCost = cost,
                                    ctCommander = cc,
                                    ctScriptFn = sfn,
                                    ctTargeting = targeting } }
 
-    useAbility :: CombatState -> CombatCommander -> AbilityNumber
+    useAbility :: CombatState -> CombatCommander -> AbilityNumber -> APModifier
                -> CostModifier -> PowerModifier -> IO NextMode
-    useAbility cs cc abilNum costMod power = do
+    useAbility cs cc abilNum apMod costMod power = do
       let charNum = ccCharacterNumber cc
       let char = arsGetCharacter charNum cs
       fromMaybe ignore $ do
         abilRank <- TM.get abilNum (chrAbilities char)
         case getAbility (chrClass char) abilNum abilRank of
-          ActiveAbility originalCost effect -> do
+          ActiveAbility originalApNeeded originalCost effect -> do
+            let apNeeded = modifyActionPoints apMod originalApNeeded
+            guard $ hasEnoughActionPoints cs cc apNeeded
             let cost = modifyCost costMod originalCost
             guard $ partyCanAffordCastingCost charNum cost $ arsParty cs
             case effect of
@@ -382,13 +390,13 @@ newCombatMode resources modes initState = do
                 let wrange = wdRange $ chrEquippedWeaponData char
                 guard $ metaAttackMatches matype wrange
                 let tkind = tkindFn $ rangeRadius wrange
-                Just $ switchToTargetingPhase cc cs cost tkind $
+                Just $ switchToTargetingPhase cc cs apNeeded cost tkind $
                   sfn charNum power
               GeneralAbility tkind sfn ->
-                Just $ switchToTargetingPhase cc cs cost tkind $
+                Just $ switchToTargetingPhase cc cs apNeeded cost tkind $
                   mapEffect EffCombatArea . sfn charNum power
               CombatAbility tkind sfn ->
-                Just $ switchToTargetingPhase cc cs cost tkind $
+                Just $ switchToTargetingPhase cc cs apNeeded cost tkind $
                   sfn charNum power
           PassiveAbility -> Nothing
 
@@ -588,9 +596,8 @@ doTickExecution cs ce = do
                     guard (csCharCanTakeTurn cs charNum)
                     Just (DoActivateCharacter charNum)
               return (cs'' { csPhase = WaitingPhase }, mbInterrupt)
-            hasAP cc = hasEnoughActionPoints cs cc 1
         in case ceCommander ce of
-             Just cc | hasAP cc ->
+             Just cc | hasEnoughActionPoints cs' cc 1 ->
                return (cs' { csPhase = CommandPhase cc }, Nothing)
              Just cc | otherwise ->
                endTurn (subtractUsedActionPoints cc cs')

@@ -213,7 +213,7 @@ newTownMode resources modes initState = do
                   fromMaybe ignore $ do
                     abilRank <- TM.get abilNum (chrAbilities char)
                     case getAbility (chrClass char) abilNum abilRank of
-                      ActiveAbility cost effect -> do
+                      ActiveAbility _apNeeded cost effect -> do
                         guard (partyCanAffordCastingCost charNum cost party)
                         case effect of
                           GeneralAbility target sfn -> Just $ do

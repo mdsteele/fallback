@@ -53,7 +53,13 @@ abilityRankPlus mbRank n =
   if n <= 0 || mbRank == Just maxBound then mbRank
   else abilityRankPlus (Just $ nextAbilityRank mbRank) (n - 1)
 
+type ActionPoints = Int
+
 data APModifier = ZeroAP | FullAP
+
+modifyActionPoints :: APModifier -> ActionPoints -> ActionPoints
+modifyActionPoints ZeroAP _ = 0
+modifyActionPoints FullAP n = n
 
 type PowerModifier = Double
 

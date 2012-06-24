@@ -644,6 +644,14 @@ getWeaponData DiamondRod = baseWeaponData
     wdFeats = [Resonate],
     wdRange = Ranged 4,
     wdUsableBy = manaUsersOnly }
+getWeaponData ChronosScepter = baseWeaponData
+  { wdAppearance = WandAttack,
+    wdDamageBonus = 3,
+    wdDamageRange = (1, 5),
+    wdElement = MagicDamage,
+    wdFeats = [TimeStop],
+    wdRange = Ranged 3,
+    wdUsableBy = castersOnly }
 getWeaponData _ = unarmedWeaponData -- FIXME
 
 -- | 'WeaponData' for unarmed attacks.

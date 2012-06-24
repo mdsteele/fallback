@@ -222,6 +222,7 @@ featCastingCost :: FeatTag -> CastingCost
 -- featCastingCost PulseOfLife = AdrenalineCost 50
 -- featCastingCost Avatar = AdrenalineCost 80
 -- featCastingCost AllCreation = AdrenalineCost 100
+-- featCastingCost TimeStop = AdrenalineCost 50
 featCastingCost _ = NoCost -- FIXME
 
 featDescription :: FeatTag -> String

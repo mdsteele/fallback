@@ -39,7 +39,8 @@ import Fallback.State.FOV (fieldOfView)
 import Fallback.State.Party
 import Fallback.State.Progress (HasProgress, TriggerId, getProgress)
 import Fallback.State.Simple
-  (CastingCost, CharacterNumber, CostModifier, PowerModifier)
+  (ActionPoints, APModifier, CastingCost, CharacterNumber, CostModifier,
+   PowerModifier)
 import Fallback.State.Tags (FeatTag, ItemTag)
 import Fallback.State.Terrain (terrainSize)
 
@@ -125,10 +126,10 @@ hasEnoughActionPoints :: CombatState -> CombatCommander -> Int -> Bool
 hasEnoughActionPoints cs cc apNeeded =
   let charNum = ccCharacterNumber cc
       startingAp = ccsActionPoints $ TM.get charNum $ csCharStates cs
-      usedAp = ccActionPointsUsed cc
+      apAlreadyUsed = ccActionPointsUsed cc
   in if startingAp >= maxActionPoints
-     then usedAp < maxActionPoints
-     else startingAp - usedAp >= apNeeded
+     then apAlreadyUsed < maxActionPoints
+     else startingAp - apAlreadyUsed >= apNeeded
 
 -------------------------------------------------------------------------------
 
@@ -142,17 +143,19 @@ data CombatPhase = WaitingPhase
                  | ExecutionPhase CombatExecution
 
 data CombatCommander = CombatCommander
-  { ccActionPointsUsed :: Int,
+  { ccActionPointsUsed :: ActionPoints,
     ccCharacterNumber :: CharacterNumber }
 
 data CombatMetability = CombatMetability
-  { cmCommander :: CombatCommander,
+  { cmAPModifier :: APModifier,
+    cmCommander :: CombatCommander,
     cmCostModifier :: CostModifier,
     cmFeatTag :: FeatTag,
     cmPowerModifier :: PowerModifier }
 
 data CombatTargeting = forall a. CombatTargeting
-  { ctCastingCost :: CastingCost,
+  { ctActionPointsNeeded :: ActionPoints,
+    ctCastingCost :: CastingCost,
     ctCommander :: CombatCommander,
     ctScriptFn :: a -> Script CombatEffect (),
     ctTargeting :: Targeting a }
