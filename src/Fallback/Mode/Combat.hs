@@ -374,9 +374,10 @@ newCombatMode resources modes initState = do
 
     useAbility :: CombatState -> CombatCommander -> AbilityNumber -> APModifier
                -> CostModifier -> PowerModifier -> IO NextMode
-    useAbility cs cc abilNum apMod costMod power = do
+    useAbility cs cc abilNum apMod costMod metaPower = do
       let charNum = ccCharacterNumber cc
       let char = arsGetCharacter charNum cs
+      let power = metaPower * chrPowerModifier char
       fromMaybe ignore $ do
         abilRank <- TM.get abilNum (chrAbilities char)
         case getAbility (chrClass char) abilNum abilRank of

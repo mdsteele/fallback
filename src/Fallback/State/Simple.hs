@@ -318,8 +318,9 @@ statDescription Agility = "Agility determines your ability to dodge enemy\
   \ attacks and hit with your own, and helps you to act more quickly in\
   \ combat.  It also helps you to avoid cold damage and being stunned."
 statDescription Intellect = "Intellect determines your maximum mana/focus, the\
-  \ power of your spells, and your chances of landing a critical hit with a\
-  \ weapon.  It also helps you to resist energy damage and mental effects."
+  \ power of your special abilities, and your chances of landing a critical\
+  \ hit with a weapon.  It also helps you to resist energy damage and mental\
+  \ effects."
 
 type Stats = TM.TotalMap Stat Int
 

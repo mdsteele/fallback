@@ -296,6 +296,7 @@ data AccessoryItemTag = Alkamulet | ArmorRing | EverwarmPendant | FightersRing
                       | GlovesOfTanth | GroundedCharm | IcyNecklace
                       | JeweledPin | LeatherGloves | MedalOfValor
                       | MercuricRing | ShieldRing | TrogloHelmet | WizardHat
+                      | WizardsRing
   deriving (Bounded, Enum, Eq, Ord, Read, Show)
 
 data PotionItemTag = HealingTincture | HealingPotion | HealingElixir

@@ -404,6 +404,13 @@ chrGetStat stat char = max 1 $
   TM.get stat (chrBaseStats char) +
   (sum $ map (TM.get stat . bonusStats) $ chrBonusesList char)
 
+-- | Determine the character's power modifier for special abilities (counting
+-- everything except bonuses from meta-abilities).
+chrPowerModifier :: Character -> PowerModifier
+chrPowerModifier char =
+  1.01 ^^ chrGetStat Intellect char *
+  (product $ map bonusPowerModifier $ chrBonusesList char)
+
 chrRecuperation :: Character -> Double
 chrRecuperation = chrAbilityMultiplier Recuperation 1.1 1.2 1.4
 

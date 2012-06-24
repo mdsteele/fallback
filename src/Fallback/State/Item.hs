@@ -87,6 +87,7 @@ accessoryName MercuricRing = "Mercuric Ring"
 accessoryName ShieldRing = "Shield Ring"
 accessoryName TrogloHelmet = "Troglo Helmet"
 accessoryName WizardHat = "Wizard Hat"
+accessoryName WizardsRing = "Wizard's Ring"
 
 potionName :: PotionItemTag -> String
 potionName HealingTincture = "Healing Tincture"
@@ -171,6 +172,7 @@ accessoryIconCoords MercuricRing = (9, 3)
 accessoryIconCoords ShieldRing = (9, 4)
 accessoryIconCoords TrogloHelmet = (12, 1)
 accessoryIconCoords WizardHat = (12, 0)
+accessoryIconCoords WizardsRing = (9, 2)
 
 potionIconCoords :: PotionItemTag -> (Int, Int)
 potionIconCoords HealingTincture = (2, 0)
@@ -357,6 +359,7 @@ bonusesSubDesc bonuses = if null bonusLines then "" else
                         " melee weapon damage\n" ++
                multLine bonusRangedWeaponDamageMultiplier
                         " ranged weapon damage\n" ++
+               multLine bonusPowerModifier " power for special abilities\n" ++
                multLine bonusSpeedMultiplier " speed\n" ++
                (map resistLine $ filter ((1 /=) . snd) $ TM.assocs $
                 bonusResistances bonuses)
@@ -762,6 +765,9 @@ getAccessoryData TrogloHelmet = ArmorData
 getAccessoryData WizardHat = ArmorData
   { adBonuses = sumBonuses [Intellect += 10, Armor +% 2],
     adUsableBy = manaUsersOnly }
+getAccessoryData WizardsRing = ArmorData
+  { adBonuses = powerModifier 1.15,
+    adUsableBy = anyone }
 
 -------------------------------------------------------------------------------
 
@@ -798,6 +804,7 @@ data Bonuses = Bonuses
   { bonusAdrenalineMultiplier :: Double,
     bonusFistsDamageMultiplier :: Double,
     bonusMeleeWeaponDamageMultiplier :: Double,
+    bonusPowerModifier :: PowerModifier,
     bonusRangedWeaponDamageMultiplier :: Double,
     bonusResistances :: Resistances,
     bonusSpeedMultiplier :: Double,
@@ -809,6 +816,7 @@ nullBonuses = Bonuses
   { bonusAdrenalineMultiplier = 1,
     bonusFistsDamageMultiplier = 1,
     bonusMeleeWeaponDamageMultiplier = 1,
+    bonusPowerModifier = 1,
     bonusRangedWeaponDamageMultiplier = 1,
     bonusResistances = nullResistances,
     bonusSpeedMultiplier = 1,
@@ -822,6 +830,7 @@ addBonuses b1 b2 = Bonuses
                                  bonusFistsDamageMultiplier b2,
     bonusMeleeWeaponDamageMultiplier = bonusMeleeWeaponDamageMultiplier b1 *
                                        bonusMeleeWeaponDamageMultiplier b2,
+    bonusPowerModifier = bonusPowerModifier b1 * bonusPowerModifier b2,
     bonusRangedWeaponDamageMultiplier = bonusRangedWeaponDamageMultiplier b1 *
                                         bonusRangedWeaponDamageMultiplier b2,
     bonusResistances = (*) <$> bonusResistances b1 <*> bonusResistances b2,
@@ -841,6 +850,9 @@ fistsDamageMult x = nullBonuses { bonusFistsDamageMultiplier = x }
 
 meleeDamageMult :: Double -> Bonuses
 meleeDamageMult x = nullBonuses { bonusMeleeWeaponDamageMultiplier = x }
+
+powerModifier :: PowerModifier -> Bonuses
+powerModifier x = nullBonuses { bonusPowerModifier = x }
 
 rangedDamageMult :: Double -> Bonuses
 rangedDamageMult x = nullBonuses { bonusRangedWeaponDamageMultiplier = x }

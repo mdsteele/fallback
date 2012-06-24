@@ -217,7 +217,8 @@ newTownMode resources modes initState = do
                         guard (partyCanAffordCastingCost charNum cost party)
                         case effect of
                           GeneralAbility target sfn -> Just $ do
-                            let sfn' = mapEffect EffTownArea . sfn charNum 1
+                            let sfn' = mapEffect EffTownArea .
+                                       sfn charNum (chrPowerModifier char)
                             let setTarget targ = changeState ts
                                   { tsPhase = TargetingPhase $
                                               TownTargeting cost sfn' targ }
