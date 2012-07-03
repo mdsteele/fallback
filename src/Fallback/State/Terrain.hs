@@ -32,8 +32,8 @@ module Fallback.State.Terrain
    ExploredMap, unexploredMap, hasExplored, setExplored)
 where
 
-import Data.Array.Diff (DiffUArray)
 import Data.Array.IArray
+import Data.Array.Unboxed (UArray)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe, listToMaybe)
 import qualified Data.Traversable as Trav (mapM)
@@ -156,7 +156,9 @@ prectRect (Rect x y w h) =
 -------------------------------------------------------------------------------
 -- Explored maps:
 
-newtype ExploredMap = ExploredMap (DiffUArray Position Bool)
+-- TODO: Which ends up being more efficient for our use case, a (UArray
+-- Position Bool), or a (Set Position)?
+newtype ExploredMap = ExploredMap (UArray Position Bool)
 
 instance Show ExploredMap where
   showsPrec p (ExploredMap arr) = showsPrec p (bounds arr, string)

@@ -28,8 +28,9 @@
 #include <SDL/SDL.h>
 
 #ifdef __GLASGOW_HASKELL__
-extern void hs_main(void);  // defined in HSMain_stub.c
+// These come from src/HSMain.hs, which becomes out/HSMain.o:
 extern void __stginit_HSMain(void);
+extern void fallback_sdl_main(void);
 #endif
 
 int SDL_main(int argc, char *argv[]) {
@@ -45,7 +46,7 @@ int SDL_main(int argc, char *argv[]) {
   hs_add_root(__stginit_HSMain);
 #endif
 
-  hs_main();
+  fallback_sdl_main();
 
   hs_exit();
 

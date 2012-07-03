@@ -32,7 +32,7 @@ where
 import Control.Monad (when)
 import Foreign (FunPtr, Ptr, Storable(peekByteOff, peekElemOff), Word8, Word32,
                 nullFunPtr, nullPtr, withForeignPtr)
-import Foreign.C.Types (CInt)
+import Foreign.C.Types (CInt(CInt))
 
 import qualified Graphics.UI.SDL as SDL
 import qualified Graphics.UI.SDL.Mixer as SDLm

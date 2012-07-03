@@ -19,15 +19,15 @@
 
 {-# LANGUAGE ForeignFunctionInterface #-}
 
-module HSMain (hs_main) where
+module HSMain (fallback_sdl_main) where
 
 import Fallback.Main (sdlMain)
 
 -------------------------------------------------------------------------------
 
-foreign export ccall hs_main :: IO ()
+foreign export ccall fallback_sdl_main :: IO ()
 
-hs_main :: IO ()
-hs_main = sdlMain
+fallback_sdl_main :: IO ()
+fallback_sdl_main = sdlMain
 
 -------------------------------------------------------------------------------

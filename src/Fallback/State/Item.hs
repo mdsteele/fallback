@@ -262,7 +262,7 @@ showCoins :: Integer -> String
 showCoins coins = showCommaSep coins ++
                   if coins == 1 then " coin" else " coins"
 
-showCommaSep :: (Integral a) => a -> String
+showCommaSep :: (Integral a, Show a) => a -> String
 showCommaSep = reverse . commaSep . reverse . show
   where commaSep (a:b:c:d:xs) = a : b : c : ',' : commaSep (d : xs)
         commaSep xs = xs

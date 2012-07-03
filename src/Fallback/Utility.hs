@@ -39,7 +39,7 @@ import Data.Function (on)
 import Data.List (groupBy, maximumBy, minimumBy, nubBy, sortBy)
 import Data.Maybe (catMaybes)
 import Data.Ord (comparing)
-import Foreign.C.Types (CDouble)
+import Foreign.C.Types (CDouble(CDouble))
 import qualified GHC.IO
 import qualified GHC.Prim
 

@@ -25,7 +25,7 @@ module System.MacOSX.Bundle
 where
 
 import Data.Word (Word8)
-import Foreign.C (CChar, CLong, peekCString)
+import Foreign.C (CChar, CLong(CLong), peekCString)
 import Foreign.ForeignPtr (ForeignPtr, newForeignPtr, withForeignPtr)
 import Foreign.Marshal (allocaArray)
 import Foreign.Ptr (FunPtr, Ptr, castPtr, nullPtr)

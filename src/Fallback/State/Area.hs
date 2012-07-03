@@ -17,7 +17,7 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
-{-# LANGUAGE GADTs, KindSignatures, Rank2Types #-}
+{-# LANGUAGE GADTs, KindSignatures, Rank2Types, ScopedTypeVariables #-}
 
 module Fallback.State.Area where
 
@@ -507,7 +507,7 @@ executePartyEffect eff party =
       let progress' = progressSetVar var value $ partyProgress party
       return ((), party { partyProgress = progress' })
 
-executeAreaCommonEffect :: (AreaState s) => AreaCommonEffect a -> s
+executeAreaCommonEffect :: forall a s. (AreaState s) => AreaCommonEffect a -> s
                         -> IO (a, s)
 executeAreaCommonEffect eff ars = do
   let acs = arsCommon ars
@@ -550,7 +550,9 @@ executeAreaCommonEffect eff ars = do
     EffShakeCamera ampl duration -> do
       change acs { acsCamera = setCameraShake ampl duration (acsCamera acs) }
   where
+    set :: AreaCommonState -> s
     set acs' = arsSetCommon ars acs'
+    change :: AreaCommonState -> IO ((), s)
     change acs' = return ((), set acs')
 
 -------------------------------------------------------------------------------

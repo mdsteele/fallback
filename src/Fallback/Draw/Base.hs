@@ -231,7 +231,7 @@ paintWithSubCanvas subRect paint = Paint $ GL.preservingMatrix $ do
              (fromIntegral w) (fromIntegral h)
   let toScissor (Rect x y w h) =
         (GL.Position (toGLint x) (toGLint (screenHeight - y - h)),
-         GL.Size (toGLint w) (toGLint h))
+         GL.Size (toGLsizei w) (toGLsizei h))
   -- Change the canvas rect:
   oldRect <- readIORef canvasRectRef
   let newRect = subRect `rectPlus` rectTopleft oldRect
@@ -522,7 +522,7 @@ gradientRing innerFn outerFn (Point cx cy) hRad vRad = Paint $ do
     GL.translate $ GL.Vector3 (toGLdouble cx) (toGLdouble cy) 0
     GL.textureBinding GL.Texture2D $= Nothing
     GL.renderPrimitive GL.TriangleStrip $ do
-      let step = toGLdouble (pi / 24 :: Double) -- TODO
+      let step = pi / 24 :: Double -- TODO
       let doPt fn theta = do
             let (rad, tint) = fn theta
             setTint tint
@@ -590,7 +590,7 @@ newMinimap (width, height) = do
   texture <- newTexture width height $ do
     withArray (replicate (width * height) (0 :: Word32)) $ \pixelsPtr -> do
       GL.texImage2D Nothing GL.NoProxy 0 GL.RGB'
-          (GL.TextureSize2D (toGLint width) (toGLint height)) 0
+          (GL.TextureSize2D (toGLsizei width) (toGLsizei height)) 0
           (GL.PixelData GL.RGB GL.UnsignedByte pixelsPtr)
   return (Minimap texture)
 
@@ -736,7 +736,7 @@ newTextureFromSurface surface = do
     withForeignPtr surface $ const $ do
       pixelsPtr <- SDL.surfaceGetPixels surface
       GL.texImage2D Nothing GL.NoProxy 0 format'
-          (GL.TextureSize2D (toGLint width) (toGLint height))
+          (GL.TextureSize2D (toGLsizei width) (toGLsizei height))
           0 (GL.PixelData format GL.UnsignedByte pixelsPtr)
 
 -- | Determine the appropriate OpenGL pixel formats to use when interpreting
@@ -792,6 +792,9 @@ toGLdouble = toFloating
 
 toGLint :: Int -> GL.GLint
 toGLint = fromIntegral
+
+toGLsizei :: Int -> GL.GLsizei
+toGLsizei = fromIntegral
 
 drawIO :: (MonadDraw m) => IO a -> m a
 drawIO = runDraw . Draw

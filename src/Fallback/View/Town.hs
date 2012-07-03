@@ -190,6 +190,7 @@ newTownMapView resources cursorSink = do
                                camTopleft (acsCamera acs))
           checkRadius r s =
             guard (pos `pSqDist` tsPartyPosition ts <= ofRadius r) >> s
+          search :: Grid.Grid b -> Maybe (Grid.Entry b)
           search grid = do guard $ Set.member pos $ acsVisible acs
                            Grid.search grid pos
           monFn' script = monFn $ checkRadius talkRadius $ Just script
