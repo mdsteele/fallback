@@ -446,8 +446,8 @@ potionFlavorText Eggs = "Eggs are basically cheese that comes from chickens."
 potionFlavorText Radish = "Or is it a turnip?  Hard to tell."
 potionFlavorText Apple = "Apples are notable for being especially difficult to\
   \ compare to oranges."
-potionFlavorText Orange = "Oranges (the most aptly named of all fruits) have\
-  \ that delicious citrus taste that magicians love!"
+potionFlavorText Orange = "Oranges are perhaps the most aptly named of all\
+  \ fruits."
 potionFlavorText Strawberry = "Strawberries are blushing because their seeds\
   \ are on the outside."
 potionFlavorText Pear = "Pears are like apples, but they're shaped wrong and\
@@ -457,7 +457,9 @@ potionFlavorText Lemon = "If life gives you lemons, make lemonade.  Or pie! \
 potionFlavorText _ = "FIXME a potion"
 
 inertFlavorText :: InertItemTag -> String
-inertFlavorText _ = "FIXME something inert"
+inertFlavorText IronKey = "A heavy iron key that you claimed from the daemon\
+  \ Dactylid in Svengaard."
+inertFlavorText BrassKey = "A polished brass key that you found in Icehold."
 
 -------------------------------------------------------------------------------
 
@@ -754,7 +756,7 @@ getAccessoryData MedalOfValor = ArmorData
   { adBonuses = sumBonuses [adrenMult 1.2, ResistStun +% 10],
     adUsableBy = anyone }
 getAccessoryData MercuricRing = ArmorData
-  { adBonuses = sumBonuses [Strength -= 5, speedMult 1.1],
+  { adBonuses = sumBonuses [Strength -= 5, speedMult 1.15],
     adUsableBy = anyone }
 getAccessoryData ShieldRing = ArmorData
   { adBonuses = (Armor +% 10),

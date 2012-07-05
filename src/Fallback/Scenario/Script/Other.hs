@@ -62,9 +62,9 @@ module Fallback.Scenario.Script.Other
    aoeTarget, beamTarget, splashTarget, wallTarget)
 where
 
-import Control.Applicative ((<$), (<$>))
+import Control.Applicative ((<$>))
 import Control.Arrow (second)
-import Control.Monad (filterM, forM_, when, unless)
+import Control.Monad (filterM, forM_, unless, void, when)
 import Data.Array (range)
 import Data.List (find)
 import Data.Maybe (isNothing)
@@ -521,7 +521,7 @@ addBasicEnemyMonster nearPos tag mbDeadVar townAi = do
   return ()
 
 addDevice_ :: (FromAreaEffect f) => Device -> Position -> Script f ()
-addDevice_ device pos = () <$ emitAreaEffect (EffTryAddDevice pos device)
+addDevice_ device pos = void $ emitAreaEffect (EffTryAddDevice pos device)
 
 grantAndEquipWeapon :: (FromAreaEffect f) => WeaponItemTag -> CharacterNumber
                     -> Script f ()

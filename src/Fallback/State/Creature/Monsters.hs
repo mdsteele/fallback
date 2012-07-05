@@ -246,9 +246,15 @@ getMonsterType Vhaegyst = baseMonsterType
                 SummonOne True 4 5 20 [Ghoul, Skeleton, Zombie],
                 SummonOne True 2 5 20 [Ghoul, Skeleton, Zombie]] }
 getMonsterType TownManRed = townsperson { mtImageRow = 10 }
+getMonsterType TownManYellow = townsperson { mtImageRow = 11 }
+getMonsterType TownManBlue = townsperson { mtImageRow = 12 }
+getMonsterType TownWomanGreen = townsperson { mtImageRow = 13 }
 getMonsterType TownManApron = townsperson { mtImageRow = 14 }
 getMonsterType TownWomanApron = townsperson { mtImageRow = 15 }
+getMonsterType TownWomanPink = townsperson { mtImageRow = 16 }
 getMonsterType TownWomanBlue = townsperson { mtImageRow = 17 }
+getMonsterType TownWomanRed = townsperson { mtImageRow = 18 }
+getMonsterType TownChildPurple = townsperson { mtImageRow = 19 }
 getMonsterType GuardArcher = baseMonsterType
   { mtAgility = 30,
     mtAttacks = [baseMonsterAttack

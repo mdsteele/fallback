@@ -260,7 +260,7 @@ paintHealthBar cameraTopleft ally prect offset health maxHealth mbSummon = do
   tintRect (if ally then Tint 192 192 255 255 else Tint 255 192 192 255) rect
   tintRect (if ally then Tint 64 64 255 255 else Tint 255 64 64 255)
            (rect { rectW = barWidth * health `div` maxHealth })
-  maybeM mbSummon $ \(remainingFrames, maxFrames) -> do
+  when ally $ maybeM mbSummon $ \(remainingFrames, maxFrames) -> do
     let y' = rectY rect + half (rectH rect)
         x' = rectX rect
         x'' = x' + barWidth * remainingFrames `div` maxFrames

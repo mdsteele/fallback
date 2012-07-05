@@ -21,8 +21,8 @@ module Fallback.Scenario.MonsterAI.Town
   (monsterTownStep)
 where
 
-import Control.Applicative ((<$), (<$>))
-import Control.Monad (unless, when)
+import Control.Applicative ((<$>))
+import Control.Monad (unless, void, when)
 import qualified Data.Set as Set
 
 import qualified Fallback.Data.Grid as Grid
@@ -89,7 +89,7 @@ monsterTownStep ge = do
     monst = Grid.geValue ge
     rect = Grid.geRect ge
     key = Grid.geKey ge
-    takeStep_ path = () <$ takeStep path
+    takeStep_ path = void $ takeStep path
     takeStep path = do
       let (time, steps) = if monstWalksFast monst then (2, 2) else (4, 1)
       mapM_ (walkMonster time key) $ take steps path

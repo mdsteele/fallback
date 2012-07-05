@@ -21,9 +21,9 @@ module Fallback.Scenario.MonsterAI.Spells
   (prepMonsterSpell)
 where
 
-import Control.Applicative ((<$), (<$>))
+import Control.Applicative ((<$>))
 import Control.Arrow (right)
-import Control.Monad (filterM, foldM, forM, forM_, when)
+import Control.Monad (filterM, foldM, forM, forM_, void, when)
 import Data.List (maximumBy)
 import Data.Maybe (catMaybes)
 import Data.Ord (comparing)
@@ -145,8 +145,7 @@ prepMonsterSpell FrostMissiles ge = do
     wait 4
     damage <- getRandomR 30 50
     dealDamage [(HitPosition target, ColdDamage, damage)]
-    when knockback $ do
-      () <$ tryKnockBack (HitPosition target) dir
+    when knockback $ void $ tryKnockBack (HitPosition target) dir
   return 2
 prepMonsterSpell (Shell benefit cooldown duration) ge = do
   ifSatisfies (not $ isBeneficial $ seDefense $ monstStatus $

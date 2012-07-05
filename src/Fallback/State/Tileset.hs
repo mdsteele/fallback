@@ -214,6 +214,22 @@ tilesList = [
 
  Tile 4181 (Still 4 8) TerrainHover blue, -- ocean
  Tile 9702 (Still 6 2) TerrainHover blue, -- ocean rock
+ Tile 9791 (Still 40 8) TerrainOpen beige, -- sand
+ Tile 5468 (Still 41 11) TerrainWindow beige, -- sand rocks
+ Tile 9458 (Still 40 6) TerrainWindow beige, -- sand rock pile left
+ Tile 3945 (Still 40 7) TerrainWindow beige, -- sand rock pile right
+ Tile 0873 (Still 40 9) TerrainOpen beige, -- sand shore
+ Tile 3662 (Still 40 10) TerrainOpen beige,
+ Tile 1152 (Still 40 11) TerrainOpen beige,
+ Tile 9190 (Still 41 2) TerrainOpen beige,
+ Tile 5533 (Still 41 3) TerrainOpen beige,
+ Tile 2319 (Still 41 4) TerrainOpen beige,
+ Tile 7556 (Still 41 5) TerrainOpen beige,
+ Tile 7540 (Still 41 6) TerrainOpen beige,
+ Tile 2952 (Still 41 7) TerrainOpen beige,
+ Tile 4947 (Still 41 8) TerrainOpen beige,
+ Tile 4155 (Still 41 9) TerrainOpen beige,
+ Tile 4740 (Still 41 10) TerrainOpen beige,
  Tile 2467 (Still 5 11) TerrainHover blue, -- tiny island
  Tile 7279 (Still 4 9) TerrainHover blue, -- light grass shore
  Tile 1729 (Still 4 10) TerrainHover blue,
@@ -571,6 +587,7 @@ tilesList = [
  Tile 0285 (Anim 49 0 6 NoOverlay) TerrainHover orange] -- lava
 
   where
+    beige = Color 224 192 160
     black = blackColor
     blue = Color 0 0 255
     bluegreen = Color 0 192 128

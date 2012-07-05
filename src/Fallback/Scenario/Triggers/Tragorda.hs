@@ -75,7 +75,7 @@ compileTragorda globals = compileArea Tragorda Nothing $ do
 
   uniqueDevice 277292 (Point 9 24) signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
-      \      {b}THE WELCOME TRAVELER TAVERN{_}"
+      \      {b}THE WELCOME TRAVELER{_}"
 
   uniqueDevice 915293 (Point 13 20) signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
@@ -136,18 +136,24 @@ compileTragorda globals = compileArea Tragorda Nothing $ do
         setQuestStatus DryIceForLucca QuestSucceeded
     initialChoices
 
-  uniqueDevice 884670 (Point 26 30) signRadius $ \_ _ -> do
-    narrate "The sign mounted on the wall reads:\n\n\
-      \      {b}TRAGORDA MARKETPLACE{_}"
-  uniqueDevice 285872 (Point 29 13) signRadius $ \_ _ -> do
-    narrate "The sign mounted on the wall reads:\n\n\
-      \      {b}TRAGORDA CITY HALL{_}"
   uniqueDevice 642104 (Point 29 36) signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
       \          {b}Bisla Gruer Fine Jewelry{_}\n\
       \      {i}Ornaments magical and mundane.{_}\n\
       \                           {i}Est. 1136{_}\n\
       \                   {i}A family business.{_}"
+  simpleTownsperson 020394 TownManBlue (Point 32 35)
+                    (DrunkAI $ Rect 31 34 3 1) $ \_ -> conversation $ do
+    narrate "Oh hai." -- FIXME
+    startShopping $ map (Right . AccessoryItemTag) $
+      [GroundedCharm, IcyNecklace, JeweledPin, ShieldRing, WizardsRing]
+
+  uniqueDevice 884670 (Point 26 30) signRadius $ \_ _ -> do
+    narrate "The sign mounted on the wall reads:\n\n\
+      \      {b}TRAGORDA MARKETPLACE{_}"
+  uniqueDevice 285872 (Point 29 13) signRadius $ \_ _ -> do
+    narrate "The sign mounted on the wall reads:\n\n\
+      \      {b}TRAGORDA CITY HALL{_}"
   uniqueDevice 320769 (Point 32 12) signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
       \      {b}OFFICE OF THE CLERK{_}"

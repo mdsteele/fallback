@@ -42,8 +42,7 @@ module Fallback.Scenario.Compile
    questUntaken, questActive)
 where
 
-import Control.Applicative ((<$))
-import Control.Monad (unless, when)
+import Control.Monad (unless, void, when)
 import Control.Monad.Fix (MonadFix)
 import qualified Control.Monad.State as State
 import qualified Data.Map as Map
@@ -238,7 +237,7 @@ simpleTownsperson vseed tag pos ai sfn = do
   (vseed', vseed'') <- splitVarSeed vseed
   scriptId <- newMonsterScript vseed' sfn
   onStartDaily vseed'' $ do
-    () <$ tryAddMonster pos (makeMonster tag)
+    void $ tryAddMonster pos (makeMonster tag)
       { monstIsAlly = True,
         monstScript = Just scriptId,
         monstTownAI = ai }

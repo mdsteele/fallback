@@ -22,7 +22,7 @@ module Fallback.Sound
    loopMusic, stopMusic, fadeOutMusic)
 where
 
-import Control.Monad (when)
+import Control.Monad (void, when)
 import Data.IORef (IORef, newIORef, writeIORef)
 import Data.List (nub)
 import qualified Graphics.UI.SDL.Mixer as SDLm
@@ -72,8 +72,7 @@ fadeOutMusic seconds = do
   -- We use SDLm.tryFadeOutMusic instead of SDLm.fadeOutMusic because the
   -- latter apparently throws an exception if the music is not currently
   -- playing.
-  _ <- SDLm.tryFadeOutMusic $ round $ 1000 * seconds
-  return ()
+  void $ SDLm.tryFadeOutMusic $ round $ 1000 * seconds
 
 stopMusic :: IO ()
 stopMusic = do
