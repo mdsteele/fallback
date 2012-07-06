@@ -30,7 +30,7 @@ import Fallback.Data.Point
 import Fallback.Draw.Base (blitTopleft)
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
-import Fallback.Scenario.Triggers.Globals (Globals(..), signRadius)
+import Fallback.Scenario.Triggers.Globals
 import Fallback.Scenario.Triggers.Script
 import Fallback.State.Area
 import Fallback.State.Doodad (Doodad(..), DoodadHeight(LowDood))
@@ -48,8 +48,7 @@ compileIronMine globals = compileArea IronMine Nothing $ do
   makeExit Marata [Rect 42 58 10 2] (Point 46 56)
 
   onStartDaily 244106 $ do
-    addDevice_ (gAdobeDoor globals) (Point 39 29)
-    addDevice_ (gAdobeDoor globals) (Point 22 6)
+    addUnlockedDoors globals
   uniqueDevice 335736 (Point 45 54) signRadius $ \_ _ -> do
     narrate "Someone has helpfully posted a sign here:\n\n\
       \          {b}MINE CLOSED{_}\n\

@@ -105,18 +105,7 @@ scenarioTriggers = compileScenario $ do
   compileArea Valhalla Nothing $ do
 
     onStartDaily 409487 $ do
-      addDevice_ (gStoneDoor globals) (Point 8 2)
-      addDevice_ (gStoneDoor globals) (Point 12 4)
-      addDevice_ (gStoneDoor globals) (Point 3 6)
-      addDevice_ (gStoneDoor globals) (Point 4 6)
-      addDevice_ (gStoneDoor globals) (Point 10 6)
-      addDevice_ (gStoneDoor globals) (Point 2 9)
-      addDevice_ (gStoneDoor globals) (Point 10 9)
-      addDevice_ (gStoneDoor globals) (Point 4 11)
-      addDevice_ (gStoneDoor globals) (Point 7 11)
-      addDevice_ (gStoneDoor globals) (Point 5 13)
-      addDevice_ (gStoneDoor globals) (Point 10 13)
-      addDevice_ (gBasaltDoor globals) (Point 32 17)
+      addUnlockedDoors globals
 
     simpleMonster 660632 DemonWolf (Point 29 2) MindlessAI
     simpleMonster 660633 DemonWolf (Point 6 20) ChaseAI
@@ -305,22 +294,8 @@ scenarioTriggers = compileScenario $ do
       setMessage "The door is locked."
 
     onStartDaily 820304 $ do
-      -- Doors in inn:
-      addDevice_ (gAdobeDoor globals) (Point 19 10)
-      addDevice_ (gAdobeDoor globals) (Point 19 12)
-      addDevice_ (gAdobeDoor globals) (Point 23 10)
-      addDevice_ alwaysLockedDoor (Point 23 12)
-      addDevice_ (gAdobeDoor globals) (Point 26 11)
-      addDevice_ (gAdobeDoor globals) (Point 30 13)
-      -- Doors on houses:
-      addDevice_ alwaysLockedDoor (Point 12 13)
-      addDevice_ alwaysLockedDoor (Point 38 9)
-      addDevice_ alwaysLockedDoor (Point 38 15)
-      addDevice_ alwaysLockedDoor (Point 42 12)
-      addDevice_ alwaysLockedDoor (Point 44 18)
-      -- Doors on other buildings:
-      addDevice_ alwaysLockedDoor (Point 14 26)
-      addDevice_ alwaysLockedDoor (Point 38 29)
+      addUnlockedDoors globals
+      addDeviceOnMarks alwaysLockedDoor "Locked"
 
     once 340838 isFirstTimeThroughLongvale $ do
       wait 40
@@ -613,20 +588,9 @@ scenarioTriggers = compileScenario $ do
     makeExit PerilousRoad [Rect 53 17 2 17] (Point 51 25)
 
     onStartDaily 472927 $ do
+      addUnlockedDoors globals
       setAreaCleared Holmgare True
-      addDevice_ (gAdobeDoor globals) (Point 16 13)
-      addDevice_ (gAdobeDoor globals) (Point 17 23)
-      addDevice_ (gAdobeDoor globals) (Point 19 14)
-      addDevice_ (gAdobeDoor globals) (Point 22 21)
-      addDevice_ (gAdobeDoor globals) (Point 36 23)
-      addDevice_ (gAdobeDoor globals) (Point 38 20)
-      addDevice_ (gStoneDoor globals) (Point 24 26)
-      addDevice_ (gStoneDoor globals) (Point 26 11)
-      addDevice_ (gStoneDoor globals) (Point 28  9)
-      addDevice_ (gStoneDoor globals) (Point 28 24)
-      addDevice_ (gStoneDoor globals) (Point 31 14)
-      addDevice_ (gStoneDoor globals) (Point 34 13)
-      addDevice_ (gStoneDoor globals) (Point 36  8)
+
     simpleTownsperson 217809 TownManApron (Point 28 27) ImmobileAI $ \_ -> do
       let page1 = multiChoice
             "The blacksmith wipes his brow and sets down his tongs.  \"The\
@@ -689,9 +653,13 @@ scenarioTriggers = compileScenario $ do
     makeExit WhistlingWoods [Rect 13 3 2 6] (Point 11 6)
 
   compileArea Marata Nothing $ do
+
     makeExit IcyConfluence [Rect 9 42 8 2] (Point 11 40)
     makeExit IronMine [Rect 37 0 9 2] (Point 41 3)
     makeExit NorthernTundra [Rect 53 11 2 12] (Point 51 16)
+
+    onStartDaily 109833 $ do
+      addUnlockedDoors globals
 
   compileIronMine globals
 

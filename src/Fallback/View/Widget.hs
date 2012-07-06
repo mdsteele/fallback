@@ -359,7 +359,7 @@ newScrollBar = do
       let knob = knobRect input rect
       if rectContains knob pt then do
         Ignore <$ writeDrawRef stateRef (Just (curVal, pointY pt))
-       else do
+      else do
         return $ if not (rectContains rect pt) then Ignore
                  else Action $ if pointY pt < rectY knob
                                then max minVal $ curVal - perPage

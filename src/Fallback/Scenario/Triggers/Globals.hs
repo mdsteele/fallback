@@ -20,30 +20,26 @@
 {-# LANGUAGE DoRec #-}
 
 module Fallback.Scenario.Triggers.Globals
-  (Globals(..), compileGlobals, newDoorDevices, signRadius)
+  (Globals(..), compileGlobals, newDoorDevice, addUnlockedDoors, signRadius)
 where
-
-import Control.Applicative ((<$>))
-import Control.Monad.Fix (MonadFix)
 
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
-import Fallback.Scenario.Triggers.Script (massSetTerrain)
-import Fallback.State.Area (AreaEffect, Device)
-import Fallback.State.Progress (VarSeed, splitVarSeed)
-import Fallback.State.Resources (SoundTag(..))
+import Fallback.Scenario.Triggers.Script (addDeviceOnMarks, massSetTerrain)
+import Fallback.State.Area
+import Fallback.State.Progress (VarSeed)
+import Fallback.State.Resources (SoundTag(..), rsrcTileset)
 import Fallback.State.Simple (CharacterNumber)
-import Fallback.State.Tileset (TileTag(..))
-import Fallback.Utility (whenM)
+import Fallback.State.Tileset (TileTag(..), tilesetGet, ttId)
+import Fallback.State.Terrain (terrainGetTile)
+import Fallback.Utility (firstJust, maybeM, whenM)
 
 -------------------------------------------------------------------------------
 
 data Globals = Globals
-  { gAdobeDoor :: Device,
-    gBasaltDoor :: Device,
-    gStoneDoor :: Device }
+  { gUnlockedDoor :: Device }
 
 -- | The standard interaction radius for signs/placards:
 signRadius :: Int
@@ -53,39 +49,51 @@ signRadius = 3
 
 compileGlobals :: CompileScenario Globals
 compileGlobals = do
-
-  let newUnlockedDoor vseed cTag oTag = do
-        let succeed _ _ = return True
-        fst <$> newDoorDevices vseed cTag oTag succeed succeed
-  stoneDoor <- newUnlockedDoor 398282 StoneDoorClosedTile StoneDoorOpenTile
-  basaltDoor <- newUnlockedDoor 349783 BasaltDoorClosedTile BasaltDoorOpenTile
-  adobeDoor <- newUnlockedDoor 109823 AdobeDoorClosedTile AdobeDoorOpenTile
-
-  return Globals { gAdobeDoor = adobeDoor, gBasaltDoor = basaltDoor,
-                   gStoneDoor = stoneDoor }
+  unlockedDoor <- do
+    let succeed _ _ = return True
+    newDoorDevice 978249 succeed succeed
+  return Globals { gUnlockedDoor = unlockedDoor }
 
 -------------------------------------------------------------------------------
 
-newDoorDevices :: (DefineDevice m, MonadFix m) => VarSeed -> TileTag -> TileTag
+newDoorDevice :: (DefineDevice m) => VarSeed
                -> (Grid.Entry Device -> CharacterNumber ->
                    Script AreaEffect Bool)
                -> (Grid.Entry Device -> CharacterNumber ->
                    Script AreaEffect Bool)
-               -> m (Device, Device)
-newDoorDevices vseed cTag oTag tryOpen tryClose = do
-  (cSeed, oSeed) <- splitVarSeed vseed
-  rec closed <- newDevice cSeed 1 $ \ge charNum -> do
-        whenM (tryOpen ge charNum) $ do
-          massSetTerrain oTag $ prectPositions $ Grid.geRect ge
-          replaceDevice ge open
-          playSound SndDoorOpen
-      open <- newDevice oSeed 1 $ \ge charNum -> do
+               -> m Device
+newDoorDevice vseed tryOpen tryClose = do
+  newDevice vseed 1 $ \ge charNum -> do
+    let pairs = [(AdobeDoorClosedTile, AdobeDoorOpenTile),
+                 (BasaltDoorClosedTile, BasaltDoorOpenTile),
+                 (StoneDoorClosedTile, StoneDoorOpenTile),
+                 (WhitestoneDoorClosedTile, WhitestoneDoorOpenTile),
+                 (WoodDoorClosedTile, WoodDoorOpenTile)]
+    let pos = rectTopleft $ Grid.geRect ge
+    mbOpenOther <- do
+      tid <- areaGet (ttId . terrainGetTile pos . arsTerrain)
+      tileset <- areaGet (rsrcTileset . arsResources)
+      return $ flip firstJust pairs $ \(cTag, oTag) ->
+        if ttId (tilesetGet cTag tileset) == tid then Just (False, oTag)
+        else if ttId (tilesetGet oTag tileset) == tid then Just (True, cTag)
+             else Nothing
+    maybeM mbOpenOther $ \(isOpen, other) -> do
+      let toggleTile = massSetTerrain other $ prectPositions $ Grid.geRect ge
+      if isOpen then do
         -- TODO: Don't allow door to be closed if enemies are nearby, or if
         --       space is occupied, or if we're in combat.
         whenM (tryClose ge charNum) $ do
-          massSetTerrain cTag $ prectPositions $ Grid.geRect ge
-          replaceDevice ge closed
+          toggleTile
           playSound SndDoorShut
-  return (closed, open)
+      else do
+        whenM (tryOpen ge charNum) $ do
+          toggleTile
+          playSound SndDoorOpen
+
+-- | Add an unlocked door device to all positions marked in the terrain with
+-- the string \"UD\".
+addUnlockedDoors :: Globals -> Script TownEffect ()
+addUnlockedDoors globals = do
+  addDeviceOnMarks (gUnlockedDoor globals) "UD"
 
 -------------------------------------------------------------------------------

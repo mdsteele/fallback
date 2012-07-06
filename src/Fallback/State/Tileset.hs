@@ -56,6 +56,10 @@ data TileTag = OffTile | NullTile
              | BasaltGateClosedTile | BasaltGateOpenTile
              | StoneDoorClosedTile | StoneDoorOpenTile
              | StoneGateClosedTile | StoneGateOpenTile
+             | WhitestoneDoorClosedTile | WhitestoneDoorOpenTile
+             | WhitestoneGateClosedTile | WhitestoneGateOpenTile
+             | WoodDoorClosedTile | WoodDoorOpenTile
+             | WoodGateClosedTile | WoodGateOpenTile
              -- Mine cart:
              | MineCartEmptyHorzTile | MineCartEmptyVertTile
              | MineCartFullHorzTile | MineCartFullVertTile
@@ -83,6 +87,14 @@ tileTagId StoneDoorClosedTile = 5588
 tileTagId StoneDoorOpenTile = 0983
 tileTagId StoneGateClosedTile = 2330
 tileTagId StoneGateOpenTile = 5719
+tileTagId WhitestoneDoorClosedTile = 2135
+tileTagId WhitestoneDoorOpenTile = 6648
+tileTagId WhitestoneGateClosedTile = 3318
+tileTagId WhitestoneGateOpenTile = 0851
+tileTagId WoodDoorClosedTile = 6162
+tileTagId WoodDoorOpenTile = 0534
+tileTagId WoodGateClosedTile = 6605
+tileTagId WoodGateOpenTile = 1167
 tileTagId MineCartEmptyHorzTile = 8300
 tileTagId MineCartEmptyVertTile = 5199
 tileTagId MineCartFullHorzTile = 3187

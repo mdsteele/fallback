@@ -24,14 +24,14 @@ where
 
 import Control.Applicative ((<$), (<$>))
 import Control.Arrow ((&&&))
-import Control.Monad (unless, when)
+import Control.Monad (forM_, unless, when)
 import Data.Array (Array, bounds, range)
 import Data.List (find)
 
 import Fallback.Constants
   (cameraWidth, cameraHeight, sidebarWidth, tileHeight, tileWidth)
 import Fallback.Data.Clock (Clock, clockInc, clockMod)
-import Fallback.Data.Color (Tint(Tint), blackColor)
+import Fallback.Data.Color (Tint(Tint), blackColor, whiteColor)
 import Fallback.Data.Point
 import Fallback.Draw
 import Fallback.Event
@@ -56,6 +56,7 @@ data EditorAction = ScrollMap IPoint
                   | AutoPaintAt Position
                   | PaintAt Position
                   | FloodFill Position
+                  | ChangeMarks Position
                   | DoLoad
                   | DoSave
                   | DoUndo
@@ -103,9 +104,16 @@ newEditorMapView resources sink = do
   dragRef <- newDrawRef False
   let
 
-    paint state = do
-      paintTerrainFullyExplored resources (esCameraTopleft state)
-                                (esTerrain state) (esClock state)
+    paint es = do
+      let topleft = esCameraTopleft es
+      paintTerrainFullyExplored resources topleft (esTerrain es) (esClock es)
+      let font = rsrcFont resources FontGeorgia10
+      forM_ (tmapAllMarks $ esTerrain es) $ \(str, pos) -> do
+        let (w, h) = textRenderSize font str
+        let Point x y = positionCenter pos `pSub` topleft
+        tintRect (Tint 0 0 0 192)
+                 (Rect (x - half w - 2) (y - half h - 2) (w + 4) (h + 4))
+        drawText font whiteColor (LocCenter $ Point x y) str
 
     handler state EvTick = do
       mbMousePt <- getRelativeMousePos
@@ -125,7 +133,11 @@ newEditorMapView resources sink = do
       rect <- canvasRect
       eyedropper <- getKeyState KeyE
       fill <- getKeyState KeyF
-      (if eyedropper
+      mark <- getKeyState KeyM
+      (if mark
+       then return $ maybe Ignore (Action . ChangeMarks) $
+            positionAt state rect pt
+       else if eyedropper
        then return $
             maybe Ignore (Action . PickTile . tmapGet (esTerrain state)) $
             positionAt state rect pt

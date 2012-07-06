@@ -21,7 +21,6 @@ module Fallback.Scenario.Triggers.Icehold
   (compileIcehold)
 where
 
-import Control.Applicative ((<$>))
 import Control.Monad (forM_, when)
 
 import Fallback.Constants (combatArenaSize)
@@ -53,7 +52,7 @@ compileIcehold globals = do
   lavaPumpedUp <- newGlobalVar 019384 False
   lavaReleased <- newGlobalVar 813453 False
 
-  brassKeyLockedStoneDoor <- do
+  brassKeyLockedDoor <- do
     let tryOpen _ _ = do
           hasKey <- doesPartyHaveItem (InertItemTag BrassKey)
           setMessage $ if hasKey then "The door is locked, but you are able\
@@ -62,53 +61,15 @@ compileIcehold globals = do
           when hasKey playDoorUnlockSound
           return hasKey
     let tryClose _ _ = return True
-    fst <$> newDoorDevices 867422 StoneDoorClosedTile StoneDoorOpenTile
-                           tryOpen tryClose
+    newDoorDevice 867422 tryOpen tryClose
 
   compileArea Icehold Nothing $ do
 
     makeExit Duskwood [Rect 0 42 50 2] (Point 25 40)
 
     onStartDaily 789321 $ do
-      addDevice_ (gStoneDoor globals) (Point 2 20)
-      addDevice_ (gStoneDoor globals) (Point 2 29)
-      addDevice_ (gStoneDoor globals) (Point 3 5)
-      addDevice_ (gStoneDoor globals) (Point 3 11)
-      addDevice_ (gStoneDoor globals) (Point 3 35)
-      addDevice_ (gStoneDoor globals) (Point 6 2)
-      addDevice_ (gStoneDoor globals) (Point 6 8)
-      addDevice_ (gStoneDoor globals) (Point 6 23)
-      addDevice_ (gStoneDoor globals) (Point 6 29)
-      addDevice_ (gStoneDoor globals) (Point 8 11)
-      addDevice_ (gStoneDoor globals) (Point 9 5)
-      addDevice_ (gStoneDoor globals) (Point 11 17)
-      addDevice_ (gStoneDoor globals) (Point 11 31)
-      addDevice_ (gStoneDoor globals) (Point 13 2)
-      addDevice_ (gStoneDoor globals) (Point 14 19)
-      addDevice_ (gStoneDoor globals) (Point 16 35)
-      addDevice_ brassKeyLockedStoneDoor (Point 17 15)
-      addDevice_ brassKeyLockedStoneDoor (Point 20 7)
-      addDevice_ brassKeyLockedStoneDoor (Point 20 24)
-      addDevice_ (gStoneDoor globals) (Point 20 27)
-      addDevice_ brassKeyLockedStoneDoor (Point 22 2)
-      addDevice_ brassKeyLockedStoneDoor (Point 23 31)
-      addDevice_ brassKeyLockedStoneDoor (Point 28 2)
-      addDevice_ brassKeyLockedStoneDoor (Point 30 27)
-      addDevice_ (gStoneDoor globals) (Point 36 31)
-      addDevice_ (gStoneDoor globals) (Point 38 25)
-      addDevice_ (gStoneDoor globals) (Point 38 33)
-      addDevice_ brassKeyLockedStoneDoor (Point 40 17)
-      addDevice_ (gStoneDoor globals) (Point 40 20)
-      addDevice_ (gStoneDoor globals) (Point 40 28)
-      addDevice_ (gStoneDoor globals) (Point 40 31)
-      addDevice_ (gStoneDoor globals) (Point 42 11)
-      addDevice_ brassKeyLockedStoneDoor (Point 43 3)
-      addDevice_ (gStoneDoor globals) (Point 43 8)
-      addDevice_ (gStoneDoor globals) (Point 44 13)
-      addDevice_ (gStoneDoor globals) (Point 47 11)
-      addDevice_ (gStoneDoor globals) (Point 47 19)
-      addDevice_ (gStoneDoor globals) (Point 47 26)
-      addDevice_ (gStoneDoor globals) (Point 47 33)
+      addUnlockedDoors globals
+      addDeviceOnMarks brassKeyLockedDoor "BrassDoor"
 
     -- Stairs up to second floor:
     trigger 182832 (walkOn (Point 25 27)) $ do
@@ -189,29 +150,9 @@ compileIcehold globals = do
   compileArea Icehold2 Nothing $ do
 
     onStartDaily 729891 $ do
-      addDevice_ (gStoneDoor globals) (Point 2 8)
-      addDevice_ (gStoneDoor globals) (Point 2 13)
-      addDevice_ (gStoneDoor globals) (Point 3 17)
-      addDevice_ (gStoneDoor globals) (Point 5 19)
-      addDevice_ (gStoneDoor globals) (Point 8 2)
-      addDevice_ (gStoneDoor globals) (Point 8 6)
-      addDevice_ (gStoneDoor globals) (Point 8 29)
-      addDevice_ (gStoneDoor globals) (Point 8 35)
-      addDevice_ (gStoneDoor globals) (Point 12 2)
-      addDevice_ (gStoneDoor globals) (Point 12 29)
-      addDevice_ (gStoneDoor globals) (Point 12 35)
-      addDevice_ (gStoneDoor globals) (Point 14 18)
-      addDevice_ brassKeyLockedStoneDoor (Point 17 8)
-      addDevice_ brassKeyLockedStoneDoor (Point 20 17)
-      addDevice_ (gStoneDoor globals) (Point 28 2)
-      addDevice_ (gStoneDoor globals) (Point 30 20)
-      addDevice_ (gStoneDoor globals) (Point 30 23)
-      addDevice_ (gStoneDoor globals) (Point 32 2)
-      addDevice_ (gStoneDoor globals) (Point 34 20)
-      addDevice_ (gStoneDoor globals) (Point 34 23)
-      addDevice_ (gStoneDoor globals) (Point 36 32)
-      addDevice_ (gStoneDoor globals) (Point 38 8)
-      addDevice_ (gStoneDoor globals) (Point 38 15)
+      addUnlockedDoors globals
+      addDeviceOnMarks brassKeyLockedDoor "BrassDoor"
+      addDeviceOnMarks brassKeyLockedDoor "SteamDoor" -- FIXME
 
     -- Stairs up to third floor:
     trigger 094082 (walkOn (Point 15 8)) $ do
@@ -362,8 +303,7 @@ compileIcehold globals = do
   compileArea Icehold3 Nothing $ do
 
     onStartDaily 559839 $ do
-      addDevice_ (gBasaltDoor globals) (Point 4 4)
-      addDevice_ brassKeyLockedStoneDoor (Point 11 3)
+      addDeviceOnMarks brassKeyLockedDoor "BrassDoor"
 
     -- Stairs back down to second floor:
     trigger 472987 (walkOn (Point 16 25)) $ do

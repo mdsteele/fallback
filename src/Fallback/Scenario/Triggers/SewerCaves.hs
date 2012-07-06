@@ -27,7 +27,7 @@ import Control.Monad (when)
 import Fallback.Data.Point
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
-import Fallback.Scenario.Triggers.Globals (Globals(..), newDoorDevices)
+import Fallback.Scenario.Triggers.Globals
 import Fallback.Scenario.Triggers.Script
 import Fallback.State.Creature (MonsterTownAI(ChaseAI))
 import Fallback.State.Resources (SoundTag(SndLever))
@@ -43,7 +43,7 @@ compileSewerCaves globals = compileArea SewerCaves Nothing $ do
 
   makeExit Holmgare [Rect 29 42 7 2] (Point 32 40)
 
-  ironKeyLockedBasaltDoor <- do
+  ironKeyLockedDoor <- do
     let tryOpen _ _ = do
           hasKey <- doesPartyHaveItem (InertItemTag IronKey)
           setMessage $ if hasKey then "The door is locked, but you are able to\
@@ -52,15 +52,11 @@ compileSewerCaves globals = compileArea SewerCaves Nothing $ do
           when hasKey playDoorUnlockSound
           return hasKey
     let tryClose _ _ = return True
-    fst <$> newDoorDevices 298322 BasaltDoorClosedTile BasaltDoorOpenTile
-                           tryOpen tryClose
+    newDoorDevice 298322 tryOpen tryClose
 
   onStartDaily 894928 $ do
-    addDevice_ ironKeyLockedBasaltDoor (Point 2 34)
-    addDevice_ (gBasaltDoor globals) (Point 4 36)
-    addDevice_ (gBasaltDoor globals) (Point 12 22)
-    addDevice_ (gBasaltDoor globals) (Point 12 36)
-    addDevice_ ironKeyLockedBasaltDoor (Point 14 34)
+    addUnlockedDoors globals
+    addDeviceOnMarks ironKeyLockedDoor "IronDoor"
 
   gateOpen <- newPersistentVar 189342 False
   uniqueDevice 023433 (Point 15 23) 1 $ \_ _ -> do
@@ -71,8 +67,7 @@ compileSewerCaves globals = compileArea SewerCaves Nothing $ do
     narrate "You turn the wheel to lift the gate, then wedge it so it will\
       \ stay open.  Now you can get in and out of here easily."
   daily 984354 (varTrue gateOpen) $ do
-    tile <- getTerrainTile BasaltGateOpenTile
-    setTerrain [(Point 16 22, tile)]
+    massSetTerrain BasaltGateOpenTile [Point 16 22]
 
   once 874564 (walkIn (Rect 27 27 10 9)) $ do
     narrate "Phew, it stinks in here.  This is apparently the cave where the\
@@ -86,14 +81,12 @@ compileSewerCaves globals = compileArea SewerCaves Nothing $ do
   dactylidDead <- newPersistentVar 982452 False
   once 029345 (walkIn (Rect 1 25 15 9)) $ do
     narrate "FIXME Boss time!"
-    do tile <- getTerrainTile BasaltGateClosedTile
-       setTerrain [(Point 9 24, tile)]
+    massSetTerrain BasaltGateClosedTile [Point 9 24]
     bossStartPos <- flip Point 33 <$> getRandomR 1 15
     addBasicEnemyMonster bossStartPos Dactylid (Just dactylidDead) ChaseAI
     startBossFight (Point 0 23)
   once 923982 (varTrue dactylidDead) $ do
-    do tile <- getTerrainTile BasaltGateOpenTile
-       setTerrain [(Point 9 24, tile)]
+    massSetTerrain BasaltGateOpenTile [Point 9 24]
     narrate "FIXME Yay, you won!"
 
 -------------------------------------------------------------------------------

@@ -26,8 +26,9 @@ module Fallback.Scenario.Triggers.Script
    TalkEffect(..), conversation, convText, convChoice, convNode, convReset,
    -- * Terrain
    getTerrainTile, setTerrain, massSetTerrain, resetTerrain,
+   lookupTerrainMark, demandOneTerrainMark,
    -- * Miscellaneous
-   doesPartyHaveItem, playDoorUnlockSound, setAreaCleared,
+   addDeviceOnMarks, doesPartyHaveItem, playDoorUnlockSound, setAreaCleared,
    setQuestStatus, startBossFight, startShopping)
 where
 
@@ -38,7 +39,7 @@ import Fallback.State.Party (partyHasItem)
 import Fallback.State.Resources (SoundTag(SndUnlock), rsrcTileset)
 import Fallback.State.Simple (Ingredient, QuestStatus)
 import Fallback.State.Tags (AreaTag, ItemTag, QuestTag)
-import Fallback.State.Terrain (terrainMap, tmapGet)
+import Fallback.State.Terrain (terrainMap, tmapGet, tmapLookupMark)
 import Fallback.State.Tileset (TerrainTile, TileTag, tilesetGet)
 
 -------------------------------------------------------------------------------
@@ -80,7 +81,7 @@ conversation = doTalk initState where
             if null choices then do
               narrate text
               doTalk initState $ sfn ()
-             else do
+            else do
               -- TODO: this is kinda ugly
               idx <- forcedChoice text $ zip (map fst choices) [0..]
               let (before, (_, action) : after) = splitAt idx choices
@@ -126,8 +127,23 @@ resetTerrain positions = do
   let update pos = (pos, tmapGet tmap pos)
   emitAreaEffect $ EffSetTerrain $ map update positions
 
+lookupTerrainMark :: (FromAreaEffect f) => String -> Script f [Position]
+lookupTerrainMark key = areaGet (tmapLookupMark key . terrainMap . arsTerrain)
+
+demandOneTerrainMark :: (FromAreaEffect f) => String -> Script f Position
+demandOneTerrainMark key = do
+  positions <- lookupTerrainMark key
+  case positions of
+    [pos] -> return pos
+    _ -> fail ("demandOneTerrainMark: " ++ show key ++ " yields " ++
+               show positions)
+
 -------------------------------------------------------------------------------
 -- Miscellaneous:
+
+-- | Add a device to all positions marked in the terrain with the given string.
+addDeviceOnMarks :: (FromAreaEffect f) => Device -> String -> Script f ()
+addDeviceOnMarks dev key = mapM_ (addDevice_ dev) =<< lookupTerrainMark key
 
 doesPartyHaveItem :: (FromAreaEffect f) => ItemTag -> Script f Bool
 doesPartyHaveItem tag = areaGet (partyHasItem tag . arsParty)

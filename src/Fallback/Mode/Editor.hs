@@ -23,7 +23,7 @@ where
 
 import Control.Applicative ((<$>))
 import Control.Monad (when)
-import Data.Char (isDigit)
+import Data.Char (isAlphaNum, isDigit)
 import Data.List (intercalate)
 import Data.Maybe (fromMaybe, listToMaybe)
 import Data.IORef
@@ -104,11 +104,21 @@ newEditorMode resources = do
             updateMinimapFromTerrainMap (esMinimap es) terrain' filled
             setTerrain es terrain'
           return SameMode
+        Just (ChangeMarks pos) -> do
+          ChangeMode <$> newTextEntryDialogMode
+            resources ("Set marks for " ++ show pos ++ ":")
+            (intercalate "," $ tmapGetMarks pos $ esTerrain es)
+            (const True) (return mode) (doSetMarks pos) view es
         Just DoSave -> do
           let doSave name = do
-                saveTerrainMap name (esTerrain es)
-                writeIORef stateRef es { esFilename = name, esUnsaved = False }
-                return mode
+                eo <- runIOEO $ saveTerrainMap name $ esTerrain es
+                case runEO eo of
+                  Left errors -> newNarrateMode resources view es
+                                   (intercalate "\n\n" errors) (return mode)
+                  Right () -> do
+                    writeIORef stateRef es { esFilename = name,
+                                             esUnsaved = False }
+                    return mode
           ChangeMode <$> newTextEntryDialogMode resources
             "Save terrain file as:" (esFilename es) (const True)
             (return mode) doSave view es
@@ -161,11 +171,21 @@ newEditorMode resources = do
            esUndoStack = esTerrain es : take 10 (esUndoStack es),
            esUnsaved = True }
 
+    doSetMarks pos string = do
+      let mbKeys = fmap fst $ listToMaybe $ flip Read.readP_to_S string $ do
+            ks <- Read.sepBy (Read.munch1 isAlphaNum) (Read.char ',')
+            Read.eof
+            return ks
+      maybeM mbKeys $ \keys -> do
+        es <- readIORef stateRef
+        setTerrain es $ tmapSetMarks pos keys (esTerrain es)
+      return mode
+
     doResize string = do
       let mbPair = fmap fst $ listToMaybe $ flip Read.readP_to_S string $ do
-            w <- read <$> Read.munch isDigit
+            w <- read <$> Read.munch1 isDigit
             _ <- Read.char 'x'
-            h <- read <$> Read.munch isDigit
+            h <- read <$> Read.munch1 isDigit
             Read.eof
             return (w, h)
       maybeM mbPair $ \size -> do

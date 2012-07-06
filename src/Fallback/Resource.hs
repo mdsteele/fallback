@@ -19,17 +19,17 @@
 
 module Fallback.Resource
   (tryGetResourcePath, getResourcePath,
-   getGameDataDir, loadFromFile, saveToFile)
+   getGameDataDir, readFromFile, parseFromFile, saveToFile)
 where
 
 import Control.Exception (IOException, evaluate, handle)
-import Data.Maybe (listToMaybe)
 import System.Directory (createDirectoryIfMissing, getAppUserDataDirectory)
 import qualified System.FilePath as FilePath (combine)
 import System.IO (IOMode(ReadMode), hGetContents, withFile)
 import qualified System.MacOSX.Bundle as Bundle (tryGetResourcePath)
 
 import Fallback.Control.Error (EO, IOEO, onlyEO, onlyIO)
+import Fallback.Control.Parse (Parser, parseRead, tryParse)
 
 -------------------------------------------------------------------------------
 
@@ -59,20 +59,32 @@ getGameDataDir = do
   createDirectoryIfMissing True dataDir
   return dataDir
 
--- | Attempt to load and parse data from a file.  Return 'Nothing' if the file
--- doesn't exist, isn't readable, or contains unparsable data.
-loadFromFile :: ReadS a -> FilePath -> IO (Maybe a)
-loadFromFile reader filepath = do
+-- | Attempt to load the contents of a file as a string.  Return 'Nothing' if
+-- the file doesn't exist or isn't readable.
+loadFromFile :: FilePath -> IO (Maybe String)
+loadFromFile filepath = do
   let handler :: IOException -> IO (Maybe a)
       handler _ = return Nothing
   handle handler $ do
     withFile filepath ReadMode $ \fd -> do
       string <- hGetContents fd
       _ <- evaluate (length string) -- force entire file into memory
-      return $ fmap fst $ listToMaybe $ reader string
+      return (Just string)
+
+-- | Attempt to load and parse data from a file.  Return 'Nothing' if the file
+-- doesn't exist, isn't readable, or contains unparsable data.
+readFromFile :: (Read a) => FilePath -> IO (Maybe a)
+readFromFile filepath = parseFromFile filepath parseRead
+
+-- | Attempt to load and parse data from a file.  Return 'Nothing' if the file
+-- doesn't exist, isn't readable, or contains unparsable data.
+parseFromFile :: FilePath -> Parser a -> IO (Maybe a)
+parseFromFile filepath parser = do
+  mbString <- loadFromFile filepath
+  return (tryParse parser =<< mbString)
 
 -- | Save string data to a file, overwriting the file if it already exists.
--- Throw an exception if the file isn't writable.
+-- Fail with an error if the file isn't writable.
 saveToFile :: FilePath -> ShowS -> IOEO ()
 saveToFile filepath writer = do
   let handler :: IOException -> IO (EO ())

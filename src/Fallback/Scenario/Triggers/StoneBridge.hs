@@ -24,7 +24,7 @@ where
 import Fallback.Data.Point
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
-import Fallback.Scenario.Triggers.Globals (Globals(..), signRadius)
+import Fallback.Scenario.Triggers.Globals
 import Fallback.Scenario.Triggers.Script
 import Fallback.State.Creature (MonsterTownAI(GuardAI, MindlessAI))
 import Fallback.State.Tags (AreaTag(..), MonsterTag(..))
@@ -39,8 +39,7 @@ compileStoneBridge globals = compileArea StoneBridge Nothing $ do
   makeExit Tragorda [Rect 53 0 2 44] (Point 51 22)
 
   onStartDaily 423026 $ do
-    addDevice_ (gStoneDoor globals) (Point 19 12)
-    addDevice_ (gStoneDoor globals) (Point 20 8)
+    addUnlockedDoors globals
 
   uniqueDevice 180091 (Point 12 18) signRadius $ \_ _ -> do
     narrate "A sign has been posted along the road here:\n\n\

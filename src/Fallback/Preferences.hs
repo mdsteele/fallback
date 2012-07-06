@@ -27,7 +27,7 @@ import System.FilePath (combine)
 import System.IO.Unsafe (unsafePerformIO)
 
 import Fallback.Control.Error (runEO, runIOEO)
-import Fallback.Resource (getGameDataDir, saveToFile, loadFromFile)
+import Fallback.Resource (getGameDataDir, readFromFile, saveToFile)
 
 -------------------------------------------------------------------------------
 
@@ -41,7 +41,8 @@ data Preferences = Preferences
 loadPreferencesFromDisk :: IO Preferences
 loadPreferencesFromDisk = do
   prefsFile <- getPrefsFilePath
-  mbPreferences <- loadFromFile reads prefsFile
+  -- TODO use parseFromFile/weaveBracesCommas/meshKeyDefault here
+  mbPreferences <- readFromFile prefsFile
   let prefs = fromMaybe defaultPreferences mbPreferences
   writeIORef globalPrefs prefs
   return prefs

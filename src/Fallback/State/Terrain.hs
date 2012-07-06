@@ -25,6 +25,7 @@ module Fallback.State.Terrain
    -- * Terrain maps
    TerrainMap, makeEmptyTerrainMap, tmapSize, tmapName, tmapOffTile,
    tmapAllPositions, tmapGet, tmapSet, tmapResize, tmapShift,
+   tmapAllMarks, tmapLookupMark, tmapGetMarks, tmapSetMarks,
    loadTerrainMap, saveTerrainMap,
    -- * Positions
    positionRect, positionTopleft, positionCenter, pointPosition, prectRect,
@@ -32,17 +33,21 @@ module Fallback.State.Terrain
    ExploredMap, unexploredMap, hasExplored, setExplored)
 where
 
+import Control.Applicative ((<$>), (<*>), (<|>))
+import Control.Monad (when)
 import Data.Array.IArray
 import Data.Array.Unboxed (UArray)
 import qualified Data.Map as Map
-import Data.Maybe (fromMaybe, listToMaybe)
+import Data.Maybe (fromMaybe)
 import qualified Data.Traversable as Trav (mapM)
 import qualified Text.Read as Read (readPrec)
 
 import Fallback.Constants (tileHeight, tileWidth)
 import Fallback.Control.Error
+import Fallback.Control.Parse
+import qualified Fallback.Data.Multimap as MM
 import Fallback.Data.Point
-import Fallback.Resource (getResourcePath)
+import Fallback.Resource (getResourcePath, parseFromFile, saveToFile)
 import Fallback.State.Resources (Resources, rsrcTileset)
 import Fallback.State.Tileset
 
@@ -73,13 +78,14 @@ terrainSetTile pos tile terrain = terrain { terrainOverrides = over' } where
 
 data TerrainMap = TerrainMap
   { tmapArray :: Array Position TerrainTile,
+    tmapMarks :: MM.Multimap String Position,
     tmapName :: String,
     tmapOffTile :: TerrainTile }
 
 makeEmptyTerrainMap :: (Int, Int) -> TerrainTile -> TerrainTile -> TerrainMap
 makeEmptyTerrainMap (w, h) offTile nullTile = TerrainMap
   { tmapArray = listArray (Point 0 0, Point (w - 1) (h - 1)) (repeat nullTile),
-    tmapName = "", tmapOffTile = offTile }
+    tmapMarks = MM.empty, tmapName = "", tmapOffTile = offTile }
 
 tmapSize :: TerrainMap -> (Int, Int)
 tmapSize tmap =
@@ -111,6 +117,19 @@ tmapShift nullTile delta tmap = tmap { tmapArray = arr' } where
   shift (point, tile) = (point `pAdd` delta, tile)
   bound = bounds (tmapArray tmap)
 
+tmapAllMarks :: TerrainMap -> [(String, Position)]
+tmapAllMarks = MM.toList . tmapMarks
+
+tmapLookupMark :: String -> TerrainMap -> [Position]
+tmapLookupMark key = MM.lookup key . tmapMarks
+
+tmapGetMarks :: Position -> TerrainMap -> [String]
+tmapGetMarks pos tmap = MM.reverseLookup pos $ tmapMarks tmap
+
+tmapSetMarks :: Position -> [String] -> TerrainMap -> TerrainMap
+tmapSetMarks pos keys tmap =
+  tmap { tmapMarks = MM.reverseSet pos keys $ tmapMarks tmap }
+
 -------------------------------------------------------------------------------
 
 loadTerrainMap :: Resources -> String -> IOEO TerrainMap
@@ -119,19 +138,36 @@ loadTerrainMap resources name = do
   path <- onlyIO $ getResourcePath "terrain" name
   let getTile tid = maybe (fail $ "Bad tile id: " ++ show tid) return $
                     tilesetLookup tid tileset
-  tileArray <- do
-    string <- onlyIO $ readFile path
-    ((w, h), ids) <- maybe (fail $ "Couldn't read terrain from " ++ name)
-                         (return . fst) (listToMaybe $ reads string)
-    onlyEO $ Trav.mapM getTile $
-      listArray (Point 0 0, Point (w - 1) (h - 1)) ids
-  return TerrainMap { tmapArray = tileArray, tmapName = name,
+  (tileArray, marks) <- do
+    mbTerrainData <- onlyIO $ parseFromFile path parseTerrainData
+    ((w, h), ids, marks) <-
+      maybe (fail $ "Couldn't read terrain from " ++ name)
+            return mbTerrainData
+    when (length ids /= w * h) $ fail ("Terrain size mismatch for" ++ name)
+    tiles <- onlyEO $ Trav.mapM getTile $
+             listArray (Point 0 0, Point (w - 1) (h - 1)) ids
+    return (tiles, marks)
+  return TerrainMap { tmapArray = tileArray,
+                      tmapMarks = MM.fromList marks,
+                      tmapName = name,
                       tmapOffTile = tilesetGet OffTile tileset }
 
-saveTerrainMap :: String -> TerrainMap -> IO ()
+parseTerrainData :: Parser ((Int, Int), [Int], [(String, Position)])
+parseTerrainData = oldParser <|> newParser where
+  oldParser = fmap fromOld parseRead -- TODO remove once all terrain converted
+  fromOld (size, tiles) = (size, tiles, [])
+  newParser = weaveBracesCommas $ (,,) <$>
+    meshKeyVal "size" <*>
+    meshKeyVal "tiles" <*>
+    meshKeyDefault "marks" []
+
+saveTerrainMap :: String -> TerrainMap -> IOEO ()
 saveTerrainMap name tmap = do
-  path <- getResourcePath "terrain" name
-  writeFile path $ show (tmapSize tmap, fmap ttId $ elems $ tmapArray tmap)
+  path <- onlyIO $ getResourcePath "terrain" name
+  saveToFile path $ showBracesCommas [
+    (showKeyVal "size" $ tmapSize tmap),
+    (showKeyVal "tiles" $ map ttId $ elems $ tmapArray tmap),
+    (showKeyVal "marks" $ MM.toList $ tmapMarks tmap)]
 
 -------------------------------------------------------------------------------
 -- Positions:

@@ -367,7 +367,7 @@ inflictMentalEffectOnOccupant casterIsAlly eff duration occupant = do
     Left charNum -> do
       if casterIsAlly && eff == Charmed then do
         alterCharacterStatus charNum sePurgeMentalEffects
-       else do
+      else do
         success <- randomBool =<< do
           areaGet (chrGetResistance ResistMental . arsGetCharacter charNum)
         when success $ alterCharacterStatus charNum applyEffect
@@ -375,7 +375,7 @@ inflictMentalEffectOnOccupant casterIsAlly eff duration occupant = do
       let monst = Grid.geValue entry
       if casterIsAlly == monstIsAlly monst then do
         alterMonsterStatus (Grid.geKey entry) sePurgeMentalEffects
-       else do
+      else do
         success <- randomBool (TM.get ResistMental $ mtResistances $
                                monstType monst)
         when success $ alterMonsterStatus (Grid.geKey entry) applyEffect

@@ -419,7 +419,7 @@ newTownMode resources modes initState = do
         let topleft = (tsPartyPosition ts `pSub`
                        Point (half combatArenaCols) (half combatArenaRows))
         doStartCombat ts True topleft
-       else do
+      else do
         let msg = "Can't start combat -- there are no enemies nearby."
         writeIORef stateRef $ arsSetMessage msg ts
         return SameMode

@@ -1,5 +1,5 @@
 {- ============================================================================
-| Copyright 2010 Matthew D. Steele <mdsteele@alum.mit.edu>                    |
+| Copyright 2011 Matthew D. Steele <mdsteele@alum.mit.edu>                    |
 |                                                                             |
 | This file is part of Fallback.                                              |
 |                                                                             |
@@ -17,31 +17,26 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
-module Test (main) where
+module Fallback.Test.Multimap (multimapTests) where
 
-import Test.HUnit (Test(TestList), runTestTT)
+import Data.List (sort)
+import Test.HUnit ((~:), Test(TestList))
 
-import Fallback.Test.Error (errorTests)
-import Fallback.Test.FOV (fovTests)
-import Fallback.Test.Grid (gridTests)
-import Fallback.Test.Pathfind (pathfindTests)
-import Fallback.Test.Point (pointTests)
-import Fallback.Test.PriorityQueue (pqTests)
-import Fallback.Test.Multimap (multimapTests)
-import Fallback.Test.Parse (parseTests)
-import Fallback.Test.Queue (queueTests)
-import Fallback.Test.Script (scriptTests)
-import Fallback.Test.SparseMap (smTests)
-import Fallback.Test.Utility (utilityTests)
+import qualified Fallback.Data.Multimap as MM
+import Fallback.Test.Base (insist, qcTest)
 
 -------------------------------------------------------------------------------
 
-main :: IO ()
-main = runTestTT allTests >> return ()
+multimapTests :: Test
+multimapTests = "multimap" ~: TestList [
+  insist $ MM.null MM.empty,
+  qcTest $ \k v -> not $ MM.null $ MM.insert k v (MM.empty :: MMI),
+  qcTest $ \k v -> MM.lookup k (MM.insert k v (MM.empty :: MMI)) == [v],
+  qcTest $ \k v -> MM.reverseLookup v (MM.insert k v (MM.empty :: MMI)) == [k],
+  qcTest $ \list -> MM.toList (MM.fromList (sort list) :: MMI) == sort list,
+  qcTest $ \v ks ->
+    MM.reverseLookup v (MM.reverseSet v ks (MM.empty :: MMI)) == sort ks]
 
-allTests :: Test
-allTests = TestList [errorTests, fovTests, gridTests, multimapTests,
-                     pathfindTests, pointTests, pqTests, parseTests,
-                     queueTests, scriptTests, smTests, utilityTests]
+type MMI = MM.Multimap Int Int
 
 -------------------------------------------------------------------------------

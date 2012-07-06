@@ -27,7 +27,7 @@ import Fallback.Data.Point
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Globals
-  (Globals(..), newDoorDevices, signRadius)
+  (Globals(..), addUnlockedDoors, newDoorDevice, signRadius)
 import Fallback.Scenario.Triggers.Script
 import Fallback.State.Area (arsCharacterPosition)
 import Fallback.State.Creature (MonsterTownAI(..))
@@ -35,7 +35,6 @@ import Fallback.State.Resources (SoundTag(SndFreeze), StripTag(IceBoom))
 import Fallback.State.Simple (DamageType(ColdDamage))
 import Fallback.State.Tags
   (AreaTag(..), InertItemTag(IronKey), ItemTag(InertItemTag), MonsterTag(..))
-import Fallback.State.Tileset (TileTag(..))
 
 -------------------------------------------------------------------------------
 
@@ -45,9 +44,7 @@ compileFrozenPass globals = compileArea FrozenPass Nothing $ do
   makeExit Holmgare [Rect 53 36 2 7] (Point 51 38)
 
   onStartDaily 028371 $ do
-    addDevice_ (gStoneDoor globals) (Point 44 12)
-    addDevice_ (gAdobeDoor globals) (Point 5 36)
-    addDevice_ (gBasaltDoor globals) (Point 26 40)
+    addUnlockedDoors globals
 
   uniqueDevice 981323 (Point 48 36) signRadius $ \_ _ -> do
     narrate "This signpost looks like it has seen better days, but you can\
@@ -200,16 +197,15 @@ compileFrozenPass globals = compileArea FrozenPass Nothing $ do
                \ carefully, trying to get any clue of what might lie behind\
                \ it, or who made this passage and put a door there.  You find\
                \ nothing that provides any answers."))
-         else do
+        else do
           setMessage "The iron door is still locked.  You still don't have the\
                      \ key."
         if not hasKey then return False else do
         playDoorUnlockSound
         writeVar ironDoorUnlocked True
         return True
-  ironDoorDevice <- fst <$>
-    newDoorDevices 202933 BasaltDoorClosedTile BasaltDoorOpenTile
-                   tryOpenIronDoor (const $ const $ return True)
+  ironDoorDevice <-
+    newDoorDevice 202933 tryOpenIronDoor (const $ const $ return True)
   onStartDaily 093423 $ addDevice_ ironDoorDevice (Point 26 40)
 
   once 328351 (walkOn (Point 26 40)) $ do

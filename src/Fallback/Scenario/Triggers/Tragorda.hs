@@ -27,7 +27,7 @@ import Fallback.Data.Point
 import qualified Fallback.Data.TotalMap as TM (get)
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
-import Fallback.Scenario.Triggers.Globals (Globals(..), signRadius)
+import Fallback.Scenario.Triggers.Globals
 import Fallback.Scenario.Triggers.Script
 import Fallback.State.Area (arsParty)
 import Fallback.State.Creature (MonsterTownAI(DrunkAI))
@@ -45,33 +45,8 @@ compileTragorda globals = compileArea Tragorda Nothing $ do
   makeExit Duskwood [Rect 53 2 2 40] (Point 51 20)
 
   onStartDaily 269446 $ do
+    addUnlockedDoors globals
     setAreaCleared Tragorda True
-    addDevice_ (gAdobeDoor globals) (Point 8 34)
-    addDevice_ (gAdobeDoor globals) (Point 8 36)
-    addDevice_ (gAdobeDoor globals) (Point 42 7)
-    addDevice_ (gAdobeDoor globals) (Point 47 5)
-    addDevice_ (gAdobeDoor globals) (Point 48 38)
-    addDevice_ (gStoneDoor globals) (Point 6 20)
-    addDevice_ (gStoneDoor globals) (Point 8 24)
-    addDevice_ (gStoneDoor globals) (Point 12 20)
-    addDevice_ (gStoneDoor globals) (Point 13 11)
-    addDevice_ (gStoneDoor globals) (Point 16 36)
-    addDevice_ (gStoneDoor globals) (Point 19 36)
-    addDevice_ (gStoneDoor globals) (Point 24 7)
-    addDevice_ (gStoneDoor globals) (Point 24 11)
-    addDevice_ (gStoneDoor globals) (Point 25 32)
-    addDevice_ (gStoneDoor globals) (Point 25 37)
-    addDevice_ (gStoneDoor globals) (Point 27 30)
-    addDevice_ (gStoneDoor globals) (Point 28 13)
-    addDevice_ (gStoneDoor globals) (Point 29 32)
-    addDevice_ (gStoneDoor globals) (Point 29 37)
-    addDevice_ (gStoneDoor globals) (Point 32 7)
-    addDevice_ (gStoneDoor globals) (Point 32 11)
-    addDevice_ (gStoneDoor globals) (Point 39 37)
-    addDevice_ (gStoneDoor globals) (Point 40 30)
-    addDevice_ (gStoneDoor globals) (Point 42 16)
-    addDevice_ (gStoneDoor globals) (Point 44 29)
-    addDevice_ (gStoneDoor globals) (Point 48 23)
 
   uniqueDevice 277292 (Point 9 24) signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\

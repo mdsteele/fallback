@@ -40,7 +40,7 @@ import Fallback.Control.Error (IOEO, onlyIO)
 import Fallback.Data.Clock (initClock)
 import Fallback.Data.Point (Position)
 import Fallback.Draw (Sprite, loadSprite)
-import Fallback.Resource (getGameDataDir, loadFromFile, saveToFile)
+import Fallback.Resource (getGameDataDir, readFromFile, saveToFile)
 import Fallback.Scenario.Triggers
   (getAreaDevice, getAreaTriggers, scenarioTriggers)
 import Fallback.State.Area
@@ -93,7 +93,7 @@ loadSavedGameSummaries = do
   entries <- filterM doesDirectoryExist =<< map (combine saveDir) .
              filter (all isAlphaNum) <$> getDirectoryContents saveDir
   fmap (sortKey sgsName . catMaybes) $ forM entries $ \path -> do
-    mbInfo <- loadFromFile reads (combine path "summary")
+    mbInfo <- readFromFile (combine path "summary")
     case mbInfo of
       Just (name, loc, time) -> do
         --screenshot <- loadSprite (combine path "screenshot.png")
@@ -108,7 +108,7 @@ loadSavedGameSummaries = do
 
 loadSavedGame :: Resources -> SavedGameSummary -> IOEO SavedGame
 loadSavedGame resources sgs = do
-  result <- onlyIO $ loadFromFile reads (combine (sgsDirPath sgs) "state")
+  result <- onlyIO $ readFromFile (combine (sgsDirPath sgs) "state")
   case result of
     Nothing -> fail "Failed to parse save data."
     Just (Left wrappedRegionState) ->

@@ -17,6 +17,11 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
+-- | Since some function names clash with "Prelude" names, this module is
+-- usually imported @qualified@, e.g.
+--
+-- >  import qualified Fallback.Data.PriorityQueue as PQ
+
 module Fallback.Data.PriorityQueue
   (-- * Priority queue type
    PriorityQueue,
