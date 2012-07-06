@@ -20,16 +20,19 @@
 {-# LANGUAGE DoRec #-}
 
 module Fallback.Scenario.Triggers.Globals
-  (Globals(..), compileGlobals, newDoorDevice, addUnlockedDoors, signRadius)
+  (Globals(..), compileGlobals,
+   newDoorDevice, addUnlockedDoors, uniqueDevice,
+   signRadius)
 where
 
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
-import Fallback.Scenario.Triggers.Script (addDeviceOnMarks, massSetTerrain)
+import Fallback.Scenario.Triggers.Script
+  (addDeviceOnMarks, demandOneTerrainMark, setTerrain)
 import Fallback.State.Area
-import Fallback.State.Progress (VarSeed)
+import Fallback.State.Progress (VarSeed, splitVarSeed)
 import Fallback.State.Resources (SoundTag(..), rsrcTileset)
 import Fallback.State.Simple (CharacterNumber)
 import Fallback.State.Tileset (TileTag(..), tilesetGet, ttId)
@@ -40,12 +43,6 @@ import Fallback.Utility (firstJust, maybeM, whenM)
 
 data Globals = Globals
   { gUnlockedDoor :: Device }
-
--- | The standard interaction radius for signs/placards:
-signRadius :: Int
-signRadius = 3
-
--------------------------------------------------------------------------------
 
 compileGlobals :: CompileScenario Globals
 compileGlobals = do
@@ -78,7 +75,7 @@ newDoorDevice vseed tryOpen tryClose = do
         else if ttId (tilesetGet oTag tileset) == tid then Just (True, cTag)
              else Nothing
     maybeM mbOpenOther $ \(isOpen, other) -> do
-      let toggleTile = massSetTerrain other $ prectPositions $ Grid.geRect ge
+      let toggleTile = setTerrain other $ prectPositions $ Grid.geRect ge
       if isOpen then do
         -- TODO: Don't allow door to be closed if enemies are nearby, or if
         --       space is occupied, or if we're in combat.
@@ -95,5 +92,23 @@ newDoorDevice vseed tryOpen tryClose = do
 addUnlockedDoors :: Globals -> Script TownEffect ()
 addUnlockedDoors globals = do
   addDeviceOnMarks (gUnlockedDoor globals) "UD"
+
+-- | Create a device with the given interaction radius and script function, and
+-- place it at the position marked in the terrain with the given string; there
+-- must be exactly one such position.
+uniqueDevice :: VarSeed -> String -> Int
+             -> (Grid.Entry Device -> CharacterNumber -> Script AreaEffect ())
+             -> CompileArea ()
+uniqueDevice vseed key radius sfn = do
+  (vseed', vseed'') <- splitVarSeed vseed
+  device <- newDevice vseed' radius sfn
+  onStartDaily vseed'' $ do
+    addDevice_ device =<< demandOneTerrainMark key
+
+-------------------------------------------------------------------------------
+
+-- | The standard interaction radius for signs/placards:
+signRadius :: Int
+signRadius = 3
 
 -------------------------------------------------------------------------------

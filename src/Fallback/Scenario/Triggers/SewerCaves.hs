@@ -59,7 +59,7 @@ compileSewerCaves globals = compileArea SewerCaves Nothing $ do
     addDeviceOnMarks ironKeyLockedDoor "IronDoor"
 
   gateOpen <- newPersistentVar 189342 False
-  uniqueDevice 023433 (Point 15 23) 1 $ \_ _ -> do
+  uniqueDevice 023433 "GateWheel" 1 $ \_ _ -> do
     isOpen <- readVar gateOpen
     if isOpen then setMessage "The gate has already been opened." else do
     playSound SndLever
@@ -67,7 +67,7 @@ compileSewerCaves globals = compileArea SewerCaves Nothing $ do
     narrate "You turn the wheel to lift the gate, then wedge it so it will\
       \ stay open.  Now you can get in and out of here easily."
   daily 984354 (varTrue gateOpen) $ do
-    massSetTerrain BasaltGateOpenTile [Point 16 22]
+    setTerrain BasaltGateOpenTile =<< lookupTerrainMark "EntryGate"
 
   once 874564 (walkIn (Rect 27 27 10 9)) $ do
     narrate "Phew, it stinks in here.  This is apparently the cave where the\
@@ -81,12 +81,12 @@ compileSewerCaves globals = compileArea SewerCaves Nothing $ do
   dactylidDead <- newPersistentVar 982452 False
   once 029345 (walkIn (Rect 1 25 15 9)) $ do
     narrate "FIXME Boss time!"
-    massSetTerrain BasaltGateClosedTile [Point 9 24]
+    setTerrain BasaltGateClosedTile =<< lookupTerrainMark "BossGate"
     bossStartPos <- flip Point 33 <$> getRandomR 1 15
     addBasicEnemyMonster bossStartPos Dactylid (Just dactylidDead) ChaseAI
     startBossFight (Point 0 23)
   once 923982 (varTrue dactylidDead) $ do
-    massSetTerrain BasaltGateOpenTile [Point 9 24]
+    setTerrain BasaltGateOpenTile =<< lookupTerrainMark "BossGate"
     narrate "FIXME Yay, you won!"
 
 -------------------------------------------------------------------------------

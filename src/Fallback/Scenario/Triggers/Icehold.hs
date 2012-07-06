@@ -81,41 +81,38 @@ compileIcehold globals = do
     -- Triggers to adjust contents of water tank:
     let waterTankRect = Rect 11 12 5 3 :: PRect
     trigger 427921 (varFalse waterPumpedUp) $ do
-      massSetTerrain WaterAnimTile $ prectPositions waterTankRect
+      setTerrain WaterAnimTile $ prectPositions waterTankRect
     trigger 987492 (varTrue waterPumpedUp) $ do
-      massSetTerrain WhiteTileFloorTile $ prectPositions waterTankRect
+      setTerrain WhiteTileFloorTile $ prectPositions waterTankRect
 
     -- Triggers to adjust contents of lava tank:
     let lavaTankRect = Rect 35 12 5 3 :: PRect
     trigger 493742 (varFalse lavaPumpedUp) $ do
-      massSetTerrain LavaAnimTile $ prectPositions lavaTankRect
+      setTerrain LavaAnimTile $ prectPositions lavaTankRect
     trigger 592874 (varTrue lavaPumpedUp) $ do
-      massSetTerrain WhiteTileFloorTile $ prectPositions lavaTankRect
+      setTerrain WhiteTileFloorTile $ prectPositions lavaTankRect
 
     -- Triggers to adjust contents of center tank:
-    let centerTankPositions = [Point 21 13, Point 29 13] ++
-          prectPositions (Rect 22 12 2 3) ++ prectPositions (Rect 27 12 2 3) ++
-          prectPositions (Rect 24 11 3 5)
     trigger 489293 (varTrue waterReleased `andP` varFalse lavaReleased) $ do
-      massSetTerrain WaterAnimTile centerTankPositions
+      setTerrain WaterAnimTile =<< lookupTerrainMark "Mix"
     trigger 792974 (varFalse waterReleased `andP` varTrue lavaReleased) $ do
-      massSetTerrain LavaAnimTile centerTankPositions
+      setTerrain LavaAnimTile =<< lookupTerrainMark "Mix"
     trigger 947242 (varFalse waterReleased `xorP` varTrue lavaReleased) $ do
-      massSetTerrain WhiteTileFloorTile centerTankPositions
+      setTerrain WhiteTileFloorTile =<< lookupTerrainMark "Mix"
 
     -- Triggers to adjust gates:
     let westGatePos = Point 18 13
         eastGatePos = Point 32 13
         southeastGatePos = Point 36 27
     trigger 872321 (varEq gateWheelSetting 2) $ do
-      massSetTerrain StoneGateClosedTile [westGatePos]
-      massSetTerrain StoneGateOpenTile [eastGatePos, southeastGatePos]
+      setTerrain StoneGateClosedTile [westGatePos]
+      setTerrain StoneGateOpenTile [eastGatePos, southeastGatePos]
     trigger 642913 (varNeq gateWheelSetting 2) $ do
-      massSetTerrain StoneGateOpenTile [westGatePos]
-      massSetTerrain StoneGateClosedTile [eastGatePos, southeastGatePos]
+      setTerrain StoneGateOpenTile [westGatePos]
+      setTerrain StoneGateClosedTile [eastGatePos, southeastGatePos]
 
     -- Wheel that controls gates:
-    uniqueDevice 239987 (Point 25 19) 1 $ \_ _ -> conversation $ do
+    uniqueDevice 239987 "GateWheel" 1 $ \_ _ -> conversation $ do
       let settingName 0 = "SOUTH"
           settingName 1 = "WEST"
           settingName 2 = "EAST"
@@ -140,10 +137,10 @@ compileIcehold globals = do
                               " position.")
       convNode $ return ()
 
-    uniqueDevice 749827 (Point 40 16) signRadius $ \_ _ -> do
+    uniqueDevice 749827 "HeaterSign" signRadius $ \_ _ -> do
       narrate "The sign mounted on the wall reads:\n\n\
         \      {b}HEATER INSPECTION ROOM{_}"
-    uniqueDevice 234897 (Point 43 2) signRadius $ \_ _ -> do
+    uniqueDevice 234897 "FamineSign" signRadius $ \_ _ -> do
       narrate "The sign mounted on the wall reads:\n\n\
         \      {b}FAMINE ROOM{_}"
 
@@ -169,17 +166,17 @@ compileIcehold globals = do
         westGatePos = Point 15 27
         eastGatePos = Point 25 27
     trigger 874291 (varEq gateWheelSetting 0) $ do
-      massSetTerrain StoneGateOpenTile [southGatePos]
-      massSetTerrain StoneGateClosedTile [westGatePos, eastGatePos]
+      setTerrain StoneGateOpenTile [southGatePos]
+      setTerrain StoneGateClosedTile [westGatePos, eastGatePos]
     trigger 479821 (varEq gateWheelSetting 1) $ do
-      massSetTerrain StoneGateOpenTile [westGatePos]
-      massSetTerrain StoneGateClosedTile [eastGatePos, southGatePos]
+      setTerrain StoneGateOpenTile [westGatePos]
+      setTerrain StoneGateClosedTile [eastGatePos, southGatePos]
     trigger 792814 (varEq gateWheelSetting 2) $ do
-      massSetTerrain StoneGateOpenTile [eastGatePos]
-      massSetTerrain StoneGateClosedTile [southGatePos, westGatePos]
+      setTerrain StoneGateOpenTile [eastGatePos]
+      setTerrain StoneGateClosedTile [southGatePos, westGatePos]
 
     -- Water pump control:
-    uniqueDevice 561938 (Point 15 11) 1 $ \_ _ -> conversation $ do
+    uniqueDevice 561938 "WaterWheel" 1 $ \_ _ -> conversation $ do
       convText "There is a control wheel here, with a placard that\
         \ reads:\n\n\
         \      {b}WEST PUMP CONTROL{_}"
@@ -208,7 +205,7 @@ compileIcehold globals = do
       convNode $ return ()
 
     -- Lava pump control:
-    uniqueDevice 529850 (Point 25 11) 1 $ \_ _ -> conversation $ do
+    uniqueDevice 529850 "FireWheel" 1 $ \_ _ -> conversation $ do
       convText "There is a control wheel here, with a placard that\
         \ reads:\n\n\
         \      {b}EAST PUMP CONTROL{_}"
@@ -238,8 +235,9 @@ compileIcehold globals = do
       convNode $ return ()
 
     -- Water release control:
-    let waterLeverPos = Point 13 15
-    uniqueDevice 837104 waterLeverPos 1 $ \_ _ -> conversation $ do
+    trigger 827153 (varTrue waterReleased) $ do
+      setTerrain LeverRightTile =<< lookupTerrainMark "WaterLever"
+    uniqueDevice 837104 "WaterLever" 1 $ \_ _ -> conversation $ do
       convText "There is a lever in the floor here, with no label to suggest\
         \ what it might control."
       convChoice (return ()) "Leave it alone."
@@ -262,12 +260,11 @@ compileIcehold globals = do
               \ noise.  The water in the narrow chamber to the north is\
               \ draining down into the large chamber the first floor."
             writeVar waterReleased True
-    trigger 827153 (varTrue waterReleased) $ do
-      massSetTerrain LeverRightTile [waterLeverPos]
 
     -- Lava release control:
-    let lavaLeverPos = Point 27 15
-    uniqueDevice 579140 lavaLeverPos 1 $ \_ _ -> conversation $ do
+    trigger 982742 (varTrue lavaReleased) $ do
+      setTerrain LeverLeftTile =<< lookupTerrainMark "FireLever"
+    uniqueDevice 579140 "FireLever" 1 $ \_ _ -> conversation $ do
       convText "There is a lever in the floor here, with no label to suggest\
         \ what it might control."
       convChoice (return ()) "Leave it alone."
@@ -290,13 +287,11 @@ compileIcehold globals = do
               \ noise.  The firey liquid in the narrow chamber to the north is\
               \ draining down into the large chamber the first floor."
             writeVar lavaReleased True
-    trigger 982742 (varTrue lavaReleased) $ do
-      massSetTerrain LeverLeftTile [lavaLeverPos]
 
     once 749829 (varTrue waterReleased `andP` varTrue lavaReleased) $ do
       return () -- FIXME steam
 
-    uniqueDevice 727739 (Point 8 3) signRadius $ \_ _ -> do
+    uniqueDevice 727739 "ContemplationSign" signRadius $ \_ _ -> do
       narrate "The sign mounted on the wall reads:\n\n\
         \      {b}CONTEMPLATION ROOM{_}"
 
@@ -316,7 +311,8 @@ compileIcehold globals = do
     vhaegystKey <- newPersistentVar 109250 Grid.nilKey -- TODO make transient
     onStartDaily 209103 $ do
       whenP (varFalse vhaegystDead) $ do
-        mbEntry <- tryAddMonster (Point 9 13) (makeMonster Vhaegyst)
+        vhaegystPos <- demandOneTerrainMark "Vhaegyst"
+        mbEntry <- tryAddMonster vhaegystPos (makeMonster Vhaegyst)
           { monstDeadVar = Just vhaegystDead,
             monstIsAlly = True, -- don't attack yet
             monstTownAI = ImmobileAI }
@@ -325,17 +321,18 @@ compileIcehold globals = do
     once 729892 (walkIn bossChamberRect) $ do
       -- TODO conversation and so forth
       setMonsterIsAlly False =<< readVar vhaegystKey
-      massSetTerrain BasaltGateClosedTile [Point 9 22, Point 10 22]
+      setTerrain BasaltGateClosedTile =<< lookupTerrainMark "SouthGate"
       startBossFight bossChamberTopleft
     trigger 099022 (varTrue vhaegystDead) $ do
       setAreaCleared Icehold True
-      massSetTerrain BasaltGateOpenTile [Point 9 22, Point 10 22, Point 9 8]
+      setTerrain BasaltGateOpenTile =<< lookupTerrainMark "SouthGate"
+      setTerrain BasaltGateOpenTile =<< lookupTerrainMark "NorthGate"
 
     -- Sunrod pedestal:
-    uniqueDevice 977299 (Point 16 3) 1 $ \_ _ -> do
+    uniqueDevice 977299 "SunPedestal" 1 $ \_ _ -> do
       narrate "FIXME You get a Sunrod, yay!"
 
-    uniqueDevice 449872 (Point 9 1) signRadius $ \_ _ -> do
+    uniqueDevice 449872 "SunroomSign" signRadius $ \_ _ -> do
       narrate "The sign mounted on the wall reads:\n\n\
         \      {b}SUNROOM{_}"
 

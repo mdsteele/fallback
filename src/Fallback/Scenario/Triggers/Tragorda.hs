@@ -48,11 +48,11 @@ compileTragorda globals = compileArea Tragorda Nothing $ do
     addUnlockedDoors globals
     setAreaCleared Tragorda True
 
-  uniqueDevice 277292 (Point 9 24) signRadius $ \_ _ -> do
+  uniqueDevice 277292 "TavernSign" signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
       \      {b}THE WELCOME TRAVELER{_}"
 
-  uniqueDevice 915293 (Point 13 20) signRadius $ \_ _ -> do
+  uniqueDevice 915293 "ApothecarySign" signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
       \      {b}APOTHECARY{_}"
   simpleTownsperson 109230 TownWomanApron (Point 13 17)
@@ -111,7 +111,7 @@ compileTragorda globals = compileArea Tragorda Nothing $ do
         setQuestStatus DryIceForLucca QuestSucceeded
     initialChoices
 
-  uniqueDevice 642104 (Point 29 36) signRadius $ \_ _ -> do
+  uniqueDevice 642104 "JewelerSign" signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
       \          {b}Bisla Gruer Fine Jewelry{_}\n\
       \      {i}Ornaments magical and mundane.{_}\n\
@@ -123,25 +123,25 @@ compileTragorda globals = compileArea Tragorda Nothing $ do
     startShopping $ map (Right . AccessoryItemTag) $
       [GroundedCharm, IcyNecklace, JeweledPin, ShieldRing, WizardsRing]
 
-  uniqueDevice 884670 (Point 26 30) signRadius $ \_ _ -> do
+  uniqueDevice 884670 "MarketSign" signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
       \      {b}TRAGORDA MARKETPLACE{_}"
-  uniqueDevice 285872 (Point 29 13) signRadius $ \_ _ -> do
+  uniqueDevice 285872 "CityHallSign" signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
       \      {b}TRAGORDA CITY HALL{_}"
-  uniqueDevice 320769 (Point 32 12) signRadius $ \_ _ -> do
+  uniqueDevice 320769 "ClerkSign" signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
       \      {b}OFFICE OF THE CLERK{_}"
-  uniqueDevice 157924 (Point 39 36) signRadius $ \_ _ -> do
+  uniqueDevice 157924 "MinersSign" signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
       \      {b}SVENGAARD MINERS' UNION{_}"
-  uniqueDevice 802766 (Point 40 31) signRadius $ \_ _ -> do
+  uniqueDevice 802766 "ChurchSign" signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
       \      {i}CHURCH OF THE RESCUED SOUL{_}"
-  uniqueDevice 705513 (Point 42 8) signRadius $ \_ _ -> do
+  uniqueDevice 705513 "SageSign" signRadius $ \_ _ -> do
     narrate "The sign tacked to the wall reads:\n\n\
       \      {i}Sage Bora: Scholar and Artificer{_}"
-  uniqueDevice 912708 (Point 42 15) signRadius $ \_ _ -> do
+  uniqueDevice 912708 "LibrarySign" signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
       \      {b}VECHAR MEMORIAL LIBRARY{_}"
 

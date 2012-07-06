@@ -27,7 +27,6 @@ import Fallback.Data.Point
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Globals
-  (Globals(..), addUnlockedDoors, newDoorDevice, signRadius)
 import Fallback.Scenario.Triggers.Script
 import Fallback.State.Area (arsCharacterPosition)
 import Fallback.State.Creature (MonsterTownAI(..))
@@ -46,7 +45,7 @@ compileFrozenPass globals = compileArea FrozenPass Nothing $ do
   onStartDaily 028371 $ do
     addUnlockedDoors globals
 
-  uniqueDevice 981323 (Point 48 36) signRadius $ \_ _ -> do
+  uniqueDevice 981323 "Signpost" signRadius $ \_ _ -> do
     narrate "This signpost looks like it has seen better days, but you can\
       \ still read it clearly.  It says:\n\n\
       \      {c}Holmgare: 2 mi. E{_}"
@@ -146,7 +145,7 @@ compileFrozenPass globals = compileArea FrozenPass Nothing $ do
   simpleMonster 296464 Ghoul (Point 12 38) MindlessAI
   simpleMonster 080509 Wraith (Point 11 36) MindlessAI
 
-  uniqueDevice 044279 (Point 6 34) 1 $ \_ _ -> do
+  uniqueDevice 044279 "TornBook" 1 $ \_ _ -> do
     narrate "Aha!  This book probably holds all sorts of interesting\
       \ information, clues about what's going on around here, and powerful\
       \ magical arcana that will be a great boon to you in your\
@@ -206,14 +205,15 @@ compileFrozenPass globals = compileArea FrozenPass Nothing $ do
         return True
   ironDoorDevice <-
     newDoorDevice 202933 tryOpenIronDoor (const $ const $ return True)
-  onStartDaily 093423 $ addDevice_ ironDoorDevice (Point 26 40)
+  onStartDaily 093423 $ do
+    addDevice_ ironDoorDevice =<< demandOneTerrainMark "IronDoor"
 
   once 328351 (walkOn (Point 26 40)) $ do
     narrate "A huge, solid crystal of ice dominates the center of this tiny\
       \ room.  You can almost feel it sucking the heat out of your bodies,\
       \ even from here.  It is almost certainly magical, whatever it's for."
 
-  uniqueDevice 623179 (Point 28 40) 1 $ \_ charNum -> do
+  uniqueDevice 623179 "IceCrystal" 1 $ \_ charNum -> do
     mbTouch <- forcedChoice "The faces of the giant ice crystal are almost\
       \ flawless.  From up close, you can definitely feel the aura of magic\
       \ around this thing; if nothing else, it's somehow making the room a\
@@ -245,7 +245,7 @@ compileFrozenPass globals = compileArea FrozenPass Nothing $ do
         \ any damage at all beyond loosing a few chips of frost."
       Nothing -> return ()
 
-  uniqueDevice 477627 (Point 30 40) signRadius $ \_ _ -> do
+  uniqueDevice 477627 "Runes" signRadius $ \_ _ -> do
     narrate "There is some kind of inscription on the wall.  Peering closely\
       \ at it, it appears to be written in a language you can't understand,\
       \ using symbols you don't even recognize.  A foreign tongue?  Magical\

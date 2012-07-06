@@ -41,12 +41,12 @@ compileStoneBridge globals = compileArea StoneBridge Nothing $ do
   onStartDaily 423026 $ do
     addUnlockedDoors globals
 
-  uniqueDevice 180091 (Point 12 18) signRadius $ \_ _ -> do
+  uniqueDevice 180091 "Signpost" signRadius $ \_ _ -> do
     narrate "A sign has been posted along the road here:\n\n\
       \      {i}Travellers arriving from outside Svengaard{_}\n\
       \           {i}must report to the customs office{_}\n\
       \              {i}before crossing into Tragorda.{_}"
-  uniqueDevice 800253 (Point 20 12) signRadius $ \_ _ -> do
+  uniqueDevice 800253 "CustomsSign" signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
       \      {b}TRAGORDA CUSTOMS OFFICE{_}"
 
@@ -69,16 +69,14 @@ compileStoneBridge globals = compileArea StoneBridge Nothing $ do
   do let frontGateOpen = varTrue gateTemporarilyOpen `orP`
                          varTrue gatePermenantlyOpen
      let rearGateOpen = varTrue gatePermenantlyOpen
-     let setFrontGate t = setTerrain $ map (flip (,) t . Point 26) [21 .. 23]
-     let setRearGate t = setTerrain $ map (flip (,) t . Point 46) [21 .. 23]
      trigger 018489 (frontGateOpen) $ do
-       setFrontGate =<< getTerrainTile StoneGateOpenTile
+       setTerrain StoneGateOpenTile =<< lookupTerrainMark "FrontGate"
      trigger 498239 (notP frontGateOpen) $ do
-       setFrontGate =<< getTerrainTile StoneGateClosedTile
+       setTerrain StoneGateClosedTile =<< lookupTerrainMark "FrontGate"
      trigger 298323 (rearGateOpen) $ do
-       setRearGate =<< getTerrainTile StoneGateOpenTile
+       setTerrain StoneGateOpenTile =<< lookupTerrainMark "RearGate"
      trigger 102982 (notP rearGateOpen) $ do
-       setRearGate =<< getTerrainTile StoneGateClosedTile
+       setTerrain StoneGateClosedTile =<< lookupTerrainMark "RearGate"
 
   let archerGuard vseed pos sfn =
         simpleTownsperson vseed GuardArcher pos (GuardAI pos) sfn

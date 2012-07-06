@@ -25,7 +25,7 @@ module Fallback.Scenario.Triggers.Script
   (-- * Conversation
    TalkEffect(..), conversation, convText, convChoice, convNode, convReset,
    -- * Terrain
-   getTerrainTile, setTerrain, massSetTerrain, resetTerrain,
+   setTerrain, resetTerrain,
    lookupTerrainMark, demandOneTerrainMark,
    -- * Miscellaneous
    addDeviceOnMarks, doesPartyHaveItem, playDoorUnlockSound, setAreaCleared,
@@ -40,7 +40,7 @@ import Fallback.State.Resources (SoundTag(SndUnlock), rsrcTileset)
 import Fallback.State.Simple (Ingredient, QuestStatus)
 import Fallback.State.Tags (AreaTag, ItemTag, QuestTag)
 import Fallback.State.Terrain (terrainMap, tmapGet, tmapLookupMark)
-import Fallback.State.Tileset (TerrainTile, TileTag, tilesetGet)
+import Fallback.State.Tileset (TileTag, tilesetGet)
 
 -------------------------------------------------------------------------------
 -- Conversation:
@@ -105,21 +105,10 @@ convReset = emitEffect EffTalkReset
 -------------------------------------------------------------------------------
 -- Terrain:
 
--- TODO: Deprecated; use massSetTerrain instead.
-getTerrainTile :: (FromAreaEffect f) => TileTag -> Script f TerrainTile
-getTerrainTile tag = do
-  resources <- areaGet arsResources
-  return $ tilesetGet tag $ rsrcTileset resources
-
--- TODO: Deprecated; use massSetTerrain instead.
-setTerrain :: (FromAreaEffect f) => [(Position, TerrainTile)] -> Script f ()
-setTerrain = emitAreaEffect . EffSetTerrain
-
--- TODO: Rename this to setTerrain once the current setTerrain is nuked.
-massSetTerrain :: (FromAreaEffect f) => TileTag -> [Position] -> Script f ()
-massSetTerrain tileTag positions = do
-  tile <- getTerrainTile tileTag
-  setTerrain $ map (flip (,) tile) positions
+setTerrain :: (FromAreaEffect f) => TileTag -> [Position] -> Script f ()
+setTerrain tileTag positions = do
+  tile <- areaGet (tilesetGet tileTag . rsrcTileset . arsResources)
+  emitAreaEffect $ EffSetTerrain $ map (flip (,) tile) positions
 
 resetTerrain :: (FromAreaEffect f) => [Position] -> Script f ()
 resetTerrain positions = do
