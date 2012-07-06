@@ -27,12 +27,13 @@ module Fallback.Scenario.Compile
    -- * Defining the scenario
    CompileScenario, compileScenario, newGlobalVar, compileRegion, compileArea,
    -- * Defining an area
-   CompileArea, newPersistentVar, newTransientVar, makeExit, simpleMonster,
-   simpleTownsperson,
+   CompileArea, newPersistentVar, newTransientVar, makeExit,
    -- * Defining triggers
    DefineTrigger(..), onStartDaily, onStartOnce, daily, once,
    -- * Devices
    DefineDevice(..),
+   -- * Monster scripts
+   DefineMonsterScript(..),
    -- * Variables
    Var, getVar, readVar, writeVar, modifyVar,
    -- * Trigger predicates
@@ -42,7 +43,7 @@ module Fallback.Scenario.Compile
    questUntaken, questActive)
 where
 
-import Control.Monad (unless, void, when)
+import Control.Monad (when)
 import Control.Monad.Fix (MonadFix)
 import qualified Control.Monad.State as State
 import qualified Data.Map as Map
@@ -59,7 +60,7 @@ import Fallback.State.Creature
 import Fallback.State.Party (Party, partyQuests)
 import Fallback.State.Progress
 import Fallback.State.Simple
-import Fallback.State.Tags (AreaTag, MonsterTag, QuestTag, RegionTag)
+import Fallback.State.Tags (AreaTag, QuestTag, RegionTag)
 import Fallback.State.Town (TownState)
 
 -------------------------------------------------------------------------------
@@ -219,28 +220,6 @@ makeExit tag rects pos = CompileArea $ do
   when (Map.member tag entrances) $ do
     fail ("Repeated exit: " ++ show tag)
   State.put cas { casEntrances = Map.insert tag (rects, pos) entrances }
-
-simpleMonster :: VarSeed -> MonsterTag -> Position -> MonsterTownAI
-              -> CompileArea ()
-simpleMonster vseed tag pos ai = do
-  (vseed', vseed'') <- splitVarSeed vseed
-  isDeadVar <- newPersistentVar vseed' False
-  onStartDaily vseed'' $ do
-    isDead <- readVar isDeadVar
-    unless isDead $ do
-      addBasicEnemyMonster pos tag (Just isDeadVar) ai
-
-simpleTownsperson :: VarSeed -> MonsterTag -> Position -> MonsterTownAI
-                  -> (Grid.Entry Monster -> Script TownEffect ())
-                  -> CompileArea ()
-simpleTownsperson vseed tag pos ai sfn = do
-  (vseed', vseed'') <- splitVarSeed vseed
-  scriptId <- newMonsterScript vseed' sfn
-  onStartDaily vseed'' $ do
-    void $ tryAddMonster pos (makeMonster tag)
-      { monstIsAlly = True,
-        monstScript = Just scriptId,
-        monstTownAI = ai }
 
 -------------------------------------------------------------------------------
 -- Checking VarSeeds:

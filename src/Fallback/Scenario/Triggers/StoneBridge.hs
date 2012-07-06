@@ -46,10 +46,28 @@ compileStoneBridge globals = compileArea StoneBridge Nothing $ do
       \      {i}Travellers arriving from outside Svengaard{_}\n\
       \           {i}must report to the customs office{_}\n\
       \              {i}before crossing into Tragorda.{_}"
+
+  -- North part of forest:
+  simpleMonster 749087 Ghast "GhastA" MindlessAI
+  simpleMonster 420424 Skeleton "SkelA" MindlessAI
+  simpleMonster 108402 Zombie "ZomA1" MindlessAI
+  simpleMonster 482902 Zombie "ZomA2" MindlessAI
+  simpleMonster 779872 Zombie "ZomA3" MindlessAI
+  simpleMonster 398795 Zombie "ZomA4" MindlessAI
+
+  -- South part of forest:
+  simpleMonster 998491 Ghoul "GhoulB1" MindlessAI
+  simpleMonster 479829 Ghoul "GhoulB2" MindlessAI
+  simpleMonster 498721 Ghoul "GhoulB3" MindlessAI
+  simpleMonster 874987 Skeleton "SkelB" MindlessAI
+  simpleMonster 749209 Wraith "WraithB" MindlessAI
+  simpleMonster 740021 Zombie "ZomB1" MindlessAI
+  simpleMonster 799211 Zombie "ZomB2" MindlessAI
+
+  -- Customs office:
   uniqueDevice 800253 "CustomsSign" signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
       \      {b}TRAGORDA CUSTOMS OFFICE{_}"
-
   once 025516 (walkIn (Rect 17 9 5 3)) $ do
     narrate "This office looks like it has seen better days.  According to the\
       \ sign by the door, this is the customs office--presumably, travellers\
@@ -63,7 +81,22 @@ compileStoneBridge globals = compileArea StoneBridge Nothing $ do
       \ seems to be covered in scratches--claw marks?  The far wall looks to\
       \ be in poor shape, and you're pretty sure you can hear some kind of\
       \ noises coming from behind it."
+  simpleMonster 834714 Ghast "GhastC" MindlessAI
+  simpleMonster 471492 Ghoul "GhoulC1" MindlessAI
+  simpleMonster 947193 Ghoul "GhoulC2" MindlessAI
+  simpleMonster 978248 Skeleton "SkelC1" MindlessAI
+  simpleMonster 477421 Skeleton "SkelC2" MindlessAI
+  simpleMonster 819889 Wraith "WraithC" MindlessAI
 
+  -- West forest:
+  simpleMonster 108042 Wolf "WolfD1" MindlessAI
+  simpleMonster 580912 Wolf "WolfD2" MindlessAI
+
+  -- North shore:
+  simpleMonster 740281 Wolf "WolfE1" MindlessAI
+  simpleMonster 480981 Wolf "WolfE2" MindlessAI
+
+  -- Bridge gates:
   gateTemporarilyOpen <- newTransientVar 019112 False
   gatePermenantlyOpen <- newPersistentVar 848929 False
   do let frontGateOpen = varTrue gateTemporarilyOpen `orP`
@@ -78,10 +111,10 @@ compileStoneBridge globals = compileArea StoneBridge Nothing $ do
      trigger 102982 (notP rearGateOpen) $ do
        setTerrain StoneGateClosedTile =<< lookupTerrainMark "RearGate"
 
-  let archerGuard vseed pos sfn =
-        simpleTownsperson vseed GuardArcher pos (GuardAI pos) sfn
+  let archerGuard vseed key sfn =
+        simpleTownsperson vseed GuardArcher key (GuardAI key) sfn
 
-  archerGuard 129578 (Point 26 19) $ \_ -> conversation $ do
+  archerGuard 129578 "Archer1" $ \_ -> conversation $ do
     convText "\"Ho, there, travellers.  The bridge is closed.\"  FIXME"
     let
       initialChoices = convNode $ do
@@ -131,9 +164,9 @@ compileStoneBridge globals = compileArea StoneBridge Nothing $ do
       done = return ()
     initialChoices
 
-  archerGuard 712197 (Point 25 18) $ \_ -> do return () -- TODO
-  archerGuard 510619 (Point 23 25) $ \_ -> do return () -- TODO
+  archerGuard 712197 "Archer2" $ \_ -> do return () -- TODO
+  archerGuard 510619 "Archer3" $ \_ -> do return () -- TODO
 
-  simpleMonster 283948 DemonWolf (Point 42 22) MindlessAI -- FIXME
+  simpleMonster 283948 DemonWolf "DemonWolf" MindlessAI -- FIXME
 
 -------------------------------------------------------------------------------

@@ -28,6 +28,7 @@ import qualified Data.Set as Set
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Scenario.Script
+import Fallback.Scenario.Triggers.Script (demandOneTerrainMark)
 import Fallback.State.Area
 import Fallback.State.Creature
 import Fallback.State.Pathfind (pathfindRectToRange)
@@ -56,11 +57,13 @@ monsterTownStep ge = do
         blocked <- areaGet (flip (arsIsBlockedForMonster ge) pos')
         unless blocked $ takeStep_ [pos']
       return False
-    GuardAI home -> do
+    GuardAI homeMark -> do
       case pathfindRectToRange isBlocked rect partyPos (SqDist 2) 5 of
         Just path -> stepTowardsParty path
         Nothing -> do
-          maybeM (pathfindRectToRange isBlocked rect home (SqDist 0) 30)
+          -- TODO allow any number of marks; head back for any one of them
+          homePos <- demandOneTerrainMark homeMark
+          maybeM (pathfindRectToRange isBlocked rect homePos (SqDist 0) 30)
                  takeStep_
           return False
     ImmobileAI -> do

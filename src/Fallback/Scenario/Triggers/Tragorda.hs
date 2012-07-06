@@ -55,7 +55,7 @@ compileTragorda globals = compileArea Tragorda Nothing $ do
   uniqueDevice 915293 "ApothecarySign" signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
       \      {b}APOTHECARY{_}"
-  simpleTownsperson 109230 TownWomanApron (Point 13 17)
+  simpleTownsperson 109230 TownWomanApron "Lucca"
                     (DrunkAI $ Rect 11 17 5 1) $ \_ -> conversation $ do
     convText "Well, hello!"  -- TODO
     let
@@ -117,7 +117,7 @@ compileTragorda globals = compileArea Tragorda Nothing $ do
       \      {i}Ornaments magical and mundane.{_}\n\
       \                           {i}Est. 1136{_}\n\
       \                   {i}A family business.{_}"
-  simpleTownsperson 020394 TownManBlue (Point 32 35)
+  simpleTownsperson 020394 TownManBlue "Bisla"
                     (DrunkAI $ Rect 31 34 3 1) $ \_ -> conversation $ do
     narrate "Oh hai." -- FIXME
     startShopping $ map (Right . AccessoryItemTag) $

@@ -22,8 +22,11 @@
 module Fallback.Scenario.Triggers.Globals
   (Globals(..), compileGlobals,
    newDoorDevice, addUnlockedDoors, uniqueDevice,
+   simpleMonster, simpleTownsperson,
    signRadius)
 where
+
+import Control.Monad (unless, void)
 
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
@@ -32,9 +35,11 @@ import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Script
   (addDeviceOnMarks, demandOneTerrainMark, setTerrain)
 import Fallback.State.Area
+import Fallback.State.Creature (Monster(..), MonsterTownAI, makeMonster)
 import Fallback.State.Progress (VarSeed, splitVarSeed)
 import Fallback.State.Resources (SoundTag(..), rsrcTileset)
 import Fallback.State.Simple (CharacterNumber)
+import Fallback.State.Tags (MonsterTag)
 import Fallback.State.Tileset (TileTag(..), tilesetGet, ttId)
 import Fallback.State.Terrain (terrainGetTile)
 import Fallback.Utility (firstJust, maybeM, whenM)
@@ -42,14 +47,17 @@ import Fallback.Utility (firstJust, maybeM, whenM)
 -------------------------------------------------------------------------------
 
 data Globals = Globals
-  { gUnlockedDoor :: Device }
+  { gTimesThroughLongvale :: Var Int,
+    gUnlockedDoor :: Device }
 
 compileGlobals :: CompileScenario Globals
 compileGlobals = do
+  timesThroughLongvale <- newGlobalVar 092343 0
   unlockedDoor <- do
     let succeed _ _ = return True
     newDoorDevice 978249 succeed succeed
-  return Globals { gUnlockedDoor = unlockedDoor }
+  return Globals { gTimesThroughLongvale = timesThroughLongvale,
+                   gUnlockedDoor = unlockedDoor }
 
 -------------------------------------------------------------------------------
 
@@ -104,6 +112,32 @@ uniqueDevice vseed key radius sfn = do
   device <- newDevice vseed' radius sfn
   onStartDaily vseed'' $ do
     addDevice_ device =<< demandOneTerrainMark key
+
+-------------------------------------------------------------------------------
+
+simpleMonster :: VarSeed -> MonsterTag -> String -> MonsterTownAI
+              -> CompileArea ()
+simpleMonster vseed tag key ai = do
+  (vseed', vseed'') <- splitVarSeed vseed
+  isDeadVar <- newPersistentVar vseed' False
+  onStartDaily vseed'' $ do
+    isDead <- readVar isDeadVar
+    unless isDead $ do
+      pos <- demandOneTerrainMark key
+      addBasicEnemyMonster pos tag (Just isDeadVar) ai
+
+simpleTownsperson :: VarSeed -> MonsterTag -> String -> MonsterTownAI
+                  -> (Grid.Entry Monster -> Script TownEffect ())
+                  -> CompileArea ()
+simpleTownsperson vseed tag key ai sfn = do
+  (vseed', vseed'') <- splitVarSeed vseed
+  scriptId <- newMonsterScript vseed' sfn
+  onStartDaily vseed'' $ do
+    pos <- demandOneTerrainMark key
+    void $ tryAddMonster pos (makeMonster tag)
+      { monstIsAlly = True,
+        monstScript = Just scriptId,
+        monstTownAI = ai }
 
 -------------------------------------------------------------------------------
 

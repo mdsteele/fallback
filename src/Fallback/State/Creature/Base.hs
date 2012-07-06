@@ -190,7 +190,7 @@ data MonsterSummoning = MonsterSummoning
 
 data MonsterTownAI = ChaseAI -- chase party relentlessly
                    | DrunkAI PRect -- random walk within rect
-                   | GuardAI Position
+                   | GuardAI String -- guard position with this terrain mark
                    | ImmobileAI -- never move; start combat when could attack
                    | MindlessAI -- chase party only when visible
                    | PatrolAI Position Position
