@@ -48,15 +48,18 @@ featEffect SolarFlare =
     concurrent_ targets $ characterWeaponAttack caster
 featEffect Energize =
   StandardFeat autoTarget $ \caster () -> do
+    setCharacterAnim caster (AttackAnim 8)
     charNums <- getAllConsciousCharacters
     playSound SndHeal
     forM_ charNums $ \charNum -> do
-      -- TODO add doodad and wait
+      -- TODO doodad
       restoreMojoToFull charNum
       unless (charNum == caster) $ do
         alterAdrenaline charNum (const maxAdrenaline)
+    wait 12
 featEffect StarShield =
-  StandardFeat autoTarget $ \_caster () -> do
+  StandardFeat autoTarget $ \caster () -> do
+    setCharacterAnim caster (AttackAnim 8)
     -- TODO doodad
     let rounds = 15
     playSound SndShielding
@@ -64,6 +67,7 @@ featEffect StarShield =
     forM_ hitTargets $ \hitTarget -> do
       alterStatus hitTarget $
         seApplyMagicShield rounds . seApplyDefense (Beneficial rounds)
+    wait 12
 featEffect Zodiac =
   StandardFeat autoTarget $ \_caster () -> do
     entries <- randomPermutation =<< getAllEnemyMonsters
@@ -77,7 +81,8 @@ featEffect Zodiac =
     wait 24
 featEffect Banish =
   StandardFeat (const $ aoeTarget 6 (ofRadius 2)) $
-  \_caster (_endPos, targets) -> do
+  \caster (endPos, targets) -> do
+    characterOffensiveActionTowards caster 8 endPos
     -- TODO sound/doodad
     -- Unsummon all summoned monsters in the area:
     forM_ targets $ \target -> do
@@ -101,6 +106,7 @@ featEffect Banish =
               imprison (Grid.geRect entry)
           | otherwise -> return ()
         _ -> return ()
+    wait 12
 featEffect TidalForce =
   StandardFeat (flip aoeTarget (ofRadius 2) . (1 +)) $
   \caster (endPos, targets) -> do
@@ -115,15 +121,17 @@ featEffect TidalForce =
     massInflictMentalEffect True Dazed 8 targets
     wait 12
 featEffect Eclipse =
-  StandardFeat autoTarget $ \_caster () -> do
+  StandardFeat autoTarget $ \caster () -> do
+    setCharacterAnim caster (AttackAnim 8)
     hitTargets <- getAllAllyTargets
     playSound SndIllusion
     forM_ hitTargets $ \hitTarget -> do
-      -- TODO add doodad and wait
+      -- TODO doodad?
       grantInvisibility hitTarget MajorInvisibility
+    wait 12
 featEffect LunarBeam =
   StandardFeat (const $ beamTarget) $ \caster (endPos, targets) -> do
-    characterBeginOffensiveAction caster endPos
+    characterOffensiveActionTowards caster 24 endPos
     startPos <- areaGet (arsCharacterPosition caster)
     let startPt = positionCenter startPos :: DPoint
     let endPt = startPt `pAdd`
@@ -141,13 +149,15 @@ featEffect LunarBeam =
       setFields (IceWall 10) [target]
     wait 20
 featEffect PulseOfLife =
-  StandardFeat (const $ AllyTarget 9) $ \_ eith -> do
+  StandardFeat (const $ AllyTarget 9) $ \caster eith -> do
+    setCharacterAnim caster (AttackAnim 8)
     let hitTarget = either HitPosition HitCharacter eith
     health <- getRandomR 450 550 -- TODO full health
     playSound SndRevive
     reviveTarget hitTarget health
 featEffect Avatar =
   StandardFeat autoTarget $ \caster () -> do
+    setCharacterAnim caster (AttackAnim 8)
     let hitTarget = HitCharacter caster
     playSound SndHeal
     healDamage . (:[]) . (,) hitTarget =<< getRandomR 90 110
@@ -160,7 +170,7 @@ featEffect Avatar =
       sePurgeAllBadEffects
 featEffect JumpSlash =
   StandardFeat (const $ JumpTarget areaFn 3) $ \caster (endPos, targets) -> do
-    characterBeginOffensiveAction caster endPos
+    characterOffensiveActionTowards caster 8 endPos
     wait =<< charLeapTo caster endPos
     char <- areaGet (arsGetCharacter caster)
     let wd = chrEquippedWeaponData char
@@ -172,7 +182,7 @@ featEffect JumpSlash =
   where areaFn _ start end = [end `plusDir` ipointDir (end `pSub` start)]
 featEffect JumpStrike =
   StandardFeat (const $ JumpTarget areaFn 3) $ \caster (endPos, targets) -> do
-    characterBeginOffensiveAction caster endPos
+    characterOffensiveActionTowards caster 8 endPos
     wait =<< charLeapTo caster endPos
     char <- areaGet (arsGetCharacter caster)
     let wd = chrEquippedWeaponData char
@@ -183,6 +193,7 @@ featEffect JumpStrike =
   where areaFn _ _ center = map (center `plusDir`) allDirections
 featEffect Shortshot =
   StandardFeat (SingleTarget . (subtract 1)) $ \caster target -> do
+    characterOffensiveActionTowards caster 8 target
     char <- areaGet (arsGetCharacter caster)
     origin <- areaGet (arsCharacterPosition caster)
     let wd = chrEquippedWeaponData char
@@ -192,6 +203,7 @@ featEffect Shortshot =
     characterWeaponHit wd origin target critical (damage * 2)
 featEffect Longshot =
   StandardFeat (SingleTarget . (+ 3)) $ \caster target -> do
+    characterOffensiveActionTowards caster 8 target
     char <- areaGet (arsGetCharacter caster)
     origin <- areaGet (arsCharacterPosition caster)
     let wd = chrEquippedWeaponData char

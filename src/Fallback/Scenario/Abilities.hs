@@ -68,11 +68,13 @@ getAbility characterClass abilityNumber rank =
     Valiance -> PassiveAbility
     SecondWind ->
       general' (ranked 4 4 3) (FocusCost 1) AutoTarget $ \caster power () -> do
+        setCharacterAnim caster (AttackAnim 8)
         healAmount <- (power * ranked 20 35 55 *) <$> getRandomR 0.9 1.1
         playSound SndHeal
         healDamage [(HitCharacter caster, healAmount)]
         when (rank >= Rank2) $ do
           return () -- TODO reduce bad effects
+        wait 16
     Hardiness -> PassiveAbility
     Shieldbreaker ->
       meta (FocusCost 1) MeleeOnly SingleTarget $
@@ -94,6 +96,7 @@ getAbility characterClass abilityNumber rank =
     Critical ->
       meta (FocusCost 1) MeleeOrRanged SingleTarget $
       \caster power endPos -> do
+        characterOffensiveActionTowards caster 8 endPos
         char <- areaGet (arsGetCharacter caster)
         let wd = chrEquippedWeaponData char
         characterWeaponInitialAnimation caster endPos wd
@@ -104,12 +107,14 @@ getAbility characterClass abilityNumber rank =
     FinalBlow -> PassiveAbility
     QuickAttack ->
       meta' (ranked 3 2 1) (FocusCost 1) MeleeOrRanged SingleTarget $
-      \caster _power endPos -> do
-        -- TODO don't reveal if inivisible
+      \caster power endPos -> do
+        faceCharacterToward caster endPos
+        setCharacterAnim caster (AttackAnim 6)
         char <- areaGet (arsGetCharacter caster)
         let wd = chrEquippedWeaponData char
         characterWeaponInitialAnimation caster endPos wd
-        damage <- characterWeaponBaseDamage char wd
+        damage <- ((1 - 0.25 ** power) *) <$>
+                  characterWeaponBaseDamage char wd
         startPos <- areaGet (arsCharacterPosition caster)
         characterWeaponHit wd startPos endPos False damage
     Backstab -> PassiveAbility
@@ -126,7 +131,7 @@ getAbility characterClass abilityNumber rank =
     SmokeBomb ->
       general (FocusCost 1) (aoeTarget 5 $ ofRadius $ ranked 1 2 3) $
       \caster power (endPos, targets) -> do
-        whenCombat $ characterBeginOffensiveAction caster endPos
+        characterOffensiveActionTowards caster 8 endPos
         let halflife = power * ranked 3 4 5 * fromIntegral framesPerRound
         -- TODO sound/doodad
         setFields (SmokeScreen halflife) targets
@@ -134,7 +139,7 @@ getAbility characterClass abilityNumber rank =
     RopeDart ->
       combat (FocusCost 1) (SingleTarget 5) $
       \caster power endPos -> do
-        characterBeginOffensiveAction caster endPos
+        characterOffensiveActionTowards caster 8 endPos
         startPos <- areaGet (arsCharacterPosition caster)
         playSound SndThrow
         addExtendingHookshotDoodad startPos endPos >>= wait
@@ -150,6 +155,7 @@ getAbility characterClass abilityNumber rank =
             addExtendedHookshotDoodad 16 startPos endPos
             playSound SndHit2
             wait 16
+            characterOffensiveActionTowards caster 8 endPos
             addRetractingHookshotDoodad startPos endPos
             unless (newPos == endPos) $ do
               let time = round (2 * pDist (fromIntegral <$> endPos)
@@ -174,6 +180,7 @@ getAbility characterClass abilityNumber rank =
                                        else [InflictStun 1] }
               damage <- characterWeaponBaseDamage char wd
               characterWeaponHit wd startPos endPos True (power * damage)
+            characterOffensiveActionTowards caster 8 endPos
             addRetractingHookshotDoodad startPos endPos
             unless (newPos == monstPos) $ withMonsterEntry key $ \entry' -> do
               let time = round (2 * pDist (fromIntegral <$> monstPos)
@@ -193,6 +200,8 @@ getAbility characterClass abilityNumber rank =
     Subsume -> PassiveAbility -- FIXME
     Illusion ->
       combat (FocusCost 1) AutoTarget $ \caster power () -> do
+        characterOffensiveAction caster 8
+        wait 2
         startPos <- areaGet (arsCharacterPosition caster)
         monsterTag <- do
           char <- areaGet (arsGetCharacter caster)
@@ -228,6 +237,7 @@ getAbility characterClass abilityNumber rank =
     BeastCall ->
       general (3 `parts` AquaVitae) AutoTarget $
       \caster power () -> do
+        setCharacterAnim caster (AttackAnim 8)
         degradeMonstersSummonedBy (Left caster)
         playSound SndSummon
         -- TODO Add other possible monster tags; at higher ranks, give better
@@ -248,7 +258,7 @@ getAbility characterClass abilityNumber rank =
     Entangle ->
       combat (2 `parts` Limestone) (aoeTarget 5 $ ofRadius $ ranked 0 1 1) $
       \caster power (endPos, targets) -> do
-        characterBeginOffensiveAction caster endPos
+        characterOffensiveActionTowards caster 8 endPos
         -- TODO doodad/sound
         -- TODO at rank 3, deal damage
         forM_ targets $ \target -> do
@@ -267,7 +277,8 @@ getAbility characterClass abilityNumber rank =
                (SetField $ PoisonCloud $ power * 8)]
         attackWithExtraEffects caster endPos effects
     Charm ->
-      combat (2 `parts` Potash) (SingleTarget 4) $ \_caster power endPos -> do
+      combat (2 `parts` Potash) (SingleTarget 4) $ \caster power endPos -> do
+        characterOffensiveActionTowards caster 8 endPos
         -- TODO doodad/sound
         duration <- (8 * power *) <$> getRandomR 0.9 1.1
         inflictMentalEffect True (HitPosition endPos)
@@ -288,7 +299,7 @@ getAbility characterClass abilityNumber rank =
     Fireball ->
       combat (mix AquaVitae Naphtha) (SingleTarget $ ranked 5 5 7) $
       \caster power endPos -> do
-        characterBeginOffensiveAction caster endPos
+        characterOffensiveActionTowards caster 8 endPos
         startPos <- areaGet (arsCharacterPosition caster)
         damage <- (ranked 10 20 30 * power *) <$> getRandomR 0.9 1.1
         addBallisticDoodad FireProj startPos endPos 300.0 >>= wait
@@ -308,7 +319,7 @@ getAbility characterClass abilityNumber rank =
     Conflagration ->
       combat (mix Naphtha Limestone) (aoeTarget 4 $ ofRadius $ ranked 1 2 2) $
       \caster power (endPos, targets) -> do
-        characterBeginOffensiveAction caster endPos
+        characterOffensiveActionTowards caster 16 endPos
         startPos <- areaGet (arsCharacterPosition caster)
         addBallisticDoodad FireProj startPos endPos 500.0 >>= wait
         playSound SndBoomSmall
@@ -327,23 +338,25 @@ getAbility characterClass abilityNumber rank =
     PoisonGas ->
       combat (mix Potash AquaVitae) (aoeTarget 4 $ ofRadius 1) $
       \caster power (endPos, targets) -> do
-        characterBeginOffensiveAction caster endPos
+        characterOffensiveActionTowards caster 8 endPos
         damagePerRound <- (ranked 16 28 36 * power *) <$> getRandomR 0.9 1.1
         setFields (PoisonCloud damagePerRound) targets
         when (rank >= Rank3) $ do
           return () -- TODO inflict curse on the area
     ArmorAura ->
-      combat (mix DryIce Limestone) AutoTarget $ \_caster power () -> do
+      combat (mix DryIce Limestone) AutoTarget $ \caster power () -> do
+        setCharacterAnim caster (AttackAnim 8)
         hitTargets <- getAllAllyTargets
         playSound SndShielding
         concurrent_ hitTargets $ \hitTarget -> do
           -- TODO: add doodad, maybe wait a bit before applying status
           rounds <- (ranked 8 10 14 * power *) <$> getRandomR 0.9 1.1
           alterStatus hitTarget $ seApplyDefense $ Beneficial rounds
+        wait 12
     Barrier ->
       general (mix Mandrake Naphtha) (wallTarget 5 $ ranked 1 2 3) $
       \caster power (endPos, targets) -> do
-        whenCombat $ characterBeginOffensiveAction caster endPos
+        characterOffensiveActionTowards caster 8 endPos
         let baseDuration = ranked 3 4 5 * power * fromIntegral framesPerRound
         playSound SndBarrier
         forM_ targets $ \target -> do
@@ -352,7 +365,7 @@ getAbility characterClass abilityNumber rank =
     Drain ->
       combat (mix Brimstone Limestone) (aoeTarget 5 $ SqDist 4) $
       \caster power (endPos, targets) -> do
-        characterBeginOffensiveAction caster endPos
+        characterOffensiveActionTowards caster 16 endPos
         playSound SndDrain
         -- Start a whirlwind doodad over the targeted area.
         let swooshTint = Tint 255 255 255 96
@@ -387,10 +400,10 @@ getAbility characterClass abilityNumber rank =
            let p3 = positionCenter startPos `pSub` Point 0 90
            forM_ allyTargets $ \target -> do
              p4 <- positionCenter <$> getHitTargetHeadPos target
-             addSwooshDoodad swooshTint swooshThickness 32 12 $
+             addSwooshDoodad swooshTint swooshThickness 24 12 $
                cubicBezierCurve p1 p2 p3 p4
         -- Wait for the swooshes to reach the allies.
-        wait 32
+        wait 24
         -- Divide up the total damage done and distribute it to all allies.
         playSound SndHeal
         let healAmount = fromIntegral totalDamage /
@@ -407,7 +420,7 @@ getAbility characterClass abilityNumber rank =
     Detonate ->
       combat (mix Brimstone Potash) (aoeTarget 4 $ ofRadius 1) $
       \caster power (endPos, targets) -> do
-        characterBeginOffensiveAction caster endPos
+        characterOffensiveActionTowards caster 12 endPos
         startPos <- areaGet (arsCharacterPosition caster)
         hits <- forM targets $ \target -> do
           damage <- (ranked 20 30 40 * power *) <$> getRandomR 0.9 1.1
@@ -423,6 +436,7 @@ getAbility characterClass abilityNumber rank =
         wait 5 >> dealDamage hits
     AdrenalineRush ->
       general (mix Mandrake Quicksilver) AutoTarget $ \caster power () -> do
+        setCharacterAnim caster (AttackAnim 8)
         -- At rank 3, affects the whole party; otherwise affects only the
         -- caster and any adjacent characters.
         charNums <- do
@@ -462,7 +476,7 @@ getAbility characterClass abilityNumber rank =
     Disruption ->
       combat (ManaCost 6) (MultiTarget (ranked 1 3 3) 4) $
       \caster power targets -> do
-        characterBeginOffensiveAction caster (head targets)
+        characterOffensiveActionTowards caster 12 (head targets)
         startPos <- areaGet (arsCharacterPosition caster)
         let baseDamage = ranked 20 20 35 * power
         forM_ targets $ \target -> do
@@ -511,14 +525,16 @@ getAbility characterClass abilityNumber rank =
         let hitTarget = either HitPosition HitCharacter eith
         reviveTarget hitTarget health
     GroupHeal ->
-      general (ManaCost 20) AutoTarget $ \_caster power () -> do
+      general (ManaCost 20) AutoTarget $ \caster power () -> do
+        setCharacterAnim caster (AttackAnim 12)
         let baseHealAmount = ranked 20 35 55 * power
         targets <- randomPermutation =<< getAllAllyTargets
         playSound SndHeal
         forM_ targets $ \target -> do
           randMult <- getRandomR 0.9 1.1
           healDamage [(target, randMult * baseHealAmount)]
-          wait 1
+          wait 2
+        wait 12
     LucentShield | rank < Rank3 ->
       combat cost (AllyTarget 6) $ \caster power eith -> do
         doSpell caster power [either HitPosition HitCharacter eith]
@@ -527,15 +543,17 @@ getAbility characterClass abilityNumber rank =
         doSpell caster power =<< getAllAllyTargets
       where
         cost = ManaCost 1
-        doSpell _caster power hitTargets = do
+        doSpell caster power hitTargets = do
+          setCharacterAnim caster (AttackAnim 8)
           playSound SndShielding
           concurrent_ hitTargets $ \hitTarget -> do
             -- TODO: add doodad, maybe wait a bit before applying status
             rounds <- (ranked 6 8 8 * power *) <$> getRandomR 0.9 1.1
             alterStatus hitTarget $ seApplyMagicShield rounds
+          wait 12
     Sunbeam ->
       combat (ManaCost 1) beamTarget $ \caster power (endPos, targets) -> do
-        characterBeginOffensiveAction caster endPos
+        characterOffensiveActionTowards caster 16 endPos
         startPos <- areaGet (arsCharacterPosition caster)
         let startPt = positionCenter startPos :: DPoint
         let endPt = startPt `pAdd`
@@ -568,7 +586,7 @@ getAbility characterClass abilityNumber rank =
     Shock ->
       combat (ManaCost 2) (SingleTarget 5) $
       \caster power endPos -> do
-        characterBeginOffensiveAction caster endPos
+        characterOffensiveActionTowards caster 12 endPos
         startPos <- areaGet (arsCharacterPosition caster)
         damage <- (ranked 12 24 36 * power *) <$> getRandomR 0.9 1.1
         playSound SndLightning
@@ -579,7 +597,7 @@ getAbility characterClass abilityNumber rank =
     IceBolts ->
       combat (ManaCost 5) (MultiTarget (ranked 2 3 4) 4) $
       \caster power targets -> do
-        characterBeginOffensiveAction caster (head targets)
+        characterOffensiveActionTowards caster 8 (head targets)
         startPos <- areaGet (arsCharacterPosition caster)
         concurrent_ targets $ \endPos -> do
           damage <- (ranked 12 16 20 * power *) <$> getRandomR 0.9 1.1
@@ -589,7 +607,7 @@ getAbility characterClass abilityNumber rank =
     Vitriol ->
       combat (ManaCost 7) (splashTarget 4) $
       \caster power (center, targets) -> do
-        characterBeginOffensiveAction caster center
+        characterOffensiveActionTowards caster 8 center
         startPos <- areaGet (arsCharacterPosition caster)
         addBallisticDoodad AcidProj startPos center 300.0 >>= wait
         let hit target = do
@@ -606,15 +624,18 @@ getAbility characterClass abilityNumber rank =
           hit target
     Invisibility ->
       combat (ManaCost 5) (AllyTarget 6) $
-      \_caster _power eith -> do
+      \caster _power eith -> do
+        setCharacterAnim caster (AttackAnim 8)
         let hitTarget = either HitPosition HitCharacter eith
         playSound SndIllusion
         grantInvisibility hitTarget $
           if rank >= Rank2 then MajorInvisibility else MinorInvisibility
         when (rank >= Rank3) $ do
           return () -- FIXME grantBlessing hitTarget (power * whatever)
+        wait 12
     Hasten ->
       combat (ManaCost 10) (AllyTarget 6) $ \caster power eith -> do
+        setCharacterAnim caster (AttackAnim 8)
         amount <- (ranked 8 12 12 * power *) <$> getRandomR 0.9 1.1
         playSound SndHaste
         alterStatus (either HitPosition HitCharacter eith) $
@@ -623,7 +644,7 @@ getAbility characterClass abilityNumber rank =
           alterStatus (HitCharacter caster) $ seApplyHaste $ Beneficial amount
     Lightning ->
       combat (ManaCost 5) (SingleTarget 4) $ \caster power endPos -> do
-        characterBeginOffensiveAction caster endPos
+        characterOffensiveActionTowards caster 12 endPos
         let baseDamage = ranked 10 20 30 * power
         let maxForks = ranked 1 2 3
         startPos <- areaGet (arsCharacterPosition caster)
@@ -663,7 +684,7 @@ getAbility characterClass abilityNumber rank =
     Freeze ->
       combat (ManaCost 1) (aoeTarget 4 $ SqDist 1) $
       \caster power (endPos, targets) -> do
-        characterBeginOffensiveAction caster endPos
+        characterOffensiveActionTowards caster 8 endPos
         damage <- (ranked 10 20 30 * power *) <$> getRandomR 0.9 1.1
         playSound SndFreeze
         forM_ targets $ \target -> do
@@ -671,10 +692,11 @@ getAbility characterClass abilityNumber rank =
         setFields (IceWall $ power * 8) targets
         dealDamage $ flip map targets $ \pos ->
           (HitPosition pos, ColdDamage, damage)
+        wait 12
     Disjunction ->
       general (ManaCost {-17-} 1) (aoeTarget 3 $ ofRadius 1) $
       \caster _power (endPos, targets) -> do
-        whenCombat $ characterBeginOffensiveAction caster endPos
+        characterOffensiveActionTowards caster 12 endPos
         let shift = 0.5
             innerFn t _ = (max 0 (sin (t * (pi + shift) - shift)),
                            Tint 255 255 255 0)
@@ -687,8 +709,8 @@ getAbility characterClass abilityNumber rank =
         wait 12
     AcidRain ->
       combat (ManaCost 1) AutoTarget $ \caster power () -> do
+        characterOffensiveAction caster 8
         startPos <- areaGet (arsCharacterPosition caster)
-        characterBeginOffensiveAction caster startPos
         targets <- flip3 foldM Set.empty allDirections $ \taken _dir -> do
           return taken -- FIXME
         concurrent_ (Set.elems targets) $ \target -> do
@@ -701,7 +723,7 @@ getAbility characterClass abilityNumber rank =
     Luminaire ->
       combat (ManaCost 1) (aoeTarget 4 $ SqDist 4) $
       \caster power (endPos, targets) -> do
-        characterBeginOffensiveAction caster endPos
+        characterOffensiveActionTowards caster 20 endPos
         let p0 = positionCenter endPos
         let p1 = p0 `pAdd` Point 84 0
             p2 = p0 `pSub` Point 0 108

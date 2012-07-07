@@ -390,15 +390,23 @@ shakeCamera amplitude duration = do
 -------------------------------------------------------------------------------
 -- Creature animation:
 
-faceCharacterToward :: CharacterNumber -> Position -> Script CombatEffect ()
+-- | Make the specified character face towards the given position.  If in town
+-- mode, makes the party face the given position.
+faceCharacterToward :: (FromAreaEffect f) => CharacterNumber -> Position
+                    -> Script f ()
 faceCharacterToward charNum pos = do
+  emitAreaEffect $ (flip EffIfCombat) (facePartyToward pos) $ do
   deltaX <- pointX . (pos `pSub`) <$> areaGet (arsCharacterPosition charNum)
   when (deltaX /= 0) $ do
     let dir = if deltaX < 0 then FaceLeft else FaceRight
     emitEffect $ EffSetCharFaceDir charNum dir
 
-faceCharacterAwayFrom :: CharacterNumber -> Position -> Script CombatEffect ()
+-- | Make the specified character face away from the given position.  If in
+-- town mode, makes the party face away from the given position.
+faceCharacterAwayFrom :: (FromAreaEffect f) => CharacterNumber -> Position
+                      -> Script f ()
 faceCharacterAwayFrom charNum pos = do
+  emitAreaEffect $ (flip EffIfCombat) (facePartyAwayFrom pos) $ do
   faceCharacterToward charNum pos
   face <- emitEffect (EffGetCharFaceDir charNum)
   emitEffect $ EffSetCharFaceDir charNum $ oppositeFaceDir face
@@ -431,13 +439,20 @@ facePartyAwayFrom pos = do
   face <- emitEffect EffGetPartyFaceDir
   emitEffect $ EffSetPartyFaceDir $ oppositeFaceDir face
 
-setCharacterAnim :: CharacterNumber -> CreatureAnim -> Script CombatEffect ()
-setCharacterAnim charNum anim = emitEffect $ EffSetCharAnim charNum anim
+-- | Set the animation for the given character.  In town mode, this sets the
+-- animation for the party (but only if the given character is active).
+setCharacterAnim :: (FromAreaEffect f) => CharacterNumber -> CreatureAnim
+                 -> Script f ()
+setCharacterAnim charNum anim = do
+  emitAreaEffect $ EffIfCombat (emitEffect $ EffSetCharAnim charNum anim) $ do
+    active <- emitEffect EffGetActiveCharacter
+    when (charNum == active) $ setPartyAnim anim
 
 setMonsterAnim :: (FromAreaEffect f) => Grid.Key Monster -> CreatureAnim
                -> Script f ()
 setMonsterAnim key anim = alterMonsterPose key (\p -> p { cpAnim = anim })
 
+-- | Set the animation for the party.  Valid only in town mode.
 setPartyAnim :: CreatureAnim -> Script TownEffect ()
 setPartyAnim = emitEffect . EffSetPartyAnim
 

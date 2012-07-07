@@ -571,6 +571,7 @@ executeEffect :: TownState -> TownEffect a -> (a -> Script TownEffect ())
 executeEffect ts eff sfn =
   case eff of
     EffExitTowardArea tag -> return (ts, Left $ DoExit tag)
+    EffGetActiveCharacter -> return (ts, Right $ sfn $ tsActiveCharacter ts)
     EffGetPartyFaceDir -> return (ts, Right $ sfn $ cpFaceDir $ tsPartyPose ts)
     EffGetPartyPosition -> return (ts, Right $ sfn $ tsPartyPosition ts)
     EffSetPartyAnim anim -> do

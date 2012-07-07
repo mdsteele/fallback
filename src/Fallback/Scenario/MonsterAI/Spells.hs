@@ -61,6 +61,7 @@ prepMonsterSpell CrossBeam ge = do
   ifRandom (fromIntegral numTargets * 0.25) $ do
   yieldSpell numTargets $ do
   walkAlongPath key path
+  monsterOffensiveAction key 12
   startPos <- getMonsterHeadPos key
   let startPt = positionCenter startPos
   concurrent_ [DirE, DirS, DirW, DirN] $ \dir -> do
@@ -96,7 +97,7 @@ prepMonsterSpell FireSpray ge = do
   let numTargets = length targets
   ifSatisfies (numTargets >= 2) $ do
   yieldSpell numTargets $ do
-  monsterBeginOffensiveAction key (head targets)
+  monsterOffensiveActionToward key (4 * numTargets) (head targets)
   origin <- getMonsterHeadPos key
   playSound SndBreath
   concurrent_ (zip targets [0..]) $ \(target, index) -> do
@@ -131,6 +132,7 @@ prepMonsterSpell FrostMissiles ge = do
   let p0 = rectCenter $ fmap fromIntegral $ prectRect $ Grid.geRect ge
   concurrent_ (zip targets [0..]) $ \((target, knockback), index) -> do
     wait (index * (51 - 3 * index) `div` 2)
+    monsterOffensiveActionToward key 8 target
     dir <- if not knockback then getRandomElem allDirections else do
       getRandomElem allDirections -- TODO choose best knockback dir
     p1 <- pAdd p0 . flip pPolar 400 <$> getRandomR 0 (2 * pi)
@@ -151,6 +153,7 @@ prepMonsterSpell (Shell benefit cooldown duration) ge = do
   ifSatisfies (not $ isBeneficial $ seDefense $ monstStatus $
                Grid.geValue ge) $ do
   yieldSpell benefit $ do
+  setMonsterAnim (Grid.geKey ge) (AttackAnim 8)
   playSound SndShielding
   alterMonsterStatus (Grid.geKey ge) $ seApplyDefense (Beneficial duration)
   return cooldown
@@ -158,6 +161,7 @@ prepMonsterSpell (SummonOne dep benefit cooldown duration tags) ge = do
   ifSatisfies (not $ null tags) $ do
   tag <- getRandomElem tags
   yieldSpell benefit $ do
+  setMonsterAnim (Grid.geKey ge) (AttackAnim 8)
   let lifetime = round (duration * fromIntegral framesPerRound)
   let summoner = Right $ Grid.geKey ge
   degradeMonstersSummonedBy summoner

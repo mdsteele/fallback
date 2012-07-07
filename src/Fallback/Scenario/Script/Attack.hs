@@ -18,10 +18,11 @@
 ============================================================================ -}
 
 module Fallback.Scenario.Script.Attack
-  (characterBeginOffensiveAction, characterWeaponAttack,
-   characterWeaponInitialAnimation, characterWeaponBaseDamage,
-   characterWeaponChooseCritical, characterWeaponHit,
-   monsterBeginOffensiveAction, monsterPerformAttack)
+  (characterOffensiveAction, characterOffensiveActionTowards,
+   characterWeaponAttack, characterWeaponInitialAnimation,
+   characterWeaponBaseDamage, characterWeaponChooseCritical,
+   characterWeaponHit,
+   monsterOffensiveAction, monsterOffensiveActionToward, monsterPerformAttack)
 where
 
 import Control.Applicative ((<$), (<$>))
@@ -47,15 +48,21 @@ import Fallback.Utility (flip3)
 
 -------------------------------------------------------------------------------
 
-characterBeginOffensiveAction :: CharacterNumber -> Position
-                              -> Script CombatEffect ()
-characterBeginOffensiveAction charNum target = do
-  faceCharacterToward charNum target
+characterOffensiveAction :: (FromAreaEffect f) => CharacterNumber -> Int
+                         -> Script f ()
+characterOffensiveAction charNum frames = do
   alterStatus (HitCharacter charNum) (seSetInvisibility NoInvisibility)
-  setCharacterAnim charNum (AttackAnim 8)
+  setCharacterAnim charNum (AttackAnim frames)
+
+characterOffensiveActionTowards :: (FromAreaEffect f) => CharacterNumber
+                                -> Int -> Position -> Script f ()
+characterOffensiveActionTowards charNum frames target = do
+  faceCharacterToward charNum target
+  characterOffensiveAction charNum frames
 
 characterWeaponAttack :: CharacterNumber -> Position -> Script CombatEffect ()
 characterWeaponAttack charNum target = do
+  characterOffensiveActionTowards charNum 8 target
   char <- areaGet (arsGetCharacter charNum)
   let wd = chrEquippedWeaponData char
   characterWeaponInitialAnimation charNum target wd
@@ -72,7 +79,6 @@ characterWeaponAttack charNum target = do
 characterWeaponInitialAnimation  :: CharacterNumber -> Position
                                  -> WeaponData -> Script CombatEffect ()
 characterWeaponInitialAnimation charNum target wd = do
-  characterBeginOffensiveAction charNum target
   origin <- areaGet (arsCharacterPosition charNum)
   attackInitialAnimation (wdAppearance wd) (wdElement wd) origin target
 
@@ -120,16 +126,21 @@ characterWeaponHit wd origin target critical damage = do
 
 -------------------------------------------------------------------------------
 
-monsterBeginOffensiveAction :: Grid.Key Monster -> Position
-                            -> Script CombatEffect ()
-monsterBeginOffensiveAction key target = do
-  faceMonsterToward key target
+monsterOffensiveAction :: Grid.Key Monster -> Int -> Script CombatEffect ()
+monsterOffensiveAction key frames = do
   alterStatus (HitMonster key) (seSetInvisibility NoInvisibility)
-  setMonsterAnim key (AttackAnim 8)
+  setMonsterAnim key (AttackAnim frames)
+
+monsterOffensiveActionToward :: Grid.Key Monster -> Int -> Position
+                             -> Script CombatEffect ()
+monsterOffensiveActionToward key frames target = do
+  faceMonsterToward key target
+  monsterOffensiveAction key frames
 
 monsterPerformAttack :: Grid.Key Monster -> MonsterAttack -> Position
                      -> Script CombatEffect ()
 monsterPerformAttack key attack target = do
+  monsterOffensiveActionToward key 8 target
   monsterAttackInitialAnimation key attack target
   miss <- determineIfAttackMisses (Right key) target (maRange attack /= Melee)
   unless miss $ do
@@ -141,7 +152,6 @@ monsterPerformAttack key attack target = do
 monsterAttackInitialAnimation :: Grid.Key Monster -> MonsterAttack -> Position
                               -> Script CombatEffect ()
 monsterAttackInitialAnimation key attack target = do
-  monsterBeginOffensiveAction key target
   withMonsterEntry key $ \entry -> do
     attackInitialAnimation (maAppearance attack) (maElement attack)
                            (monstHeadPos entry) target
