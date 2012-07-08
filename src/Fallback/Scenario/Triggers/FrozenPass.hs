@@ -109,9 +109,10 @@ compileFrozenPass globals = compileArea FrozenPass Nothing $ do
       \ have little choice but to press on forward.  Maybe, just maybe, you\
       \ really can defeat this Vhaegyst lich, and maybe then you'll get some\
       \ answers."
-  simpleMonster 398273 Wolf "Wo1" ChaseAI
-  simpleMonster 142118 Wolf "Wo2" ChaseAI
-  simpleMonster 293554 Wolf "Wo3" ChaseAI
+  simpleMonster 398273 Wolf "WolfA1" ChaseAI
+  simpleMonster 142118 Wolf "WolfA2" ChaseAI
+  simpleMonster 293554 Wolf "WolfA3" ChaseAI
+  simpleMonster 828135 Wolf "WolfA4" MindlessAI
 
   once 830701 (walkIn (Rect 40 20 10 1)) $ do
     narrate "{b}The undead!{_}\n\n\
@@ -125,10 +126,14 @@ compileFrozenPass globals = compileArea FrozenPass Nothing $ do
       \ perilous foes for warriors as inexperienced as yourselves, but with\
       \ three out of the four Astral Weapons still in your hands, you should\
       \ be able to get through this."
-  simpleMonster 547952 Zombie "Zo1" MindlessAI
-  simpleMonster 453147 Zombie "Zo2" MindlessAI
-  simpleMonster 448374 Zombie "Zo3" MindlessAI
-  simpleMonster 475373 Zombie "Zo4" MindlessAI
+  simpleMonster 547952 Zombie "ZomB1" MindlessAI
+  simpleMonster 453147 Zombie "ZomB2" MindlessAI
+  simpleMonster 448374 Zombie "ZomB3" MindlessAI
+  simpleMonster 475373 Zombie "ZomB4" MindlessAI
+
+  simpleMonster 972911 Zombie "ZomC1" MindlessAI
+  simpleMonster 080213 Zombie "ZomC2" MindlessAI
+  simpleMonster 420917 Zombie "ZomC3" MindlessAI
 
   once 385861 (walkIn (Rect 3 34 2 2)) $ do
     narrate "This old, cracked building looks like it has seen better days. \
@@ -138,12 +143,12 @@ compileFrozenPass globals = compileArea FrozenPass Nothing $ do
       \ weight of the snow piled up, and the look of the walls doesn't give\
       \ you a lot of confidence.  If you're planning to step inside, you think\
       \ you might not want to linger very long."
-  simpleMonster 233177 Skeleton "Sk1" MindlessAI
-  simpleMonster 571346 Skeleton "Sk2" MindlessAI
-  simpleMonster 035978 Skeleton "Sk3" MindlessAI
-  simpleMonster 697145 Ghoul "Ghoul1" MindlessAI
-  simpleMonster 296464 Ghoul "Ghoul2" MindlessAI
-  simpleMonster 080509 Wraith "Wraith1" MindlessAI
+  simpleMonster 233177 Skeleton "SkelD1" MindlessAI
+  simpleMonster 571346 Skeleton "SkelD2" MindlessAI
+  simpleMonster 035978 Skeleton "SkelD3" MindlessAI
+  simpleMonster 697145 Ghoul "GhoulD1" MindlessAI
+  simpleMonster 296464 Ghoul "GhoulD2" MindlessAI
+  simpleMonster 080509 Wraith "WraithD" MindlessAI
 
   uniqueDevice 044279 "TornBook" 1 $ \_ _ -> do
     narrate "Aha!  This book probably holds all sorts of interesting\

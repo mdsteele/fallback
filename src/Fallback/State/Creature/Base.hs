@@ -143,6 +143,7 @@ data MonsterType = MonsterType
   { mtAgility :: Int,
     mtAttacks :: [MonsterAttack],
     mtCanFly :: Bool,
+    mtCoins :: (Integer, Integer), -- random range
     --mtDeathSound :: SoundTag,
     --mtDefaultCombatAI :: MonsterCombatAI,
     mtExperienceValue :: Int,

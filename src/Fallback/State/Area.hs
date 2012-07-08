@@ -396,6 +396,8 @@ data Trigger s f = Trigger
 data PartyEffect :: * -> * where
   EffAlterCharacter :: CharacterNumber -> (Character -> Character)
                     -> PartyEffect ()
+  -- Change how many coins the party has.
+  EffAlterCoins :: (Integer -> Integer) -> PartyEffect ()
   -- Print a debugging string to the console.
   EffDebug :: String -> PartyEffect ()
   -- Give experience points to the party.
@@ -487,6 +489,8 @@ executePartyEffect eff party =
   case eff of
     EffAlterCharacter charNum fn ->
       return ((), partyAlterCharacter charNum fn party)
+    EffAlterCoins fn ->
+      return ((), party { partyCoins = max 0 $ fn $ partyCoins party })
     EffDebug string -> ((), party) <$ putStrLn string
     EffGrantExperience xp -> return ((), partyGrantExperience xp party)
     EffGrantItem tag -> return ((), partyGrantItem tag party)

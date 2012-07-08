@@ -1086,6 +1086,7 @@ abilityMinPartyLevel abilTag abilRank = ranked $
 attackWithExtraEffects :: CharacterNumber -> Position -> [AttackEffect]
                        -> Script CombatEffect ()
 attackWithExtraEffects caster target effects = do
+  characterOffensiveActionTowards caster 8 target
   char <- areaGet (arsGetCharacter caster)
   let wd = chrEquippedWeaponData char
   let wd' = wd { wdEffects = effects ++ wdEffects wd }

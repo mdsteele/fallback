@@ -198,10 +198,12 @@ onMonsterDead entry = do
                  (cpFaceDir $ monstPose monst) (Grid.geRect entry)
   -- If the monster has a "dead" var, set it to True.
   maybeM (monstDeadVar monst) (emitAreaEffect . flip EffSetVar True)
-  -- If this was an enemy monster, grant experience for killing it, and give
-  -- each Warrior/Rogue character one focus point.
+  -- If this was an enemy monster, grant experience and coins for killing it,
+  -- and give each Warrior/Rogue character one focus point.
   unless (monstIsAlly monst) $ do
-    grantExperience $ mtExperienceValue $ monstType monst
+    let mtype = monstType monst
+    grantExperience $ mtExperienceValue mtype
+    alterPartyCoins . (+) =<< uncurry getRandomR (mtCoins mtype)
     charNums <- getAllConsciousCharacters
     forM_ charNums $ \charNum -> alterFocus (HitCharacter charNum) (+1)
   -- Unsummon other monsters as necessary.
