@@ -26,6 +26,7 @@ module Fallback.State.Terrain
    TerrainMap, makeEmptyTerrainMap, tmapSize, tmapName, tmapOffTile,
    tmapAllPositions, tmapGet, tmapSet, tmapResize, tmapShift,
    tmapAllMarks, tmapLookupMark, tmapGetMarks, tmapSetMarks,
+   tmapAllRects, tmapLookupRect, tmapSetRect,
    loadTerrainMap, saveTerrainMap,
    -- * Positions
    positionRect, positionTopleft, positionCenter, pointPosition, prectRect,
@@ -33,7 +34,7 @@ module Fallback.State.Terrain
    ExploredMap, unexploredMap, hasExplored, setExplored)
 where
 
-import Control.Applicative ((<$>), (<*>), (<|>))
+import Control.Applicative ((<$>), (<*>))
 import Control.Monad (when)
 import Data.Array.IArray
 import Data.Array.Unboxed (UArray)
@@ -80,12 +81,14 @@ data TerrainMap = TerrainMap
   { tmapArray :: Array Position TerrainTile,
     tmapMarks :: MM.Multimap String Position,
     tmapName :: String,
-    tmapOffTile :: TerrainTile }
+    tmapOffTile :: TerrainTile,
+    tmapRects :: Map.Map String PRect }
 
 makeEmptyTerrainMap :: (Int, Int) -> TerrainTile -> TerrainTile -> TerrainMap
 makeEmptyTerrainMap (w, h) offTile nullTile = TerrainMap
   { tmapArray = listArray (Point 0 0, Point (w - 1) (h - 1)) (repeat nullTile),
-    tmapMarks = MM.empty, tmapName = "", tmapOffTile = offTile }
+    tmapMarks = MM.empty, tmapName = "", tmapOffTile = offTile,
+    tmapRects = Map.empty }
 
 tmapSize :: TerrainMap -> (Int, Int)
 tmapSize tmap =
@@ -130,6 +133,17 @@ tmapSetMarks :: Position -> [String] -> TerrainMap -> TerrainMap
 tmapSetMarks pos keys tmap =
   tmap { tmapMarks = MM.reverseSet pos keys $ tmapMarks tmap }
 
+tmapAllRects :: TerrainMap -> [(String, PRect)]
+tmapAllRects = Map.toList . tmapRects
+
+tmapLookupRect :: String -> TerrainMap -> Maybe PRect
+tmapLookupRect key = Map.lookup key . tmapRects
+
+tmapSetRect :: String -> Maybe PRect -> TerrainMap -> TerrainMap
+tmapSetRect key mbRect tmap =
+  tmap { tmapRects = (maybe (Map.delete key) (Map.insert key) mbRect) $
+                     tmapRects tmap }
+
 -------------------------------------------------------------------------------
 
 loadTerrainMap :: Resources -> String -> IOEO TerrainMap
@@ -138,28 +152,28 @@ loadTerrainMap resources name = do
   path <- onlyIO $ getResourcePath "terrain" name
   let getTile tid = maybe (fail $ "Bad tile id: " ++ show tid) return $
                     tilesetLookup tid tileset
-  (tileArray, marks) <- do
+  (tileArray, marks, rects) <- do
     mbTerrainData <- onlyIO $ parseFromFile path parseTerrainData
-    ((w, h), ids, marks) <-
+    ((w, h), ids, marks, rects) <-
       maybe (fail $ "Couldn't read terrain from " ++ name)
             return mbTerrainData
     when (length ids /= w * h) $ fail ("Terrain size mismatch for" ++ name)
     tiles <- onlyEO $ Trav.mapM getTile $
              listArray (Point 0 0, Point (w - 1) (h - 1)) ids
-    return (tiles, marks)
+    return (tiles, marks, rects)
   return TerrainMap { tmapArray = tileArray,
                       tmapMarks = MM.fromList marks,
                       tmapName = name,
-                      tmapOffTile = tilesetGet OffTile tileset }
+                      tmapOffTile = tilesetGet OffTile tileset,
+                      tmapRects = Map.fromList rects }
 
-parseTerrainData :: Parser ((Int, Int), [Int], [(String, Position)])
-parseTerrainData = oldParser <|> newParser where
-  oldParser = fmap fromOld parseRead -- TODO remove once all terrain converted
-  fromOld (size, tiles) = (size, tiles, [])
-  newParser = weaveBracesCommas $ (,,) <$>
-    meshKeyVal "size" <*>
-    meshKeyVal "tiles" <*>
-    meshKeyDefault "marks" []
+parseTerrainData :: Parser ((Int, Int), [Int], [(String, Position)],
+                            [(String, PRect)])
+parseTerrainData = weaveBracesCommas $ (,,,) <$>
+  meshKeyVal "size" <*>
+  meshKeyVal "tiles" <*>
+  meshKeyDefault "marks" [] <*>
+  meshKeyDefault "rects" []
 
 saveTerrainMap :: String -> TerrainMap -> IOEO ()
 saveTerrainMap name tmap = do
@@ -167,7 +181,8 @@ saveTerrainMap name tmap = do
   saveToFile path $ showBracesCommas [
     (showKeyVal "size" $ tmapSize tmap),
     (showKeyVal "tiles" $ map ttId $ elems $ tmapArray tmap),
-    (showKeyVal "marks" $ MM.toList $ tmapMarks tmap)]
+    (showKeyVal "marks" $ MM.toList $ tmapMarks tmap),
+    (showKeyVal "rects" $ Map.toList $ tmapRects tmap)]
 
 -------------------------------------------------------------------------------
 -- Positions:

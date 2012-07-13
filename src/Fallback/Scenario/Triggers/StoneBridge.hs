@@ -68,7 +68,7 @@ compileStoneBridge globals = compileArea StoneBridge Nothing $ do
   uniqueDevice 800253 "CustomsSign" signRadius $ \_ _ -> do
     narrate "The sign mounted on the wall reads:\n\n\
       \      {b}TRAGORDA CUSTOMS OFFICE{_}"
-  once 025516 (walkIn (Rect 17 9 5 3)) $ do
+  once 025516 (walkIn "CustomsFrontRoom") $ do
     narrate "This office looks like it has seen better days.  According to the\
       \ sign by the door, this is the customs office--presumably, travellers\
       \ coming from over the Kovola mountain range to the northwest are\

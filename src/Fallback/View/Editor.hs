@@ -57,6 +57,7 @@ data EditorAction = ScrollMap IPoint
                   | PaintAt Position
                   | FloodFill Position
                   | ChangeMarks Position
+                  | ChangeRects Position
                   | DoLoad
                   | DoSave
                   | DoUndo
@@ -114,6 +115,11 @@ newEditorMapView resources sink = do
         tintRect (Tint 0 0 0 192)
                  (Rect (x - half w - 2) (y - half h - 2) (w + 4) (h + 4))
         drawText font whiteColor (LocCenter $ Point x y) str
+      forM_ (tmapAllRects $ esTerrain es) $ \(str, prect) -> do
+        let rect = prectRect prect `rectMinus` topleft
+        tintRect (Tint 255 0 255 64) rect
+        drawRect (Tint 255 0 255 192) rect
+        drawText font whiteColor (LocTopleft $ rectTopleft rect) str
 
     handler state EvTick = do
       mbMousePt <- getRelativeMousePos
@@ -131,20 +137,17 @@ newEditorMapView resources sink = do
       if drag then paintAt state rect pt else return Ignore
     handler state (EvMouseDown pt) = do
       rect <- canvasRect
-      eyedropper <- getKeyState KeyE
+      let posAction act = return $ maybe Ignore (Action . act) $
+                          positionAt state rect pt
+      chMarks <- getKeyState KeyM
+      if chMarks then posAction ChangeMarks else do
+      chRects <- getKeyState KeyR
+      if chRects then posAction ChangeRects else do
+      eyedrop <- getKeyState KeyE
+      if eyedrop then posAction (PickTile . tmapGet (esTerrain state)) else do
       fill <- getKeyState KeyF
-      mark <- getKeyState KeyM
-      (if mark
-       then return $ maybe Ignore (Action . ChangeMarks) $
-            positionAt state rect pt
-       else if eyedropper
-       then return $
-            maybe Ignore (Action . PickTile . tmapGet (esTerrain state)) $
-            positionAt state rect pt
-       else if fill
-       then return $ maybe Ignore (Action . FloodFill) $
-            positionAt state rect pt
-       else writeDrawRef dragRef True >> paintAt state rect pt)
+      if fill then posAction FloodFill else do
+      writeDrawRef dragRef True >> paintAt state rect pt
     handler _ (EvMouseUp _) = Ignore <$ writeDrawRef dragRef False
     handler _ (EvKeyDown KeyO [KeyModCmd] _) = return (Action DoLoad)
     handler _ (EvKeyDown KeyS [KeyModCmd] _) = return (Action DoSave)

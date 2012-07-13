@@ -23,7 +23,6 @@ where
 
 import Control.Monad (forM_, when)
 
-import Fallback.Constants (combatArenaSize)
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Scenario.Compile
@@ -79,18 +78,19 @@ compileIcehold globals = do
       teleport Icehold2 (Point 24 8)
 
     -- Triggers to adjust contents of water tank:
-    let waterTankRect = Rect 11 12 5 3 :: PRect
     trigger 427921 (varFalse waterPumpedUp) $ do
-      setTerrain WaterAnimTile $ prectPositions waterTankRect
+      setTerrain WaterAnimTile . prectPositions =<<
+        demandTerrainRect "WaterTank"
     trigger 987492 (varTrue waterPumpedUp) $ do
-      setTerrain WhiteTileFloorTile $ prectPositions waterTankRect
+      setTerrain WhiteTileFloorTile . prectPositions =<<
+        demandTerrainRect "WaterTank"
 
     -- Triggers to adjust contents of lava tank:
-    let lavaTankRect = Rect 35 12 5 3 :: PRect
     trigger 493742 (varFalse lavaPumpedUp) $ do
-      setTerrain LavaAnimTile $ prectPositions lavaTankRect
+      setTerrain LavaAnimTile . prectPositions =<< demandTerrainRect "FireTank"
     trigger 592874 (varTrue lavaPumpedUp) $ do
-      setTerrain WhiteTileFloorTile $ prectPositions lavaTankRect
+      setTerrain WhiteTileFloorTile . prectPositions =<<
+        demandTerrainRect "FireTank"
 
     -- Triggers to adjust contents of center tank:
     trigger 489293 (varTrue waterReleased `andP` varFalse lavaReleased) $ do
@@ -306,7 +306,6 @@ compileIcehold globals = do
 
     -- Boss fight:
     let bossChamberTopleft = Point 1 9
-    let bossChamberRect = makeRect bossChamberTopleft combatArenaSize
     vhaegystDead <- newPersistentVar 459822 False
     vhaegystKey <- newPersistentVar 109250 Grid.nilKey -- TODO make transient
     onStartDaily 209103 $ do
@@ -318,7 +317,7 @@ compileIcehold globals = do
             monstTownAI = ImmobileAI }
         maybe (fail "failed to place Vhaegyst")
               (writeVar vhaegystKey . Grid.geKey) mbEntry
-    once 729892 (walkIn bossChamberRect) $ do
+    once 729892 (walkIn "BossRoom") $ do
       -- TODO conversation and so forth
       setMonsterIsAlly False =<< readVar vhaegystKey
       setTerrain BasaltGateClosedTile =<< lookupTerrainMark "SouthGate"

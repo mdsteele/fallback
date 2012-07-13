@@ -61,6 +61,7 @@ import Fallback.State.Party (Party, partyQuests)
 import Fallback.State.Progress
 import Fallback.State.Simple
 import Fallback.State.Tags (AreaTag, QuestTag, RegionTag)
+import Fallback.State.Terrain (terrainMap, tmapLookupRect)
 import Fallback.State.Town (TownState)
 
 -------------------------------------------------------------------------------
@@ -390,8 +391,12 @@ walkOn pos = Predicate (\s -> any (pos ==) (arsPartyPositions s))
 walkOff :: Position -> Predicate
 walkOff = notP . walkOn
 
-walkIn :: PRect -> Predicate
-walkIn rect = Predicate (\s -> any (rectContains rect) (arsPartyPositions s))
+-- | True if the specified terrain rect exists and at least one character is
+-- currently within it.
+walkIn :: String -> Predicate
+walkIn key = Predicate $ \s ->
+  maybe False (\r -> any (rectContains r) (arsPartyPositions s)) $
+  tmapLookupRect key $ terrainMap $ arsTerrain s
 
 questUntaken :: QuestTag -> Predicate
 questUntaken = questStatus (== QuestUntaken)

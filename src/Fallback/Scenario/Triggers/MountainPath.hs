@@ -53,7 +53,7 @@ compileMountainPath globals = compileArea MountainPath Nothing $ do
   let isSecondTimeThroughLongvale = varEq (gTimesThroughLongvale globals) 1
   let isLastTimeThroughLongvale = varEq (gTimesThroughLongvale globals) 2
 
-  trigger 908784 (walkIn (Rect 0 0 9 2) `orP` walkIn (Rect 0 0 3 9)) $ do
+  trigger 908784 (walkIn "UpperPath1" `orP` walkIn "UpperPath2") $ do
     whenP isFirstTimeThroughLongvale $ do
       narrate "You look back up the mountain, towards the way you came\
         \ from.  Then, you turn around and head back down.  There's nothing\
@@ -99,8 +99,7 @@ compileMountainPath globals = compileArea MountainPath Nothing $ do
 
   loneRevenantDead <- newPersistentVar 960522 False
   once 582362 (isFirstTimeThroughLongvale `andP`
-               (walkIn (Rect 19 25 15 1) `orP`
-                walkIn (Rect 19 14 1 11))) $ do
+               (walkIn "MidPath1" `orP` walkIn "MidPath2")) $ do
     narrate "As you are walking down the valley, you suddenly hear a noise\
       \ and turn to see a small rock bouncing down the path from above. \
       \ Skip, skip, skip.  Someone or something else is up there, behind\
@@ -131,8 +130,7 @@ compileMountainPath globals = compileArea MountainPath Nothing $ do
       \ started on."
 
   once 309037 (isSecondTimeThroughLongvale `andP`
-               (walkIn (Rect 19 25 15 1) `orP`
-                walkIn (Rect 19 14 1 11))) $ do
+               (walkIn "MidPath1" `orP` walkIn "MidPath2")) $ do
     narrate "As you are walking down the valley, you suddenly hear a noise\
       \ and turn to see a small rock bouncing down the path from above. \
       \ Skip, skip, skip.  You frown.  You could have sworn that that exact\

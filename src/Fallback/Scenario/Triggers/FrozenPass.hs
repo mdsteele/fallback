@@ -114,7 +114,7 @@ compileFrozenPass globals = compileArea FrozenPass Nothing $ do
   simpleMonster 293554 Wolf "WolfA3" ChaseAI
   simpleMonster 828135 Wolf "WolfA4" MindlessAI
 
-  once 830701 (walkIn (Rect 40 20 10 1)) $ do
+  once 830701 (walkIn "NearZombies") $ do
     narrate "{b}The undead!{_}\n\n\
       \Well, you're apparently on a quest to defeat an evil lich, so you\
       \ probably shouldn't be surprised to run into a group of zombies\
@@ -135,7 +135,7 @@ compileFrozenPass globals = compileArea FrozenPass Nothing $ do
   simpleMonster 080213 Zombie "ZomC2" MindlessAI
   simpleMonster 420917 Zombie "ZomC3" MindlessAI
 
-  once 385861 (walkIn (Rect 3 34 2 2)) $ do
+  once 385861 (walkIn "NearShack") $ do
     narrate "This old, cracked building looks like it has seen better days. \
       \ Well, assuming this area has {i}ever{_} had better days; so far this\
       \ place is depressing and cold and not somewhere you'd ever much want to\

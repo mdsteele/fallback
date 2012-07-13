@@ -69,7 +69,7 @@ compileSewerCaves globals = compileArea SewerCaves Nothing $ do
   daily 984354 (varTrue gateOpen) $ do
     setTerrain BasaltGateOpenTile =<< lookupTerrainMark "EntryGate"
 
-  once 874564 (walkIn (Rect 27 27 10 9)) $ do
+  once 874564 (walkIn "GarbageChamber") $ do
     narrate "Phew, it stinks in here.  This is apparently the cave where the\
       \ citzens of Holmgare dispose of all their garbage and sewage.  You're\
       \ just glad it's so cold; the smell would be almost unbearable\
@@ -79,7 +79,7 @@ compileSewerCaves globals = compileArea SewerCaves Nothing $ do
       \ behind the muck."
 
   dactylidDead <- newPersistentVar 982452 False
-  once 029345 (walkIn (Rect 1 25 15 9)) $ do
+  once 029345 (walkIn "BossRoom") $ do
     narrate "FIXME Boss time!"
     setTerrain BasaltGateClosedTile =<< lookupTerrainMark "BossGate"
     bossStartPos <- flip Point 33 <$> getRandomR 1 15

@@ -60,12 +60,12 @@ compileIronMine globals = compileArea IronMine Nothing $ do
     narrate "The sign tacked to the wall reads:\n\n\
       \      {i}RECORDS OFFICE{_}"
 
-  once 807555 (walkIn (Rect 18 18 3 2)) $ do
+  once 807555 (walkIn "Latrine") $ do
     narrate "Ulgghh.  It appears that the miners used this narrow tunnel as a\
       \ latrine, to save themselves the trouble of walking all the way back\
       \ outside the mine.  The smell of urine and garbage back here is awful."
 
-  once 799563 (walkIn (Rect 9 1 12 9)) $ do
+  once 799563 (walkIn "NearSnow") $ do
     narrate "Looking upwards, you see that the miners cut a ventilation shaft\
       \ in the ceiling of the cave here leading up to the surface above.  Snow\
       \ has drifted down the shaft from the outside, eventually building up\
@@ -178,7 +178,7 @@ compileIronMine globals = compileArea IronMine Nothing $ do
     when (cartLoc /= 5) $ do
       setTerrain AdobeCrackedWallTile wallPositions
 
-  once 542400 (walkIn (Rect 45 1 9 7) `andP` varEq mineCartLocation 0) $ do
+  once 542400 (walkIn "CartChamber" `andP` varEq mineCartLocation 0) $ do
     narrate "Ah ha!  There's a mine cart sitting at the end of the tracks in\
       \ this chamber.  From here, it looks to still be in good condition. \
       \ Perhaps it can be of some use to you?"

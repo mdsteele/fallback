@@ -24,11 +24,13 @@ where
 import Control.Applicative ((<$>))
 import Control.Monad (when)
 import Data.Char (isAlphaNum, isDigit)
-import Data.List (intercalate)
+import Data.List (find, intercalate)
 import Data.Maybe (fromMaybe, listToMaybe)
 import Data.IORef
 import qualified Data.Set as Set
 import qualified Text.ParserCombinators.ReadP as Read
+import Text.ParserCombinators.ReadPrec (readPrec_to_P)
+import Text.Read (readPrec)
 
 import Fallback.Constants (cameraCenterOffset)
 import Fallback.Control.Error (runEO, runIOEO)
@@ -109,6 +111,13 @@ newEditorMode resources = do
             resources ("Set marks for " ++ show pos ++ ":")
             (intercalate "," $ tmapGetMarks pos $ esTerrain es)
             (const True) (return mode) (doSetMarks pos) view es
+        Just (ChangeRects pos) -> do
+          ChangeMode <$> newTextEntryDialogMode
+            resources ("Set rect:")
+            (maybe ("R:" ++ show (makeRect pos (1, 1)))
+                   (\(s, r) -> s ++ ":" ++ show r) $
+             find (flip rectContains pos . snd) $ tmapAllRects $ esTerrain es)
+            (const True) (return mode) doSetRect view es
         Just DoSave -> do
           let doSave name = do
                 eo <- runIOEO $ saveTerrainMap name $ esTerrain es
@@ -179,6 +188,18 @@ newEditorMode resources = do
       maybeM mbKeys $ \keys -> do
         es <- readIORef stateRef
         setTerrain es $ tmapSetMarks pos keys (esTerrain es)
+      return mode
+
+    doSetRect string = do
+      let mbSetting = fmap fst $ listToMaybe $ flip Read.readP_to_S string $ do
+            key <- Read.munch1 isAlphaNum
+            mbRect <- Read.option Nothing $ do
+              Read.char ':' >> fmap Just (readPrec_to_P readPrec 11)
+            Read.eof
+            return (key, mbRect)
+      maybeM mbSetting $ \(key, mbRect) -> do
+        es <- readIORef stateRef
+        setTerrain es $ tmapSetRect key mbRect (esTerrain es)
       return mode
 
     doResize string = do

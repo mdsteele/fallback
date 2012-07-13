@@ -26,20 +26,21 @@ module Fallback.Scenario.Triggers.Script
    TalkEffect(..), conversation, convText, convChoice, convNode, convReset,
    -- * Terrain
    setTerrain, resetTerrain,
-   lookupTerrainMark, demandOneTerrainMark,
+   lookupTerrainMark, demandOneTerrainMark, demandTerrainRect,
    -- * Miscellaneous
    addDeviceOnMarks, doesPartyHaveItem, playDoorUnlockSound, setAreaCleared,
    setQuestStatus, startBossFight, startShopping)
 where
 
-import Fallback.Data.Point (Position)
+import Fallback.Data.Point (Position, PRect)
 import Fallback.Scenario.Script
 import Fallback.State.Area
 import Fallback.State.Party (partyHasItem)
 import Fallback.State.Resources (SoundTag(SndUnlock), rsrcTileset)
 import Fallback.State.Simple (Ingredient, QuestStatus)
 import Fallback.State.Tags (AreaTag, ItemTag, QuestTag)
-import Fallback.State.Terrain (terrainMap, tmapGet, tmapLookupMark)
+import Fallback.State.Terrain
+  (terrainMap, tmapGet, tmapLookupMark, tmapLookupRect)
 import Fallback.State.Tileset (TileTag, tilesetGet)
 
 -------------------------------------------------------------------------------
@@ -126,6 +127,14 @@ demandOneTerrainMark key = do
     [pos] -> return pos
     _ -> fail ("demandOneTerrainMark: " ++ show key ++ " yields " ++
                show positions)
+
+lookupTerrainRect :: (FromAreaEffect f) => String -> Script f (Maybe PRect)
+lookupTerrainRect key = areaGet (tmapLookupRect key . terrainMap . arsTerrain)
+
+demandTerrainRect :: (FromAreaEffect f) => String -> Script f PRect
+demandTerrainRect key =
+  maybe (fail $ "demandTerrainRect: no such rect: " ++ show key) return =<<
+  lookupTerrainRect key
 
 -------------------------------------------------------------------------------
 -- Miscellaneous:
