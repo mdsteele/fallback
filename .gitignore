@@ -4,8 +4,14 @@
 /out
 
 /BOE
-/Fallback.app
 /data
+/Fallback.app/Contents/MacOS
+/Fallback.app/Contents/Resources/application.icns
+/Fallback.app/Contents/Resources/fonts
+/Fallback.app/Contents/Resources/images
+/Fallback.app/Contents/Resources/music
+/Fallback.app/Contents/Resources/scenario
+/Fallback.app/Contents/Resources/sounds
 /ideas.txt
 /openexile-rsrc
 /pov
