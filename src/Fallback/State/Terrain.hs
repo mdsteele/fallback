@@ -40,6 +40,7 @@ import Data.Array.IArray
 import Data.Array.Unboxed (UArray)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
+import qualified Data.Set as Set
 import qualified Data.Traversable as Trav (mapM)
 import qualified Text.Read as Read (readPrec)
 
@@ -123,13 +124,13 @@ tmapShift nullTile delta tmap = tmap { tmapArray = arr' } where
 tmapAllMarks :: TerrainMap -> [(String, Position)]
 tmapAllMarks = MM.toList . tmapMarks
 
-tmapLookupMark :: String -> TerrainMap -> [Position]
+tmapLookupMark :: String -> TerrainMap -> Set.Set Position
 tmapLookupMark key = MM.lookup key . tmapMarks
 
-tmapGetMarks :: Position -> TerrainMap -> [String]
+tmapGetMarks :: Position -> TerrainMap -> Set.Set String
 tmapGetMarks pos tmap = MM.reverseLookup pos $ tmapMarks tmap
 
-tmapSetMarks :: Position -> [String] -> TerrainMap -> TerrainMap
+tmapSetMarks :: Position -> Set.Set String -> TerrainMap -> TerrainMap
 tmapSetMarks pos keys tmap =
   tmap { tmapMarks = MM.reverseSet pos keys $ tmapMarks tmap }
 

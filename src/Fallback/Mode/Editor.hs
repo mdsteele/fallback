@@ -109,7 +109,7 @@ newEditorMode resources = do
         Just (ChangeMarks pos) -> do
           ChangeMode <$> newTextEntryDialogMode
             resources ("Set marks for " ++ show pos ++ ":")
-            (intercalate "," $ tmapGetMarks pos $ esTerrain es)
+            (intercalate "," $ Set.toList $ tmapGetMarks pos $ esTerrain es)
             (const True) (return mode) (doSetMarks pos) view es
         Just (ChangeRects pos) -> do
           ChangeMode <$> newTextEntryDialogMode
@@ -187,7 +187,7 @@ newEditorMode resources = do
             return ks
       maybeM mbKeys $ \keys -> do
         es <- readIORef stateRef
-        setTerrain es $ tmapSetMarks pos keys (esTerrain es)
+        setTerrain es $ tmapSetMarks pos (Set.fromList keys) (esTerrain es)
       return mode
 
     doSetRect string = do

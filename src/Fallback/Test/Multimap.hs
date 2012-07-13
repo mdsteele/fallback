@@ -19,7 +19,8 @@
 
 module Fallback.Test.Multimap (multimapTests) where
 
-import Data.List (sort)
+import Data.List (nub, sort)
+import qualified Data.Set as Set
 import Test.HUnit ((~:), Test(TestList))
 
 import qualified Fallback.Data.Multimap as MM
@@ -31,11 +32,14 @@ multimapTests :: Test
 multimapTests = "multimap" ~: TestList [
   insist $ MM.null MM.empty,
   qcTest $ \k v -> not $ MM.null $ MM.insert k v (MM.empty :: MMI),
-  qcTest $ \k v -> MM.lookup k (MM.insert k v (MM.empty :: MMI)) == [v],
-  qcTest $ \k v -> MM.reverseLookup v (MM.insert k v (MM.empty :: MMI)) == [k],
-  qcTest $ \list -> MM.toList (MM.fromList (sort list) :: MMI) == sort list,
+  qcTest $ \k v ->
+    MM.lookup k (MM.insert k v (MM.empty :: MMI)) == Set.singleton v,
+  qcTest $ \k v ->
+    MM.reverseLookup v (MM.insert k v (MM.empty :: MMI)) == Set.singleton k,
+  qcTest $ \list -> MM.toList (MM.fromList list :: MMI) == nub (sort list),
   qcTest $ \v ks ->
-    MM.reverseLookup v (MM.reverseSet v ks (MM.empty :: MMI)) == sort ks]
+    MM.reverseLookup v (MM.reverseSet v (Set.fromList ks) (MM.empty :: MMI)) ==
+    Set.fromList ks]
 
 type MMI = MM.Multimap Int Int
 

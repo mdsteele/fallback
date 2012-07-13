@@ -32,6 +32,8 @@ module Fallback.Scenario.Triggers.Script
    setQuestStatus, startBossFight, startShopping)
 where
 
+import qualified Data.Set as Set (toList)
+
 import Fallback.Data.Point (Position, PRect)
 import Fallback.Scenario.Script
 import Fallback.State.Area
@@ -118,7 +120,8 @@ resetTerrain positions = do
   emitAreaEffect $ EffSetTerrain $ map update positions
 
 lookupTerrainMark :: (FromAreaEffect f) => String -> Script f [Position]
-lookupTerrainMark key = areaGet (tmapLookupMark key . terrainMap . arsTerrain)
+lookupTerrainMark key =
+  areaGet (Set.toList . tmapLookupMark key . terrainMap . arsTerrain)
 
 demandOneTerrainMark :: (FromAreaEffect f) => String -> Script f Position
 demandOneTerrainMark key = do
