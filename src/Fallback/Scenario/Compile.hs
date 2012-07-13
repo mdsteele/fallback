@@ -61,7 +61,7 @@ import Fallback.State.Party (Party, partyQuests)
 import Fallback.State.Progress
 import Fallback.State.Simple
 import Fallback.State.Tags (AreaTag, QuestTag, RegionTag)
-import Fallback.State.Terrain (terrainMap, tmapLookupRect)
+import Fallback.State.Terrain (terrainMap, tmapLookupMark, tmapLookupRect)
 import Fallback.State.Town (TownState)
 
 -------------------------------------------------------------------------------
@@ -385,10 +385,12 @@ varEq var value = Predicate ((value ==) . getVar var)
 varNeq :: (Eq a, VarType a) => Var a -> a -> Predicate
 varNeq var value = Predicate ((value /=) . getVar var)
 
-walkOn :: Position -> Predicate
-walkOn pos = Predicate (\s -> any (pos ==) (arsPartyPositions s))
+walkOn :: String -> Predicate
+walkOn key = Predicate $ \s ->
+  any (flip Set.member (tmapLookupMark key $ terrainMap $ arsTerrain s)) $
+  arsPartyPositions s
 
-walkOff :: Position -> Predicate
+walkOff :: String -> Predicate
 walkOff = notP . walkOn
 
 -- | True if the specified terrain rect exists and at least one character is

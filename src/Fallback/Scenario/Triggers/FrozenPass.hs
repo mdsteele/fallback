@@ -159,13 +159,13 @@ compileFrozenPass globals = compileArea FrozenPass Nothing $ do
       \ went and chewed it to pieces long before you arrived.  Not a single\
       \ legible page remains."
 
-  once 232166 (walkOn (Point 12 39)) $ do
+  once 232166 (walkOn "SecretDoor") $ do
     narrate "Now that's interesting...what first looked like another crack in\
       \ the wall turns out to be a secret panel leading to a narrow passage\
       \ behind the building.  Why would someone hide a secret passage behind a\
       \ building that's probably going to fall over any day now?"
 
-  once 434118 (walkOn (Point 18 40)) $ do
+  once 434118 (walkIn "ColdPassage") $ do
     narrate "Brrrrr...it is {i}freezing{_} back here.  Evidentally not a\
       \ lot of sunlight makes it down into this tiny opening.\n\n\
       \You take a moment to examine the walls of the passage.  Now that you\
@@ -213,7 +213,7 @@ compileFrozenPass globals = compileArea FrozenPass Nothing $ do
   onStartDaily 093423 $ do
     addDevice_ ironDoorDevice =<< demandOneTerrainMark "IronDoor"
 
-  once 328351 (walkOn (Point 26 40)) $ do
+  once 328351 (walkOn "IronDoor") $ do
     narrate "A huge, solid crystal of ice dominates the center of this tiny\
       \ room.  You can almost feel it sucking the heat out of your bodies,\
       \ even from here.  It is almost certainly magical, whatever it's for."

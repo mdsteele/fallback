@@ -71,8 +71,7 @@ compileMountainPath globals = compileArea MountainPath Nothing $ do
     pos <- getPartyPosition
     partyWalkTo (pos `plusDir` DirSE)
 
-  once 085585 (isFirstTimeThroughLongvale `andP`
-               walkOff startingPosition) $ do
+  once 085585 (isFirstTimeThroughLongvale `andP` walkOff "Start") $ do
     narrate "You're finally here!  A brand new band of adventures, on a\
       \ journey to seek out your very first quest.  Without a doubt, the\
       \ days ahead will be filled with countless monsters, and hopefully,\
@@ -84,8 +83,7 @@ compileMountainPath globals = compileArea MountainPath Nothing $ do
       \You know very little about this village, but it's a remote town in\
       \ dangerous territory; surely {i}they'll{_} have some quests for you!"
 
-  once 741589 (isSecondTimeThroughLongvale `andP`
-               walkOff startingPosition) $ do
+  once 741589 (isSecondTimeThroughLongvale `andP` walkOff "Start") $ do
     narrate "You blink.  Your head feels fuzzy.  Looking around, you find\
       \ yourselves back on the mountain path leading down into Corenglen. \
       \ The sun is just beginning to set over the peaks to the west, just as\
