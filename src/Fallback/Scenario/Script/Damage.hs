@@ -99,12 +99,13 @@ dealRawDamageToCharacter gentle charNum damage stun = do
   char <- areaGet (arsGetCharacter charNum)
   -- If this is non-gentle damage, wake us up from being dazed, and add
   -- adrenaline.
-  unless gentle $ do
+  adrenaline <- if gentle then return 0 else do
     alterCharacterStatus charNum seWakeFromDaze
     party <- areaGet arsParty
     let adrenaline = adrenalineForDamage (chrAdrenalineMultiplier char)
                                          damage (chrMaxHealth party char)
     alterAdrenaline charNum (+ adrenaline)
+    return adrenaline
   -- Do stun (if in combat):
   when (stun > 0) $ whenCombat $ do
     moments <- emitEffect $ EffGetCharMoments charNum
@@ -119,7 +120,12 @@ dealRawDamageToCharacter gentle charNum damage stun = do
   emitAreaEffect $ EffIfCombat (setCharacterAnim charNum $ HurtAnim 12)
                                (setPartyAnim $ HurtAnim 12)
   -- If we're in combat, the character can die:
-  whenCombat $ when (health' <= 0) $ onCharacterDead charNum
+  whenCombat $ when (health' <= 0) $ do
+    onCharacterDead charNum
+    -- When a character is killed by normal damage, all other conscious
+    -- characters get the amount of adrenaline that that character would have
+    -- gotten.  (This doesn't apply when the character is insta-killed.)
+    mapM_ (flip alterAdrenaline (+ adrenaline)) =<< getAllConsciousCharacters
   return damage
 
 -- | Inflict damage and stun on a monster, ignoring armor and resistances.
