@@ -21,7 +21,7 @@
 
 module Fallback.Utility
   (-- * Numeric functions
-   ceilDiv, fmod, hypot, isFinite, square,
+   ceilDiv, fmod, hypot, isFinite, square, squash,
    -- * List functions
    mapEither, forEither, firstJust,
    groupKey, minimumKey, maximumKey, nubKey, sortKey,
@@ -74,6 +74,14 @@ isFinite x = not (isNaN x || isInfinite x)
 
 square :: (Num a) => a -> a
 square x = x * x
+
+-- | \"Squash\" a value so that it falls between -@limit@ and +@limit@.  When
+-- the input value is near zero, the curve is near-linear and the return value
+-- will be approximately equal to the input value; as the magnitude of the
+-- input value grows larger, the return value will taper off smoothly so that
+-- its magnitude never exceeds the limit.  The limit must be positive.
+squash :: Double {-^limit-} -> Double {-^value-} -> Double
+squash limit value = 2 * limit / (1 + exp (-2 * value / limit)) - limit
 
 -------------------------------------------------------------------------------
 -- List functions:

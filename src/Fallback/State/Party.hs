@@ -40,6 +40,7 @@ import Fallback.State.Tags
 import Fallback.State.Terrain
   (ExploredMap, Terrain, setExplored, unexploredMap)
 import Fallback.State.Progress (HasProgress(..), Progress)
+import Fallback.Utility (squash)
 
 -------------------------------------------------------------------------------
 
@@ -361,7 +362,8 @@ chrMaxMojo party char =
     ClericClass -> maxMana
     MagusClass -> maxMana
   where
-    maxFocus = ((30 + partyLevel party) * chrGetStat Intellect char) `div` 200
+    maxFocus = floor $ squash 16.5 $
+      fromIntegral ((30 + partyLevel party) * chrGetStat Intellect char) / 200
     maxMana = ((15 + partyLevel party) * chrGetStat Intellect char) `div` 10
 
 chrPurgeItem :: ItemTag -> Character -> Character

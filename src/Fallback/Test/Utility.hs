@@ -38,6 +38,9 @@ utilityTests = "utility" ~: TestList [
                    ceiling (fromIntegral a / fromIntegral b :: Double),
   insist $ isFinite 10000,
   insist $ not $ isFinite (1 / 0),
-  insist $ not $ isFinite (0 / 0)]
+  insist $ not $ isFinite (0 / 0),
+  qcTest $ \a b -> (a > 0) ==> squash a b <= a,
+  qcTest $ \a b -> (a > 0) ==> squash a b >= negate a,
+  insist $ abs (3 - squash 10000 3) <= 0.0001]
 
 -------------------------------------------------------------------------------

@@ -31,6 +31,8 @@ module Fallback.State.Resources
    -- * GUI graphics
    rsrcCursorsStrip, rsrcDigitsStripBig, rsrcSheetSmallButtons,
    rsrcPaintDigits,
+   -- * Health, mana, etc.
+   HealthManaEtc(..), rsrcHealthManaEtc,
    -- * Icons
    rsrcAbilityIcon, rsrcItemIcon, rsrcStatusIcons,
    -- * Music
@@ -67,6 +69,7 @@ data Resources = Resources
     rsrcCursorsStrip :: Strip,
     rsrcDigitsStripBig :: Strip,
     rsrcFonts :: TM.TotalMap FontTag Font,
+    rsrcHealthManaEtc :: HealthManaEtc,
     rsrcItemIcons :: Sheet,
     rsrcPaintDigits :: Int -> LocSpec Int -> Paint (),
     rsrcProjs :: TM.TotalMap ProjTag Sprite,
@@ -86,6 +89,7 @@ newResources = do
   abilityIcons <- loadSheet "abilities.png" (10, 10)
   charSheet <- loadSheet "characters.png" (24, 4)
   cursors <- loadVStrip "gui/cursors.png" 20
+  healthManaEtc <- loadHealthManaEtc
   itemIcons <- loadSheetWithTileSize (34, 34) "items.png"
   sheetSmallButtons <- loadSheet "gui/small-buttons.png" (4, 6)
   fonts <- TM.makeA (uncurry loadFont . fontSpec)
@@ -114,6 +118,7 @@ newResources = do
           makeSubSprite (Rect (7 * n) 0 7 9) digitsWords,
       rsrcCursorsStrip = cursors,
       rsrcFonts = fonts,
+      rsrcHealthManaEtc = healthManaEtc,
       rsrcItemIcons = itemIcons,
       rsrcPaintDigits = paintDigits,
       rsrcProjs = TM.make ((projStrip !) . projIndex),
@@ -166,6 +171,25 @@ rsrcTerrainSprite rsrc coords = rsrcTerrainSheet rsrc ! coords
 rsrcTerrainOverlaySprite :: Resources -> Int -> Int -> Sprite
 rsrcTerrainOverlaySprite rsrc row col =
   rsrcTerrainOverlaySheet rsrc ! (row, col)
+
+-------------------------------------------------------------------------------
+
+data HealthManaEtc = HealthManaEtc
+  { hmeFocusPipSprite :: Sprite,
+    hmeIngredientsSprite :: Sprite,
+    hmeLongBarSprite :: Sprite,
+    hmeShortBarSprite :: Sprite,
+    hmeTimePipSprite :: Sprite }
+
+loadHealthManaEtc :: IO HealthManaEtc
+loadHealthManaEtc = do
+  texture <- loadTexture "gui/health-mana-etc.png"
+  return HealthManaEtc
+    { hmeFocusPipSprite = makeSubSprite (Rect 53 30 4 15) texture,
+      hmeIngredientsSprite = makeSubSprite (Rect 0 15 80 15) texture,
+      hmeLongBarSprite = makeSubSprite (Rect 0 0 80 15) texture,
+      hmeShortBarSprite = makeSubSprite (Rect 0 30 52 15) texture,
+      hmeTimePipSprite = makeSubSprite (Rect 58 30 12 15) texture }
 
 -------------------------------------------------------------------------------
 

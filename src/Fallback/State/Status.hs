@@ -44,7 +44,7 @@ module Fallback.State.Status
    StatusDelta, zeroStatusDelta, makeStatusDelta, applyStatusDelta,
    addStatusDeltas, sumStatusDeltas, divStatusDelta,
    -- * Utilities
-   compress, townifyStatus)
+   townifyStatus)
 where
 
 import Control.Exception (assert)
@@ -348,14 +348,6 @@ applyStatusDelta sd =
 
 -------------------------------------------------------------------------------
 -- Utilities:
-
--- | \"Compress\" a value so that it falls between -@limit@ and +@limit@.  When
--- the input value is near zero, the curve is near-linear and the return value
--- will be approximately equal to the input value; as the magnitude of the
--- input value grows larger, the return value will taper off smoothly so that
--- its magnitude never exceeds the limit.  The limit must be positive.
-compress :: Double {-^limit-} -> Double {-^value-} -> Double
-compress limit value = 2 * limit / (1 + exp (-2 * value / limit)) - limit
 
 -- | When stacking two harms (or two benefits), the resulting duration is the
 -- geometric mean of the max and the sum.  Thus, if one of the effects is zero

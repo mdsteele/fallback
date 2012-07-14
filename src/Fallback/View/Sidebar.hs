@@ -41,10 +41,9 @@ import Fallback.Event
 import Fallback.State.Area (AreaCommonState(..), arsParty)
 import Fallback.State.Camera (camTopleft)
 import Fallback.State.Combat
-import Fallback.State.Creature (ciLeftStand)
+import Fallback.State.Creature (ciRightStand)
 import Fallback.State.Party
 import Fallback.State.Resources
-  (FontTag(..), Resources, rsrcCharacterImages, rsrcFont, rsrcStatusIcons)
 import Fallback.State.Simple
 import Fallback.State.Status
 import Fallback.State.Town (TownState(..))
@@ -125,56 +124,6 @@ newSidebarView resources = do
        (makeButton 3 (const 3) [KeyI] ToggleInventory)])]
 
 -------------------------------------------------------------------------------
--- Conversation view:
-{-
-newConversationView :: Resources -> HoverSink Cursor
-                    -> Draw z (View (Conversation f) SidebarAction)
-newConversationView resources cursorSink = do
-  compoundViewM [
-    (vmap conversationWindows <$> newTalkWindowsView resources cursorSink),
-    (newMaybeView conversationQuestion =<<
-     newQuestionWindowView resources cursorSink)]
-
-newTalkWindowsView :: Resources -> HoverSink Cursor
-                   -> Draw z (View [TalkWindow] SidebarAction)
-newTalkWindowsView _resources _cursorSink = do
-  let
-    paint = mapM_ paintWindow . reverse
-    paintWindow tw = do
-      let rect = twRect tw
-      tintRect (Tint 0 0 64 192) rect
-      drawRect whiteTint rect
-      drawRect whiteTint (adjustRect1 3 rect)
-      flip3 zipWithM_ [0..] (twVisibleText tw) $ \index line -> do
-        paintTextLine (Color 224 224 224)
-                      (LocTopleft $ Point (6 :: Int) (6 + 14 * index)) line
-
-    handler windows rect (EvMouseDown pt) = do
-      let pt' = pt `pSub` rectTopleft rect
-      return $ if any (flip rectContains pt' . twRect) windows
-               then Action HurryConversation else Ignore
-    handler _ _ _ = return Ignore
-
-  return (View paint handler)
-
-newQuestionWindowView :: Resources -> HoverSink Cursor
-                      -> Draw z (View QuestionWindow SidebarAction)
-newQuestionWindowView _resources _cursorSink = do
-  let
-    paint qw = do
-      let rect = qwRect qw
-      tintRect (Tint 0 0 64 192) rect
-      drawRect whiteTint rect
-      drawRect whiteTint (adjustRect1 3 rect)
-      flip3 zipWithM_ [0..] (qwOptions qw) $ \index line -> do
-        paintTextLine (Color 224 224 224) -- TODO change based on mouse hover
-                      (LocTopleft $ Point (6 :: Int) (6 + 14 * index)) line
-
-    handler _ _ _ = return Ignore -- FIXME respond to clicks
-
-  return (View paint handler)
--}
--------------------------------------------------------------------------------
 -- Minimap view:
 
 newMinimapView :: (MonadDraw m) => m (View (IRect, Minimap) Position)
@@ -222,8 +171,8 @@ newCharacterView resources charNum = do
   let nameTopleft = Point 4 4 :: IPoint
   let pictureTopright = Point 115 6 :: IPoint
   let paintPicture char = do
-        blitLoc (ciLeftStand $ rsrcCharacterImages resources (chrClass char)
-                                                   (chrAppearance char))
+        blitLoc (ciRightStand $ rsrcCharacterImages resources (chrClass char)
+                                                    (chrAppearance char))
                 (LocTopright pictureTopright)
   compoundViewM [
     (newCharacterViewBackground charNum),
@@ -232,14 +181,14 @@ newCharacterView resources charNum = do
         makeLabel_ (rsrcFont resources FontChancery14) blackColor $
         LocTopleft nameTopleft),
        (return $ inertView paintPicture),
-       (subView_ (Rect 4 53 52 15) <$> newAdrenalineBarView),
+       (subView_ (Rect 4 53 52 15) <$> newAdrenalineBarView resources),
        (subView_ (Rect 4 70 104 12) <$> vmap (chrStatus &&& chrHealth) <$>
         newStatusEffectsView resources)]),
     (vmap (ssParty &&& getCharacter) <$> compoundViewM [
-       (subView_ (Rect 4 19 80 15) <$> newHealthBarView),
-       (subView_ (Rect 4 36 80 15) <$> newMojoBarView)]),
+       (subView_ (Rect 4 19 80 15) <$> newHealthBarView resources),
+       (subView_ (Rect 4 36 80 15) <$> newMojoBarView resources)]),
     (newMaybeView ssCombatState =<< subView_ (Rect 60 53 52 15) <$>
-     newTimeBarView charNum)]
+     newTimeBarView resources charNum)]
 
 newCharacterViewBackground :: (MonadDraw m) => CharacterNumber
                            -> m (View SidebarState SidebarAction)
@@ -265,51 +214,46 @@ newCharacterViewBackground charNum = do
 
   return $ View paint handler
 
-newHealthBarView :: (MonadDraw m) => m (View (Party, Character) b)
-newHealthBarView = do
+newHealthBarView :: (MonadDraw m) => Resources -> m (View (Party, Character) b)
+newHealthBarView resources = do
   paintDigits <- newDigitPaint
   let
     paint (party, char) = do
       rect <- canvasRect
       let fr = fromIntegral (chrHealth char) /
                fromIntegral (chrMaxHealth party char)
-      tintRect (Tint 255 0 0 255) (Rect 0 0 (fr * fromIntegral (rectW rect))
-                                        (fromIntegral (rectH rect) :: Double))
-      drawRect (Tint 128 0 0 255) rect
+      tintRect translucent rect
+      tintRect (Tint 255 32 32 255)
+               (Rect 0 0 (fr * fromIntegral (rectW rect))
+                     (fromIntegral (rectH rect) :: Double))
       paintDigits (chrHealth char) $ LocCenter $ rectCenter rect
+      blitStretch (hmeLongBarSprite $ rsrcHealthManaEtc resources) rect
   return (inertView paint)
 
-newMojoBarView :: (MonadDraw m) => m (View (Party, Character) b)
-newMojoBarView = do
+newMojoBarView :: (MonadDraw m) => Resources -> m (View (Party, Character) b)
+newMojoBarView resources = do
   paintDigits <- newDigitPaint
   let
     paint (party, char) =
       case chrClass char of
-        WarriorClass -> paintFocus char
-        RogueClass -> paintFocus char
+        WarriorClass -> paintFocus party char
+        RogueClass -> paintFocus party char
         HunterClass -> paintIngredients party
         AlchemistClass -> paintIngredients party
         ClericClass -> paintMana party char
         MagusClass -> paintMana party char
-    paintFocus char = do
-      height <- canvasHeight
-      let paintFocusPip index = tintRect (Tint 0 0 255 255)
-                                         (Rect (6 * index) 0 5 height)
-      mapM_ paintFocusPip [0 .. chrMojo char - 1]
+    paintFocus party char = do
+      let focus = chrMojo char
+      forM_ [0 .. chrMaxMojo party char - 1] $ \idx -> do
+        let rect = Rect (5 * idx) 0 4 15
+        tintRect (if idx < focus then Tint 128 0 255 255 else translucent) rect
+        blitStretch (hmeFocusPipSprite $ rsrcHealthManaEtc resources) rect
     paintIngredients party = do
+      blitTopleft (hmeIngredientsSprite $ rsrcHealthManaEtc resources)
+                  (pZero :: IPoint)
       let ingredients = partyIngredients party
       let paintIngredient ingredient index = do
             let (row, col) = index `divMod` 4
-            let tint = case ingredient of
-                          AquaVitae -> Tint 255 255 0 255
-                          Naphtha -> Tint 255 128 0 255
-                          Limestone -> Tint 0 255 0 255
-                          Mandrake -> Tint 128 64 32 255
-                          Potash -> Tint 128 0 255 255
-                          Brimstone -> Tint 192 0 0 255
-                          DryIce -> Tint 0 128 255 255
-                          Quicksilver -> Tint 128 128 128 255
-            tintRect tint (Rect (16 + 20 * col) (1 + 8 * row) 4 5)
             paintDigits (TM.get ingredient ingredients)
                         (LocTopright $ Point (15 + 20 * col) (8 * row))
       zipWithM_ paintIngredient [minBound .. maxBound] [0 ..]
@@ -317,28 +261,31 @@ newMojoBarView = do
       rect <- canvasRect
       let fr = fromIntegral (chrMojo char) /
                fromIntegral (chrMaxMojo party char)
-      tintRect (Tint 0 0 255 255) (Rect 0 0 (fr * fromIntegral (rectW rect))
-                                        (fromIntegral (rectH rect) :: Double))
-      drawRect (Tint 0 0 128 255) rect
+      tintRect translucent rect
+      tintRect (Tint 0 96 255 255) (Rect 0 0 (fr * fromIntegral (rectW rect))
+                                         (fromIntegral (rectH rect) :: Double))
       paintDigits (chrMojo char) $ LocCenter $ rectCenter rect
+      blitStretch (hmeLongBarSprite $ rsrcHealthManaEtc resources) rect
   return (inertView paint)
 
-newAdrenalineBarView :: (MonadDraw m) => m (View Character b)
-newAdrenalineBarView = do
+newAdrenalineBarView :: (MonadDraw m) => Resources -> m (View Character b)
+newAdrenalineBarView resources = do
   paintDigits <- newDigitPaint
   let
     paint char = do
       rect <- canvasRect
       let fr = fromIntegral (chrAdrenaline char) / fromIntegral maxAdrenaline
-      tintRect (Tint 192 192 0 255)
+      tintRect translucent rect
+      tintRect (Tint 224 224 0 255)
                (Rect 0 0 (fr * fromIntegral (rectW rect))
                      (fromIntegral (rectH rect) :: Double))
-      drawRect (Tint 128 128 0 255) rect
       paintDigits (chrAdrenaline char) $ LocCenter $ rectCenter rect
+      blitStretch (hmeShortBarSprite $ rsrcHealthManaEtc resources) rect
   return (inertView paint)
 
-newTimeBarView :: (MonadDraw m) => CharacterNumber -> m (View CombatState b)
-newTimeBarView charNum = do
+newTimeBarView :: (MonadDraw m) => Resources -> CharacterNumber
+               -> m (View CombatState b)
+newTimeBarView resources charNum = do
   paintDigits <- newDigitPaint
   let
 
@@ -352,17 +299,26 @@ newTimeBarView charNum = do
     paintBar moments = do
       let fr = fromIntegral moments /
                fromIntegral (momentsPerActionPoint * maxActionPoints)
+      let actionPoints = moments `div` momentsPerActionPoint
       rect <- canvasRect
-      tintRect (Tint 0 200 0 255) (Rect 0 0 (fr * fromIntegral (rectW rect))
-                                        (fromIntegral (rectH rect) :: Double))
-      drawRect (Tint 0 128 0 255) rect
-      paintDigits (moments `div` momentsPerActionPoint)
-                  (LocCenter $ rectCenter rect)
+      tintRect translucent rect
+      let tint = case actionPoints of
+                   0 -> Tint 0 96 0 255
+                   1 -> Tint 0 128 0 255
+                   2 -> Tint 0 160 0 255
+                   3 -> Tint 0 192 0 255
+                   _ -> Tint 0 224 0 255
+      tintRect tint (Rect 0 0 (fr * fromIntegral (rectW rect))
+                          (fromIntegral (rectH rect) :: Double))
+      paintDigits actionPoints (LocCenter $ rectCenter rect)
+      blitStretch (hmeShortBarSprite $ rsrcHealthManaEtc resources) rect
 
     paintPips apStart apUsed = do
       forM_ [0 .. min maxActionPoints apStart - 1] $ \n -> do
+        let rect = Rect (13 * n) 0 12 15
         let tint = if n < apUsed then Tint 192 192 0 255 else Tint 0 192 0 255
-        tintRect tint (Rect (12 * n) 1 9 9)
+        tintRect tint rect
+        blitStretch (hmeTimePipSprite $ rsrcHealthManaEtc resources) rect
 
   return (inertView paint)
 
@@ -405,5 +361,8 @@ keyCharacterNumber Key2 = Just Character1
 keyCharacterNumber Key3 = Just Character2
 keyCharacterNumber Key4 = Just Character3
 keyCharacterNumber _ = Nothing
+
+translucent :: Tint
+translucent = Tint 255 255 255 128
 
 -------------------------------------------------------------------------------
