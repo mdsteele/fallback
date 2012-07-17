@@ -21,7 +21,7 @@ module Fallback.Scenario.Feats
   (featEffect, featCastingCost, featDescription, featIconCoords)
 where
 
-import Control.Monad (forM_, unless)
+import Control.Monad (forM_, unless, void)
 
 import Fallback.Constants (framesPerRound, maxAdrenaline)
 import Fallback.Data.Color (Tint(Tint))
@@ -35,7 +35,7 @@ import Fallback.State.Party (chrEquippedWeaponData)
 import Fallback.State.Resources
 import Fallback.State.Simple
 import Fallback.State.Status
-import Fallback.State.Tags (FeatTag(..))
+import Fallback.State.Tags (FeatTag(..), MonsterTag(..))
 import Fallback.State.Terrain (positionCenter, prectRect)
 
 -------------------------------------------------------------------------------
@@ -116,7 +116,7 @@ featEffect TidalForce =
         outerFn t _ = (t, Tint 255 255 255 (255 - round (t * 255)))
     addShockwaveDoodad 24 (positionCenter endPos) 132 165 innerFn outerFn
     wait 12
-    damage <- getRandomR 35 45 -- TODO how much damage?
+    damage <- getRandomR 45 65 -- TODO how much damage?
     dealDamage $ map (\p -> (HitPosition p, ColdDamage, damage)) targets
     massInflictMentalEffect True Dazed 8 targets
     wait 12
@@ -168,6 +168,18 @@ featEffect Avatar =
       (seApplyHaste $ Beneficial 12) . (seApplyMagicShield 13) .
       (seApplyDefense $ Beneficial 14) . (seApplyBlessing $ Beneficial 15) .
       sePurgeAllBadEffects
+featEffect AllCreation =
+  StandardFeat autoTarget $ \caster () -> do
+    degradeMonstersSummonedBy (Left caster)
+    playSound SndSummon
+    startPos <- areaGet (arsCharacterPosition caster)
+    concurrent_ allDirections $ \dir -> do
+      let pos = startPos `pAdd` dirDelta dir `pMul` 2 -- FIXME what if behind wall?
+      monstTag <- getRandomElem [
+        AcidCrab, Cobra, Firefly, Hound, LightningBug, Mantis, MonitorLizard,
+        RabidBat, Roach, Rous, Spider, Unicorn, Wolf]
+      let lifetime = framesPerRound * 21
+      void $ trySummonMonsterNear pos (Left caster) monstTag lifetime False
 featEffect JumpSlash =
   StandardFeat (const $ JumpTarget areaFn 3) $ \caster (endPos, targets) -> do
     characterOffensiveActionTowards caster 8 endPos
@@ -222,19 +234,19 @@ featEffect _ = MetaAbility FullAP NormalCost 1.1 -- FIXME
 -------------------------------------------------------------------------------
 
 featCastingCost :: FeatTag -> CastingCost
--- featCastingCost Offering = AdrenalineCost 10
--- featCastingCost SolarFlare = AdrenalineCost 30
--- featCastingCost Energize = AdrenalineCost 100
--- featCastingCost StarShield = AdrenalineCost 25
--- featCastingCost Zodiac = AdrenalineCost 50
--- featCastingCost Banish = AdrenalineCost 100
--- featCastingCost TidalForce = AdrenalineCost 40
--- featCastingCost Eclipse = AdrenalineCost 60
--- featCastingCost LunarBeam = AdrenalineCost 100
--- featCastingCost PulseOfLife = AdrenalineCost 50
--- featCastingCost Avatar = AdrenalineCost 80
--- featCastingCost AllCreation = AdrenalineCost 100
--- featCastingCost TimeStop = AdrenalineCost 50
+featCastingCost Offering = AdrenalineCost 10
+featCastingCost SolarFlare = AdrenalineCost 30
+featCastingCost Energize = AdrenalineCost 100
+featCastingCost StarShield = AdrenalineCost 25
+featCastingCost Zodiac = AdrenalineCost 50
+featCastingCost Banish = AdrenalineCost 100
+featCastingCost TidalForce = AdrenalineCost 40
+featCastingCost Eclipse = AdrenalineCost 60
+featCastingCost LunarBeam = AdrenalineCost 100
+featCastingCost PulseOfLife = AdrenalineCost 50
+featCastingCost Avatar = AdrenalineCost 80
+--featCastingCost AllCreation = AdrenalineCost 100
+featCastingCost TimeStop = AdrenalineCost 50
 featCastingCost _ = NoCost -- FIXME
 
 featDescription :: FeatTag -> String

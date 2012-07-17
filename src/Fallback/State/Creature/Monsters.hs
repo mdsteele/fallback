@@ -46,7 +46,7 @@ getMonsterType Dactylid = baseMonsterType
         maElement = FireDamage,
         maRange = Ranged 8 }],
     mtExperienceValue = 1000,
-    mtImageRow = 28,
+    mtImageRow = 79,
     mtInherentInvisibility = MajorInvisibility,
     mtIsDaemonic = True,
     mtMaxHealth = 1000,
@@ -63,7 +63,7 @@ getMonsterType Revenant = baseMonsterType
         maDamageCount = 10,
         maDamageRange = (1, 10) }],
     mtExperienceValue = 100,
-    mtImageRow = 0,
+    mtImageRow = 99,
     mtIsUndead = True,
     mtMaxHealth = 200,
     mtName = "Revenant",
@@ -75,7 +75,7 @@ getMonsterType Revenantor = baseMonsterType
   { mtAgility = 50,
     mtAttacks = map attack [EnergyDamage, FireDamage, ColdDamage, AcidDamage],
     mtExperienceValue = 100,
-    mtImageRow = 1,
+    mtImageRow = 98,
     mtIsUndead = True,
     mtMaxHealth = 150,
     mtName = "Revenantor",
@@ -111,6 +111,19 @@ getMonsterType MasterRevenant = baseMonsterType
     mtSpeed = 3.0,
     -- TODO spells
     mtWalksFast = True }
+-- Hound: deals little damage, but very fast and agile
+getMonsterType Hound = baseMonsterType
+  { mtAgility = 80,
+    mtAttacks = [baseMonsterAttack
+      { maAppearance = ClawAttack,
+        maCriticalChance = 0.1,
+        maDamageCount = 3,
+        maDamageRange = (1, 8) }],
+    mtExperienceValue = 12,
+    mtImageRow = 41,
+    mtMaxHealth = 40,
+    mtName = "Hound",
+    mtSpeed = 5 }
 getMonsterType Wolf = baseMonsterType
   { mtAgility = 40,
     mtAttacks = [baseMonsterAttack
@@ -119,8 +132,7 @@ getMonsterType Wolf = baseMonsterType
         maDamageCount = 6,
         maDamageRange = (1, 8) }],
     mtExperienceValue = 12,
-    mtImageRow = 9,
-    mtLevel = 4,
+    mtImageRow = 42,
     mtMaxHealth = 50,
     mtName = "Wolf",
     mtSpeed = 2 }
@@ -142,7 +154,6 @@ getMonsterType DemonWolf = baseMonsterType
     mtExperienceValue = 30,
     mtImageRow = 0,
     mtIsDaemonic = True,
-    mtLevel = 6,
     mtMaxHealth = 300,
     mtName = "Demon Wolf",
     mtSize = SizeWide,
@@ -157,10 +168,44 @@ getMonsterType CaveBat = baseMonsterType
         maDamageRange = (1, 8) }],
     mtCanFly = True,
     mtExperienceValue = 12,
-    mtImageRow = 29,
-    mtLevel = 4,
+    mtImageRow = 50,
     mtMaxHealth = 50,
     mtName = "Cave Bat",
+    mtSpeed = 1.5,
+    mtWalksFast = True }
+getMonsterType FireBat = baseMonsterType
+  { mtAgility = 60,
+    mtAttacks = [baseMonsterAttack
+      { maAppearance = BiteAttack,
+        maCriticalChance = 0.1,
+        maDamageCount = 6,
+        maDamageRange = (1, 8) }, baseMonsterAttack
+      { maAppearance = BreathAttack,
+        maCriticalChance = 0.05,
+        maDamageCount = 6,
+        maDamageRange = (1, 8),
+        maElement = FireDamage,
+        maRange = Ranged 4 }],
+    mtCanFly = True,
+    mtExperienceValue = 12,
+    mtImageRow = 51,
+    mtMaxHealth = 50,
+    mtName = "Fire Bat",
+    mtSpeed = 1.5,
+    mtWalksFast = True }
+getMonsterType RabidBat = baseMonsterType
+  { mtAgility = 60,
+    mtAttacks = [baseMonsterAttack
+      { maAppearance = BiteAttack,
+        maCriticalChance = 0.1,
+        maDamageCount = 6,
+        maDamageRange = (1, 8),
+        maEffects = [InflictPoison 1.0] }],
+    mtCanFly = True,
+    mtExperienceValue = 12,
+    mtImageRow = 52,
+    mtMaxHealth = 50,
+    mtName = "Rabid Bat",
     mtSpeed = 1.5,
     mtWalksFast = True }
 getMonsterType Ghoul = baseMonsterType
@@ -171,9 +216,8 @@ getMonsterType Ghoul = baseMonsterType
         maDamageCount = 15,
         maDamageRange = (1, 10) }],
     mtExperienceValue = 120,
-    mtImageRow = 6,
+    mtImageRow = 83,
     mtIsUndead = True,
-    mtLevel = 99,
     mtMaxHealth = 80,
     mtName = "Ghoul",
     mtSpeed = 1.2,
@@ -189,9 +233,8 @@ getMonsterType Skeleton = baseMonsterType
         maDamageCount = 12,
         maDamageRange = (1, 8) }],
     mtExperienceValue = 120,
-    mtImageRow = 2,
+    mtImageRow = 87,
     mtIsUndead = True,
-    mtLevel = 99,
     mtMaxHealth = 80,
     mtName = "Skeleton",
     mtResistances =
@@ -209,9 +252,8 @@ getMonsterType Wraith = baseMonsterType
         maElement = EnergyDamage,
         maRange = Ranged 6 }],
     mtExperienceValue = 150,
-    mtImageRow = 5,
+    mtImageRow = 92,
     mtIsUndead = True,
-    mtLevel = 99,
     mtMaxHealth = 75,
     mtName = "Wraith",
     mtSpeed = 1.5,
@@ -224,9 +266,8 @@ getMonsterType Zombie = baseMonsterType
         maDamageCount = 10,
         maDamageRange = (1, 8) }],
     mtExperienceValue = 100,
-    mtImageRow = 4,
+    mtImageRow = 81,
     mtIsUndead = True,
-    mtLevel = 99,
     mtMaxHealth = 150,
     mtName = "Zombie",
     mtResistances = (ResistStun =% 60),
@@ -240,7 +281,7 @@ getMonsterType Vhaegyst = baseMonsterType
         maDamageRange = (1, 20) }],
     mtCoins = (120, 150),
     mtExperienceValue = 500,
-    mtImageRow = 3,
+    mtImageRow = 80,
     mtIsUndead = True,
     mtMaxHealth = 3000,
     mtName = "Vhaegyst",
@@ -251,16 +292,28 @@ getMonsterType Vhaegyst = baseMonsterType
                 Shell 2 15 5,
                 SummonOne True 4 5 20 [Ghoul, Skeleton, Zombie],
                 SummonOne True 2 5 20 [Ghoul, Skeleton, Zombie]] }
-getMonsterType TownManRed = townsperson { mtImageRow = 10 }
-getMonsterType TownManYellow = townsperson { mtImageRow = 11 }
-getMonsterType TownManBlue = townsperson { mtImageRow = 12 }
-getMonsterType TownWomanGreen = townsperson { mtImageRow = 13 }
-getMonsterType TownManApron = townsperson { mtImageRow = 14 }
-getMonsterType TownWomanApron = townsperson { mtImageRow = 15 }
-getMonsterType TownWomanPink = townsperson { mtImageRow = 16 }
-getMonsterType TownWomanBlue = townsperson { mtImageRow = 17 }
-getMonsterType TownWomanRed = townsperson { mtImageRow = 18 }
-getMonsterType TownChildPurple = townsperson { mtImageRow = 19 }
+getMonsterType Rous = baseMonsterType { mtImageRow = 40 } -- TODO
+getMonsterType Unicorn = baseMonsterType { mtImageRow = 45 } -- TODO
+getMonsterType MonitorLizard = baseMonsterType { mtImageRow = 46 } -- TODO
+getMonsterType Salamander = baseMonsterType { mtImageRow = 47 } -- TODO
+getMonsterType IceLizard = baseMonsterType { mtImageRow = 48 } -- TODO
+getMonsterType Basilisk = baseMonsterType { mtImageRow = 49 } -- TODO
+getMonsterType Firefly = baseMonsterType { mtImageRow = 54 } -- TODO
+getMonsterType LightningBug = baseMonsterType { mtImageRow = 55 } -- TODO
+getMonsterType Roach = baseMonsterType { mtImageRow = 56 } -- TODO
+getMonsterType Spider = baseMonsterType { mtImageRow = 57 } -- TODO
+getMonsterType Mantis = baseMonsterType { mtImageRow = 59 } -- TODO
+getMonsterType Cobra = baseMonsterType { mtImageRow = 67 } -- TODO
+getMonsterType TownWomanApron = townsperson { mtImageRow = 0 }
+getMonsterType TownManApron = townsperson { mtImageRow = 1 }
+getMonsterType TownManRed = townsperson { mtImageRow = 2 }
+getMonsterType TownManYellow = townsperson { mtImageRow = 3 }
+getMonsterType TownManBlue = townsperson { mtImageRow = 4 }
+getMonsterType TownWomanGreen = townsperson { mtImageRow = 5 }
+getMonsterType TownWomanPink = townsperson { mtImageRow = 6 }
+getMonsterType TownWomanBlue = townsperson { mtImageRow = 7 }
+getMonsterType TownWomanRed = townsperson { mtImageRow = 8 }
+getMonsterType TownChildPurple = townsperson { mtImageRow = 9 }
 getMonsterType GuardArcher = baseMonsterType
   { mtAgility = 30,
     mtAttacks = [baseMonsterAttack
@@ -269,15 +322,15 @@ getMonsterType GuardArcher = baseMonsterType
         maDamageCount = 8,
         maDamageRange = (1, 5),
         maRange = Ranged 5 }],
-    mtImageRow = 27,
+    mtImageRow = 26,
     mtIsHuman = True,
     mtMaxHealth = 150,
     mtName = "Guard",
     mtResistances = (Armor =% 30) }
-getMonsterType RogueIllusion0 = rogueillusion { mtImageRow = 20 }
-getMonsterType RogueIllusion1 = rogueillusion { mtImageRow = 21 }
-getMonsterType RogueIllusion2 = rogueillusion { mtImageRow = 22 }
-getMonsterType RogueIllusion3 = rogueillusion { mtImageRow = 23 }
+getMonsterType RogueIllusion0 = rogueillusion { mtImageRow = 100 }
+getMonsterType RogueIllusion1 = rogueillusion { mtImageRow = 101 }
+getMonsterType RogueIllusion2 = rogueillusion { mtImageRow = 102 }
+getMonsterType RogueIllusion3 = rogueillusion { mtImageRow = 103 }
 getMonsterType _ = baseMonsterType -- FIXME
 
 -------------------------------------------------------------------------------
@@ -316,7 +369,6 @@ baseMonsterAttack = MonsterAttack
 townsperson :: MonsterType
 townsperson = baseMonsterType
   { mtExperienceValue = 100,
-    mtImageRow = 10,
     mtIsHuman = True,
     mtMaxHealth = 40,
     mtName = "Townsperson" }

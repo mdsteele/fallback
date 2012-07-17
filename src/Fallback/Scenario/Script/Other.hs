@@ -53,8 +53,8 @@ module Fallback.Scenario.Script.Other
    addDevice_, removeDevice, replaceDevice,
    -- ** Monsters
    addBasicEnemyMonster, setMonsterIsAlly, tryAddMonster, trySummonMonster,
-   degradeMonstersSummonedBy, unsummonMonster, unsummonDependentsOf,
-   tickSummonsByOneRound,
+   trySummonMonsterNear, degradeMonstersSummonedBy, unsummonMonster,
+   unsummonDependentsOf, tickSummonsByOneRound,
    -- ** Items
    grantAndEquipWeapon, grantItem,
 
@@ -627,15 +627,27 @@ tryAddMonster position monster = do
 -- 'True' on success, or 'False' if there was no open spot to place the
 -- summoned monster.
 trySummonMonster :: (FromAreaEffect f) =>
-                 Either CharacterNumber (Grid.Key Monster) -> MonsterTag
-              -> Int -> Bool -> Script f Bool
+                    Either CharacterNumber (Grid.Key Monster) -> MonsterTag
+                 -> Int -> Bool -> Script f Bool
 trySummonMonster summonerKey tag lifetime dieWhenGone = do
-  (isAlly, summonerPos) <- do
+  position <- do
     case summonerKey of
-      Left charNum -> (,) True <$> areaGet (arsCharacterPosition charNum)
+      Left charNum -> areaGet (arsCharacterPosition charNum)
+      Right monstKey -> monstHeadPos <$> demandMonsterEntry monstKey
+  trySummonMonsterNear position summonerKey tag lifetime dieWhenGone
+
+-- | Summon a monster allied to and somewhere near the given position.  Return
+-- 'True' on success, or 'False' if there was no open spot to place the
+-- summoned monster.
+trySummonMonsterNear :: (FromAreaEffect f) =>
+                        Position -> Either CharacterNumber (Grid.Key Monster)
+                     -> MonsterTag -> Int -> Bool -> Script f Bool
+trySummonMonsterNear position summonerKey tag lifetime dieWhenGone = do
+  isAlly <- do
+    case summonerKey of
+      Left _ -> return True
       Right monstKey -> do
-        entry <- demandMonsterEntry monstKey
-        return (monstIsAlly (Grid.geValue entry), monstHeadPos entry)
+        monstIsAlly . Grid.geValue <$> demandMonsterEntry monstKey
   let monster = makeMonster tag
   let size = monstRectSize monster
   mbSpot <- do
@@ -644,7 +656,7 @@ trySummonMonster summonerKey tag lifetime dieWhenGone = do
     unblocked <- areaGet $ \ars pos ->
       not $ any (blocked ars) $ prectPositions $ makeRect pos size
     directions <- randomPermutation allDirections
-    areaGet (find unblocked . arsAccessiblePositions directions summonerPos)
+    areaGet (find unblocked . arsAccessiblePositions directions position)
   flip (maybe $ return False) mbSpot $ \spot -> do
   faceDir <- getRandomElem [FaceLeft, FaceRight]
   addSummonDoodad $ makeRect spot size

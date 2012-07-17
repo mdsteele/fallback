@@ -45,7 +45,9 @@ module Fallback.State.Resources
    rsrcTerrainSprite, rsrcTerrainOverlaySprite, rsrcTileset)
 where
 
-import Data.Array (Array, Ix, bounds, listArray)
+import Control.Arrow ((***))
+import Control.Monad (forM)
+import Data.Array (Array, Ix, bounds, listArray, range)
 
 import Fallback.Constants (tileHeight, tileWidth)
 import Fallback.Data.Point (IRect, LocSpec, Rect(Rect))
@@ -136,17 +138,26 @@ newResources = do
 loadMonsterImages :: CreatureSize -> IO (Array Int CreatureImages)
 loadMonsterImages size =
   case size of
-    SizeSmall -> load "monsters/small.png" (1, 1)
+    SizeSmall -> loadSmalls
     SizeWide -> load "monsters/wide.png" (2, 1)
     SizeTall -> load "monsters/tall.png" (1, 2)
     SizeHuge -> load "monsters/huge.png" (2, 2)
   where
     load name (w, h) = do
       sheet <- loadSheetWithTileSize (w * tileWidth, h * tileHeight) name
-      let make row = CreatureImages (sheet ! (row, 0)) (sheet ! (row, 1))
-                                    (sheet ! (row, 2)) (sheet ! (row, 3))
-      let maxRow = fst $ snd $ bounds sheet
-      return $ listArray (0, maxRow) $ map make [0 .. maxRow]
+      return $ listToArray $ sheetToList sheet
+    loadSmalls = do
+      let numSheets = 11 :: Int
+      sheets <- forM [0 .. numSheets - 1] $ \num -> do
+        loadSheetWithTileSize (tileWidth, tileHeight) $
+          "monsters/small" ++ (if num < 10 then "0" else "") ++ show num ++
+          ".png"
+      let arr = listToArray $ concatMap sheetToList sheets
+      return arr
+    sheetToList sheet = map make (range $ (fst *** fst) $ bounds sheet) where
+      make row = CreatureImages (sheet ! (row, 0)) (sheet ! (row, 1))
+                                (sheet ! (row, 2)) (sheet ! (row, 3))
+    listToArray list = listArray (0, length list - 1) list
 
 -------------------------------------------------------------------------------
 

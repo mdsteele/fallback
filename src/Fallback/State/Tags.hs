@@ -314,12 +314,24 @@ data InertItemTag = IronKey | BrassKey
 
 data MonsterTag = Revenant | Revenantor | MasterRevenant
                 -- Animals:
-                | Wolf | DemonWolf | CaveBat
+                | AcidCrab | AuroraCrab | Basilisk | CaveBat | Cobra | FireBat
+                | Firefly | Hound | IceLizard | LightningBug | Mantis
+                | MonitorLizard | RabidBat | Roach | Rous | Salamander
+                | Spider | Unicorn | Wolf
+                -- Daemonic:
+                | DemonWolf | Fiend | Hoardling | Imp
+                -- Golems:
+                | CopperGolem | IronGolem | SteelGolem
+                -- Slimes and fungi:
+                | BurningWaste | CreepingGoo | Deathcap | NoxiousSludge
+                | SepticSlime | Shambler
                 -- Undead:
-                | Ghoul | Ghast | Invisighoul | Skeleton | Wight | Wraith
+                | Ghoul | Ghast | Invisighoul | Mummy | Phantom | Shade
+                | Shroud | Skeleton | SlimeZombie | Spectre | Wight | Wraith
                 | Zombie
                 -- Bosses:
-                | Vampire | Dactylid | Vhaegyst
+                | Dactylid | Kuriyos | Straeyeng | Uhnkanae | Vampire
+                | Vhaegyst
                 -- Townspeople:
                 | TownChildPurple | TownManApron | TownManBlue | TownManRed
                 | TownManYellow | TownWomanApron | TownWomanBlue
