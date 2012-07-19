@@ -23,13 +23,12 @@ where
 
 import Control.Monad (forM_, when)
 
-import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Globals
 import Fallback.Scenario.Triggers.Script
-import Fallback.State.Creature (Monster(..), MonsterTownAI(..), makeMonster)
+import Fallback.State.Creature (MonsterTownAI(..))
 import Fallback.State.Resources (SoundTag(SndLever))
 import Fallback.State.Tags
   (AreaTag(..), InertItemTag(BrassKey), ItemTag(InertItemTag), MonsterTag(..))
@@ -306,17 +305,8 @@ compileIcehold globals = do
 
     -- Boss fight:
     let bossChamberTopleft = Point 1 9
-    vhaegystDead <- newPersistentVar 459822 False
-    vhaegystKey <- newPersistentVar 109250 Grid.nilKey -- TODO make transient
-    onStartDaily 209103 $ do
-      whenP (varFalse vhaegystDead) $ do
-        vhaegystPos <- demandOneTerrainMark "Vhaegyst"
-        mbEntry <- tryAddMonster vhaegystPos (makeMonster Vhaegyst)
-          { monstDeadVar = Just vhaegystDead,
-            monstIsAlly = True, -- don't attack yet
-            monstTownAI = ImmobileAI }
-        maybe (fail "failed to place Vhaegyst")
-              (writeVar vhaegystKey . Grid.geKey) mbEntry
+    (vhaegystKey, vhaegystDead) <-
+      scriptedMonster 209103 "Vhaegyst" Vhaegyst True ImmobileAI
     once 729892 (walkIn "BossRoom") $ do
       -- TODO conversation and so forth
       setMonsterIsAlly False =<< readVar vhaegystKey

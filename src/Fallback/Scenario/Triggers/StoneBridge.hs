@@ -97,7 +97,7 @@ compileStoneBridge globals = compileArea StoneBridge Nothing $ do
   simpleMonster 480981 Wolf "WolfE2" MindlessAI
 
   -- Bridge gates:
-  gateTemporarilyOpen <- newTransientVar 019112 False
+  gateTemporarilyOpen <- newTransientVar 019112 $ return False
   gatePermenantlyOpen <- newPersistentVar 848929 False
   do let frontGateOpen = varTrue gateTemporarilyOpen `orP`
                          varTrue gatePermenantlyOpen

@@ -44,7 +44,7 @@ import Fallback.Resource (getGameDataDir, readFromFile, saveToFile)
 import Fallback.Scenario.Triggers
   (getAreaDevice, getAreaTriggers, scenarioTriggers)
 import Fallback.State.Area
-  (AreaCommonState(..), arsCurrentArea, devId, triggerId)
+  (AreaCommonState(..), arsCurrentArea, devId, triggerFired, triggerId)
 import Fallback.State.Camera (makeCameraWithCenter)
 import Fallback.State.Doodad (emptyDoodads)
 import Fallback.State.Minimap (newMinimapFromTerrain)
@@ -181,18 +181,16 @@ instance Read ReadTownState where
      triggersFiredIds) <- readPrec
     return $ ReadTownState $ \resources -> do
       acs <- unwrapAreaCommonState wrappedCommon resources partyPosition
-      let triggers = getAreaTriggers scenarioTriggers $ partyCurrentArea $
-                     acsParty acs
+      let setTrigger t =
+            t { triggerFired = Set.member (triggerId t) triggersFiredIds }
       return TownState
         { tsActiveCharacter = activeCharacter,
           tsCommon = acs,
           tsPartyPose = partyPose,
           tsPartyPosition = partyPosition,
           tsPhase = WalkingPhase,
-          tsTriggersFired =
-            filter (flip Set.member triggersFiredIds . triggerId) triggers,
-          tsTriggersReady =
-            filter (flip Set.notMember triggersFiredIds . triggerId) triggers }
+          tsTriggers = map setTrigger $ getAreaTriggers scenarioTriggers $
+                       partyCurrentArea $ acsParty acs }
 
 newtype ShowTownState = ShowTownState TownState
 
@@ -200,7 +198,7 @@ instance Show ShowTownState where
   showsPrec p (ShowTownState ts) = showsPrec p $
     (tsActiveCharacter ts, ShowAreaCommonState (tsCommon ts),
      tsPartyPose ts, tsPartyPosition ts,
-     Set.fromList $ map triggerId $ tsTriggersFired ts)
+     Set.fromList $ map triggerId $ filter triggerFired $ tsTriggers ts)
 
 -------------------------------------------------------------------------------
 

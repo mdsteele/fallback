@@ -45,8 +45,7 @@ data TownState = TownState
     tsPartyPose :: CreaturePose,
     tsPartyPosition :: Position,
     tsPhase :: TownPhase,
-    tsTriggersFired :: [Trigger TownState TownEffect],
-    tsTriggersReady :: [Trigger TownState TownEffect] }
+    tsTriggers :: [Trigger TownState TownEffect] }
 
 instance AreaState TownState where
   arsBoundaryRect ts = makeRect pZero $ terrainSize $ arsTerrain ts

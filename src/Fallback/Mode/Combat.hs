@@ -47,7 +47,6 @@ import Fallback.Scenario.Feats (featCastingCost, featEffect)
 import Fallback.Scenario.MonsterAI (defaultMonsterCombatAI)
 import Fallback.Scenario.Potions (runPotionAction)
 import Fallback.Scenario.Script
-import Fallback.Scenario.Triggers (getAreaTriggers, scenarioTriggers)
 import qualified Fallback.Sound as Sound (playSound)
 import Fallback.State.Action
 import Fallback.State.Area
@@ -455,8 +454,6 @@ newCombatMode resources modes initState = do
                 center = foldl' pAdd pZero $ map (fmap fromIntegral) positions
             in minimumKey (pDist center . fmap fromIntegral) positions
       let acs = csCommon cs
-      let townTriggers = getAreaTriggers scenarioTriggers $ arsCurrentArea cs
-      let wasFired = flip Set.member (csTownFiredTriggerIds cs) . triggerId
       let (monsters, extraMonsters) =
             Grid.merge (csMonstersNotInArena cs)
                        (Grid.entries $ acsMonsters acs)
@@ -478,8 +475,7 @@ newCombatMode resources modes initState = do
                 deltaFaceDir (partyPos `pSub` ccsPosition activeCcs) },
           tsPartyPosition = partyPos,
           tsPhase = WalkingPhase,
-          tsTriggersFired = filter wasFired townTriggers,
-          tsTriggersReady = filter (not . wasFired) townTriggers }
+          tsTriggers = csTownTriggers cs }
 
     changePhaseAndParty :: CombatState -> CombatPhase -> Party -> IO NextMode
     changePhaseAndParty cs phase' party' = do
@@ -526,25 +522,6 @@ doTick cs =
                                    True (ccsPose ccs) }
     camTarget = fromIntegral <$> (positionTopleft (csArenaTopleft cs) `pSub`
                                   combatCameraOffset)
-
-{-
-
-Waiting:
-  - update clock/doodads/anims
-  - increase time bars
-  - decay status
-  - if monster wants a turn, switch to execution
-  - if no more monsters, switch to town mode
-
-Command:
-  - update clock/doodads/anims
-
-Execution:
-  - update clock/doodads/anims
-  - execute stmts
-  - if no more stmts, switch to waiting (or command) (or town mode)
-
--}
 
 tickWaiting :: CombatState -> IO (CombatState, Maybe Interrupt)
 tickWaiting cs = do

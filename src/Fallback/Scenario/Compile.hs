@@ -180,7 +180,7 @@ compileArea tag mbTerraFn (CompileArea compile) = CompileScenario $ do
                                       casEntrances cas,
                          aspecMonsterScripts = casMonsterScripts cas,
                          aspecTerrain = fromMaybe (const $ show tag) mbTerraFn,
-                         aspecTriggers = casTriggers cas }
+                         aspecTriggers = reverse (casTriggers cas) }
   State.put css { cssAllVarSeeds = casAllVarSeeds cas,
                   cssAreas = Map.insert tag aspec (cssAreas css),
                   cssProgress = casProgress cas }
@@ -207,11 +207,13 @@ newPersistentVar vseed value = do
     State.put cas { casProgress = progressSetVar var value $ casProgress cas }
     return var
 
-newTransientVar :: (VarType a) => VarSeed -> a -> CompileArea (Var a)
-newTransientVar vseed value = do
+newTransientVar :: (VarType a) => VarSeed -> Script TownEffect a
+                -> CompileArea (Var a)
+newTransientVar vseed initialize = do
   (vseed', vseed'') <- splitVarSeed vseed
-  var <- newPersistentVar vseed' value
-  onStartDaily vseed'' $ writeVar var value
+  var <- newPersistentVar vseed' varDefaultValue
+  onStartDaily vseed'' $ do
+    writeVar var =<< initialize
   return var
 
 makeExit :: AreaTag -> [PRect] -> Position -> CompileArea ()
@@ -257,7 +259,8 @@ instance DefineTrigger CompileArea where
       cas <- State.get
       let trig = Trigger { triggerId = tid,
                            triggerPredicate = predicate,
-                           triggerAction = action }
+                           triggerAction = action,
+                           triggerFired = False }
       State.put cas { casTriggers = trig : casTriggers cas }
 
 onStartDaily :: VarSeed -> Script TownEffect () -> CompileArea ()
@@ -269,7 +272,7 @@ onStartOnce vseed = once vseed (Predicate $ const True)
 daily :: VarSeed -> Predicate -> Script TownEffect () -> CompileArea ()
 daily vseed predicate script = do
   (vseed', vseed'') <- splitVarSeed vseed
-  canFire <- newTransientVar vseed' True
+  canFire <- newTransientVar vseed' (return True)
   trigger vseed'' (varTrue canFire `andP` predicate) $ do
     writeVar canFire False >> script
 

@@ -105,7 +105,6 @@ enterPartyIntoArea resources origParty tag position = do
           cpFaceDir = deltaFaceDir (mapCenter `pSub` position) },
       tsPartyPosition = position,
       tsPhase = WalkingPhase,
-      tsTriggersFired = [],
-      tsTriggersReady = areaTriggers tag }
+      tsTriggers = areaTriggers tag }
 
 -------------------------------------------------------------------------------

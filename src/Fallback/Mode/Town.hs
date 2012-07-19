@@ -24,8 +24,9 @@ module Fallback.Mode.Town
 where
 
 import Control.Applicative ((<$), (<$>))
+import Control.Arrow (first)
 import Control.Monad (forM_, guard, when)
-import Data.List (delete, find, partition)
+import Data.List (delete, find)
 import Data.Maybe (fromMaybe, isNothing, isJust)
 import Data.IORef
 import qualified Data.Set as Set
@@ -450,8 +451,7 @@ newTownMode resources modes initState = do
           csMonstersNotInArena = otherMonsts,
           csPeriodicTimer = 0,
           csPhase = WaitingPhase,
-          csTownFiredTriggerIds =
-            Set.fromList $ map triggerId $ tsTriggersFired ts,
+          csTownTriggers = tsTriggers ts,
           csTriggers = [] } -- FIXME
 
     tryCheating :: TownState -> String -> IO Mode
@@ -528,26 +528,32 @@ updateState ts = do
 
 -- | Execute ready triggers one at a time until either no more are eligible to
 -- run or one of them interrupts.  If more than one trigger is eligible at
--- once, no guarantees are made about which one runs first, and the first
--- trigger's effects may well cause the second trigger to no longer be eligible
--- and therefore to not run.
+-- once, the first declared trigger runs first, and possibly its effects may
+-- well cause the second trigger to no longer be eligible and therefore to not
+-- run.
 --
 -- Only triggers in the \"ready\" set can run.  Once a ready trigger runs, it
 -- is placed into the \"fired\" set, and does not return to the ready set until
 -- its predicate evaluates to false at least once.
 executeTriggers :: TownState -> IO (TownState, Maybe Interrupt)
 executeTriggers ts = do
-  let isActive = flip triggerPredicate ts
-  let (stillFired, newlyReady) = partition isActive (tsTriggersFired ts)
-  let (inactive, possiblyActive) = break isActive (tsTriggersReady ts)
-  case possiblyActive of
-    (activeTrigger : remaining) ->
-      let ts' = ts { tsTriggersFired = activeTrigger : stillFired,
-                     tsTriggersReady = inactive ++ remaining ++ newlyReady }
-      in executeScript executeTriggers ts' (triggerAction activeTrigger)
-    [] -> return $ checkForAreaExit $
-          ts { tsTriggersFired = stillFired,
-               tsTriggersReady = inactive ++ newlyReady }
+  let resetTriggers = map $ \trigger ->
+        if triggerFired trigger && not (triggerPredicate trigger ts)
+        then trigger { triggerFired = False } else trigger
+  let testTriggers [] = ([], Nothing)
+      testTriggers (trigger : rest) =
+        case (triggerFired trigger, triggerPredicate trigger ts) of
+          (False, True) ->
+            let trigger' = trigger { triggerFired = True }
+            in (trigger' : resetTriggers rest, Just trigger')
+          (True, False) ->
+            first (trigger { triggerFired = False } :) $ testTriggers rest
+          (_, _) -> first (trigger :) $ testTriggers rest
+  let (triggers', mbTriggerToFire) = testTriggers (tsTriggers ts)
+  let ts' = ts { tsTriggers = triggers' }
+  case mbTriggerToFire of
+    Just trigger -> executeScript executeTriggers ts' (triggerAction trigger)
+    Nothing -> return $ checkForAreaExit ts'
 
 checkForAreaExit :: TownState -> (TownState, Maybe Interrupt)
 checkForAreaExit ts =

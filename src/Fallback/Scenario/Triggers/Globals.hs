@@ -22,7 +22,7 @@
 module Fallback.Scenario.Triggers.Globals
   (Globals(..), compileGlobals,
    newDoorDevice, addUnlockedDoors, uniqueDevice,
-   simpleMonster, simpleTownsperson,
+   simpleMonster, scriptedMonster, simpleTownsperson,
    signRadius)
 where
 
@@ -115,6 +115,8 @@ uniqueDevice vseed key radius sfn = do
 
 -------------------------------------------------------------------------------
 
+-- TODO:
+--   mortalEnemy vseed mark tag ai
 simpleMonster :: VarSeed -> MonsterTag -> String -> MonsterTownAI
               -> CompileArea ()
 simpleMonster vseed tag key ai = do
@@ -125,6 +127,34 @@ simpleMonster vseed tag key ai = do
     unless isDead $ do
       pos <- demandOneTerrainMark key
       addBasicEnemyMonster pos tag (Just isDeadVar) ai
+
+scriptedMonster :: VarSeed -> String -> MonsterTag -> Bool -> MonsterTownAI
+                -> CompileArea (Var (Grid.Key Monster), Var Bool)
+scriptedMonster vseed mark tag ally townAi = do
+  (vseed', vseed'') <- splitVarSeed vseed
+  isDeadVar <- newPersistentVar vseed' False
+  keyVar <- newTransientVar vseed'' $ do
+    isDead <- readVar isDeadVar
+    if isDead then return Grid.nilKey else do
+      pos <- demandOneTerrainMark mark
+      mbEntry <- tryAddMonster pos (makeMonster tag)
+        { monstDeadVar = Just isDeadVar,
+          monstIsAlly = ally,
+          monstTownAI = townAi }
+      maybe (fail $ "Failed to place " ++ show tag ++ " at " ++ show mark)
+            (return . Grid.geKey) mbEntry
+  return (keyVar, isDeadVar)
+
+-- TODO:
+--   immortalTownsperson vseed mark tag name ai sfn (but no isDeadVar)
+--     Use this for most cities/towns; define in terms of immortalTownspersonIf
+--   immortalTownspersonIf (as above, but takes predicate)
+--     Use this for Holmgare, and for e.g. taverngoers that are only around
+--     in certain cases.
+--   mortalTownsperson (same as above, but has and returns isDeadVar)
+--     Use this for NPCs that can actually die.
+--   scriptedTownsperson (returns isDeadVar and keyVar)
+--     Use this for NPCs that we need to control from triggers.
 
 simpleTownsperson :: VarSeed -> MonsterTag -> String -> MonsterTownAI
                   -> (Grid.Entry Monster -> Script TownEffect ())

@@ -44,9 +44,9 @@ data Progress = Progress
 
 emptyProgress :: Progress
 emptyProgress = Progress
-  { progBoolVars = SM.make False,
-    progIntVars = SM.make 0,
-    progKeyVars = SM.make Grid.nilKey }
+  { progBoolVars = SM.make varDefaultValue,
+    progIntVars = SM.make varDefaultValue,
+    progKeyVars = SM.make varDefaultValue }
 
 class HasProgress a where
   getProgress :: a -> Progress
@@ -103,20 +103,24 @@ newVar vseed = do
 
 -- | Represents a value that can be stored in a 'Progress'.
 class VarType a where
+  varDefaultValue :: a
   progressGetVar :: Var a -> Progress -> a
   progressSetVar :: Var a -> a -> Progress -> Progress
 
 instance VarType Bool where
+  varDefaultValue = False
   progressGetVar = getVar progBoolVars
   progressSetVar var value prog =
     prog { progBoolVars = SM.set var value (progBoolVars prog) }
 
 instance VarType Int where
+  varDefaultValue = 0
   progressGetVar = getVar progIntVars
   progressSetVar var value prog =
     prog { progIntVars = SM.set var value (progIntVars prog) }
 
 instance VarType (Grid.Key a) where
+  varDefaultValue = Grid.nilKey
   progressGetVar var = Grid.coerceKey . getVar progKeyVars (coerceVar var)
   progressSetVar var value prog =
     prog { progKeyVars = SM.set (coerceVar var) (Grid.coerceKey value)

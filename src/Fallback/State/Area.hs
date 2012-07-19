@@ -389,7 +389,8 @@ decayFields frames fields = fmap (Map.mapMaybe id) $ for fields $ \field -> do
 data Trigger s f = Trigger
   { triggerId :: TriggerId,
     triggerPredicate :: s -> Bool,
-    triggerAction :: Script f () }
+    triggerAction :: Script f (),
+    triggerFired :: Bool }
 
 -- | Effects that only impact the party and can be resolved in a
 -- non-mode-specific way.

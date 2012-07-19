@@ -164,6 +164,8 @@ setQuestStatus tag status = emitAreaEffect $ EffSetQuestStatus tag status
 -- | Start combat, with running away disallowed, and with the top left corner
 -- of the combat area being the given position.
 startBossFight :: (FromTownEffect f) => Position -> Script f ()
+-- TODO: Make this take a terrain rect key; pick a topleft that roughly centers
+--       the arena on the rect.
 startBossFight = emitTownEffect . EffStartCombat False
 
 startShopping :: (FromTownEffect f) => [Either Ingredient ItemTag]

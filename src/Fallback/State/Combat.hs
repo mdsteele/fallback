@@ -37,12 +37,13 @@ import Fallback.State.Creature (CreaturePose, Monster)
 import Fallback.State.Doodad (makeMessage)
 import Fallback.State.FOV (fieldOfView)
 import Fallback.State.Party
-import Fallback.State.Progress (HasProgress, TriggerId, getProgress)
+import Fallback.State.Progress (HasProgress, getProgress)
 import Fallback.State.Simple
   (ActionPoints, APModifier, CastingCost, CharacterNumber, CostModifier,
    PowerModifier)
 import Fallback.State.Tags (FeatTag, ItemTag)
 import Fallback.State.Terrain (terrainSize)
+import Fallback.State.Town (TownState)
 
 -------------------------------------------------------------------------------
 -- CombatState datatype:
@@ -67,7 +68,7 @@ data CombatState = CombatState
     csMonstersNotInArena :: Grid.Grid Monster,
     csPeriodicTimer :: Int,
     csPhase :: CombatPhase,
-    csTownFiredTriggerIds :: Set.Set TriggerId,
+    csTownTriggers :: [Trigger TownState TownEffect],
     csTriggers :: [Trigger CombatState CombatEffect] }
 
 instance AreaState CombatState where
