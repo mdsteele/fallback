@@ -63,6 +63,7 @@ import Fallback.State.Simple
 import Fallback.State.Tags (AreaTag, QuestTag, RegionTag)
 import Fallback.State.Terrain (terrainMap, tmapLookupMark, tmapLookupRect)
 import Fallback.State.Town (TownState)
+import Fallback.State.Trigger (Trigger, makeTrigger)
 
 -------------------------------------------------------------------------------
 -- Reading the scenario:
@@ -257,11 +258,8 @@ instance DefineTrigger CompileArea where
     tid <- newTriggerId vseed
     CompileArea $ do
       cas <- State.get
-      let trig = Trigger { triggerId = tid,
-                           triggerPredicate = predicate,
-                           triggerAction = action,
-                           triggerFired = False }
-      State.put cas { casTriggers = trig : casTriggers cas }
+      State.put cas { casTriggers = makeTrigger tid predicate action :
+                                    casTriggers cas }
 
 onStartDaily :: VarSeed -> Script TownEffect () -> CompileArea ()
 onStartDaily vseed = trigger vseed (Predicate $ const True)

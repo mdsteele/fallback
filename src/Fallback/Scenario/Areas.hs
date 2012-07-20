@@ -30,7 +30,7 @@ import Fallback.Data.Clock (initClock)
 import qualified Fallback.Data.Grid as Grid (empty)
 import Fallback.Data.Point (IPoint, Point(Point), Position, half, pSub)
 import Fallback.Scenario.Triggers
-import Fallback.State.Area (AreaCommonState(..), TownEffect, Trigger)
+import Fallback.State.Area (AreaCommonState(..), TownEffect)
 import Fallback.State.Camera (makeCameraWithCenter)
 import Fallback.State.Creature (CreatureAnim(NoAnim), CreaturePose(..))
 import Fallback.State.Doodad (emptyDoodads)
@@ -41,6 +41,7 @@ import Fallback.State.Simple (deltaFaceDir)
 import Fallback.State.Tags (AreaTag(..))
 import Fallback.State.Terrain
 import Fallback.State.Town
+import Fallback.State.Trigger (Trigger, makeUnfiredTriggers)
 
 -------------------------------------------------------------------------------
 
@@ -105,6 +106,6 @@ enterPartyIntoArea resources origParty tag position = do
           cpFaceDir = deltaFaceDir (mapCenter `pSub` position) },
       tsPartyPosition = position,
       tsPhase = WalkingPhase,
-      tsTriggers = areaTriggers tag }
+      tsTriggers = makeUnfiredTriggers (areaTriggers tag) }
 
 -------------------------------------------------------------------------------

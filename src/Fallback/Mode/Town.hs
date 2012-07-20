@@ -24,7 +24,6 @@ module Fallback.Mode.Town
 where
 
 import Control.Applicative ((<$), (<$>))
-import Control.Arrow (first)
 import Control.Monad (forM_, guard, when)
 import Data.List (delete, find)
 import Data.Maybe (fromMaybe, isNothing, isJust)
@@ -76,6 +75,7 @@ import Fallback.State.Simple
   (CastingCost, Ingredient, ItemSlot, deltaFaceDir, ingredientCost)
 import Fallback.State.Tags (AreaTag, ItemTag(PotionItemTag), allItemTags)
 import Fallback.State.Town
+import Fallback.State.Trigger (fireTrigger, makeUnfiredTriggers)
 import Fallback.Utility (flip3)
 import Fallback.View (fromAction, viewHandler, viewPaint)
 import Fallback.View.Abilities (AbilitiesAction(..))
@@ -452,7 +452,7 @@ newTownMode resources modes initState = do
           csPeriodicTimer = 0,
           csPhase = WaitingPhase,
           csTownTriggers = tsTriggers ts,
-          csTriggers = [] } -- FIXME
+          csTriggers = makeUnfiredTriggers [] } -- FIXME
 
     tryCheating :: TownState -> String -> IO Mode
     tryCheating ts string = do
@@ -537,22 +537,10 @@ updateState ts = do
 -- its predicate evaluates to false at least once.
 executeTriggers :: TownState -> IO (TownState, Maybe Interrupt)
 executeTriggers ts = do
-  let resetTriggers = map $ \trigger ->
-        if triggerFired trigger && not (triggerPredicate trigger ts)
-        then trigger { triggerFired = False } else trigger
-  let testTriggers [] = ([], Nothing)
-      testTriggers (trigger : rest) =
-        case (triggerFired trigger, triggerPredicate trigger ts) of
-          (False, True) ->
-            let trigger' = trigger { triggerFired = True }
-            in (trigger' : resetTriggers rest, Just trigger')
-          (True, False) ->
-            first (trigger { triggerFired = False } :) $ testTriggers rest
-          (_, _) -> first (trigger :) $ testTriggers rest
-  let (triggers', mbTriggerToFire) = testTriggers (tsTriggers ts)
+  let (triggers', mbScript) = fireTrigger ts (tsTriggers ts)
   let ts' = ts { tsTriggers = triggers' }
-  case mbTriggerToFire of
-    Just trigger -> executeScript executeTriggers ts' (triggerAction trigger)
+  case mbScript of
+    Just script -> executeScript executeTriggers ts' script
     Nothing -> return $ checkForAreaExit ts'
 
 checkForAreaExit :: TownState -> (TownState, Maybe Interrupt)

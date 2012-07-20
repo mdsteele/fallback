@@ -47,7 +47,7 @@ import Fallback.State.FOV (fieldOfView)
 import Fallback.State.Minimap (updateMinimapFromTerrain)
 import Fallback.State.Party
 import Fallback.State.Progress
-  (DeviceId, HasProgress, TriggerId, Var, VarType, progressSetVar)
+  (DeviceId, HasProgress, Var, VarType, progressSetVar)
 import Fallback.State.Resources (MusicTag, Resources, musicPath)
 import Fallback.State.Simple
 import Fallback.State.Tags (AreaTag, ItemTag, QuestTag)
@@ -385,12 +385,6 @@ decayFields frames fields = fmap (Map.mapMaybe id) $ for fields $ \field -> do
     Webbing _ -> return (Just field)
 
 -------------------------------------------------------------------------------
-
-data Trigger s f = Trigger
-  { triggerId :: TriggerId,
-    triggerPredicate :: s -> Bool,
-    triggerAction :: Script f (),
-    triggerFired :: Bool }
 
 -- | Effects that only impact the party and can be resolved in a
 -- non-mode-specific way.

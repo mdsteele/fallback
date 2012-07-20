@@ -35,6 +35,7 @@ import Fallback.State.Progress (HasProgress, getProgress)
 import Fallback.State.Simple
 import Fallback.State.Tags (AreaTag, ItemTag)
 import Fallback.State.Terrain (positionCenter, terrainSize)
+import Fallback.State.Trigger (Triggers)
 
 -------------------------------------------------------------------------------
 -- TownState datatype:
@@ -45,7 +46,7 @@ data TownState = TownState
     tsPartyPose :: CreaturePose,
     tsPartyPosition :: Position,
     tsPhase :: TownPhase,
-    tsTriggers :: [Trigger TownState TownEffect] }
+    tsTriggers :: Triggers TownState TownEffect }
 
 instance AreaState TownState where
   arsBoundaryRect ts = makeRect pZero $ terrainSize $ arsTerrain ts

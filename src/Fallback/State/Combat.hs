@@ -44,6 +44,7 @@ import Fallback.State.Simple
 import Fallback.State.Tags (FeatTag, ItemTag)
 import Fallback.State.Terrain (terrainSize)
 import Fallback.State.Town (TownState)
+import Fallback.State.Trigger (Triggers)
 
 -------------------------------------------------------------------------------
 -- CombatState datatype:
@@ -68,8 +69,8 @@ data CombatState = CombatState
     csMonstersNotInArena :: Grid.Grid Monster,
     csPeriodicTimer :: Int,
     csPhase :: CombatPhase,
-    csTownTriggers :: [Trigger TownState TownEffect],
-    csTriggers :: [Trigger CombatState CombatEffect] }
+    csTownTriggers :: Triggers TownState TownEffect,
+    csTriggers :: Triggers CombatState CombatEffect }
 
 instance AreaState CombatState where
   arsBoundaryRect cs = makeRect (csArenaTopleft cs) combatArenaSize

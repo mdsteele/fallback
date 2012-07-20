@@ -43,8 +43,7 @@ import Fallback.Draw (Sprite, loadSprite)
 import Fallback.Resource (getGameDataDir, readFromFile, saveToFile)
 import Fallback.Scenario.Triggers
   (getAreaDevice, getAreaTriggers, scenarioTriggers)
-import Fallback.State.Area
-  (AreaCommonState(..), arsCurrentArea, devId, triggerFired, triggerId)
+import Fallback.State.Area (AreaCommonState(..), arsCurrentArea, devId)
 import Fallback.State.Camera (makeCameraWithCenter)
 import Fallback.State.Doodad (emptyDoodads)
 import Fallback.State.Minimap (newMinimapFromTerrain)
@@ -56,6 +55,7 @@ import Fallback.State.Terrain
   (Terrain(..), loadTerrainMap, positionCenter, tmapName, ttId)
 import Fallback.State.Tileset (tilesetLookup)
 import Fallback.State.Town (TownPhase(WalkingPhase), TownState(..))
+import Fallback.State.Trigger (distillTriggers, reconstituteTriggers)
 import Fallback.Utility (sortKey)
 
 -------------------------------------------------------------------------------
@@ -181,15 +181,14 @@ instance Read ReadTownState where
      triggersFiredIds) <- readPrec
     return $ ReadTownState $ \resources -> do
       acs <- unwrapAreaCommonState wrappedCommon resources partyPosition
-      let setTrigger t =
-            t { triggerFired = Set.member (triggerId t) triggersFiredIds }
       return TownState
         { tsActiveCharacter = activeCharacter,
           tsCommon = acs,
           tsPartyPose = partyPose,
           tsPartyPosition = partyPosition,
           tsPhase = WalkingPhase,
-          tsTriggers = map setTrigger $ getAreaTriggers scenarioTriggers $
+          tsTriggers = reconstituteTriggers triggersFiredIds $
+                       getAreaTriggers scenarioTriggers $
                        partyCurrentArea $ acsParty acs }
 
 newtype ShowTownState = ShowTownState TownState
@@ -197,8 +196,7 @@ newtype ShowTownState = ShowTownState TownState
 instance Show ShowTownState where
   showsPrec p (ShowTownState ts) = showsPrec p $
     (tsActiveCharacter ts, ShowAreaCommonState (tsCommon ts),
-     tsPartyPose ts, tsPartyPosition ts,
-     Set.fromList $ map triggerId $ filter triggerFired $ tsTriggers ts)
+     tsPartyPose ts, tsPartyPosition ts, distillTriggers (tsTriggers ts))
 
 -------------------------------------------------------------------------------
 
