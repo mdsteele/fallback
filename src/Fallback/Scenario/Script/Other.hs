@@ -56,7 +56,7 @@ module Fallback.Scenario.Script.Other
    trySummonMonsterNear, degradeMonstersSummonedBy, unsummonMonster,
    unsummonDependentsOf, tickSummonsByOneRound,
    -- ** Items
-   grantAndEquipWeapon, grantItem,
+   grantAndEquipWeapon, grantItem, removeItem,
 
    -- * Targeting
    aoeTarget, beamTarget, splashTarget, wallTarget)
@@ -146,9 +146,9 @@ walkMonster frames gkey pos' = do
       alterMonsterPose gkey (\p -> p { cpAnim = anim', cpFaceDir = dir })
       wait frames
 
-setMonsterTownAI :: (FromAreaEffect f) => Grid.Key Monster -> MonsterTownAI
+setMonsterTownAI :: (FromAreaEffect f) => MonsterTownAI -> Grid.Key Monster
                  -> Script f ()
-setMonsterTownAI key townAI = withMonsterEntry key $ \entry -> do
+setMonsterTownAI townAI key = withMonsterEntry key $ \entry -> do
   emitAreaEffect (EffReplaceMonster key $
                   Just (Grid.geValue entry) { monstTownAI = townAI })
 
@@ -562,6 +562,9 @@ grantExperience xp = do
 
 grantItem :: (FromAreaEffect f) => ItemTag -> Script f ()
 grantItem = emitAreaEffect . EffGrantItem
+
+removeItem :: (FromAreaEffect f) => ItemSlot -> Script f ()
+removeItem = emitAreaEffect . EffRemoveItem
 
 removeDevice :: (FromAreaEffect f) => Grid.Key Device -> Script f ()
 removeDevice key = emitAreaEffect $ EffReplaceDevice key Nothing

@@ -411,6 +411,8 @@ data PartyEffect :: * -> * where
   EffPurgeItem :: ItemTag -> PartyEffect ()
   -- Generate a random value in the specified range.
   EffRandom :: (Random a) => a -> a -> PartyEffect a
+  -- Remove the item in the given slot (if any) from the party.
+  EffRemoveItem :: ItemSlot -> PartyEffect ()
   -- Set whether the specified area is cleared.
   EffSetAreaCleared :: AreaTag -> Bool -> PartyEffect ()
   -- Set the status for a given quest.
@@ -497,6 +499,7 @@ executePartyEffect eff party =
     EffRandom lo hi -> do
       value <- randomRIO (lo, hi)
       return (value, party)
+    EffRemoveItem slot -> return ((), partyRemoveItem slot party)
     EffSetAreaCleared tag clear -> do
       let cleared' = (if clear then Set.insert tag else Set.delete tag)
                      (partyClearedAreas party)

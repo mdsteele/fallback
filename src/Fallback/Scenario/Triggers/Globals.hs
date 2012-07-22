@@ -22,7 +22,8 @@
 module Fallback.Scenario.Triggers.Globals
   (Globals(..), compileGlobals,
    newDoorDevice, addUnlockedDoors, uniqueDevice,
-   simpleMonster, scriptedMonster, simpleTownsperson,
+   simpleMonster, simpleEnemy, scriptedMonster,
+   simpleTownsperson, scriptedTownsperson,
    signRadius)
 where
 
@@ -115,35 +116,28 @@ uniqueDevice vseed key radius sfn = do
 
 -------------------------------------------------------------------------------
 
--- TODO:
---   mortalEnemy vseed mark tag ai
+-- TODO: rename to simpleEnemy_ vseed mark tag ai
 simpleMonster :: VarSeed -> MonsterTag -> String -> MonsterTownAI
               -> CompileArea ()
-simpleMonster vseed tag key ai = do
+simpleMonster vseed tag mark ai = void $ simpleEnemy vseed mark tag ai
+
+simpleEnemy :: VarSeed -> String -> MonsterTag -> MonsterTownAI
+            -> CompileArea (Var Bool)
+simpleEnemy vseed mark tag ai = do
   (vseed', vseed'') <- splitVarSeed vseed
   isDeadVar <- newPersistentVar vseed' False
   onStartDaily vseed'' $ do
     isDead <- readVar isDeadVar
     unless isDead $ do
-      pos <- demandOneTerrainMark key
+      pos <- demandOneTerrainMark mark
       addBasicEnemyMonster pos tag (Just isDeadVar) ai
+  return isDeadVar
 
 scriptedMonster :: VarSeed -> String -> MonsterTag -> Bool -> MonsterTownAI
                 -> CompileArea (Var (Grid.Key Monster), Var Bool)
 scriptedMonster vseed mark tag ally townAi = do
-  (vseed', vseed'') <- splitVarSeed vseed
-  isDeadVar <- newPersistentVar vseed' False
-  keyVar <- newTransientVar vseed'' $ do
-    isDead <- readVar isDeadVar
-    if isDead then return Grid.nilKey else do
-      pos <- demandOneTerrainMark mark
-      mbEntry <- tryAddMonster pos (makeMonster tag)
-        { monstDeadVar = Just isDeadVar,
-          monstIsAlly = ally,
-          monstTownAI = townAi }
-      maybe (fail $ "Failed to place " ++ show tag ++ " at " ++ show mark)
-            (return . Grid.geKey) mbEntry
-  return (keyVar, isDeadVar)
+  scriptedMonster' vseed mark (makeMonster tag)
+    { monstIsAlly = ally, monstTownAI = townAi }
 
 -- TODO:
 --   immortalTownsperson vseed mark tag name ai sfn (but no isDeadVar)
@@ -168,6 +162,29 @@ simpleTownsperson vseed tag key ai sfn = do
       { monstIsAlly = True,
         monstScript = Just scriptId,
         monstTownAI = ai }
+
+scriptedTownsperson :: VarSeed -> String -> MonsterTag -> MonsterTownAI
+                    -> (Grid.Entry Monster -> Script TownEffect ())
+                    -> CompileArea (Var (Grid.Key Monster), Var Bool)
+scriptedTownsperson vseed mark tag townAi scriptFn = do
+  (vseed', vseed'') <- splitVarSeed vseed
+  scriptId <- newMonsterScript vseed' scriptFn
+  scriptedMonster' vseed'' mark (makeMonster tag)
+    { monstIsAlly = True, monstScript = Just scriptId, monstTownAI = townAi }
+
+scriptedMonster' :: VarSeed -> String -> Monster
+                 -> CompileArea (Var (Grid.Key Monster), Var Bool)
+scriptedMonster' vseed mark monst = do
+  (vseed', vseed'') <- splitVarSeed vseed
+  isDeadVar <- newPersistentVar vseed' False
+  keyVar <- newTransientVar vseed'' $ do
+    isDead <- readVar isDeadVar
+    if isDead then return Grid.nilKey else do
+      pos <- demandOneTerrainMark mark
+      mbEntry <- tryAddMonster pos monst { monstDeadVar = Just isDeadVar }
+      maybe (fail $ "Failed to place " ++ show (monstTag monst) ++
+             " at " ++ show mark) (return . Grid.geKey) mbEntry
+  return (keyVar, isDeadVar)
 
 -------------------------------------------------------------------------------
 

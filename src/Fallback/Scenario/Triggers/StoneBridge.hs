@@ -21,13 +21,20 @@ module Fallback.Scenario.Triggers.StoneBridge
   (compileStoneBridge)
 where
 
+import Data.Char (toLower)
+
+import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Globals
 import Fallback.Scenario.Triggers.Script
-import Fallback.State.Creature (MonsterTownAI(GuardAI, MindlessAI))
-import Fallback.State.Tags (AreaTag(..), MonsterTag(..))
+import Fallback.State.Area (arsParty)
+import Fallback.State.Creature (MonsterTownAI(..))
+import Fallback.State.Item (itemName)
+import Fallback.State.Party (partyFindItem)
+import Fallback.State.Resources (SoundTag(SndLever))
+import Fallback.State.Tags (AreaTag(..), MonsterTag(..), isFoodItem)
 import Fallback.State.Tileset (TileTag(StoneGateClosedTile, StoneGateOpenTile))
 
 -------------------------------------------------------------------------------
@@ -46,23 +53,6 @@ compileStoneBridge globals = compileArea StoneBridge Nothing $ do
       \      {i}Travellers arriving from outside Svengaard{_}\n\
       \           {i}must report to the customs office{_}\n\
       \              {i}before crossing into Tragorda.{_}"
-
-  -- North part of forest:
-  simpleMonster 749087 Ghast "GhastA" MindlessAI
-  simpleMonster 420424 Skeleton "SkelA" MindlessAI
-  simpleMonster 108402 Zombie "ZomA1" MindlessAI
-  simpleMonster 482902 Zombie "ZomA2" MindlessAI
-  simpleMonster 779872 Zombie "ZomA3" MindlessAI
-  simpleMonster 398795 Zombie "ZomA4" MindlessAI
-
-  -- South part of forest:
-  simpleMonster 998491 Ghoul "GhoulB1" MindlessAI
-  simpleMonster 479829 Ghoul "GhoulB2" MindlessAI
-  simpleMonster 498721 Ghoul "GhoulB3" MindlessAI
-  simpleMonster 874987 Skeleton "SkelB" MindlessAI
-  simpleMonster 749209 Wraith "WraithB" MindlessAI
-  simpleMonster 740021 Zombie "ZomB1" MindlessAI
-  simpleMonster 799211 Zombie "ZomB2" MindlessAI
 
   -- Customs office:
   uniqueDevice 800253 "CustomsSign" signRadius $ \_ _ -> do
@@ -88,13 +78,167 @@ compileStoneBridge globals = compileArea StoneBridge Nothing $ do
   simpleMonster 477421 Skeleton "SkelC2" MindlessAI
   simpleMonster 819889 Wraith "WraithC" MindlessAI
 
-  -- West forest:
+  -- Western edge:
   simpleMonster 108042 Wolf "WolfD1" MindlessAI
   simpleMonster 580912 Wolf "WolfD2" MindlessAI
 
   -- North shore:
   simpleMonster 740281 Wolf "WolfE1" MindlessAI
   simpleMonster 480981 Wolf "WolfE2" MindlessAI
+
+  -- On bridge:
+  daemonWolfDead <- simpleEnemy 283948 "DaemonWolf" DaemonWolf MindlessAI
+
+  -- North part of forest:
+  simpleMonster 749087 Ghast "GhastA" MindlessAI
+  simpleMonster 420424 Skeleton "SkelA" MindlessAI
+  simpleMonster 108402 Zombie "ZomA1" MindlessAI
+  simpleMonster 482902 Zombie "ZomA2" MindlessAI
+  simpleMonster 779872 Zombie "ZomA3" MindlessAI
+  simpleMonster 398795 Zombie "ZomA4" MindlessAI
+
+  -- South part of forest:
+  simpleMonster 998491 Ghoul "GhoulB1" MindlessAI
+  simpleMonster 479829 Ghoul "GhoulB2" MindlessAI
+  simpleMonster 498721 Ghoul "GhoulB3" MindlessAI
+  simpleMonster 874987 Skeleton "SkelB" MindlessAI
+  simpleMonster 749209 Wraith "WraithB" MindlessAI
+  simpleMonster 740021 Zombie "ZomB1" MindlessAI
+  simpleMonster 799211 Zombie "ZomB2" MindlessAI
+
+  -- Corner of forest:
+  mutantWolfBefriended <- newPersistentVar 789294 False
+  mutantWolfFollowing <- newTransientVar 498104 $ return False
+  (mutantWolfKey, mutantWolfDead) <-
+    scriptedTownsperson 233894 "MutantWolf" MutantWolf (GuardAI "MutantWolf") $
+    \ge -> conversation $ do
+      let
+        initialChoices = do
+          convChoice backAway "Back away.  Slowly."
+          convChoice attackIt "Attack."
+          convChoice giveItFood "Give it something to eat."
+          convChoice tryToTalk "Try to communicate with it."
+        giveItFood = convNode $ do
+          mbFood <- areaGet (partyFindItem isFoodItem . arsParty)
+          case mbFood of
+            Nothing -> do
+              convText "It occurs to you to offer this creature some food. \
+                \ Unfortunately, you don't have any right now."
+            Just (itemTag, itemSlot) -> do
+              removeItem itemSlot
+              convReset
+              let foodName = map toLower (itemName itemTag)
+              convText $ "Without taking your eyes off the beast, you feel\
+                \ around, and then cautiously you take out some " ++
+                foodName ++ " from your pack.  As soon as it sees the food in\
+                \ your hands, the wolf-thing stops growling, and looks\
+                \ straight at the food.  Gently, you underhand toss it towards\
+                \ the creature.  It keeps its head completely still as the\
+                \ food arcs towards it, following it only with its eyes, until\
+                \ at the last moment it darts its head out with incredicble\
+                \ speed, snatches the " ++ foodName ++ " out of the air in its\
+                \ teeth, and proceeds to devour the morsel ravenously."
+              writeVar mutantWolfBefriended True
+              setMonsterTownAI ChaseAI (Grid.geKey ge)
+              daemonDead <- readVar daemonWolfDead
+              if daemonDead then do
+                convText "\n\n\
+                  \After it finishes, it stands still for a moment, and then\
+                  \ sniffs the air.  Apparently satisfied with whatever it\
+                  \ noticed, it gives a howl of satisfaction, then lies down\
+                  \ and promptly goes to sleep.\n\n\
+                  \It's not entirely clear where this bizarre mutant came\
+                  \ from, but you seem to have pacified it."
+              else do
+                convText "\n\n\
+                  \After it finishes, it shakes off the snowflakes from its\
+                  \ fur, lumbers over to you, and proceeds licking you\
+                  \ affectionately.  You pull away, as the spittle from its\
+                  \ bright green tongue feels like it's melting your flesh\
+                  \ slightly.  Unoffended, the wolf-thing looks up at you, its\
+                  \ tail wagging.\n\n\
+                  \It's not entirely clear where this bizarre mutant with\
+                  \ acidic spit came from, exactly; but it appears that you've\
+                  \ made a new friend."
+                writeVar mutantWolfFollowing True
+        tryToTalk = convNode $ do
+          convReset
+          convText "You crouch down slightly, so your face is level with the\
+            \ wolf's.  The beast is so large that you don't have to bend down\
+            \ very far, which makes you reconsider whether you really want to\
+            \ be sitting this close.\n\n\
+            \It stops growling for a moment, and looks at you intently.  It's\
+            \ as if it is waiting for you to say something."
+          convChoice backAway "Back away.  Slowly."
+          convChoice tryBarking "\"Grrr.  Bow-wow!  Ruff!\""
+          convChoice trySpeakingEnglish "\"Are you hungry?\""
+          convChoice trySpeakingEnglish "\"Can you understand us?\""
+        tryBarking = convNode $ do
+          convReset
+          convText "You do your best impression of some wolf-sounds, which\
+            \ earns you a few seconds of blank stare from the wolf.  Then it\
+            \ resumes growling at you.  Apparently, you don't know how to\
+            \ speak Wolfish.  You shouldn't feel bad, though--it's really a\
+            \ very tricky language."
+          initialChoices
+        trySpeakingEnglish = convNode $ do
+          convReset
+          convText "Oddly enough, like most wild animals, the wolf doesn't\
+            \ seem to understand a word you're saying.  It resumes growling at\
+            \ you.\n\n\
+            \It may be intelligent, but evidentally it doesn't understand your\
+            \ language.  Maybe you can find some other way to make it like\
+            \ you."
+          initialChoices
+        attackIt = do
+          narrate "Better to get this thing before it gets you.  You draw your\
+            \ weapons, and rush towards the beast.  It snarls, and then leaps\
+            \ at you."
+          setMonsterIsAlly False (Grid.geKey ge)
+        backAway = do
+          narrate "You back away from the mutant wolf-thing, never taking your\
+            \ eyes off it.  It continues to growl and watch you until you get\
+            \ sufficiently far away, and then it lowers its head."
+      daemonDead <- readVar daemonWolfDead
+      friend <- readVar mutantWolfBefriended
+      following <- readVar mutantWolfFollowing
+      if daemonDead && friend then do
+        narrate "The mutated wolf is lying asleep next to its tree.  As you\
+          \ approach, it opens one eye and sleepily lifts its head to look at\
+          \ you.  After a moment, though, it puts its head back onto its paws\
+          \ and goes back to sleep."
+      else if following then do
+        narrate "The mutated wolf looks up at you, its tail wagging.  It\
+          \ continues to trot along at your side, following you around this\
+          \ area.  It looks just like a little puppy--at least, it would, if\
+          \ it weren't for the six legs, the absurdly large muscles, the acid\
+          \ dripping from its mouth, or the fact that it's about five feet\
+          \ tall."
+      else if friend then do
+        narrate "The mutated wolf perks its head up as you approach it.  Its\
+          \ tail wagging, it bounds up over the snow towards you, then looks\
+          \ up at you, ready to follow.  Obviously, it still remembers that\
+          \ you fed it earlier, and you have earned its loyalty."
+        setMonsterTownAI ChaseAI (Grid.geKey ge)
+        writeVar mutantWolfFollowing True
+      else convNode $ do
+        convText "You approach the mutant wolf-thing, slowly.  It looks\
+          \ intelligent.  TODO"
+        initialChoices
+
+  once 984358 (walkIn "WolfDen" `andP` varFalse mutantWolfDead) $ do
+    narrate "Walking through this small, undead-infested forest, you find\
+      \ yourselves in a clearing between the gnarled trees and the sheer\
+      \ mountain face.  Oddly, there's no sign of the undead back here;\
+      \ instead, bits of fur and old droppings are scattered around the snow. \
+      \ It smells like animals back here.  {i}Living{_} animals.\n\n\
+      \That's about the point a which you notice the very-much-living animal\
+      \ standing by a tree at the back of the clearing.  It looks like some\
+      \ kind of huge mutated wolf, with six legs, powerful muscles, and huge\
+      \ teeth.  It must be fierce enough to be able keep the undead out of\
+      \ here; this must be its den.  It growls at you, but does not attack\
+      \ yet.\n\n\
+      \If you intend to approach it, you had better do it carefully."
 
   -- Bridge gates:
   gateTemporarilyOpen <- newTransientVar 019112 $ return False
@@ -115,14 +259,14 @@ compileStoneBridge globals = compileArea StoneBridge Nothing $ do
         simpleTownsperson vseed GuardArcher key (GuardAI key) sfn
 
   archerGuard 129578 "Archer1" $ \_ -> conversation $ do
-    convText "\"Ho, there, travellers.  The bridge is closed.\"  FIXME"
+    convText "\"Ho, there, travellers.  The bridge is closed.\"  FIXME" -- TODO
     let
       initialChoices = convNode $ do
         convChoice done "\"I guess we'll be going, then.\"  (Leave.)"
         convChoice whyClosed "\"Why is the bridge closed?\""
         convChoice whereGoes "\"Where does the bridge lead to?\""
       whereGoes = convNode $ do
-        convText "\"It leads to Tragorda.\"  FIXME"
+        convText "\"It leads to Tragorda.\"  FIXME" -- TODO
       whyClosed = convNode $ do
         convText "\"There's a...a beast on the bridge,\" the guard stammers. \
           \ \"Some kind of wolf-thing.\"  Huh.  that doesn't sound so bad.\n\
@@ -159,7 +303,9 @@ compileStoneBridge globals = compileArea StoneBridge Nothing $ do
           \ open the gate on this side, but I'm going to close it again once\
           \ you're on the bridge.  We can't let that thing out now that we've\
           \ got it caught.\""
-        convChoice done "\"Just leave it to us.\""
+        convChoice openGate "\"Just leave it to us.\""
+      openGate = do
+        playSound SndLever
         writeVar gateTemporarilyOpen True
       done = return ()
     initialChoices
@@ -167,6 +313,33 @@ compileStoneBridge globals = compileArea StoneBridge Nothing $ do
   archerGuard 712197 "Archer2" $ \_ -> do return () -- TODO
   archerGuard 510619 "Archer3" $ \_ -> do return () -- TODO
 
-  simpleMonster 283948 DemonWolf "DemonWolf" MindlessAI -- FIXME
+  once 890472 (varTrue gateTemporarilyOpen `andP` walkIn "Bridge" `andP`
+               varFalse daemonWolfDead) $ do
+    playSound SndLever
+    writeVar gateTemporarilyOpen False
+    conversation $ convNode $ do
+      convText "The gates close behind you.  One of the soldiers leans out the\
+        \ window and shouts \"Good luck!\" before retreating back into the\
+        \ guardhouse.\n\n\
+        \It's just you and that daemon thing now."
+      whenP (varTrue mutantWolfFollowing `andP` varFalse mutantWolfDead) $ do
+        convText "  At least you've got your new pet mutant-thing with you."
+
+  once 759825 (varTrue daemonWolfDead) $ do
+    playSound SndLever
+    writeVar gatePermenantlyOpen True
+    narrate "Yay the gates are open now." -- TODO
+    setAreaCleared StoneBridge True
+
+  once 029841 (varTrue daemonWolfDead `andP` varFalse mutantWolfDead `andP`
+               varTrue mutantWolfFollowing) $ do
+    narrate "With the daemonic wolfbeast destroyed, the mutated wolf you\
+      \ befriended gives a howl of victory, followed by exhausted panting.  It\
+      \ is tired, and it is injured, but it seems like somehow, to it, this\
+      \ was an important victory.   You wonder why.\n\n\
+      \With its enemy gone, the mutant wolf trots off back towards its den to\
+      \ rest."
+    writeVar mutantWolfFollowing False
+    setMonsterTownAI (GuardAI "MutantWolf") =<< readVar mutantWolfKey
 
 -------------------------------------------------------------------------------

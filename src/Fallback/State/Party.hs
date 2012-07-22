@@ -24,8 +24,9 @@ import Control.Exception (assert)
 import Control.Monad (guard)
 import qualified Data.Foldable as Fold
 import qualified Data.IntMap as IntMap
+import Data.List (find)
 import qualified Data.Map as Map
-import Data.Maybe (catMaybes, fromMaybe, isNothing)
+import Data.Maybe (catMaybes, fromMaybe, isNothing, mapMaybe)
 import qualified Data.Set as Set
 
 import Fallback.Constants (experiencePerLevel, maxExperience)
@@ -249,6 +250,16 @@ partyHasItem :: ItemTag -> Party -> Bool
 partyHasItem tag party =
   Fold.any (== tag) (partyItems party) ||
   Fold.any (chrHasItemEquipped tag) (partyCharacters party)
+
+-- | Find an item matching the given predicate, and the slot that that item is
+-- in.  The shared party inventory is searched first, followed by each
+-- character's equipment.
+partyFindItem :: (ItemTag -> Bool) -> Party -> Maybe (ItemTag, ItemSlot)
+partyFindItem fn party = find (fn . fst) $
+  map (\(idx, tag) -> (tag, PartyItemSlot idx))
+      (IntMap.assocs $ partyItems party) ++
+  mapMaybe (\slot -> flip (,) slot <$> partyItemInSlot slot party)
+           allEquipmentSlots
 
 partyItemInSlot :: ItemSlot -> Party -> Maybe ItemTag
 partyItemInSlot (PartyItemSlot index) party =

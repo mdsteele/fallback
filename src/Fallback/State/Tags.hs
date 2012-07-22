@@ -28,7 +28,7 @@ module Fallback.State.Tags
    FeatTag(..), featName,
    -- * Items
    ItemTag(..), allItemTags, WeaponItemTag(..), ArmorItemTag(..),
-   AccessoryItemTag(..), PotionItemTag(..), InertItemTag(..),
+   AccessoryItemTag(..), PotionItemTag(..), InertItemTag(..), isFoodItem,
    -- * Monsters
    MonsterTag(..),
    -- * Quests
@@ -310,18 +310,22 @@ data PotionItemTag = HealingTincture | HealingPotion | HealingElixir
 data InertItemTag = IronKey | BrassKey
   deriving (Bounded, Enum, Eq, Ord, Read, Show)
 
+isFoodItem :: ItemTag -> Bool
+isFoodItem (PotionItemTag t) = Grapes <= t && t <= Lemon
+isFoodItem _ = False
+
 -------------------------------------------------------------------------------
 
 data MonsterTag = Revenant | Revenantor | MasterRevenant
                 -- Animals:
                 | AcidCrab | AuroraCrab | Basilisk | CaveBat | Cobra | FireBat
                 | Firefly | Hound | IceLizard | LightningBug | Mantis
-                | MonitorLizard | RabidBat | Roach | Rous | Salamander
-                | Spider | Unicorn | Wolf
+                | MonitorLizard | MutantWolf | RabidBat | Roach | Rous
+                | Salamander | Spider | Unicorn | Wolf
                 -- Daemonic:
-                | DemonWolf | Fiend | Hoardling | Imp
+                | DaemonWolf | Fiend | Hoardling | Imp
                 -- Golems:
-                | CopperGolem | IronGolem | SteelGolem
+                | CopperGolem | IronGolem | SilverGolem | SteelGolem
                 -- Slimes and fungi:
                 | BurningWaste | CreepingGoo | Deathcap | NoxiousSludge
                 | SepticSlime | Shambler

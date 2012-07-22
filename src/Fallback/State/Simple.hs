@@ -288,6 +288,10 @@ data ItemSlot = CharWeaponSlot CharacterNumber
               | CharAccessorySlot CharacterNumber
               | PartyItemSlot Int
 
+allEquipmentSlots :: [ItemSlot]
+allEquipmentSlots = concatMap slots [minBound .. maxBound] where
+  slots n = [CharWeaponSlot n, CharArmorSlot n, CharAccessorySlot n]
+
 -------------------------------------------------------------------------------
 
 data QuestStatus = QuestUntaken | QuestActive | QuestFailed | QuestSucceeded

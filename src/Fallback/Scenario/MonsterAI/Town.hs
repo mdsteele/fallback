@@ -43,6 +43,7 @@ monsterTownStep :: Grid.Entry Monster -> Script TownEffect Bool
 monsterTownStep ge = do
   isBlocked <- areaGet (arsIsBlockedForMonster ge)
   partyPos <- getPartyPosition
+  -- TODO if (ally and?) party can't move, move away from party (unless Immobile)
   case monstTownAI monst of
     ChaseAI -> do
       if rectTopleft rect `pSqDist` partyPos > ofRadius 25 then
@@ -58,16 +59,17 @@ monsterTownStep ge = do
         unless blocked $ takeStep_ [pos']
       return False
     GuardAI homeMark -> do
-      case pathfindRectToRange isBlocked rect partyPos (SqDist 2) 5 of
+      case if ally then Nothing else
+             pathfindRectToRange isBlocked rect partyPos (SqDist 2) 5 of
         Just path -> stepTowardsParty path
         Nothing -> do
           -- TODO allow any number of marks; head back for any one of them
           homePos <- demandOneTerrainMark homeMark
-          maybeM (pathfindRectToRange isBlocked rect homePos (SqDist 0) 30)
+          maybeM (pathfindRectToRange isBlocked rect homePos (SqDist 0) 60)
                  takeStep_
           return False
     ImmobileAI -> do
-      if monstIsAlly monst then return False else do
+      if ally then return False else do
       let attacks = monstAttacks monst
       if null attacks then return False else do
       let sqDist = maximum $ map (rangeSqDist . maRange) attacks
@@ -86,12 +88,13 @@ monsterTownStep ge = do
                  \path -> do
             remaining <- takeStep path
             when (remaining <= 0) $ do
-              setMonsterTownAI key (PatrolAI goal home)
+              setMonsterTownAI (PatrolAI goal home) key
           return False
   where
     monst = Grid.geValue ge
     rect = Grid.geRect ge
     key = Grid.geKey ge
+    ally = monstIsAlly monst
     takeStep_ path = void $ takeStep path
     takeStep path = do
       let (time, steps) = if monstWalksFast monst then (2, 2) else (4, 1)
@@ -99,7 +102,7 @@ monsterTownStep ge = do
       return (length path - steps)
     stepTowardsParty path = do
       remaining <- takeStep path
-      return (remaining <= 3 && not (monstIsAlly monst))
+      return (remaining <= 3 && not ally)
 
 -------------------------------------------------------------------------------
 
