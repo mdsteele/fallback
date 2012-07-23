@@ -22,12 +22,12 @@
 module Fallback.Control.Parse
   (Parser, tryParse, parseRead, readPrecParser,
    meshKeyVal, meshKeyDefault, weaveBracesCommas,
-   showKeyVal, showBracesCommas)
+   showKeyVal, showKeyList, showBracesCommas)
 where
 
 import Control.Applicative
-import Control.Monad (ap, mzero)
-import Data.List (intersperse)
+import Control.Monad (ap, mzero, void)
+import Data.List (intersperse, unfoldr)
 import qualified Text.ParserCombinators.ReadP as ReadP
 import Text.ParserCombinators.ReadPrec (ReadPrec, lift, readPrec_to_P)
 import Text.Read (readPrec)
@@ -64,8 +64,10 @@ readPrecParser (Parser r) = lift r
 -------------------------------------------------------------------------------
 
 parseKeyVal :: (Read a) => String -> Parser a
-parseKeyVal key =
-  Parser (ReadP.string key >> ReadP.char '=' >> fromParser parseRead)
+parseKeyVal key = Parser $ do
+  void $ token $ ReadP.string key
+  charToken '='
+  token $ fromParser parseRead
 
 meshKeyVal :: (Read a) => String -> Mesh Parser a
 meshKeyVal key = meshOnce $ parseKeyVal key
@@ -75,16 +77,36 @@ meshKeyDefault key def = meshDefault def $ parseKeyVal key
 
 weaveBracesCommas :: Mesh Parser a -> Parser a
 weaveBracesCommas mesh =
-  Parser $ ReadP.between (ReadP.char '{') (ReadP.char '}') $ fromParser $
-  weaveSep (Parser (ReadP.char ',')) mesh
+  Parser $ ReadP.between (charToken '{') (charToken '}') $ token $ fromParser $
+  weaveSep (Parser (charToken ',')) mesh
 
 -------------------------------------------------------------------------------
 
 showKeyVal :: (Show a) => String -> a -> ShowS
 showKeyVal key a = showString key . showChar '=' . showsPrec 11 a
 
+showKeyList :: (Show a) => String -> Int -> [a] -> ShowS
+showKeyList key n as = showString key . showString "=[" .
+  (intercompose (showString ",\n") $ map (intercompose (showChar ',')) $
+   groupsOf n $ map shows as) . showChar ']'
+
 showBracesCommas :: [ShowS] -> ShowS
 showBracesCommas ss =
-  showChar '{' . foldr (.) id (intersperse (showChar ',') ss) . showChar '}'
+  showChar '{' . intercompose (showString ",\n") ss . showString "}\n"
+
+-------------------------------------------------------------------------------
+-- Private:
+
+groupsOf :: Int -> [a] -> [[a]]
+groupsOf n = unfoldr $ \as -> if null as then Nothing else Just (splitAt n as)
+
+intercompose :: ShowS -> [ShowS] -> ShowS
+intercompose sep = foldr (.) id . intersperse sep
+
+token :: ReadP.ReadP a -> ReadP.ReadP a
+token p = do { a <- p; ReadP.skipSpaces; return a }
+
+charToken :: Char -> ReadP.ReadP ()
+charToken = void . token . ReadP.char
 
 -------------------------------------------------------------------------------

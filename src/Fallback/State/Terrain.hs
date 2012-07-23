@@ -181,9 +181,9 @@ saveTerrainMap name tmap = do
   path <- onlyIO $ getResourcePath "terrain" name
   saveToFile path $ showBracesCommas [
     (showKeyVal "size" $ tmapSize tmap),
-    (showKeyVal "tiles" $ map ttId $ elems $ tmapArray tmap),
-    (showKeyVal "marks" $ MM.toList $ tmapMarks tmap),
-    (showKeyVal "rects" $ Map.toList $ tmapRects tmap)]
+    (showKeyList "tiles" 15 $ map ttId $ elems $ tmapArray tmap),
+    (showKeyList "marks" 1 $ MM.toList $ tmapMarks tmap),
+    (showKeyList "rects" 1 $ Map.toList $ tmapRects tmap)]
 
 -------------------------------------------------------------------------------
 -- Positions:
