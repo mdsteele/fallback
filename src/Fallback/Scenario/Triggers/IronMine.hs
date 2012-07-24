@@ -21,6 +21,7 @@ module Fallback.Scenario.Triggers.IronMine
   (compileIronMine)
 where
 
+import Control.Applicative ((<$>))
 import Control.Monad (when)
 import Data.List (intersperse)
 import Data.Maybe (listToMaybe)
@@ -104,7 +105,7 @@ compileIronMine globals = compileArea IronMine Nothing $ do
   --   0 means the cart is in its starting position
   --   1 means the cart is at the wall
   --   2 means the cart is near the switching station
-  --   3 means the cart is near the cave entrance
+  --   3 means the cart is near the mine entrance
   --   4 means the cart is in the rocks room
   --   5 means the cart has asploded the wall and is gone
   mineCartLocation <- newPersistentVar 626625 (0 :: Int)
@@ -201,10 +202,38 @@ compileIronMine globals = compileArea IronMine Nothing $ do
     when (cartLoc /= 5) $ do
       setTerrain AdobeCrackedWallTile =<< lookupTerrainMark "Wall"
 
+  foundMineCart <- newPersistentVar 729428 False
+
   once 542400 (walkIn "CartChamber" `andP` varEq mineCartLocation 0) $ do
+    writeVar foundMineCart True
     narrate "Ah ha!  There's a mine cart sitting at the end of the tracks in\
       \ this chamber.  From here, it looks to still be in good condition. \
       \ Perhaps it can be of some use to you?"
+
+  once 782580 (walkIn "NearWall" `andP` varEq mineCartLocation 1) $ do
+    narrate "It looks like pushing the cart from where you first found it\
+      \ brought it here.  Unlike some of the other track ends you've seen in\
+      \ here, there's not a proper buffer stop to stop the cart; instead, the\
+      \ cart was just stopped by smacking into the wall here.\n\n\
+      \The wall appears to be in somewhat rough shape (presumably this cart\
+      \ has run into this wall many times over the years), but the empty cart\
+      \ isn't really heavy enough to do much serious damage to the wall. \
+      \ Maybe there's something you could do about that."
+
+  once 469883 (walkIn "RockChamber") $ conversation $ convNode $ do
+    cartIsHere <- (4 ==) <$> readVar mineCartLocation
+    convText "This chamber must have been the end of an active drift around\
+      \ the time that the mine was abandoned--there are loose boulders\
+      \ scattered everywhere, still waiting to be carted off and\
+      \ processed.\n\n\
+      \Most of the boulders are too heavy for you to carry very far, but "
+    if cartIsHere then do
+      convText "you could probably lift some of them into the cart here."
+    else do
+      seenCart <- readVar foundMineCart
+      if seenCart then convText "if you could get that mine cart you found"
+      else convText "if you could find a mine cart somewhere and get it"
+      convText " into this chamber, you could probably load it up with rocks."
 
 -------------------------------------------------------------------------------
 
