@@ -18,7 +18,7 @@
 ============================================================================ -}
 
 module Fallback.Scenario.MonsterAI.Script
-  (getMonsterFieldOfView, getMonsterOpponentPositions)
+  (getMonsterFieldOfView, getMonsterOpponentPositions, getMonsterVisibleTargetsInRange)
 where
 
 import Control.Applicative ((<$>))
@@ -84,5 +84,17 @@ getMonsterOpponentPositions charmed key = do
                  if rectIntersects eyePrect prect' then positions else []
                MajorInvisibility -> []
   return (positions1 ++ positions2)
+
+-- | Return the list of positions that are 1) occupied by foes of the monster,
+-- 2) visible to the monster, and 3) within the given radius of the monster's
+-- head.
+getMonsterVisibleTargetsInRange :: (FromAreaEffect f) => Int
+                                -> Grid.Key Monster -> Script f [Position]
+getMonsterVisibleTargetsInRange radius key = do
+  viewField <- getMonsterFieldOfView key
+  headPos <- getMonsterHeadPos key
+  let ok pos = pos `pSqDist` headPos <= ofRadius radius &&
+               pos `Set.member` viewField
+  filter ok <$> getMonsterOpponentPositions False key
 
 -------------------------------------------------------------------------------

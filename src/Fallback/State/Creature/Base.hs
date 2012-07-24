@@ -165,6 +165,7 @@ data MonsterType = MonsterType
 
 data MonsterSpell = BladeSweep | BlessMonsters | CrossBeam | EntangleSpray
                   | FireSpray | FrostMissiles
+                  | IceBeam Int -- cooldown
                   | Shell Int Int Double -- benefit, cooldown, duration
                   -- dieWhenGone, benefit, cooldown, duration (rounds), tags
                   | SummonOne Bool Int Int Double [MonsterTag]
@@ -191,7 +192,7 @@ data MonsterSummoning = MonsterSummoning
 
 data MonsterTownAI = ChaseAI -- chase party relentlessly
                    | DrunkAI PRect -- random walk within rect
-                   | GuardAI String -- guard position with this terrain mark
+                   | GuardAI Int String -- chase radius, terrain mark to guard
                    | ImmobileAI -- never move; start combat when could attack
                    | MindlessAI -- chase party only when visible
                    | PatrolAI Position Position

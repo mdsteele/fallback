@@ -82,7 +82,7 @@ scenarioTriggers = compileScenario $ do
     simpleMonster 660633 DaemonWolf "DemonWolf2" ChaseAI
     simpleMonster 660634 Wolf "Wolf"
                   (PatrolAI (Point 27 16) (Point 36 16))
-    simpleMonster 978292 CaveBat "Bat" (GuardAI "Bat")
+    simpleMonster 978292 CaveBat "Bat" (GuardAI 4 "Bat")
 
   compileMountainPath globals
   compileCorenglen globals

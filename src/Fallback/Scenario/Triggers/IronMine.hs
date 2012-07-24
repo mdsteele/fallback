@@ -21,7 +21,7 @@ module Fallback.Scenario.Triggers.IronMine
   (compileIronMine)
 where
 
-import Control.Monad (join, when)
+import Control.Monad (when)
 import Data.List (intersperse)
 import Data.Maybe (listToMaybe)
 
@@ -33,6 +33,7 @@ import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Globals
 import Fallback.Scenario.Triggers.Script
 import Fallback.State.Area
+import Fallback.State.Creature (MonsterTownAI(..))
 import Fallback.State.Doodad (Doodad(..), DoodadHeight(LowDood))
 import Fallback.State.Resources
 import Fallback.State.Tags
@@ -60,12 +61,31 @@ compileIronMine globals = compileArea IronMine Nothing $ do
     narrate "The sign tacked to the wall reads:\n\n\
       \      {i}RECORDS OFFICE{_}"
 
+  -- South-southwest chamber:
+  simpleEnemy_ 984023 "BatA1" CaveBat MindlessAI
+  simpleEnemy_ 439814 "BatA2" CaveBat MindlessAI
+  simpleEnemy_ 545801 "BatA3" CaveBat MindlessAI
+  -- South-southeast chamber:
+  simpleEnemy_ 892397 "BatB1" CaveBat MindlessAI
+  simpleEnemy_ 448921 "BatB2" CaveBat MindlessAI
+  simpleEnemy_ 598787 "BatB3" CaveBat MindlessAI
+  -- Southeast chamber:
+  simpleEnemy_ 978497 "GhastC1" Ghast MindlessAI
+  simpleEnemy_ 579913 "GhastC2" Ghast MindlessAI
+  simpleEnemy_ 442116 "WightC" Wight MindlessAI
+
   once 807555 (walkIn "Latrine") $ do
     narrate "Ulgghh.  It appears that the miners used this narrow tunnel as a\
       \ latrine, to save themselves the trouble of walking all the way back\
       \ outside the mine.  The smell of urine and garbage back here is awful."
 
-  once 799563 (walkIn "NearSnow") $ do
+  -- Snow chamber:
+  (iceLizard1Key, iceLizard1Dead) <-
+    scriptedMonster 987298 "IceLizard1" IceLizard False ImmobileAI
+  (iceLizard2Key, iceLizard2Dead) <-
+    scriptedMonster 098458 "IceLizard2" IceLizard False ImmobileAI
+  once 799563 (walkIn "NearSnow" `andP`
+               (varFalse iceLizard1Dead `orP` varFalse iceLizard2Dead)) $ do
     narrate "Looking upwards, you see that the miners cut a ventilation shaft\
       \ in the ceiling of the cave here leading up to the surface above.  Snow\
       \ has drifted down the shaft from the outside, eventually building up\
@@ -75,7 +95,8 @@ compileIronMine globals = compileArea IronMine Nothing $ do
       \ the two wild ice lizards that have somehow gotten in here.  They look\
       \ up at you from their nap, evidentally deciding that you will make a\
       \ nice meal."
-    -- TODO make lizard chase you (change to wide-radius guard AI)
+    setMonsterTownAI (GuardAI 7 "IceLizard1") =<< readVar iceLizard1Key
+    setMonsterTownAI (GuardAI 7 "IceLizard2") =<< readVar iceLizard2Key
 
   -- Mine tracks/cart state:
   tracksSetToTurn <- newPersistentVar 231202 False
@@ -124,9 +145,7 @@ compileIronMine globals = compileArea IronMine Nothing $ do
           setTerrain tile [position]
           addDevice_ cartDevice position
 
-  let wallPositions = [Point x 26 | x <- [25, 26, 27]]
-
-  mineCart <- newDevice 293845 1 $ \ge charNum -> do
+  mineCart <- newDevice 293845 1 $ \ge charNum -> conversation $ do
     cartLoc <- readVar mineCartLocation
     cartFull <- readVar mineCartFilledWithRocks
     let fillCart = do
@@ -139,8 +158,6 @@ compileIronMine globals = compileArea IronMine Nothing $ do
             \ have a cart full of rocks!  It is very heavy.  Fortunately, it\
             \ is still relatively easy to push."
     let pushCart = do
-          _charPos <- areaGet (arsCharacterPosition charNum)
-          -- TODO if party is standing in the way, don't move the cart
           turn <- readVar tracksSetToTurn
           let (newLoc, path) = cartPath cartFull turn cartLoc
           removeDevice (Grid.geKey ge)
@@ -151,32 +168,38 @@ compileIronMine globals = compileArea IronMine Nothing $ do
           if (newLoc /= 5) then playSound SndMineCartStop else do
             shakeCamera 20 20
             playSound SndBoomBig
-            let pt = positionCenter (Point 26 26) `pSub` Point 0 18
-            forkScript $ doExplosionDoodad FireBoom pt
-            wait 5 >> resetTerrain wallPositions
-    let desc = if not cartFull then "It is currently empty."
-               else "It is currently full of very heavy boulders."
-    let canFill = cartLoc == 4 && not cartFull
-    let suffix = if not canFill then "" else "\n\n\
-          \You also notice that this chamber is scattered with loose\
-          \ boulders.  They're far too heavy for you to carry very far, but\
-          \ with some effort you could probably heave some of into the\
-          \ cart, if you wanted to."
-    let choices = (if not canFill then id
-                   else (("Fill the cart with boulders.", fillCart) :))
-                  [("Give the cart a shove.", pushCart),
-                   ("Leave it alone.", return ())]
-    join $ forcedChoice
-      ("You examine the cart.  " ++ desc ++"  Despite its weight, it rolls\
-       \ easily along the tracks; the axles seem to still be well-oiled.  If\
-       \ you were to give it a shove, it would probably follow the  the\
-       \ tracks all the way toward wherever they lead." ++ suffix) choices
+            center <- demandOneTerrainMark "WallCenter"
+            forkScript $ doExplosionDoodad FireBoom $
+              positionCenter center `pSub` Point 0 18
+            wait 5
+            resetTerrain =<< lookupTerrainMark "Wall"
+    convText "You examine the cart.  "
+    convText $ if cartFull then "It is currently full of very heavy boulders."
+               else "It is currently empty."
+    convText "  Despite its weight, it rolls easily along the tracks; the\
+      \ axles seem to still be well-oiled.  If you were to give it a shove, it\
+      \ would probably follow the tracks all the way toward wherever they\
+      \ lead."
+    convChoice (return ()) "Leave it alone."
+    do blocked <- isOnTerrainMark "Blocking" =<<
+                  areaGet (arsCharacterPosition charNum)
+       if blocked then convText "  At least, it would if you weren't standing\
+         \ right in the way."
+       else convChoice pushCart "Give the cart a shove."
+    when (cartLoc == 4 && not cartFull) $ do
+      convText "\n\n\
+        \You also notice that this chamber is scattered with loose boulders. \
+        \ They're far too heavy for you to carry very far, but with some\
+        \ effort you could probably heave some of into the cart, if you wanted\
+        \ to."
+      convChoice fillCart "Fill the cart with boulders."
+    convNode $ return ()
 
   onStartDaily 450713 $ do
     cartLoc <- readVar mineCartLocation
     addCartAtLocation mineCart cartLoc
     when (cartLoc /= 5) $ do
-      setTerrain AdobeCrackedWallTile wallPositions
+      setTerrain AdobeCrackedWallTile =<< lookupTerrainMark "Wall"
 
   once 542400 (walkIn "CartChamber" `andP` varEq mineCartLocation 0) $ do
     narrate "Ah ha!  There's a mine cart sitting at the end of the tracks in\

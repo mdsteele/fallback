@@ -26,13 +26,13 @@ module Fallback.Scenario.Triggers.Script
    TalkEffect(..), conversation, convText, convChoice, convNode, convReset,
    -- * Terrain
    setTerrain, resetTerrain,
-   lookupTerrainMark, demandOneTerrainMark, demandTerrainRect,
+   lookupTerrainMark, demandOneTerrainMark, isOnTerrainMark, demandTerrainRect,
    -- * Miscellaneous
    addDeviceOnMarks, doesPartyHaveItem, playDoorUnlockSound, setAreaCleared,
    setQuestStatus, startBossFight, startShopping)
 where
 
-import qualified Data.Set as Set (toList)
+import qualified Data.Set as Set (member, toList)
 
 import Fallback.Data.Point (Position, PRect)
 import Fallback.Scenario.Script
@@ -130,6 +130,10 @@ demandOneTerrainMark key = do
     [pos] -> return pos
     _ -> fail ("demandOneTerrainMark: " ++ show key ++ " yields " ++
                show positions)
+
+isOnTerrainMark :: (FromAreaEffect f) => String -> Position -> Script f Bool
+isOnTerrainMark key pos =
+  areaGet (Set.member pos . tmapLookupMark key . terrainMap . arsTerrain)
 
 lookupTerrainRect :: (FromAreaEffect f) => String -> Script f (Maybe PRect)
 lookupTerrainRect key = areaGet (tmapLookupRect key . terrainMap . arsTerrain)

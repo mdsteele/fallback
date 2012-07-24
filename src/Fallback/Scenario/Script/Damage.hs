@@ -96,6 +96,9 @@ dealDamageGeneral gentle hits = do
 dealRawDamageToCharacter :: (FromAreaEffect f) => Bool -> CharacterNumber
                          -> Int -> Double -> Script f Int
 dealRawDamageToCharacter gentle charNum damage stun = do
+  -- If the damage is zero, and its gentle damage, then don't do anything
+  -- (don't even set the monster hurt anim or show a number doodad).
+  if gentle && damage == 0 then return 0 else do
   char <- areaGet (arsGetCharacter charNum)
   -- If this is non-gentle damage, wake us up from being dazed, and add
   -- adrenaline.
@@ -114,8 +117,7 @@ dealRawDamageToCharacter gentle charNum damage stun = do
   -- Do damage:
   minHealth <- emitAreaEffect $ EffIfCombat (return 0) (return 1)
   let health' = max minHealth (chrHealth char - damage)
-  unless (gentle && damage == 0) $ do
-    addFloatingNumberOnTarget damage (HitCharacter charNum)
+  addFloatingNumberOnTarget damage (HitCharacter charNum)
   emitAreaEffect $ EffAlterCharacter charNum $ \c -> c { chrHealth = health' }
   emitAreaEffect $ EffIfCombat (setCharacterAnim charNum $ HurtAnim 12)
                                (setPartyAnim $ HurtAnim 12)
@@ -133,6 +135,9 @@ dealRawDamageToCharacter gentle charNum damage stun = do
 dealRawDamageToMonster :: (FromAreaEffect f) => Bool -> Grid.Key Monster
                        -> Int -> Double -> Script f Int
 dealRawDamageToMonster gentle key damage stun = do
+  -- If the damage is zero, and its gentle damage, then don't do anything
+  -- (don't even set the monster hurt anim or show a number doodad).
+  if gentle && damage == 0 then return 0 else do
   -- If this is non-gentle damage, wake us up from being dazed and add
   -- adrenaline.
   unless gentle $ alterMonsterStatus key seWakeFromDaze
@@ -149,8 +154,7 @@ dealRawDamageToMonster gentle key damage stun = do
                    { monstAdrenaline = adrenaline',
                      monstPose = (monstPose monst) { cpAnim = HurtAnim 12 },
                      monstHealth = health', monstMoments = moments' }
-  unless (gentle && damage == 0) $ do
-    addFloatingNumberOnTarget damage (HitMonster key)
+  addFloatingNumberOnTarget damage (HitMonster key)
   emitAreaEffect $ EffReplaceMonster key mbMonst'
   -- If the monster is now dead, we need do to several things.
   when (isNothing mbMonst') $ onMonsterDead entry

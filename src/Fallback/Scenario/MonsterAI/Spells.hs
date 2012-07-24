@@ -25,6 +25,7 @@ import Control.Applicative ((<$>))
 import Control.Arrow (right)
 import Control.Monad (filterM, foldM, forM, forM_, void, when)
 import Data.List (maximumBy)
+import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import Data.Ord (comparing)
 import qualified Data.Set as Set
@@ -149,6 +150,35 @@ prepMonsterSpell FrostMissiles ge = do
     dealDamage [(HitPosition target, ColdDamage, damage)]
     when knockback $ void $ tryKnockBack (HitPosition target) dir
   return 2
+prepMonsterSpell (IceBeam cooldown) ge = do
+  let key = Grid.geKey ge
+  potentialTargets <- getMonsterVisibleTargetsInRange 6 key
+  ifSatisfies (not $ null potentialTargets) $ do
+  (center, numIces) <- maximizeFor potentialTargets $ \center -> do
+    flip sumM (circleArea center $ ofRadius 1) $ \pos -> do
+      mbField <- areaGet (Map.lookup pos . arsFields)
+      case mbField of
+        Just (IceWall _) -> return 0
+        _ -> do
+          mbOccupant <- areaGet (arsOccupant pos)
+          case mbOccupant of
+            Just (Left _charNum) -> return 1
+            Just (Right monstEntry) ->
+              return $ if monstIsAlly (Grid.geValue monstEntry) then 1 else -1
+            Nothing -> return 0
+  yieldSpell (numIces + 1) $ do
+  monsterOffensiveActionToward key 25 center
+  playSound SndBreath
+  origin <- getMonsterHeadPos key
+  addBlasterDoodad (Tint 64 255 255 128) 6 200 origin center 350 >>= wait
+  playSound SndFreeze
+  addBoomDoodadAtPosition IceBoom 3 center
+  wait 4
+  damage <- getRandomR 60 90
+  setFields (IceWall $ damage / 4) (circleArea center $ ofRadius 1)
+  dealDamage [(HitPosition center, ColdDamage, damage)]
+  wait 20
+  return cooldown
 prepMonsterSpell (Shell benefit cooldown duration) ge = do
   ifSatisfies (not $ isBeneficial $ seDefense $ monstStatus $
                Grid.geValue ge) $ do
@@ -243,5 +273,16 @@ foesInRect isAlly prect = do
     return $ map Grid.geKey $ filter ((isAlly ==) . monstIsAlly .
                                       Grid.geValue) allMonsters
   return (map Left charNums ++ map Right monsters)
+
+maximizeFor :: (Monad m, Ord b) => [a] -> (a -> m b) -> m (a, b)
+maximizeFor list fn = begin list where
+  begin [] = error "maximizeFor: empty list"
+  begin (first : rest) = do
+    value <- fn first
+    maximize first value rest
+  maximize best value [] = return (best, value)
+  maximize best value (a : as) = do
+    value' <- fn a
+    if value' > value then maximize a value' as else maximize best value as
 
 -------------------------------------------------------------------------------

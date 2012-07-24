@@ -316,7 +316,21 @@ getMonsterType Rous = baseMonsterType { mtImageRow = 40 } -- TODO
 getMonsterType Unicorn = baseMonsterType { mtImageRow = 45 } -- TODO
 getMonsterType MonitorLizard = baseMonsterType { mtImageRow = 46 } -- TODO
 getMonsterType Salamander = baseMonsterType { mtImageRow = 47 } -- TODO
-getMonsterType IceLizard = baseMonsterType { mtImageRow = 48 } -- TODO
+getMonsterType IceLizard = baseMonsterType
+  { mtAgility = 40,
+    mtAttacks = [baseMonsterAttack
+      { maAppearance = ClawAttack,
+        maCriticalChance = 0.1,
+        maDamageCount = 10,
+        maDamageRange = (1, 9) }],
+    mtExperienceValue = 120,
+    mtImageRow = 48,
+    mtMaxHealth = 150,
+    mtName = "Ice Lizard",
+    mtResistances = resistances [ResistFire -% 25, ResistCold =% 98,
+                                 ResistStun =% 10],
+    mtSpeed = 1.8,
+    mtSpells = [IceBeam 3, IceBeam 4] }
 getMonsterType Basilisk = baseMonsterType { mtImageRow = 49 } -- TODO
 getMonsterType Firefly = baseMonsterType { mtImageRow = 54 } -- TODO
 getMonsterType LightningBug = baseMonsterType { mtImageRow = 55 } -- TODO
@@ -409,6 +423,9 @@ rogueillusion = baseMonsterType
 
 (=%) :: Resistance -> Double -> Resistances
 (=%) resist n = TM.set resist ((100 - n) / 100) nullResistances
+
+(-%) :: Resistance -> Double -> Resistances
+(-%) resist n = resist =% negate n
 
 resistances :: [Resistances] -> Resistances
 resistances = foldl' (liftA2 (*)) nullResistances

@@ -110,8 +110,8 @@ compileStoneBridge globals = compileArea StoneBridge Nothing $ do
   mutantWolfBefriended <- newPersistentVar 789294 False
   mutantWolfFollowing <- newTransientVar 498104 $ return False
   (mutantWolfKey, mutantWolfDead) <-
-    scriptedTownsperson 233894 "MutantWolf" MutantWolf (GuardAI "MutantWolf") $
-    \ge -> conversation $ do
+    scriptedTownsperson 233894 "MutantWolf" MutantWolf
+                        (GuardAI 5 "MutantWolf") $ \ge -> conversation $ do
       let
         initialChoices = do
           convChoice backAway "Back away.  Slowly."
@@ -256,7 +256,7 @@ compileStoneBridge globals = compileArea StoneBridge Nothing $ do
        setTerrain StoneGateClosedTile =<< lookupTerrainMark "RearGate"
 
   let archerGuard vseed key sfn =
-        simpleTownsperson vseed GuardArcher key (GuardAI key) sfn
+        simpleTownsperson vseed GuardArcher key (GuardAI 5 key) sfn
 
   archerGuard 129578 "Archer1" $ \_ -> conversation $ do
     convText "\"Ho, there, travellers.  The bridge is closed.\"  FIXME" -- TODO
@@ -340,6 +340,6 @@ compileStoneBridge globals = compileArea StoneBridge Nothing $ do
       \With its enemy gone, the mutant wolf trots off back towards its den to\
       \ rest."
     writeVar mutantWolfFollowing False
-    setMonsterTownAI (GuardAI "MutantWolf") =<< readVar mutantWolfKey
+    setMonsterTownAI (GuardAI 5 "MutantWolf") =<< readVar mutantWolfKey
 
 -------------------------------------------------------------------------------

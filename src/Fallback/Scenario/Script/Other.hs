@@ -59,7 +59,7 @@ module Fallback.Scenario.Script.Other
    grantAndEquipWeapon, grantItem, removeItem,
 
    -- * Targeting
-   aoeTarget, beamTarget, splashTarget, wallTarget)
+   circleArea, aoeTarget, beamTarget, splashTarget, wallTarget)
 where
 
 import Control.Applicative ((<$>))
@@ -739,8 +739,8 @@ tickSummonsByOneRound = do
 
 -- TODO move this stuff to Fallback.State.Action
 
-circleArea :: SqDist -> Position -> [Position]
-circleArea dist center =
+circleArea :: Position -> SqDist -> [Position]
+circleArea center dist =
   let limit = floor (sqDistRadius dist)
       corner = Point limit limit
   in filter ((dist >=) . pSqDist center) $
@@ -748,7 +748,7 @@ circleArea dist center =
 
 aoeTarget :: Int -> SqDist -> TargetKind (Position, [Position])
 aoeTarget maxRange blastRadiusSquared = AreaTarget fn maxRange
-  where fn _ars _origin target = circleArea blastRadiusSquared target
+  where fn _ars _origin target = circleArea target blastRadiusSquared
 
 beamTarget :: TargetKind (Position, [Position])
 beamTarget = AreaTarget arsBeamPositions sightRange

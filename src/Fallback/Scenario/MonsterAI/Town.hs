@@ -28,10 +28,10 @@ import qualified Data.Set as Set
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Scenario.Script
-import Fallback.Scenario.Triggers.Script (demandOneTerrainMark)
+import Fallback.Scenario.Triggers.Script (lookupTerrainMark)
 import Fallback.State.Area
 import Fallback.State.Creature
-import Fallback.State.Pathfind (pathfindRectToRange)
+import Fallback.State.Pathfind (pathfindRectToRange, pathfindRectToRanges)
 import Fallback.State.Simple
 import Fallback.Utility (maybeM)
 
@@ -43,7 +43,8 @@ monsterTownStep :: Grid.Entry Monster -> Script TownEffect Bool
 monsterTownStep ge = do
   isBlocked <- areaGet (arsIsBlockedForMonster ge)
   partyPos <- getPartyPosition
-  -- TODO if (ally and?) party can't move, move away from party (unless Immobile)
+  -- TODO: if (ally and?) party can't move, move away from party (unless
+  --       Immobile)
   case monstTownAI monst of
     ChaseAI -> do
       if rectTopleft rect `pSqDist` partyPos > ofRadius 25 then
@@ -58,15 +59,16 @@ monsterTownStep ge = do
         blocked <- areaGet (flip (arsIsBlockedForMonster ge) pos')
         unless blocked $ takeStep_ [pos']
       return False
-    GuardAI homeMark -> do
+    GuardAI chaseSteps homeMark -> do
       case if ally then Nothing else
-             pathfindRectToRange isBlocked rect partyPos (SqDist 2) 5 of
+             pathfindRectToRange isBlocked rect partyPos
+                                 (SqDist 2) chaseSteps of
+        -- TODO: if already far from home, don't chase party
         Just path -> stepTowardsParty path
         Nothing -> do
-          -- TODO allow any number of marks; head back for any one of them
-          homePos <- demandOneTerrainMark homeMark
-          maybeM (pathfindRectToRange isBlocked rect homePos (SqDist 0) 60)
-                 takeStep_
+          homePositions <- lookupTerrainMark homeMark
+          maybeM (pathfindRectToRanges isBlocked rect homePositions
+                                       (SqDist 0) 60) takeStep_
           return False
     ImmobileAI -> do
       if ally then return False else do

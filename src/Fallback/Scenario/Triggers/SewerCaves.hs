@@ -86,6 +86,7 @@ compileSewerCaves globals = compileArea SewerCaves Nothing $ do
     addBasicEnemyMonster bossStartPos Dactylid (Just dactylidDead) ChaseAI
     startBossFight (Point 0 23)
   once 923982 (varTrue dactylidDead) $ do
+    setAreaCleared SewerCaves True
     setTerrain BasaltGateOpenTile =<< lookupTerrainMark "BossGate"
     narrate "FIXME Yay, you won!"
 
