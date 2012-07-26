@@ -73,7 +73,8 @@ import Fallback.State.Resources
   (Resources, SoundTag(SndCombatStart), rsrcSound)
 import Fallback.State.Simple
   (CastingCost, Ingredient, ItemSlot, deltaFaceDir, ingredientCost)
-import Fallback.State.Tags (AreaTag, ItemTag(PotionItemTag), allItemTags)
+import Fallback.State.Tags
+  (AreaTag, ItemTag(PotionItemTag), allItemTags, areaRegion)
 import Fallback.State.Town
 import Fallback.State.Trigger (fireTrigger, makeUnfiredTriggers)
 import Fallback.Utility (flip3)
@@ -111,13 +112,11 @@ newTownMode resources modes initState = do
                                     chrMojo = chrMaxMojo party char }
           let party' = party { partyCharacters =
                                  restore <$> partyCharacters party }
+          let areaTag = partyCurrentArea party'
           ChangeMode <$> newRegionMode' modes RegionState
-            { rsClock = arsClock ts,
-              rsParty = party',
-              rsPreviousArea = partyCurrentArea party',
-              rsRegion = partyCurrentRegion party',
-              rsSelectedArea = area,
-              rsUnsaved = True }
+            { rsClock = arsClock ts, rsParty = party',
+              rsPreviousArea = areaTag, rsRegion = areaRegion areaTag,
+              rsSelectedArea = area, rsUnsaved = True }
         Just DoGameOver -> ChangeMode <$> newGameOverMode' modes
         Just (DoMultiChoice text choices cancel sfn) -> do
           fmap ChangeMode $ newMultiChoiceMode resources view ts text choices

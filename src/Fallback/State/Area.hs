@@ -31,6 +31,7 @@ import qualified Data.Set as Set
 import Data.Traversable (for)
 import System.Random (Random, randomRIO)
 
+import Fallback.Constants (maxPartyLevel)
 import Fallback.Control.Script (Script)
 import Fallback.Data.Clock (Clock, clockInc)
 import qualified Fallback.Data.Grid as Grid
@@ -415,6 +416,8 @@ data PartyEffect :: * -> * where
   EffRemoveItem :: ItemSlot -> PartyEffect ()
   -- Set whether the specified area is cleared.
   EffSetAreaCleared :: AreaTag -> Bool -> PartyEffect ()
+  -- Set the party's level cap.
+  EffSetLevelCap :: Int -> PartyEffect ()
   -- Set the status for a given quest.
   EffSetQuestStatus :: QuestTag -> QuestStatus -> PartyEffect ()
   -- Change the value of a scenario variable.
@@ -504,6 +507,8 @@ executePartyEffect eff party =
       let cleared' = (if clear then Set.insert tag else Set.delete tag)
                      (partyClearedAreas party)
       return ((), party { partyClearedAreas = cleared' })
+    EffSetLevelCap cap -> do
+      return ((), party { partyLevelCap = max 1 $ min maxPartyLevel cap })
     EffSetQuestStatus tag qs -> do
       return ((), party { partyQuests = SM.set tag qs (partyQuests party) })
     EffSetVar var value -> do

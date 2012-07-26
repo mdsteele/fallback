@@ -28,7 +28,8 @@ import qualified Data.IntMap as IntMap
 import Data.Ix (range)
 import Data.Maybe (isNothing, listToMaybe)
 
-import Fallback.Constants (cameraHeight, cameraWidth, maxAdrenaline)
+import Fallback.Constants
+  (cameraHeight, cameraWidth, experienceForLevel, maxAdrenaline, maxPartyLevel)
 import Fallback.Data.Clock (Clock)
 import Fallback.Data.Color
 import Fallback.Data.Point
@@ -224,16 +225,20 @@ newPartyInventoryView resources cursorSink tooltipSink = do
                                    (40 * (idx `div` 4) + levelAndXpTop + 50)
                                    36 36) <$>
           newIngredientSlotWidget resources tooltipSink ingredient
+  let xpNeeded party =
+        if partyLevel party < min maxPartyLevel (partyLevelCap party)
+        then Just $ "XP to level up:  " ++
+             show (experienceForLevel (partyLevel party + 1) -
+                   partyExperience party) else Nothing
   compoundViewM [
     (newDialogBackgroundView),
     (newTopLabel resources (const "Party Inventory")),
     (return $ vmap (("Level:  " ++) . show . partyLevel) $
      makeLabel_ (rsrcFont resources FontGeorgia11) blackColor $
      LocTopleft $ Point 24 levelAndXpTop),
-    (return $ vmap (("XP to level up:  " ++) . show . (1000 -) .
-                    (`mod` 1000) . partyExperience) $
+    (return $ maybeView xpNeeded $
      makeLabel_ (rsrcFont resources FontGeorgia11) blackColor $
-     LocTopleft $ Point 110 levelAndXpTop),
+     LocTopleft $ Point 103 levelAndXpTop),
     (return $ vmap (("You have " ++) . (++ ".") . showCoins . partyCoins) $
      makeLabel_ (rsrcFont resources FontGeorgia11) blackColor $
      LocTopleft $ Point 24 (levelAndXpTop + 18)),

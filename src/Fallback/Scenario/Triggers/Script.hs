@@ -29,7 +29,7 @@ module Fallback.Scenario.Triggers.Script
    lookupTerrainMark, demandOneTerrainMark, isOnTerrainMark, demandTerrainRect,
    -- * Miscellaneous
    addDeviceOnMarks, doesPartyHaveItem, playDoorUnlockSound, setAreaCleared,
-   setQuestStatus, startBossFight, startShopping)
+   setLevelCap, setQuestStatus, startBossFight, startShopping)
 where
 
 import qualified Data.Set as Set (member, toList)
@@ -161,6 +161,11 @@ playDoorUnlockSound = playSound SndUnlock >> wait 6
 
 setAreaCleared :: (FromAreaEffect f) => AreaTag -> Bool -> Script f ()
 setAreaCleared tag cleared = emitAreaEffect $ EffSetAreaCleared tag cleared
+
+setLevelCap :: (FromAreaEffect f) => Int -> Script f ()
+setLevelCap cap = do
+  emitAreaEffect $ EffSetLevelCap cap
+  grantExperience 0 -- tickle level up, if we were previously maxed out
 
 setQuestStatus :: (FromAreaEffect f) => QuestTag -> QuestStatus -> Script f ()
 setQuestStatus tag status = emitAreaEffect $ EffSetQuestStatus tag status

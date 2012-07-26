@@ -25,6 +25,7 @@ import qualified Data.IntMap as IntMap (fromList)
 import qualified Data.Map as Map (empty)
 import qualified Data.Set as Set (empty)
 
+import Fallback.Constants (maxPartyLevel)
 import Fallback.Control.Error (IOEO, onlyIO)
 import qualified Fallback.Data.SparseMap as SM (fromSparseAssocs)
 import qualified Fallback.Data.TotalMap as TM (make)
@@ -139,12 +140,13 @@ newParty spec = do
           partyCoins = 250,
           partyCurrentArea = startingArea,
           partyDifficulty = ngsDifficulty spec,
-          partyExperience = 1900,
+          partyExperience = 0,
           partyExploredMaps = Map.empty,
           partyFoundAreas = Set.empty,
           partyIngredients = TM.make ((numHAs *) . ingredientStartQuantity),
           partyItems = IntMap.fromList $ zip [0..] initialItems,
           partyLevel = 1,
+          partyLevelCap = maxPartyLevel,
           partyProgress = initialProgress,
           partyQuests =
             SM.fromSparseAssocs QuestUntaken [(FindAdventure, QuestActive)] }

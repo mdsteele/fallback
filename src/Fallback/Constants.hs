@@ -128,13 +128,41 @@ sightRangeSquared = ofRadius sightRange
 talkRadius :: Int
 talkRadius = 6
 
-experiencePerLevel :: Int
-experiencePerLevel = 1000
+experienceForLevel :: Int -> Int
+experienceForLevel 1 = 0
+experienceForLevel 2 = 100
+experienceForLevel 3 = 2000
+experienceForLevel 4 = 5000
+experienceForLevel 5 = 9000
+experienceForLevel 6 = 14000
+experienceForLevel 7 = 20000
+experienceForLevel 8 = 27000
+experienceForLevel 9 = 35000
+experienceForLevel 10 = 44000
+experienceForLevel 11 = 54000
+experienceForLevel 12 = 65000
+experienceForLevel 13 = 77000
+experienceForLevel 14 = 90000
+experienceForLevel 15 = 104000
+experienceForLevel 16 = 119000
+experienceForLevel 17 = 135000
+experienceForLevel 18 = 152000
+experienceForLevel 19 = 170000
+experienceForLevel 20 = 189000
+experienceForLevel 21 = 209000
+experienceForLevel 22 = 230000
+experienceForLevel 23 = 252000
+experienceForLevel 24 = 275000
+experienceForLevel 25 = 299000
+experienceForLevel 26 = 324000
+experienceForLevel 27 = 350000
+experienceForLevel 28 = 377000
+experienceForLevel 29 = 405000
+experienceForLevel 30 = 434000
+experienceForLevel n =
+  error ("experienceForLevel: argument out of range: " ++ show n)
 
 maxPartyLevel :: Int
 maxPartyLevel = 30
-
-maxExperience :: Int
-maxExperience = experiencePerLevel * maxPartyLevel
 
 -------------------------------------------------------------------------------

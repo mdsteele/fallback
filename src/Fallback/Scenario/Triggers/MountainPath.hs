@@ -31,6 +31,7 @@ import Fallback.Data.Point
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Globals
+import Fallback.Scenario.Triggers.Script (setLevelCap)
 import Fallback.State.Area
 import Fallback.State.Creature (MonsterTownAI(..))
 import Fallback.State.Party (chrClass)
@@ -72,6 +73,7 @@ compileMountainPath globals = compileArea MountainPath Nothing $ do
     partyWalkTo (pos `plusDir` DirSE)
 
   once 085585 (isFirstTimeThroughLongvale `andP` walkOff "Start") $ do
+    setLevelCap 2
     narrate "You're finally here!  A brand new band of adventures, on a\
       \ journey to seek out your very first quest.  Without a doubt, the\
       \ days ahead will be filled with countless monsters, and hopefully,\
@@ -217,5 +219,7 @@ compileMountainPath globals = compileArea MountainPath Nothing $ do
       \Whoa.  With weapons like these...you might actually survive this.\n\n\
       \But where could they have come from?"
     startMusic MusicMovementProposition
+
+  -- TODO: when big revenant battle over, do setLevelCap 9
 
 -------------------------------------------------------------------------------

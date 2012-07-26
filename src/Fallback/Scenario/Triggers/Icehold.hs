@@ -313,6 +313,7 @@ compileIcehold globals = do
       setTerrain BasaltGateClosedTile =<< lookupTerrainMark "SouthGate"
       startBossFight bossChamberTopleft
     trigger 099022 (varTrue vhaegystDead) $ do
+      setLevelCap 16
       setAreaCleared Icehold True
       setTerrain BasaltGateOpenTile =<< lookupTerrainMark "SouthGate"
       setTerrain BasaltGateOpenTile =<< lookupTerrainMark "NorthGate"

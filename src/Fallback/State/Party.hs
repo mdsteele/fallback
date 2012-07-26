@@ -29,7 +29,7 @@ import qualified Data.Map as Map
 import Data.Maybe (catMaybes, fromMaybe, isNothing, mapMaybe)
 import qualified Data.Set as Set
 
-import Fallback.Constants (experiencePerLevel, maxExperience)
+import Fallback.Constants (maxPartyLevel, experienceForLevel)
 import Fallback.Data.Point (Position)
 import qualified Fallback.Data.SparseMap as SM
 import qualified Fallback.Data.TotalMap as TM
@@ -57,15 +57,13 @@ data Party = Party
     partyIngredients :: Ingredients,
     partyItems :: IntMap.IntMap ItemTag,
     partyLevel :: Int,
+    partyLevelCap :: Int,
     partyProgress :: Progress,
     partyQuests :: SM.SparseMap QuestTag QuestStatus }
   deriving (Read, Show)
 
 instance HasProgress Party where
   getProgress = partyProgress
-
-partyCurrentRegion :: Party -> RegionTag
-partyCurrentRegion = areaRegion . partyCurrentArea
 
 partyClearedArea :: Party -> AreaTag -> Bool
 partyClearedArea party node = Set.member node $ partyClearedAreas party
@@ -206,13 +204,14 @@ partyTryExchangeItem slot mbTag party =
 -- points of characters.
 partyGrantExperience :: Int -> Party -> Party
 partyGrantExperience xp party =
-  let xp' = min maxExperience (partyExperience party + xp)
-      level' = xp' `div` experiencePerLevel
+  let cap = min maxPartyLevel (partyLevelCap party)
+      xp' = min (experienceForLevel $ min maxPartyLevel (cap + 1))
+                (partyExperience party + xp)
+      stop level = level >= cap || experienceForLevel (level + 1) > xp'
+      level' = until stop (+1) (partyLevel party)
       delta = level' - partyLevel party
   in if delta <= 0 then party { partyExperience = xp' } else
-       party { partyCharacters = (if delta <= 0 then id
-                                  else fmap (levelUp delta))
-                                 (partyCharacters party),
+       party { partyCharacters = levelUp delta <$> partyCharacters party,
                partyExperience = xp', partyLevel = level' }
   where
     levelUp levels char =
