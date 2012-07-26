@@ -381,7 +381,6 @@ baseMonsterType = MonsterType
     mtIsDaemonic = False,
     mtIsHuman = False,
     mtIsUndead = False,
-    mtLevel = 0,
     mtMaxHealth = 100,
     mtName = "???",
     mtResistances = nullResistances,

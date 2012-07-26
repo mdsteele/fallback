@@ -152,7 +152,6 @@ data MonsterType = MonsterType
     mtIsDaemonic :: Bool,
     mtIsHuman :: Bool,
     mtIsUndead :: Bool,
-    mtLevel :: Int,
     mtMaxHealth :: Int,
     mtName :: String,
     mtResistances :: Resistances,
