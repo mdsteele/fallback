@@ -30,6 +30,7 @@ import Data.Maybe (catMaybes, fromMaybe, isNothing, mapMaybe)
 import qualified Data.Set as Set
 
 import Fallback.Constants (maxPartyLevel, experienceForLevel)
+import Fallback.Data.Couple (Couple)
 import Fallback.Data.Point (Position)
 import qualified Fallback.Data.SparseMap as SM
 import qualified Fallback.Data.TotalMap as TM
@@ -53,7 +54,7 @@ data Party = Party
     partyDifficulty :: Difficulty,
     partyExperience :: Int,
     partyExploredMaps :: Map.Map AreaTag ExploredMap,
-    partyFoundAreas :: Set.Set AreaTag,
+    partyFoundAreaLinks :: Set.Set (Couple AreaTag),
     partyIngredients :: Ingredients,
     partyItems :: IntMap.IntMap ItemTag,
     partyLevel :: Int,

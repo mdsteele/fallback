@@ -22,12 +22,13 @@ module Fallback.View.Region
 where
 
 import Control.Applicative ((<$>))
-import Data.Foldable (foldMap, traverse_)
+import Data.Foldable (traverse_)
 import Data.List (find)
 import qualified Data.Set as Set
 
 import Fallback.Data.Clock (clockZigzag)
 import Fallback.Data.Color (Tint(Tint))
+import Fallback.Data.Couple (flattenCoupleSet, fromCouple)
 import Fallback.Data.Point
 import Fallback.Draw
 import Fallback.Event
@@ -64,17 +65,13 @@ newRegionMapView bgPath = do
   backgroundSprite <- loadSprite bgPath
   let
 
-    paint state = do
+    paint rs = do
       -- Paint background:
       rect <- canvasRect
       blitStretch backgroundSprite rect
       -- Paint links:
-      let found = rsFoundAreas state
-      let makeLinks tag =
-            let makeLink dest = if dest < tag then (dest, tag) else (tag, dest)
-            in Set.fromList $ map makeLink $ filter (`Set.member` found) $
-               areaLinks tag
-      let selected = rsSelectedArea state
+      let selected = rsSelectedArea rs
+      let foundLinks = rsFoundAreaLinks rs
       let drawLink (tag1, tag2) = do
             let pos1 = fmap fromIntegral $ areaLocation tag1
             let pos2 = fmap fromIntegral $ areaLocation tag2
@@ -82,32 +79,34 @@ newRegionMapView bgPath = do
             let selectedTint = Tint 255 0 0 192
             let normalTint = Tint 255 255 0 192
             let (tint1, tint2) =
-                  if (tag1, tag2) == (selected, rsPreviousArea state)
+                  if (tag1, tag2) == (selected, rsPreviousArea rs)
                   then (selectedTint, normalTint) else
-                    if (tag1, tag2) == (rsPreviousArea state, selected)
+                    if (tag1, tag2) == (rsPreviousArea rs, selected)
                     then (normalTint, selectedTint)
                     else (normalTint, normalTint)
             gradientPolygon [(tint1, pos1 `pAdd` perp),
                              (tint1, pos1 `pSub` perp),
                              (tint2, pos2 `pSub` perp),
                              (tint2, pos2 `pAdd` perp)]
-      traverse_ drawLink $ foldMap makeLinks found
+      let isRealLink (tag1, tag2) = Set.member tag1 $ areaLinks tag2
+      traverse_ drawLink (filter isRealLink $ map fromCouple $ Set.toList $
+                          foundLinks)
       -- Paint area nodes:
-      let party = rsParty state
+      let party = rsParty rs
       let paintAreaNode tag = do
             let sprite = if partyClearedArea party tag
                          then clearedNodeSprite else unclearedNodeSprite
             blitLoc sprite $ LocCenter $ areaLocation tag
-      traverse_ paintAreaNode found
+      traverse_ paintAreaNode $ flattenCoupleSet foundLinks
       -- Paint selection marker:
-      blitLoc (selectedNodeStrip ! clockZigzag 4 2 (rsClock state)) $
+      blitLoc (selectedNodeStrip ! clockZigzag 4 2 (rsClock rs)) $
         LocCenter $ areaLocation $ selected
 
-    handler state (EvMouseDown pt) = do
+    handler rs (EvMouseDown pt) = do
       let hit tag = pDist (fromIntegral <$> pt)
                           (fromIntegral <$> areaLocation tag) <= (20 :: Double)
       return $ maybe Ignore Action $ fmap SelectAreaNode $ find hit $
-        regionAreas $ rsRegion state
+        regionAreas $ rsRegion rs
     handler _ _ = return Ignore
 
   return $ View paint handler

@@ -27,6 +27,8 @@ import Data.IORef
 import qualified Data.Set as Set
 
 import Fallback.Constants (screenRect)
+import Fallback.Data.Couple (fromCouple, makeCouple)
+import qualified Fallback.Data.Queue as Queue
 import Fallback.Draw (paintScreen, handleScreen, takeScreenshot)
 import Fallback.Event
 import Fallback.Mode.Base
@@ -37,7 +39,7 @@ import Fallback.Mode.SaveGame (newSaveBeforeQuittingMode, newSaveGameMode)
 import Fallback.Scenario.Areas (areaEntrance, areaLinks, enterPartyIntoArea)
 import Fallback.Scenario.Regions (regionBackground)
 import Fallback.Scenario.Save (SavedGame(SavedRegionState))
-import Fallback.State.Party (partyClearedArea, partyFoundAreas)
+import Fallback.State.Party (partyClearedArea, partyFoundAreaLinks)
 import Fallback.State.Region
 import Fallback.State.Resources (Resources)
 import Fallback.State.Tags (AreaTag)
@@ -49,10 +51,10 @@ import Fallback.View.Region
 newRegionMode :: Resources -> Modes -> RegionState -> IO Mode
 newRegionMode resources modes initState = do
   stateRef <- newIORef initState { rsParty =
-    (rsParty initState) { partyFoundAreas =
-      Set.insert (rsSelectedArea initState) $
-      Set.insert (rsPreviousArea initState) $
-      partyFoundAreas (rsParty initState) } }
+    (rsParty initState) { partyFoundAreaLinks =
+      Set.insert (makeCouple (rsPreviousArea initState)
+                             (rsSelectedArea initState)) $
+      partyFoundAreaLinks (rsParty initState) } }
   view <- do
     state <- readIORef stateRef
     newRegionView resources $ regionBackground (rsParty state) (rsRegion state)
@@ -104,22 +106,28 @@ newRegionMode resources modes initState = do
 
 -------------------------------------------------------------------------------
 
+-- | If the party can region the given area from where they are, return the
+-- directly linked area from which they would enter the selected area; if the
+-- desired area is unreachable, return 'Nothing'.
 trySelectAreaNode :: RegionState -> AreaTag -> Maybe AreaTag
-trySelectAreaNode state dest =
-  let found = rsFoundAreas state
-      party = rsParty state
-      -- TODO: Use Queue type instead of list here
-      bfs visited ((prev, curr) : queue) =
+trySelectAreaNode rs dest = bfs initVisited initQueue where
+  bfs visited queue =
+    case Queue.pop queue of
+      Just ((prev, curr), queue') ->
         if curr == dest then Just prev else
-          let visited' = Set.insert curr visited
-              queue' =
-                if not (partyClearedArea party curr) then queue
-                else (queue ++) $ map ((,) curr) $
-                     filter (flip Set.member found) $
-                     filter (flip Set.notMember visited') $ areaLinks curr
-          in bfs visited' queue'
-      bfs _ [] = Nothing
-  in bfs Set.empty [(rsSelectedArea state, rsPreviousArea state),
-                    (rsPreviousArea state, rsSelectedArea state)]
+          if notCleared curr then bfs visited queue' else
+            let children = filter (linkIsFound curr) $
+                           filter (flip Set.notMember visited) $
+                           Set.toList $ areaLinks curr
+            in bfs (foldr Set.insert visited children)
+                   (foldr Queue.insert queue' $ map ((,) curr) children)
+      Nothing -> Nothing
+  notCleared = not . partyClearedArea (rsParty rs)
+  linkIsFound tag1 tag2 = Set.member (makeCouple tag1 tag2) foundLinks
+  foundLinks = Set.filter (isRealLink . fromCouple) $ rsFoundAreaLinks rs
+  isRealLink (tag1, tag2) = Set.member tag1 $ areaLinks tag2
+  initQueue = Queue.fromList [(rsSelectedArea rs, rsPreviousArea rs),
+                              (rsPreviousArea rs, rsSelectedArea rs)]
+  initVisited = Set.fromList [rsPreviousArea rs, rsSelectedArea rs]
 
 -------------------------------------------------------------------------------

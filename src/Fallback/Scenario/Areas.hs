@@ -48,7 +48,7 @@ import Fallback.State.Trigger (Trigger, makeUnfiredTriggers)
 areaEntrance :: AreaTag -> AreaTag -> Position
 areaEntrance = getAreaEntrance scenarioTriggers
 
-areaLinks :: AreaTag -> [AreaTag]
+areaLinks :: AreaTag -> Set.Set AreaTag
 areaLinks = getAreaLinks scenarioTriggers
 
 areaLocation :: AreaTag -> IPoint

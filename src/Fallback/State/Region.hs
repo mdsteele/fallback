@@ -17,11 +17,14 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
-module Fallback.State.Region where
+module Fallback.State.Region
+  (RegionState(..), rsFoundAreaLinks, tickRegionState)
+where
 
 import qualified Data.Set as Set
 
 import Fallback.Data.Clock (Clock, clockInc)
+import Fallback.Data.Couple (Couple, fromCouple)
 import Fallback.State.Party
 import Fallback.State.Tags (AreaTag, RegionTag, regionAreas)
 
@@ -35,11 +38,15 @@ data RegionState = RegionState
     rsSelectedArea :: AreaTag,
     rsUnsaved :: Bool }
 
-rsFoundAreas :: RegionState -> Set.Set AreaTag
-rsFoundAreas state =
-  let nodes = partyFoundAreas $ rsParty state
-  in Set.fromList $ filter (flip Set.member nodes) $
-     regionAreas $ rsRegion state
+-- | Return the set of area links, from the current region only, that the party
+-- has found.
+rsFoundAreaLinks :: RegionState -> Set.Set (Couple AreaTag)
+rsFoundAreaLinks state =
+  Set.filter isInThisRegion $ partyFoundAreaLinks $ rsParty state
+  where
+    isInThisRegion link = let (a, b) = fromCouple link
+                          in Set.member a areaSet && Set.member b areaSet
+    areaSet = Set.fromList $ regionAreas $ rsRegion state
 
 -------------------------------------------------------------------------------
 

@@ -93,9 +93,9 @@ getAreaEntrance scenario tag from =
 getAreaExits :: ScenarioTriggers -> AreaTag -> [AreaExit]
 getAreaExits scenario tag = aspecExits $ TM.get tag $ scenarioAreas scenario
 
-getAreaLinks :: ScenarioTriggers -> AreaTag -> [AreaTag]
+getAreaLinks :: ScenarioTriggers -> AreaTag -> Set.Set AreaTag
 getAreaLinks scenario tag =
-  Map.keys $ aspecEntrances $ TM.get tag $ scenarioAreas scenario
+  Map.keysSet $ aspecEntrances $ TM.get tag $ scenarioAreas scenario
 
 getAreaTerrain :: ScenarioTriggers -> Party -> AreaTag -> String
 getAreaTerrain scenario party tag =

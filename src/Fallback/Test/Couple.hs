@@ -17,48 +17,24 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
-module Fallback.Test.Parse (parseTests) where
+module Fallback.Test.Couple (coupleTests) where
 
-import Control.Applicative ((<$>), (<*>))
+import qualified Data.Set as Set
 import Test.HUnit ((~:), Test(TestList))
-import Text.Read (readPrec)
 
-import Fallback.Control.Parse
-import Fallback.Test.Base (insist)
-
--------------------------------------------------------------------------------
-
-parseTests :: Test
-parseTests = "parse" ~: TestList [
-  insist $ tryParse parser1 "garbage!" == Nothing,
-  insist $ tryParse parser1 "{bool=True,int=7}" ==
-           Just (True, 3.0, 7, "foobar"),
-  insist $ tryParse parser1 "{double=2.5,int=2,bool=False,string=\"hi\"}" ==
-           Just (False, 2.5, 2, "hi"),
-  insist $ showBracesCommas [showKeyVal "b" True, showKeyVal "str" "foo"] "" ==
-           "{b=True,\nstr=\"foo\"}\n",
-  insist $ reads "{c=3,a=1}" == [(Foo 1 2 3, "")],
-  insist $ null $ (reads :: ReadS Foo) "{a=1}",
-  insist $ reads "{c=3,a=1}blarg" == [(Foo 1 2 3, "blarg")],
-  insist $ reads "(False,{a=6,c=8,b=5},True)" ==
-           [((False, Foo 6 5 8, True), "")]]
+import Fallback.Data.Couple
+import Fallback.Test.Base (qcTest)
 
 -------------------------------------------------------------------------------
 
-parser1 :: Parser (Bool, Double, Int, String)
-parser1 = weaveBracesCommas $
-  (,,,) <$> meshKeyVal "bool"
-        <*> meshKeyDefault "double" 3.0
-        <*> meshKeyVal "int"
-        <*> meshKeyDefault "string" "foobar"
+coupleTests :: Test
+coupleTests = "couple" ~: TestList [
+  qcTest $ \a b -> makeCouple a b == (makeCouple b a :: CI),
+  qcTest $ \a b c d e f -> Set.fromList [a, b, c, d, e, f] ==
+              flattenCoupleSet (Set.fromList [makeCouple a b, makeCouple c d,
+                                              (makeCouple e f :: CI)]),
+  qcTest $ \a b -> fromCouple (makeCouple a b :: CI) == (min a b, max a b)]
 
-data Foo = Foo Int Int Int
-  deriving (Eq)
-
-instance Read Foo where
-  readPrec = readPrecParser $ weaveBracesCommas $
-    Foo <$> meshKeyVal "a"
-        <*> meshKeyDefault "b" 2
-        <*> meshKeyVal "c"
+type CI = Couple Int
 
 -------------------------------------------------------------------------------

@@ -21,6 +21,7 @@ module Test (main) where
 
 import Test.HUnit (Test(TestList), runTestTT)
 
+import Fallback.Test.Couple (coupleTests)
 import Fallback.Test.Error (errorTests)
 import Fallback.Test.FOV (fovTests)
 import Fallback.Test.Grid (gridTests)
@@ -40,8 +41,9 @@ main :: IO ()
 main = runTestTT allTests >> return ()
 
 allTests :: Test
-allTests = TestList [errorTests, fovTests, gridTests, multimapTests,
-                     pathfindTests, pointTests, pqTests, parseTests,
-                     queueTests, scriptTests, smTests, utilityTests]
+allTests = TestList $
+  [coupleTests, errorTests, fovTests, gridTests, multimapTests, pathfindTests,
+   pointTests, pqTests, parseTests, queueTests, scriptTests, smTests,
+   utilityTests]
 
 -------------------------------------------------------------------------------

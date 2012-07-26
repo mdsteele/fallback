@@ -17,48 +17,44 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
-module Fallback.Test.Parse (parseTests) where
+-- | A 'Couple' is an unordered pair (as opposed to a 2-tuple, which is an
+-- ordered pair) of two elements of the same type.  These two elements need not
+-- be distinct.  Couples are useful for keeping track of edges in undirected
+-- graphs (for example, putting them into a set), among other things.
 
-import Control.Applicative ((<$>), (<*>))
-import Test.HUnit ((~:), Test(TestList))
+module Fallback.Data.Couple
+  (Couple, makeCouple, fromCouple, flattenCoupleSet)
+where
+
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Text.Read (readPrec)
 
-import Fallback.Control.Parse
-import Fallback.Test.Base (insist)
-
 -------------------------------------------------------------------------------
 
-parseTests :: Test
-parseTests = "parse" ~: TestList [
-  insist $ tryParse parser1 "garbage!" == Nothing,
-  insist $ tryParse parser1 "{bool=True,int=7}" ==
-           Just (True, 3.0, 7, "foobar"),
-  insist $ tryParse parser1 "{double=2.5,int=2,bool=False,string=\"hi\"}" ==
-           Just (False, 2.5, 2, "hi"),
-  insist $ showBracesCommas [showKeyVal "b" True, showKeyVal "str" "foo"] "" ==
-           "{b=True,\nstr=\"foo\"}\n",
-  insist $ reads "{c=3,a=1}" == [(Foo 1 2 3, "")],
-  insist $ null $ (reads :: ReadS Foo) "{a=1}",
-  insist $ reads "{c=3,a=1}blarg" == [(Foo 1 2 3, "blarg")],
-  insist $ reads "(False,{a=6,c=8,b=5},True)" ==
-           [((False, Foo 6 5 8, True), "")]]
+-- | An unordered pair of elements of type @a@.  Two 'Couple' objects compare
+-- equal if each contains the same two elements, ignoring order.
+data Couple a = Couple !a !a
+  deriving (Eq, Ord)
 
--------------------------------------------------------------------------------
+instance (Read a, Ord a) => Read (Couple a) where
+  readPrec = fmap (uncurry makeCouple) readPrec
 
-parser1 :: Parser (Bool, Double, Int, String)
-parser1 = weaveBracesCommas $
-  (,,,) <$> meshKeyVal "bool"
-        <*> meshKeyDefault "double" 3.0
-        <*> meshKeyVal "int"
-        <*> meshKeyDefault "string" "foobar"
+instance (Show a) => Show (Couple a) where
+  show = show . fromCouple
 
-data Foo = Foo Int Int Int
-  deriving (Eq)
+-- | Create a 'Couple' containing the given elements.
+makeCouple :: (Ord a) => a -> a -> Couple a
+makeCouple x y = if y < x then Couple y x else Couple x y
 
-instance Read Foo where
-  readPrec = readPrecParser $ weaveBracesCommas $
-    Foo <$> meshKeyVal "a"
-        <*> meshKeyDefault "b" 2
-        <*> meshKeyVal "c"
+-- | Extract the two elements from a 'Couple'.  They may or may not be returned
+-- in the same order that they were supplied to 'makeCouple'.
+fromCouple :: Couple a -> (a, a)
+fromCouple (Couple x y) = (x, y)
+
+-- | Return the set of all values that appear in any couple in the input set.
+flattenCoupleSet :: (Ord a) => Set (Couple a) -> Set a
+flattenCoupleSet = Set.fromList . concatMap expand . Set.toList where
+  expand (Couple x y) = [x, y]
 
 -------------------------------------------------------------------------------
