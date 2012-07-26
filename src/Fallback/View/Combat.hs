@@ -58,6 +58,7 @@ data CombatAction = CombatSidebar SidebarAction
                   | CombatTargetPosition Position
                   | CombatTargetCharacter CharacterNumber
                   | CombatEndTargeting
+                  | CombatCancelAction
 
 newCombatView :: (MonadDraw m) => Resources
               -> m (View CombatState CombatAction)
@@ -155,6 +156,7 @@ newCombatMapView resources = do
         ExecutionPhase _ -> return Suppress
     handler cs (EvKeyDown key _ _) = do
       case key of
+        KeyEscape -> return $ Action $ CombatCancelAction
         KeySpace -> do
           case csPhase cs of
             WaitingPhase -> return Ignore

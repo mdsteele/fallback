@@ -338,6 +338,20 @@ newCombatMode resources modes initState = do
                if null ps then ignore else
                  executeCommand cs cc cost apNeeded (sfn ps)
              _ -> ignore) :: IO NextMode
+        Just CombatCancelAction ->
+          case csPhase cs of
+            WaitingPhase -> ignore
+            CommandPhase _ -> ignore
+            ChooseAbilityPhase cc -> do
+              changeState cs { csPhase = CommandPhase cc }
+            MetaAbilityPhase cm -> do
+              changeState cs { csPhase = ChooseAbilityPhase (cmCommander cm) }
+            InventoryPhase cc Nothing -> do
+              changeState cs { csPhase = CommandPhase cc }
+            InventoryPhase _ (Just _) -> ignore
+            TargetingPhase ct -> do
+              changeState cs { csPhase = CommandPhase (ctCommander ct) }
+            ExecutionPhase _ -> ignore
 
     switchToCommandPhase :: CharacterNumber -> CombatState -> IO NextMode
     switchToCommandPhase charNum cs = do
