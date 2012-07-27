@@ -27,6 +27,7 @@ where
 
 import Control.Applicative ((<$), (<$>))
 import Control.Monad (foldM, replicateM, unless, when)
+import Data.Maybe (fromMaybe, listToMaybe)
 
 import Fallback.Control.Script
 import Fallback.Data.Color (Tint(Tint))
@@ -44,7 +45,7 @@ import Fallback.State.Resources
 import Fallback.State.Simple
 import Fallback.State.Status
 import Fallback.State.Tags (AbilityTag(..))
-import Fallback.Utility (flip3)
+import Fallback.Utility (flip3, maybeM)
 
 -------------------------------------------------------------------------------
 
@@ -143,11 +144,44 @@ monsterPerformAttack key attack target = do
   monsterOffensiveActionToward key 8 target
   monsterAttackInitialAnimation key attack target
   miss <- determineIfAttackMisses (Right key) target (maRange attack /= Melee)
-  unless miss $ do
-  (critical, damage) <- monsterAttackChooseCritical attack =<<
-                        monsterAttackBaseDamage key attack
-  origin <- getMonsterHeadPos key
-  monsterAttackHit key attack origin target critical damage
+  also_
+    -- Perform the attack:
+    (unless miss $ do
+       (critical, damage) <- monsterAttackChooseCritical attack =<<
+                             monsterAttackBaseDamage key attack
+       origin <- getMonsterHeadPos key
+       monsterAttackHit key attack origin target critical damage)
+    -- See if the target can riposte:
+    (when (maRange attack == Melee) $ do
+       monstEntry <- demandMonsterEntry key
+       when (not $ monstIsAlly $ Grid.geValue monstEntry) $ do
+       wait 4 -- Wait to see if character survived attack.
+       mbCharNum <- areaGet (arsCharacterAtPosition target)
+       maybeM mbCharNum $ \charNum -> do
+       char <- areaGet (arsGetCharacter charNum)
+       -- TODO: if character charmed, don't riposte
+       let wd = chrEquippedWeaponData char
+       when (wdRange wd == Melee) $ do
+       failed <- randomBool (chrAbilityMultiplier Riposte 0.9 0.8 0.65 char)
+       unless failed $ do
+       let counterTarget =
+             let headPos = monstHeadPos monstEntry
+             in if adjacent target headPos then headPos else
+                  fromMaybe headPos $ listToMaybe $ filter (adjacent target) $
+                  prectPositions $ Grid.geRect monstEntry
+       faceCharacterToward charNum counterTarget
+       setCharacterAnim charNum (AttackAnim 6)
+       characterWeaponInitialAnimation charNum counterTarget wd
+       damage <- (0.75 *) <$> characterWeaponBaseDamage char wd
+       addFloatingWordOnTarget WordRiposte (HitPosition counterTarget)
+       characterWeaponHit wd target counterTarget False damage)
+
+-- Rules for Riposte skill:
+-- * Character must be being attacked by an enemy monster (not a charmed ally)
+-- * Monster must be making a melee attack
+-- * Character must survive said attack
+-- * Character must have a melee weapon equipped
+-- * Character must not be charmed (confused is okay)
 
 monsterAttackInitialAnimation :: Grid.Key Monster -> MonsterAttack -> Position
                               -> Script CombatEffect ()

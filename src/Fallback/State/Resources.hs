@@ -302,7 +302,7 @@ wordRect WordFinalBlow = Rect 0 18 36 9
 wordRect WordKO = Rect 24 36 11 9
 wordRect WordMiss = Rect 46 9 17 9
 wordRect WordParry = Rect 0 9 22 9
-wordRect WordRiposte = Rect 37 27 28 9
+wordRect WordRiposte = Rect 37 18 28 9
 
 rsrcWordSprite :: Resources -> WordTag -> Sprite
 rsrcWordSprite rsrc tag = TM.get tag $ rsrcWordSprites rsrc
