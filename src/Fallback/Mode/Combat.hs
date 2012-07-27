@@ -240,8 +240,8 @@ newCombatMode resources modes initState = do
               -- Check if the square is occupied:
               case arsOccupant pos' cs of
                 Nothing -> -- Walk
-                  executeCommand cs cc NoCost apNeeded $
-                  charWalkTo charNum pos' >>= wait
+                  executeCommand cs cc NoCost apNeeded $ do
+                    characterCombatWalk charNum pos'
                 Just (Left _charNum') -> -- Switch places if possible
                   ignore -- FIXME switch places
                 Just (Right _) -> ignore
@@ -579,24 +579,25 @@ doTickExecution :: CombatState -> CombatExecution
 doTickExecution cs ce = do
   (cs', mbScriptInterrupt) <- executeScript cs (ceScript ce)
   case mbScriptInterrupt of
-    Nothing ->
+    Nothing -> do
       if (noMoreEnemyMonsters cs' ||
           cePendingEndCombat ce && csCanRunAway cs' &&
           not (arsAreEnemiesNearby cs'))
-      then return (cs', Just DoEndCombat) else
-        let endTurn cs'' = do
-              let mbInterrupt = do
-                    charNum <- cePendingCharacter ce
-                    guard (csCharCanTakeTurn cs charNum)
-                    Just (DoActivateCharacter charNum)
-              return (cs'' { csPhase = WaitingPhase }, mbInterrupt)
-        in case ceCommander ce of
-             Just cc | hasEnoughActionPoints cs' cc 1 ->
-               return (cs' { csPhase = CommandPhase cc }, Nothing)
-             Just cc | otherwise ->
-               endTurn (subtractUsedActionPoints cc cs')
-             Nothing -> endTurn cs'
-    Just (script, interrupt) ->
+      then return (cs', Just DoEndCombat) else do
+      let endTurn cs'' = do
+            let mbInterrupt = do
+                  charNum <- cePendingCharacter ce
+                  guard (csCharCanTakeTurn cs charNum)
+                  Just (DoActivateCharacter charNum)
+            return (cs'' { csPhase = WaitingPhase }, mbInterrupt)
+      case ceCommander ce of
+        Just cc -> do
+          if (chrIsConscious $ arsGetCharacter (ccCharacterNumber cc) cs') &&
+             hasEnoughActionPoints cs' cc 1
+          then return (cs' { csPhase = CommandPhase cc }, Nothing)
+          else endTurn (subtractUsedActionPoints cc cs')
+        Nothing -> endTurn cs'
+    Just (script, interrupt) -> do
       return (cs' { csPhase = ExecutionPhase ce { ceScript = script } },
               Just interrupt)
 

@@ -24,19 +24,21 @@ module Fallback.Scenario.Script.Attack
    characterOffensiveAction, characterOffensiveActionTowards,
    characterWeaponAttack,
    -- * Monster attacks
-   monsterOffensiveAction, monsterOffensiveActionToward, monsterPerformAttack)
+   monsterOffensiveAction, monsterOffensiveActionToward, monsterPerformAttack,
+   -- * Miscellaneous
+   characterCombatWalk)
 where
 
 import Control.Applicative ((<$), (<$>))
-import Control.Monad (foldM, replicateM, unless, when)
-import Data.Maybe (fromMaybe, listToMaybe)
+import Control.Monad (foldM, guard, replicateM, unless, when)
+import Data.Maybe (fromMaybe, listToMaybe, mapMaybe)
 
 import Fallback.Control.Script
 import Fallback.Data.Color (Tint(Tint))
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Scenario.Script.Base
-import Fallback.Scenario.Script.Damage (dealDamage, killTarget)
+import Fallback.Scenario.Script.Damage (dealDamageGeneral, killTarget)
 import Fallback.Scenario.Script.Doodad
 import Fallback.Scenario.Script.Other
 import Fallback.State.Area
@@ -58,7 +60,8 @@ data AttackModifiers = AttackModifiers
     amCriticalHit :: Ever Double,
     amDamageMultiplier :: Double,
     amExtraEffects :: [AttackEffect],
-    amHitSound :: Bool, -- TODO
+    amGentle :: Bool,
+    amHitSound :: Bool,
     amOffensive :: Bool,
     amWeaponData :: Maybe WeaponData }
 
@@ -70,6 +73,7 @@ baseAttackModifiers = AttackModifiers
     amCriticalHit = Sometimes,
     amDamageMultiplier = 1,
     amExtraEffects = [],
+    amGentle = False,
     amHitSound = True,
     amOffensive = True,
     amWeaponData = Nothing }
@@ -112,8 +116,15 @@ characterWeaponAttack charNum target mods = do
   origin <- areaGet (arsCharacterPosition charNum)
   -- TODO take Backstab into account for damage
   -- TODO take FinalBlow into account somehow
-  characterWeaponHit wd origin (amHitSound mods) target critical
-                     (damage * amDamageMultiplier mods)
+  let hitMods = HitModifiers
+        { hmAppearance = wdAppearance wd, hmAttackerIsAlly = True,
+          hmCritical = critical, hmElement = wdElement wd, hmGentle = False,
+          hmHitSound = amHitSound mods }
+  mbMult <- weaponDamageMultiplier wd <$> areaGet (arsOccupant target)
+  case mbMult of
+    Just mult -> attackHit (wdEffects wd) origin target
+                           (mult * amDamageMultiplier mods * damage) hitMods
+    Nothing -> instantKill target hitMods
 
 characterWeaponInitialAnimation  :: CharacterNumber -> Position
                                  -> WeaponData -> Script CombatEffect ()
@@ -138,31 +149,25 @@ characterWeaponChooseCritical char damage = do
   critical <- randomBool (1 - 0.998 ^^ chrGetStat Intellect char)
   return (critical, if critical then damage * 1.5 else damage)
 
-characterWeaponHit :: WeaponData -> Position -> Bool -> Position -> Bool
-                   -> Double -> Script CombatEffect ()
-characterWeaponHit wd origin useSound target critical damage = do
-  mbOccupant <- areaGet (arsOccupant target)
-  let multOrKill ZeroDamage = Just 0
-      multOrKill HalfDamage = Just 0.5
-      multOrKill NormalDamage = Just 1
-      multOrKill DoubleDamage = Just 2
-      multOrKill InstantKill = Nothing
-  let mbMult =
-        case mbOccupant of
-          Nothing -> Just 1
-          Just (Left _) -> multOrKill (wdVsHuman wd)
-          Just (Right entry) ->
-            let mtype = monstType $ Grid.geValue entry
-                dmgVs wdFn mtFn =
-                  if mtFn mtype then multOrKill (wdFn wd) else Just 1
-            in fmap product $ sequence $
-               [dmgVs wdVsDaemonic mtIsDaemonic, dmgVs wdVsHuman mtIsHuman,
-                dmgVs wdVsUndead mtIsUndead]
-  case mbMult of
-    Just mult -> attackHit True (wdAppearance wd) (wdElement wd) (wdEffects wd)
-                           origin useSound target critical (mult * damage)
-    Nothing -> instantKill (wdAppearance wd) (wdElement wd) useSound target
-                           critical
+weaponDamageMultiplier :: WeaponData
+                       -> Maybe (Either CharacterNumber (Grid.Entry Monster))
+                       -> Maybe Double
+weaponDamageMultiplier wd mbOccupant =
+  case mbOccupant of
+    Nothing -> Just 1
+    Just (Left _) -> multOrKill (wdVsHuman wd)
+    Just (Right entry) ->
+      let mtype = monstType $ Grid.geValue entry
+          dmgVs wdFn mtFn = if mtFn mtype then multOrKill (wdFn wd) else Just 1
+      in fmap product $ sequence $
+           [dmgVs wdVsDaemonic mtIsDaemonic, dmgVs wdVsHuman mtIsHuman,
+            dmgVs wdVsUndead mtIsUndead]
+  where
+    multOrKill ZeroDamage = Just 0
+    multOrKill HalfDamage = Just 0.5
+    multOrKill NormalDamage = Just 1
+    multOrKill DoubleDamage = Just 2
+    multOrKill InstantKill = Nothing
 
 -------------------------------------------------------------------------------
 
@@ -178,18 +183,30 @@ monsterOffensiveActionToward key frames target = do
   monsterOffensiveAction key frames
 
 monsterPerformAttack :: Grid.Key Monster -> MonsterAttack -> Position
-                     -> Script CombatEffect ()
-monsterPerformAttack key attack target = do
-  monsterOffensiveActionToward key 8 target
+                     -> AttackModifiers -> Script CombatEffect ()
+monsterPerformAttack key attack target mods = do
+  when (amOffensive mods) $ do
+    monsterOffensiveActionToward key 8 target
   monsterAttackInitialAnimation key attack target
-  miss <- determineIfAttackMisses (Right key) target (maRange attack /= Melee)
+  miss <- if not (amCanMiss mods) then return False else do
+    determineIfAttackMisses (Right key) target (maRange attack /= Melee)
   also_
     -- Perform the attack:
     (unless miss $ do
-       (critical, damage) <- monsterAttackChooseCritical attack =<<
-                             monsterAttackBaseDamage key attack
+       baseDamage <- monsterAttackBaseDamage key attack
+       (critical, damage) <-
+         case amCriticalHit mods of
+           Never -> return (False, baseDamage)
+           Sometimes -> monsterAttackChooseCritical attack baseDamage
+           Always mult -> return (True, baseDamage * mult)
        origin <- getMonsterHeadPos key
-       monsterAttackHit key attack origin target critical damage)
+       isAlly <- maybe False (monstIsAlly . Grid.geValue) <$>
+                 lookupMonsterEntry key
+       attackHit (amExtraEffects mods ++ maEffects attack) origin target
+                 (amDamageMultiplier mods * damage) HitModifiers
+         { hmAppearance = maAppearance attack, hmAttackerIsAlly = isAlly,
+           hmCritical = critical, hmElement = maElement attack,
+           hmGentle = amGentle mods, hmHitSound = amHitSound mods })
     -- See if the target can riposte:
     (when (maRange attack == Melee) $ do
        monstEntry <- demandMonsterEntry key
@@ -245,14 +262,15 @@ monsterAttackChooseCritical attack damage = do
   critical <- randomBool (maCriticalChance attack)
   return (critical, if critical then damage * 1.5 else damage)
 
-monsterAttackHit :: Grid.Key Monster -> MonsterAttack -> Position -> Position
-                 -> Bool -> Double -> Script CombatEffect ()
-monsterAttackHit key ma origin target critical damage = do
-  isAlly <- maybe False (monstIsAlly . Grid.geValue) <$> lookupMonsterEntry key
-  attackHit isAlly (maAppearance ma) (maElement ma) (maEffects ma) origin
-            True target critical damage
-
 -------------------------------------------------------------------------------
+
+data HitModifiers = HitModifiers
+  { hmAppearance :: AttackAppearance,
+    hmAttackerIsAlly :: Bool,
+    hmCritical :: Bool,
+    hmElement :: DamageType,
+    hmGentle :: Bool,
+    hmHitSound :: Bool }
 
 attackInitialAnimation :: (FromAreaEffect f) => AttackAppearance
                        -> DamageType -> Position -> Position -> Script f ()
@@ -333,11 +351,12 @@ determineIfAttackMisses attacker target isRanged = do
       doTryAvoid (monstAttackAgility monst) (monstInvisibility monst)
     Nothing -> True <$ playMissSound
 
-attackHitAnimation :: (FromAreaEffect f) => AttackAppearance -> DamageType
-                   -> Bool -> Position -> Bool -> Script f ()
-attackHitAnimation appearance element useSound target critical = do
+attackHitAnimation :: (FromAreaEffect f) => HitModifiers -> Position
+                   -> Script f ()
+attackHitAnimation mods target = do
   -- TODO take attack effects into account (in addition to main attack element)
   -- when choosing sound/doodad
+  let critical = hmCritical mods
   let elementSnd AcidDamage = SndChemicalDamage
       elementSnd ColdDamage = SndFreeze
       elementSnd FireDamage = if critical then SndBoomSmall else SndFireDamage
@@ -345,18 +364,18 @@ attackHitAnimation appearance element useSound target critical = do
       elementSnd MagicDamage = SndLightning
       elementSnd PhysicalDamage = if critical then SndHit3 else SndHit4
       elementSnd RawDamage = SndHit1
-  when useSound $ playSound $
-    case appearance of
+  when (hmHitSound mods) $ playSound $
+    case hmAppearance mods of
       BiteAttack -> SndBite
       BowAttack -> if critical then SndHit2 else SndHit1
       BladeAttack -> if critical then SndHit4 else SndHit3
       BluntAttack -> if critical then SndHit2 else SndHit1
-      BreathAttack -> elementSnd element
+      BreathAttack -> elementSnd (hmElement mods)
       ClawAttack -> SndClaw
       ThrownAttack -> if critical then SndHit2 else SndHit1
-      WandAttack -> elementSnd element
+      WandAttack -> elementSnd (hmElement mods)
   let elementBoom = do
-        let boom = case element of
+        let boom = case hmElement mods of
                      AcidDamage -> AcidBoom
                      ColdDamage -> IceBoom
                      EnergyDamage -> EnergyBoom
@@ -365,7 +384,7 @@ attackHitAnimation appearance element useSound target critical = do
                      PhysicalDamage -> SlashRight
                      RawDamage -> SlashRight
         addBoomDoodadAtPosition boom (if critical then 3 else 2) target
-  case appearance of
+  case hmAppearance mods of
     BiteAttack -> addBoomDoodadAtPosition SlashRight 2 target -- FIXME
     BowAttack -> addBoomDoodadAtPosition SlashRight 2 target -- FIXME
     BladeAttack -> do
@@ -377,12 +396,10 @@ attackHitAnimation appearance element useSound target critical = do
     ThrownAttack -> addBoomDoodadAtPosition SlashRight 2 target -- FIXME
     WandAttack -> elementBoom
 
-attackHit :: Bool -> AttackAppearance -> DamageType -> [AttackEffect]
-          -> Position -> Bool -> Position -> Bool -> Double
+attackHit :: [AttackEffect] -> Position -> Position -> Double -> HitModifiers
           -> Script CombatEffect ()
-attackHit attackerIsAlly appearance element effects origin useSound target
-          critical damage = do
-  attackHitAnimation appearance element useSound target critical
+attackHit effects origin target damage mods = do
+  attackHitAnimation mods target
   let hitTarget = HitPosition target
   extraHits <- flip3 foldM [] effects $ \hits effect -> do
     let affectStatus fn = hits <$ alterStatus hitTarget fn
@@ -394,10 +411,13 @@ attackHit attackerIsAlly appearance element effects origin useSound target
       InflictCurse mult ->
         affectStatus $ seApplyBlessing $ Harmful (mult * damage)
       InflictMental eff mult -> hits <$
-        inflictMentalEffect attackerIsAlly hitTarget eff (mult * damage)
+        inflictMentalEffect (hmAttackerIsAlly mods) hitTarget eff
+                            (mult * damage)
       InflictPoison mult -> hits <$ inflictPoison hitTarget (mult * damage)
       InflictSlow mult -> affectStatus $ seApplyHaste $ Harmful (mult * damage)
-      InflictStun mult -> hits <$ inflictStun hitTarget (mult * damage)
+      InflictStun mult ->
+        if hmGentle mods then return hits
+        else hits <$ inflictStun hitTarget (mult * damage)
       InflictWeakness mult ->
         affectStatus $ seApplyDefense $ Harmful (mult * damage)
       KnockBack -> return hits
@@ -408,17 +428,17 @@ attackHit attackerIsAlly appearance element effects origin useSound target
       ReduceMagicShield mult ->
         affectStatus $ seReduceMagicShield (mult * damage)
       SetField field -> hits <$ setFields field [target]
-  when critical $ addFloatingWordOnTarget WordCritical hitTarget
-  dealDamage ((hitTarget, element, damage) : extraHits)
+  when (hmCritical mods) $ addFloatingWordOnTarget WordCritical hitTarget
+  _ <- dealDamageGeneral (hmGentle mods)
+                         ((hitTarget, hmElement mods, damage) : extraHits)
   when (KnockBack `elem` effects) $ do
     _ <- tryKnockBack hitTarget $ ipointDir (target `pSub` origin)
     return ()
   wait 16
 
-instantKill :: AttackAppearance -> DamageType -> Bool -> Position -> Bool
-            -> Script CombatEffect ()
-instantKill appearance element useSound target critical = do
-  attackHitAnimation appearance element useSound target critical
+instantKill :: Position -> HitModifiers -> Script CombatEffect ()
+instantKill target mods = do
+  attackHitAnimation mods target
   mbOccupant <- areaGet (arsOccupant target)
   case mbOccupant of
     Just (Left charNum) -> do
@@ -431,6 +451,32 @@ instantKill appearance element useSound target critical = do
       killTarget hitTarget
     Nothing -> return ()
   wait 16
+
+-------------------------------------------------------------------------------
+
+-- TODO: This belongs in a different module.
+characterCombatWalk :: CharacterNumber -> Position -> Script CombatEffect ()
+characterCombatWalk charNum dest = do
+  char <- areaGet (arsGetCharacter charNum)
+  when (seInvisibility (chrStatus char) == NoInvisibility) $ do
+  origin <- areaGet (arsCharacterPosition charNum)
+  let maybeHit entry = do
+        guard $ not $ monstIsAlly $ Grid.geValue entry
+        guard $ not $ rectIntersects (expandPosition dest) $ Grid.geRect entry
+        attack <- listToMaybe $ monstAttacks $ Grid.geValue entry
+        Just (Grid.geKey entry, attack)
+  hits <- randomPermutation =<<
+          areaGet (mapMaybe maybeHit .
+                   flip Grid.searchRect (expandPosition origin) . arsMonsters)
+  let frames = 3 -- how many frames does each attack delays the walking
+  also_ (wait (frames * length hits) >> charWalkTo charNum dest >>= wait) $ do
+    concurrent_ (zip hits [0, frames ..]) $ \((key, attack), delay) -> do
+      wait delay
+      faceMonsterToward key origin
+      setMonsterAnim key (AttackAnim 6)
+      monsterPerformAttack key attack origin baseAttackModifiers
+        { amCanMiss = True, amCriticalHit = Never, amDamageMultiplier = 0.75,
+          amGentle = True, amOffensive = False }
 
 -------------------------------------------------------------------------------
 

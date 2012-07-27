@@ -18,8 +18,8 @@
 ============================================================================ -}
 
 module Fallback.Scenario.Script.Damage
-  (dealDamage, dealDamageTotal, killTarget, healDamage, reviveTarget,
-   inflictAllPeriodicDamage)
+  (dealDamage, dealDamageTotal, dealDamageGeneral, killTarget,
+   healDamage, reviveTarget, inflictAllPeriodicDamage)
 where
 
 import Control.Applicative ((<$), (<$>))
@@ -50,6 +50,15 @@ import Fallback.Utility
 
 -------------------------------------------------------------------------------
 -- Damage:
+
+{-
+-- TODO: Use these instead of Bool for attack gentleness.  Ripostes, attacks of
+-- opportunity, and Quick Attack should use LightDamage.  Fields should deal
+-- GentleDamage.
+data DamageSeverity = HarshDamage -- normal damage
+                    | LightDamage -- doesn't stun or increase adrenaline
+                    | GentleDamage -- same as above, but no number/anim if zero
+-}
 
 dealDamage :: (FromAreaEffect f) => [(HitTarget, DamageType, Double)]
            -> Script f ()

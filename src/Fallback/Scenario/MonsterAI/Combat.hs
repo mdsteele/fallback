@@ -69,6 +69,7 @@ attackAI charmed key = do
     let rect = Grid.geRect entry
     case pathfindRectToRanges isBlocked rect goals sqDist 20 of
       Just (pos : _) -> do
+        -- TODO: Invite attacks of opportunity
         walkMonster 4 key pos
         let entangled = monstIsEntangled $ Grid.geValue entry
         let actionPoints' = actionPoints - (if entangled then 2 else 1)
@@ -79,7 +80,8 @@ attackAI charmed key = do
                               Set.member pos visible) goals
         if null targets then return () else do
         target <- getRandomElem targets
-        monsterPerformAttack key attack target
+        monsterPerformAttack key attack target baseAttackModifiers
+          { amCanMiss = True }
       Nothing -> return Nothing
 
 drunkAI :: Grid.Key Monster -> Script CombatEffect ()

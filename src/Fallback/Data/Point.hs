@@ -33,7 +33,8 @@ module Fallback.Data.Point
    -- * Direction type
    Direction(..), allDirections, isCardinal, ipointDir, dirDelta, plusDir,
    -- * Position type
-   Position, PRect, adjacent, bresenhamPositions, expandPrect, prectPositions,
+   Position, PRect, adjacent, bresenhamPositions, prectPositions,
+   expandPrect, expandPosition,
    SqDist(..), sqDistRadius, pSqDist, ofRadius, rangeTouchesRect)
 where
 
@@ -312,14 +313,18 @@ bresenhamPositions (Point x1'' y1'') (Point x2'' y2'') =
       positions = unfoldr yield (x1, y1, dx `div` 2)
   in if reversed then reverse positions else positions
 
--- | Expand a 'PRect' by one position in each direction.
-expandPrect :: PRect -> PRect
-expandPrect = adjustRect1 (negate 1)
-
 -- | Return a list of all positions within a position-rectangle.
 prectPositions :: PRect -> [Position]
 prectPositions (Rect x y w h) =
   range (Point x y, Point (x + w - 1) (y + h - 1))
+
+-- | Expand a 'PRect' by one position in each direction.
+expandPrect :: PRect -> PRect
+expandPrect = adjustRect1 (negate 1)
+
+-- | Create a 3x3 'PRect' centered on the given position.
+expandPosition :: Position -> PRect
+expandPosition (Point x y) = Rect (x - 1) (y - 1) 3 3
 
 -- | A squared distance between two positions.
 newtype SqDist = SqDist Int
