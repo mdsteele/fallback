@@ -190,7 +190,8 @@ newCombatMode resources modes initState = do
               let wd = chrEquippedWeaponData $ arsGetCharacter charNum cs
               let tk = SingleTarget $ rangeRadius $ wdRange wd
               switchToTargetingPhase cc cs maxActionPoints NoCost tk $
-                \target -> characterWeaponAttack charNum target
+                \target -> characterWeaponAttack charNum target $
+                           baseAttackModifiers { amCanMiss = True }
             _ -> ignore
         Just (CombatInventory invAct) -> do
           case csPhase cs of
@@ -264,7 +265,8 @@ newCombatMode resources modes initState = do
                 ignore else do
               -- Execute the attack:
               executeCommand cs cc NoCost apNeeded $ do
-                characterWeaponAttack (ccCharacterNumber cc) target
+                characterWeaponAttack (ccCharacterNumber cc) target $
+                  baseAttackModifiers { amCanMiss = True }
             _ -> ignore
         Just CombatEndTurnEarly ->
           case csPhase cs of

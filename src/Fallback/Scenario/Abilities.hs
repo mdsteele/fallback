@@ -96,27 +96,17 @@ getAbility characterClass abilityNumber rank =
     Critical ->
       meta (FocusCost 1) MeleeOrRanged SingleTarget $
       \caster power endPos -> do
-        characterOffensiveActionTowards caster 8 endPos
-        char <- areaGet (arsGetCharacter caster)
-        let wd = chrEquippedWeaponData char
-        characterWeaponInitialAnimation caster endPos wd
-        damage <- characterWeaponBaseDamage char wd
-        let damage' = damage * power * ranked 1.5 1.75 2.0
-        startPos <- areaGet (arsCharacterPosition caster)
-        characterWeaponHit wd startPos endPos True damage'
+        characterWeaponAttack caster endPos baseAttackModifiers
+          { amCriticalHit = Always (power * ranked 1.5 1.75 2.0) }
     FinalBlow -> PassiveAbility
     QuickAttack ->
       meta' (ranked 3 2 1) (FocusCost 1) MeleeOrRanged SingleTarget $
       \caster power endPos -> do
         faceCharacterToward caster endPos
         setCharacterAnim caster (AttackAnim 6)
-        char <- areaGet (arsGetCharacter caster)
-        let wd = chrEquippedWeaponData char
-        characterWeaponInitialAnimation caster endPos wd
-        damage <- ((1 - 0.25 ** power) *) <$>
-                  characterWeaponBaseDamage char wd
-        startPos <- areaGet (arsCharacterPosition caster)
-        characterWeaponHit wd startPos endPos False damage
+        characterWeaponAttack caster endPos baseAttackModifiers
+          { amCriticalHit = Never,
+            amDamageMultiplier = (1 - 0.25 ** power), amOffensive = False }
     Backstab -> PassiveAbility
     Vanish ->
       combat (FocusCost 1) (JumpTarget (const $ const $ const []) 6) $
@@ -171,16 +161,18 @@ getAbility characterClass abilityNumber rank =
             let newPos = fromMaybe monstPos $ find (not . isBlocked) $
                          map ((monstPos `pSub` endPos) `pAdd`) $
                          bresenhamPositions startPos endPos
+            -- Shoot out the rope.
             addExtendedHookshotDoodad 16 startPos endPos
             if isAlly then playSound SndHit2 >> wait 16 else do
-              char <- areaGet (arsGetCharacter caster)
-              let wd = unarmedWeaponData
-                         { wdDamageBonus = 10,
-                           wdEffects = if rank < Rank2 then []
-                                       else [InflictStun 1] }
-              damage <- characterWeaponBaseDamage char wd
-              characterWeaponHit wd startPos endPos True (power * damage)
-            characterOffensiveActionTowards caster 8 endPos
+              characterWeaponAttack caster endPos baseAttackModifiers
+                { amCanBackstab = False, amCriticalHit = Never,
+                  amDamageMultiplier = power, amOffensive = False,
+                  amWeaponData = Just $ unarmedWeaponData
+                    { wdDamageBonus = 10,
+                      wdEffects = if rank < Rank2 then []
+                                  else [InflictStun 1] } }
+            -- Reel the target back in.
+            characterOffensiveActionTowards caster 2 endPos
             addRetractingHookshotDoodad startPos endPos
             unless (newPos == monstPos) $ withMonsterEntry key $ \entry' -> do
               let time = round (2 * pDist (fromIntegral <$> monstPos)
@@ -191,11 +183,14 @@ getAbility characterClass abilityNumber rank =
               faceMonsterAwayFrom key startPos
               setMonsterAnim key (WalkAnim time time monstPos)
               wait time
+            -- If we're at rank three, slash the enemy after reeling them in
+            -- (if we successfully reeled them in all the way).
             unless (isAlly || rank < Rank3) $ do
               withMonsterEntry key $ \entry' -> do
                 maybeM (find ((rangeSqDist Melee >=) . pSqDist startPos) $
-                        prectPositions $ Grid.geRect entry') $ \_hitPos -> do
-                  return () -- FIXME slash monster at hitPos
+                        prectPositions $ Grid.geRect entry') $ \hitPos -> do
+                  -- TODO: What if we have a ranged weapon equipped?
+                  characterWeaponAttack caster hitPos baseAttackModifiers
     Dodge -> PassiveAbility
     Subsume -> PassiveAbility -- FIXME
     Illusion ->
@@ -818,9 +813,9 @@ abilityDescription Critical =
   \At rank 3, the critical hit deals triple damage."
 abilityDescription FinalBlow =
   "Any time an enemy would barely survive your melee attack, the attack will\
-  \ deal up to 15% more damage in order to leave the enemy dead.\n\
-  \At rank 2, a final blow can deal up to 30% extra damage.\n\
-  \At rank 3, a final blow can deal up to 50% extra damage."
+  \ deal up to 20% more damage in order to leave the enemy dead.\n\
+  \At rank 2, a final blow can deal up to 40% extra damage.\n\
+  \At rank 3, a final blow can deal up to 70% extra damage."
 abilityDescription QuickAttack =
   "Make a weapon attack, using only three action points instead of four.  This\
   \ attack will not reveal you if you were invisible.\n\
@@ -1086,15 +1081,8 @@ abilityMinPartyLevel abilTag abilRank = ranked $
 attackWithExtraEffects :: CharacterNumber -> Position -> [AttackEffect]
                        -> Script CombatEffect ()
 attackWithExtraEffects caster target effects = do
-  characterOffensiveActionTowards caster 8 target
-  char <- areaGet (arsGetCharacter caster)
-  let wd = chrEquippedWeaponData char
-  let wd' = wd { wdEffects = effects ++ wdEffects wd }
-  characterWeaponInitialAnimation caster target wd'
-  (critical, damage) <- characterWeaponChooseCritical char =<<
-                        characterWeaponBaseDamage char wd'
-  origin <- areaGet (arsCharacterPosition caster)
-  characterWeaponHit wd' origin target critical damage
+  characterWeaponAttack caster target baseAttackModifiers
+    { amExtraEffects = effects }
 
 massAlterStatus :: (FromAreaEffect f) => [Position]
                 -> (HitTarget -> Script f ()) -> Script f StatusDelta

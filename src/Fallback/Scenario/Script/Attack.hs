@@ -18,10 +18,12 @@
 ============================================================================ -}
 
 module Fallback.Scenario.Script.Attack
-  (characterOffensiveAction, characterOffensiveActionTowards,
-   characterWeaponAttack, characterWeaponInitialAnimation,
-   characterWeaponBaseDamage, characterWeaponChooseCritical,
-   characterWeaponHit,
+  (-- * Attack modifiers
+   AttackModifiers(..), baseAttackModifiers, Ever(..),
+   -- * Character attacks
+   characterOffensiveAction, characterOffensiveActionTowards,
+   characterWeaponAttack,
+   -- * Monster attacks
    monsterOffensiveAction, monsterOffensiveActionToward, monsterPerformAttack)
 where
 
@@ -49,6 +51,33 @@ import Fallback.Utility (flip3, maybeM)
 
 -------------------------------------------------------------------------------
 
+data AttackModifiers = AttackModifiers
+  { amCanBackstab :: Bool, -- TODO
+    amCanFinalBlow :: Bool, -- TODO
+    amCanMiss :: Bool,
+    amCriticalHit :: Ever Double,
+    amDamageMultiplier :: Double,
+    amExtraEffects :: [AttackEffect],
+    amHitSound :: Bool, -- TODO
+    amOffensive :: Bool,
+    amWeaponData :: Maybe WeaponData }
+
+baseAttackModifiers :: AttackModifiers
+baseAttackModifiers = AttackModifiers
+  { amCanBackstab = True,
+    amCanFinalBlow = True,
+    amCanMiss = False,
+    amCriticalHit = Sometimes,
+    amDamageMultiplier = 1,
+    amExtraEffects = [],
+    amHitSound = True,
+    amOffensive = True,
+    amWeaponData = Nothing }
+
+data Ever a = Never | Sometimes | Always a
+
+-------------------------------------------------------------------------------
+
 characterOffensiveAction :: (FromAreaEffect f) => CharacterNumber -> Int
                          -> Script f ()
 characterOffensiveAction charNum frames = do
@@ -61,21 +90,30 @@ characterOffensiveActionTowards charNum frames target = do
   faceCharacterToward charNum target
   characterOffensiveAction charNum frames
 
-characterWeaponAttack :: CharacterNumber -> Position -> Script CombatEffect ()
-characterWeaponAttack charNum target = do
-  characterOffensiveActionTowards charNum 8 target
+characterWeaponAttack :: CharacterNumber -> Position -> AttackModifiers
+                      -> Script CombatEffect ()
+characterWeaponAttack charNum target mods = do
+  when (amOffensive mods) $ do
+    characterOffensiveActionTowards charNum 8 target
   char <- areaGet (arsGetCharacter charNum)
-  let wd = chrEquippedWeaponData char
+  let wd = let wd' = fromMaybe (chrEquippedWeaponData char) (amWeaponData mods)
+           in wd' { wdEffects = amExtraEffects mods ++ wdEffects wd' }
   characterWeaponInitialAnimation charNum target wd
   let isRanged = wdRange wd /= Melee
-  miss <- determineIfAttackMisses (Left charNum) target isRanged
+  miss <- if not (amCanMiss mods) then return False
+          else determineIfAttackMisses (Left charNum) target isRanged
   unless miss $ do
-  (critical, damage) <- characterWeaponChooseCritical char =<<
-                        characterWeaponBaseDamage char wd
+  baseDamage <- characterWeaponBaseDamage char wd
+  (critical, damage) <-
+    case amCriticalHit mods of
+      Never -> return (False, baseDamage)
+      Sometimes -> characterWeaponChooseCritical char baseDamage
+      Always mult -> return (True, baseDamage * mult)
   origin <- areaGet (arsCharacterPosition charNum)
   -- TODO take Backstab into account for damage
   -- TODO take FinalBlow into account somehow
-  characterWeaponHit wd origin target critical damage
+  characterWeaponHit wd origin (amHitSound mods) target critical
+                     (damage * amDamageMultiplier mods)
 
 characterWeaponInitialAnimation  :: CharacterNumber -> Position
                                  -> WeaponData -> Script CombatEffect ()
@@ -100,9 +138,9 @@ characterWeaponChooseCritical char damage = do
   critical <- randomBool (1 - 0.998 ^^ chrGetStat Intellect char)
   return (critical, if critical then damage * 1.5 else damage)
 
-characterWeaponHit :: WeaponData -> Position -> Position -> Bool -> Double
-                   -> Script CombatEffect ()
-characterWeaponHit wd origin target critical damage = do
+characterWeaponHit :: WeaponData -> Position -> Bool -> Position -> Bool
+                   -> Double -> Script CombatEffect ()
+characterWeaponHit wd origin useSound target critical damage = do
   mbOccupant <- areaGet (arsOccupant target)
   let multOrKill ZeroDamage = Just 0
       multOrKill HalfDamage = Just 0.5
@@ -122,8 +160,9 @@ characterWeaponHit wd origin target critical damage = do
                 dmgVs wdVsUndead mtIsUndead]
   case mbMult of
     Just mult -> attackHit True (wdAppearance wd) (wdElement wd) (wdEffects wd)
-                           origin target critical (mult * damage)
-    Nothing -> instantKill (wdAppearance wd) (wdElement wd) target critical
+                           origin useSound target critical (mult * damage)
+    Nothing -> instantKill (wdAppearance wd) (wdElement wd) useSound target
+                           critical
 
 -------------------------------------------------------------------------------
 
@@ -171,10 +210,10 @@ monsterPerformAttack key attack target = do
                   prectPositions $ Grid.geRect monstEntry
        faceCharacterToward charNum counterTarget
        setCharacterAnim charNum (AttackAnim 6)
-       characterWeaponInitialAnimation charNum counterTarget wd
-       damage <- (0.75 *) <$> characterWeaponBaseDamage char wd
        addFloatingWordOnTarget WordRiposte (HitPosition counterTarget)
-       characterWeaponHit wd target counterTarget False damage)
+       characterWeaponAttack charNum counterTarget baseAttackModifiers
+         { amCanBackstab = False, amCanMiss = False, amCriticalHit = Never,
+           amDamageMultiplier = 0.75, amOffensive = False })
 
 -- Rules for Riposte skill:
 -- * Character must be being attacked by an enemy monster (not a charmed ally)
@@ -211,7 +250,7 @@ monsterAttackHit :: Grid.Key Monster -> MonsterAttack -> Position -> Position
 monsterAttackHit key ma origin target critical damage = do
   isAlly <- maybe False (monstIsAlly . Grid.geValue) <$> lookupMonsterEntry key
   attackHit isAlly (maAppearance ma) (maElement ma) (maEffects ma) origin
-            target critical damage
+            True target critical damage
 
 -------------------------------------------------------------------------------
 
@@ -295,8 +334,8 @@ determineIfAttackMisses attacker target isRanged = do
     Nothing -> True <$ playMissSound
 
 attackHitAnimation :: (FromAreaEffect f) => AttackAppearance -> DamageType
-                   -> Position -> Bool -> Script f ()
-attackHitAnimation appearance element target critical = do
+                   -> Bool -> Position -> Bool -> Script f ()
+attackHitAnimation appearance element useSound target critical = do
   -- TODO take attack effects into account (in addition to main attack element)
   -- when choosing sound/doodad
   let elementSnd AcidDamage = SndChemicalDamage
@@ -306,7 +345,7 @@ attackHitAnimation appearance element target critical = do
       elementSnd MagicDamage = SndLightning
       elementSnd PhysicalDamage = if critical then SndHit3 else SndHit4
       elementSnd RawDamage = SndHit1
-  playSound $
+  when useSound $ playSound $
     case appearance of
       BiteAttack -> SndBite
       BowAttack -> if critical then SndHit2 else SndHit1
@@ -339,10 +378,11 @@ attackHitAnimation appearance element target critical = do
     WandAttack -> elementBoom
 
 attackHit :: Bool -> AttackAppearance -> DamageType -> [AttackEffect]
-          -> Position -> Position -> Bool -> Double -> Script CombatEffect ()
-attackHit attackerIsAlly appearance element effects origin target critical
-          damage = do
-  attackHitAnimation appearance element target critical
+          -> Position -> Bool -> Position -> Bool -> Double
+          -> Script CombatEffect ()
+attackHit attackerIsAlly appearance element effects origin useSound target
+          critical damage = do
+  attackHitAnimation appearance element useSound target critical
   let hitTarget = HitPosition target
   extraHits <- flip3 foldM [] effects $ \hits effect -> do
     let affectStatus fn = hits <$ alterStatus hitTarget fn
@@ -375,10 +415,10 @@ attackHit attackerIsAlly appearance element effects origin target critical
     return ()
   wait 16
 
-instantKill :: AttackAppearance -> DamageType -> Position -> Bool
+instantKill :: AttackAppearance -> DamageType -> Bool -> Position -> Bool
             -> Script CombatEffect ()
-instantKill appearance element target critical = do
-  attackHitAnimation appearance element target critical
+instantKill appearance element useSound target critical = do
+  attackHitAnimation appearance element useSound target critical
   mbOccupant <- areaGet (arsOccupant target)
   case mbOccupant of
     Just (Left charNum) -> do

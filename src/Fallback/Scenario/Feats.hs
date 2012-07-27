@@ -31,7 +31,6 @@ import Fallback.Scenario.Script
 import Fallback.State.Action
 import Fallback.State.Area
 import Fallback.State.Creature (CreatureAnim(..), monstIsAlly, monstIsSummoned)
-import Fallback.State.Party (chrEquippedWeaponData)
 import Fallback.State.Resources
 import Fallback.State.Simple
 import Fallback.State.Status
@@ -44,8 +43,10 @@ featEffect :: FeatTag -> FeatEffect
 featEffect Offering = MetaAbility FullAP ZeroCost 3
 featEffect SolarFlare =
   StandardFeat (MultiTarget 3) $ \caster targets -> do
-    -- TODO arrange to play one SndLuminaire, rather than N SndFireDamage's
-    concurrent_ targets $ characterWeaponAttack caster
+    playSound SndLuminaire
+    concurrent_ targets $ \target -> do
+      characterWeaponAttack caster target baseAttackModifiers
+        { amHitSound = False }
 featEffect Energize =
   StandardFeat autoTarget $ \caster () -> do
     setCharacterAnim caster (AttackAnim 8)
@@ -183,46 +184,31 @@ featEffect AllCreation =
 featEffect JumpSlash =
   StandardFeat (const $ JumpTarget areaFn 3) $ \caster (endPos, targets) -> do
     characterOffensiveActionTowards caster 8 endPos
-    wait =<< charLeapTo caster endPos
-    char <- areaGet (arsGetCharacter caster)
-    let wd = chrEquippedWeaponData char
+    charLeapTo caster endPos >>= wait
     setCharacterAnim caster (AttackAnim 8)
     concurrent_ targets $ \target -> do
-      (critical, damage) <- characterWeaponChooseCritical char =<<
-                            characterWeaponBaseDamage char wd
-      characterWeaponHit wd endPos target critical (damage * 2)
+      characterWeaponAttack caster target baseAttackModifiers
+        { amCanBackstab = False, amDamageMultiplier = 2, amOffensive = False }
   where areaFn _ start end = [end `plusDir` ipointDir (end `pSub` start)]
 featEffect JumpStrike =
   StandardFeat (const $ JumpTarget areaFn 3) $ \caster (endPos, targets) -> do
     characterOffensiveActionTowards caster 8 endPos
-    wait =<< charLeapTo caster endPos
-    char <- areaGet (arsGetCharacter caster)
-    let wd = chrEquippedWeaponData char
+    charLeapTo caster endPos >>= wait
     setCharacterAnim caster (AttackAnim 8)
+    playSound SndHit4
     concurrent_ targets $ \target -> do
-      damage <- characterWeaponBaseDamage char wd
-      characterWeaponHit wd endPos target False damage
+      characterWeaponAttack caster target baseAttackModifiers
+        { amCanBackstab = False, amCanFinalBlow = False, amCriticalHit = Never,
+          amHitSound = False, amOffensive = False }
   where areaFn _ _ center = map (center `plusDir`) allDirections
 featEffect Shortshot =
   StandardFeat (SingleTarget . (subtract 1)) $ \caster target -> do
-    characterOffensiveActionTowards caster 8 target
-    char <- areaGet (arsGetCharacter caster)
-    origin <- areaGet (arsCharacterPosition caster)
-    let wd = chrEquippedWeaponData char
-    characterWeaponInitialAnimation caster target wd
-    (critical, damage) <- characterWeaponChooseCritical char =<<
-                          characterWeaponBaseDamage char wd
-    characterWeaponHit wd origin target critical (damage * 2)
+    characterWeaponAttack caster target baseAttackModifiers
+      { amDamageMultiplier = 2 }
 featEffect Longshot =
   StandardFeat (SingleTarget . (+ 3)) $ \caster target -> do
-    characterOffensiveActionTowards caster 8 target
-    char <- areaGet (arsGetCharacter caster)
-    origin <- areaGet (arsCharacterPosition caster)
-    let wd = chrEquippedWeaponData char
-    characterWeaponInitialAnimation caster target wd
-    (critical, damage) <- characterWeaponChooseCritical char =<<
-                          characterWeaponBaseDamage char wd
-    characterWeaponHit wd origin target critical (damage * 1.5)
+    characterWeaponAttack caster target baseAttackModifiers
+      { amDamageMultiplier = 1.5 }
 featEffect Glow = MetaAbility FullAP OneThirdCost 1
 featEffect Amplify = MetaAbility FullAP NormalCost 1.5
 featEffect Radiate = MetaAbility FullAP ZeroCost 1
