@@ -234,7 +234,7 @@ arsAreEnemiesNearby ars = check initQueue initVisited where
 
   hasEnemy :: Position -> Bool -> Bool
   hasEnemy pos fly =
-    case Grid.search (arsMonsters ars) pos of
+    case Grid.search pos (arsMonsters ars) of
       Just entry ->
         let monst = Grid.geValue entry
         in not (monstIsAlly monst) && (not fly || monstCanFly monst)
@@ -279,7 +279,7 @@ arsFindOpenSpot ars start within claimed = check Set.empty [start] where
              filter (rectContains within) $ map (next `plusDir`) allDirections
     in fromMaybe (check (foldr Set.insert visited ps) (rest ++ ps))
                  (find (\p -> Set.notMember p claimed &&
-                              not (Grid.occupied (arsMonsters ars) p)) ps)
+                              not (Grid.occupied p (arsMonsters ars))) ps)
 
 -- | If you shoot a beam spell from the @start@ position, passing through the
 -- @thru@ position, what positions does it hit?  It will stop when it reaches
@@ -311,7 +311,7 @@ arsOccupant :: (AreaState a) => Position -> a
 arsOccupant pos ars =
   case arsCharacterAtPosition pos ars of
     Just charNum -> Just (Left charNum)
-    Nothing -> Right <$> Grid.search (arsMonsters ars) pos
+    Nothing -> Right <$> Grid.search pos (arsMonsters ars)
 
 -- | Return 'True' if the given position is occupied (either by a character or
 -- a monster), 'False' otherwise.

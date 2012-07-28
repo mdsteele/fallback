@@ -41,17 +41,17 @@ gridTests = "grid" ~: TestList [
   insistEq (Grid.keys grid1) (map Grid.geKey $ Grid.entries grid1),
   insistEq (Grid.values grid1) (map Grid.geValue $ Grid.entries grid1),
   insistEq "ABCDEF" $ gvalues grid1,
-  insist $ Grid.occupied grid1 (Point 3 2),
-  insistEq (Just 'A') $ fmap Grid.geValue $ Grid.search grid1 (Point 3 2),
-  insistEq Nothing $ fmap Grid.geValue $ Grid.search grid1 (Point 4 1),
+  insist $ Grid.occupied (Point 3 2) grid1,
+  insistEq (Just 'A') $ fmap Grid.geValue $ Grid.search (Point 3 2) grid1,
+  insistEq Nothing $ fmap Grid.geValue $ Grid.search (Point 4 1) grid1,
   insistAll (prectPositions $ Rect 0 0 7 5) $ \pos ->
     maybe True (\ge -> Grid.lookup (Grid.geKey ge) grid1 == Just ge)
-          (Grid.search grid1 pos),
-  insistEq "ABCF" $ evalues $ Grid.searchRect grid1 $ Rect 3 1 3 3,
-  insistEq "AC" $ evalues $ Grid.searchRect grid1 $ Rect 3 2 2 1,
+          (Grid.search pos grid1),
+  insistEq "ABCF" $ evalues $ Grid.searchRect (Rect 3 1 3 3) grid1,
+  insistEq "AC" $ evalues $ Grid.searchRect (Rect 3 2 2 1) grid1,
   insistEq "BCDEFG" $ gvalues $ Grid.update (succ . Grid.geValue) grid1,
   insistEq (Just 'B') $ fmap Grid.geValue $
-    Grid.search (Grid.update (succ . Grid.geValue) grid1) (Point 2 2),
+    Grid.search (Point 2 2) $ Grid.update (succ . Grid.geValue) grid1,
   insist $ uncurry (&&) $ (Grid.valid *** Grid.valid) $
     Grid.excise (Rect 2 0 4 2) grid1,
   insistEq ("AB", "CDEF") $ (gvalues *** gvalues) $

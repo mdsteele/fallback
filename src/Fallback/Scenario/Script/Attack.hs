@@ -174,7 +174,7 @@ characterWeaponAttack charNum target mods = do
               charFlank <- flip anyM charNums $ \charNum' -> do
                 areaGet (rectContains rect . arsCharacterPosition charNum')
               monstFlank <- areaGet (any (monstIsAlly . Grid.geValue) .
-                                     flip Grid.searchRect rect . arsMonsters)
+                                     Grid.searchRect rect . arsMonsters)
               return $ if charFlank || monstFlank then Just 1.15 else Nothing
             _ -> return Nothing
         -- Rank 2 Backstab gives us a 25% damage bonus if we were invisible.
@@ -560,7 +560,7 @@ characterCombatWalk charNum dest = do
         Just (Grid.geKey entry, attack)
   hits <- randomPermutation =<<
           areaGet (mapMaybe maybeHit .
-                   flip Grid.searchRect (expandPosition origin) . arsMonsters)
+                   Grid.searchRect (expandPosition origin) . arsMonsters)
   let frames = 3 -- how many frames does each attack delays the walking
   also_ (wait (frames * length hits) >> charWalkTo charNum dest >>= wait) $ do
     concurrent_ (zip hits [0, frames ..]) $ \((key, attack), delay) -> do

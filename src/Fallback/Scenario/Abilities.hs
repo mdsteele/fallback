@@ -506,7 +506,7 @@ getAbility characterClass abilityNumber rank =
           let prect = makeRect (endPos `pSub` Point 2 2) (5, 5)
           enemies <- areaGet (map (HitMonster . Grid.geKey) .
                               filter (not . monstIsAlly . Grid.geValue) .
-                              flip Grid.searchRect prect . arsMonsters)
+                              Grid.searchRect prect . arsMonsters)
           unless (null enemies) $ do
             let delta = totalDelta `divStatusDelta` length enemies
             forM_ enemies $ \hitTarget -> do

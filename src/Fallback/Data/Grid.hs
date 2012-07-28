@@ -161,12 +161,12 @@ lookup key grid = IntMap.lookup (fromKey key) (gridMap1 grid)
 
 -- | Return 'True' if the given position is occupied by an object, 'False'
 -- otherwise.
-occupied :: Grid a -> Position -> Bool
-occupied grid pos = isJust $ Map.lookup pos $ gridMap2 grid
+occupied :: Position -> Grid a -> Bool
+occupied pos grid = isJust $ Map.lookup pos $ gridMap2 grid
 
 -- | Find the 'Entry' of the object occupying a given position, if any.
-search :: Grid a -> Position -> Maybe (Entry a)
-search grid pos = -- TODO: flip the order of the args
+search :: Position -> Grid a -> Maybe (Entry a)
+search pos grid =
   case Map.lookup pos (gridMap2 grid) of
     Just key -> case IntMap.lookup (fromKey key) (gridMap1 grid) of
                   Just entry -> Just entry
@@ -174,11 +174,11 @@ search grid pos = -- TODO: flip the order of the args
     Nothing -> Nothing
 
 -- | Find the 'Entry' of all objects that intersect the given rect.
-searchRect :: Grid a -> PRect -> [Entry a]
-searchRect grid rect = -- TODO: flip the order of the args
+searchRect :: PRect -> Grid a -> [Entry a]
+searchRect rect grid =
   -- Use a different strategy for small/large rects.
   if size grid > square (rectW rect * rectH rect)
-  then nubKey geKey $ mapMaybe (search grid) (prectPositions rect)
+  then nubKey geKey $ mapMaybe (flip search grid) (prectPositions rect)
   else filter (rectIntersects rect . geRect) (entries grid)
 
 -- | Determine whether the specified item could move to occupy the given
@@ -286,7 +286,7 @@ regenMap2 map1 = Map.fromList $ concatMap fn $ IntMap.elems map1 where
 
 tryAddEntry :: Entry a -> Grid a -> Maybe (Grid a)
 tryAddEntry entry grid =
-  if IntMap.member intkey (gridMap1 grid) || any (occupied grid) positions
+  if IntMap.member intkey (gridMap1 grid) || any (flip occupied grid) positions
   then Nothing else Just grid' where
     positions = prectPositions (geRect entry)
     key = geKey entry

@@ -192,7 +192,7 @@ newTownMapView resources cursorSink = do
             guard (pos `pSqDist` tsPartyPosition ts <= ofRadius r) >> s
           search :: Grid.Grid b -> Maybe (Grid.Entry b)
           search grid = do guard $ Set.member pos $ acsVisible acs
-                           Grid.search grid pos
+                           Grid.search pos grid
           monFn' script = monFn $ checkRadius talkRadius $ Just script
           devFn' ge = devFn $ checkRadius (devRadius $ Grid.geValue ge) $
                       Just $ mapEffect EffTownArea $

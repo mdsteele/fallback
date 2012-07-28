@@ -269,7 +269,7 @@ foesInRect isAlly prect = do
           rectContains prect <$> areaGet (arsCharacterPosition charNum)
     filterM isCharInRect allCharNums
   monsters <- do
-    allMonsters <- areaGet (flip Grid.searchRect prect . arsMonsters)
+    allMonsters <- areaGet (Grid.searchRect prect . arsMonsters)
     return $ map Grid.geKey $ filter ((isAlly ==) . monstIsAlly .
                                       Grid.geValue) allMonsters
   return (map Left charNums ++ map Right monsters)
