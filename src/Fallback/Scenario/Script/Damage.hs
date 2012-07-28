@@ -18,14 +18,14 @@
 ============================================================================ -}
 
 module Fallback.Scenario.Script.Damage
-  (dealDamage, dealDamageTotal, dealDamageGeneral, killTarget,
-   healDamage, reviveTarget, inflictAllPeriodicDamage)
+  (DamageSeverity(..), dealDamage, dealDamageTotal, dealDamageGeneral,
+   killTarget, healDamage, reviveTarget, inflictAllPeriodicDamage)
 where
 
 import Control.Applicative ((<$), (<$>))
 import Control.Arrow (right)
 import Control.Exception (assert)
-import Control.Monad (foldM, forM_, unless, when)
+import Control.Monad (foldM, forM_, unless, void, when)
 import qualified Data.Foldable as Fold (any)
 import Data.List (find, foldl1')
 import qualified Data.Map as Map
@@ -51,14 +51,14 @@ import Fallback.Utility
 -------------------------------------------------------------------------------
 -- Damage:
 
-{-
--- TODO: Use these instead of Bool for attack gentleness.  Ripostes, attacks of
--- opportunity, and Quick Attack should use LightDamage.  Fields should deal
--- GentleDamage.
-data DamageSeverity = HarshDamage -- normal damage
-                    | LightDamage -- doesn't stun or increase adrenaline
-                    | GentleDamage -- same as above, but no number/anim if zero
--}
+-- | Determines the side effects of damage dealt to a creature.  Most damage is
+-- 'HarshDamage'.  Certains attacks (such as ripostes and attacks of
+-- opportunity) cause 'LightDamage', which (unlike 'HarshDamage') doesn't stun
+-- or increase adrenaline.  'GentleDamage' is like 'LightDamage', but doesn't
+-- even cause a hurt animation or show a number if the amount of damage (after
+-- resistances, etc.) turns out to be zero.
+data DamageSeverity = GentleDamage | LightDamage | HarshDamage
+  deriving (Eq, Ord)
 
 dealDamage :: (FromAreaEffect f) => [(HitTarget, DamageType, Double)]
            -> Script f ()
@@ -68,11 +68,11 @@ dealDamage hits = dealDamageTotal hits >> return ()
 -- resistances).
 dealDamageTotal :: (FromAreaEffect f) => [(HitTarget, DamageType, Double)]
                 -> Script f Int
-dealDamageTotal = dealDamageGeneral False
+dealDamageTotal = dealDamageGeneral HarshDamage
 
-dealDamageGeneral :: (FromAreaEffect f) => Bool
+dealDamageGeneral :: (FromAreaEffect f) => DamageSeverity
                   -> [(HitTarget, DamageType, Double)] -> Script f Int
-dealDamageGeneral gentle hits = do
+dealDamageGeneral severity hits = do
   let convert (hitTarget, dmgType, damage) = do
         mbOccupant <- getHitTargetOccupant hitTarget
         return $ case mbOccupant of
@@ -80,7 +80,7 @@ dealDamageGeneral gentle hits = do
                    Nothing -> Nothing
   let resist (occupant, dmgType, damage) = do
         -- Stun is measured in action points.  We do 1 AP stun per 100 damage.
-        let stun = if gentle then 0 else damage * 0.01
+        let stun = if severity == HarshDamage then damage * 0.01 else 0
         (damage', stun') <- do
           case occupant of
             Left charNum -> do
@@ -94,24 +94,24 @@ dealDamageGeneral gentle hits = do
   let combine (_, dmg1, s1) (k, dmg2, s2) = (k, dmg1 + dmg2, s1 + s2)
   let inflict (occupant, damage, stun) = do
         case occupant of
-          Left charNum -> dealRawDamageToCharacter gentle charNum damage stun
+          Left charNum -> dealRawDamageToCharacter severity charNum damage stun
           Right monstEntry ->
-            dealRawDamageToMonster gentle (Grid.geKey monstEntry) damage stun
+            dealRawDamageToMonster severity (Grid.geKey monstEntry) damage stun
   sumM inflict . map (foldl1' combine) . groupKey keyFn . sortKey keyFn =<<
     mapM resist =<< forMaybeM hits convert
 
 -- | Inflict damage and stun on a character, ignoring armor and resistances.
 -- Stun is measured in action points.
-dealRawDamageToCharacter :: (FromAreaEffect f) => Bool -> CharacterNumber
-                         -> Int -> Double -> Script f Int
-dealRawDamageToCharacter gentle charNum damage stun = do
-  -- If the damage is zero, and its gentle damage, then don't do anything
-  -- (don't even set the monster hurt anim or show a number doodad).
-  if gentle && damage == 0 then return 0 else do
+dealRawDamageToCharacter :: (FromAreaEffect f) => DamageSeverity
+                         -> CharacterNumber -> Int -> Double -> Script f Int
+dealRawDamageToCharacter severity charNum damage stun = do
+  -- If the damage is zero, and it's gentle damage, then don't do anything
+  -- (don't even set the hurt anim or show a number doodad).
+  if severity <= GentleDamage && damage == 0 then return 0 else do
   char <- areaGet (arsGetCharacter charNum)
-  -- If this is non-gentle damage, wake us up from being dazed, and add
-  -- adrenaline.
-  adrenaline <- if gentle then return 0 else do
+  -- If this is harsh damage (the normal kind of damage), wake us up from being
+  -- dazed and add adrenaline.
+  adrenaline <- if severity < HarshDamage then return 0 else do
     alterCharacterStatus charNum seWakeFromDaze
     party <- areaGet arsParty
     let adrenaline = adrenalineForDamage (chrAdrenalineMultiplier char)
@@ -141,19 +141,19 @@ dealRawDamageToCharacter gentle charNum damage stun = do
 
 -- | Inflict damage and stun on a monster, ignoring armor and resistances.
 -- Stun is measured in action points.  The monster must exist.
-dealRawDamageToMonster :: (FromAreaEffect f) => Bool -> Grid.Key Monster
-                       -> Int -> Double -> Script f Int
-dealRawDamageToMonster gentle key damage stun = do
-  -- If the damage is zero, and its gentle damage, then don't do anything
+dealRawDamageToMonster :: (FromAreaEffect f) => DamageSeverity
+                       -> Grid.Key Monster -> Int -> Double -> Script f Int
+dealRawDamageToMonster severity key damage stun = do
+  -- If the damage is zero, and it's gentle damage, then don't do anything
   -- (don't even set the monster hurt anim or show a number doodad).
-  if gentle && damage == 0 then return 0 else do
-  -- If this is non-gentle damage, wake us up from being dazed and add
-  -- adrenaline.
-  unless gentle $ alterMonsterStatus key seWakeFromDaze
+  if severity <= GentleDamage && damage == 0 then return 0 else do
+  -- If this is harsh damage (the normal kind of damage), wake us up from being
+  -- dazed and add adrenaline.
+  when (severity >= HarshDamage) $ alterMonsterStatus key seWakeFromDaze
   entry <- demandMonsterEntry key
   let monst = Grid.geValue entry
   let adrenaline' = monstAdrenaline monst +
-        if gentle then 0 else
+        if severity < HarshDamage then 0 else
           adrenalineForDamage 1 damage $ mtMaxHealth $ monstType monst
   -- Do damage and stun:
   let health' = monstHealth monst - damage
@@ -338,8 +338,8 @@ inflictAllPeriodicDamage = do
         subtract damage
       return $ Just (HitMonster (Grid.geKey monstEntry), RawDamage,
                      fromIntegral damage)
-  dealDamageGeneral True (fieldDamages ++ charPoisonDamages ++
-                          monstPoisonDamages) >> return ()
+  void $ dealDamageGeneral GentleDamage (fieldDamages ++ charPoisonDamages ++
+                                         monstPoisonDamages)
 
 -------------------------------------------------------------------------------
 -- Private:

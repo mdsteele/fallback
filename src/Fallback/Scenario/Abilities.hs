@@ -105,8 +105,8 @@ getAbility characterClass abilityNumber rank =
         faceCharacterToward caster endPos
         setCharacterAnim caster (AttackAnim 6)
         characterWeaponAttack caster endPos baseAttackModifiers
-          { amCriticalHit = Never,
-            amDamageMultiplier = (1 - 0.25 ** power), amOffensive = False }
+          { amCriticalHit = Never, amDamageMultiplier = (1 - 0.25 ** power),
+            amOffensive = False, amSeverity = LightDamage }
     Backstab -> PassiveAbility
     Vanish ->
       combat (FocusCost 1) (JumpTarget (const $ const $ const []) 6) $

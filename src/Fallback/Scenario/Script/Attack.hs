@@ -38,7 +38,8 @@ import Fallback.Data.Color (Tint(Tint))
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Scenario.Script.Base
-import Fallback.Scenario.Script.Damage (dealDamageGeneral, killTarget)
+import Fallback.Scenario.Script.Damage
+  (DamageSeverity(..), dealDamageGeneral, killTarget)
 import Fallback.Scenario.Script.Doodad
 import Fallback.Scenario.Script.Other
 import Fallback.State.Area
@@ -60,9 +61,9 @@ data AttackModifiers = AttackModifiers
     amCriticalHit :: Ever Double,
     amDamageMultiplier :: Double,
     amExtraEffects :: [AttackEffect],
-    amGentle :: Bool,
     amHitSound :: Bool,
     amOffensive :: Bool,
+    amSeverity :: DamageSeverity,
     amWeaponData :: Maybe WeaponData }
 
 baseAttackModifiers :: AttackModifiers
@@ -73,9 +74,9 @@ baseAttackModifiers = AttackModifiers
     amCriticalHit = Sometimes,
     amDamageMultiplier = 1,
     amExtraEffects = [],
-    amGentle = False,
     amHitSound = True,
     amOffensive = True,
+    amSeverity = HarshDamage,
     amWeaponData = Nothing }
 
 data Ever a = Never | Sometimes | Always a
@@ -118,8 +119,8 @@ characterWeaponAttack charNum target mods = do
   -- TODO take FinalBlow into account somehow
   let hitMods = HitModifiers
         { hmAppearance = wdAppearance wd, hmAttackerIsAlly = True,
-          hmCritical = critical, hmElement = wdElement wd, hmGentle = False,
-          hmHitSound = amHitSound mods }
+          hmCritical = critical, hmElement = wdElement wd,
+          hmSeverity = amSeverity mods, hmHitSound = amHitSound mods }
   mbMult <- weaponDamageMultiplier wd <$> areaGet (arsOccupant target)
   case mbMult of
     Just mult -> attackHit (wdEffects wd) origin target
@@ -206,7 +207,7 @@ monsterPerformAttack key attack target mods = do
                  (amDamageMultiplier mods * damage) HitModifiers
          { hmAppearance = maAppearance attack, hmAttackerIsAlly = isAlly,
            hmCritical = critical, hmElement = maElement attack,
-           hmGentle = amGentle mods, hmHitSound = amHitSound mods })
+           hmHitSound = amHitSound mods, hmSeverity = amSeverity mods })
     -- See if the target can riposte:
     (when (maRange attack == Melee) $ do
        monstEntry <- demandMonsterEntry key
@@ -230,7 +231,8 @@ monsterPerformAttack key attack target mods = do
        addFloatingWordOnTarget WordRiposte (HitPosition counterTarget)
        characterWeaponAttack charNum counterTarget baseAttackModifiers
          { amCanBackstab = False, amCanMiss = False, amCriticalHit = Never,
-           amDamageMultiplier = 0.75, amOffensive = False })
+           amDamageMultiplier = 0.75, amOffensive = False,
+           amSeverity = LightDamage })
 
 -- Rules for Riposte skill:
 -- * Character must be being attacked by an enemy monster (not a charmed ally)
@@ -269,8 +271,8 @@ data HitModifiers = HitModifiers
     hmAttackerIsAlly :: Bool,
     hmCritical :: Bool,
     hmElement :: DamageType,
-    hmGentle :: Bool,
-    hmHitSound :: Bool }
+    hmHitSound :: Bool,
+    hmSeverity :: DamageSeverity }
 
 attackInitialAnimation :: (FromAreaEffect f) => AttackAppearance
                        -> DamageType -> Position -> Position -> Script f ()
@@ -416,7 +418,7 @@ attackHit effects origin target damage mods = do
       InflictPoison mult -> hits <$ inflictPoison hitTarget (mult * damage)
       InflictSlow mult -> affectStatus $ seApplyHaste $ Harmful (mult * damage)
       InflictStun mult ->
-        if hmGentle mods then return hits
+        if hmSeverity mods < HarshDamage then return hits
         else hits <$ inflictStun hitTarget (mult * damage)
       InflictWeakness mult ->
         affectStatus $ seApplyDefense $ Harmful (mult * damage)
@@ -429,7 +431,7 @@ attackHit effects origin target damage mods = do
         affectStatus $ seReduceMagicShield (mult * damage)
       SetField field -> hits <$ setFields field [target]
   when (hmCritical mods) $ addFloatingWordOnTarget WordCritical hitTarget
-  _ <- dealDamageGeneral (hmGentle mods)
+  _ <- dealDamageGeneral (hmSeverity mods)
                          ((hitTarget, hmElement mods, damage) : extraHits)
   when (KnockBack `elem` effects) $ do
     _ <- tryKnockBack hitTarget $ ipointDir (target `pSub` origin)
@@ -476,7 +478,7 @@ characterCombatWalk charNum dest = do
       setMonsterAnim key (AttackAnim 6)
       monsterPerformAttack key attack origin baseAttackModifiers
         { amCanMiss = True, amCriticalHit = Never, amDamageMultiplier = 0.75,
-          amGentle = True, amOffensive = False }
+          amOffensive = False, amSeverity = LightDamage }
 
 -------------------------------------------------------------------------------
 
