@@ -62,17 +62,17 @@ data DamageSeverity = GentleDamage | LightDamage | HarshDamage
 
 dealDamage :: (FromAreaEffect f) => [(HitTarget, DamageType, Double)]
            -> Script f ()
-dealDamage hits = dealDamageTotal hits >> return ()
+dealDamage = void . dealDamageTotal
 
 -- | Like 'dealDamage', but return the total damage done to all targets (after
 -- resistances).
 dealDamageTotal :: (FromAreaEffect f) => [(HitTarget, DamageType, Double)]
                 -> Script f Int
-dealDamageTotal = dealDamageGeneral HarshDamage
+dealDamageTotal = dealDamageGeneral HarshDamage Nothing
 
-dealDamageGeneral :: (FromAreaEffect f) => DamageSeverity
+dealDamageGeneral :: (FromAreaEffect f) => DamageSeverity -> Maybe Double
                   -> [(HitTarget, DamageType, Double)] -> Script f Int
-dealDamageGeneral severity hits = do
+dealDamageGeneral severity finalBlow hits = do
   let convert (hitTarget, dmgType, damage) = do
         mbOccupant <- getHitTargetOccupant hitTarget
         return $ case mbOccupant of
@@ -94,9 +94,11 @@ dealDamageGeneral severity hits = do
   let combine (_, dmg1, s1) (k, dmg2, s2) = (k, dmg1 + dmg2, s1 + s2)
   let inflict (occupant, damage, stun) = do
         case occupant of
+          -- Characters are not subject to Final Blows.
           Left charNum -> dealRawDamageToCharacter severity charNum damage stun
           Right monstEntry ->
-            dealRawDamageToMonster severity (Grid.geKey monstEntry) damage stun
+            dealRawDamageToMonster severity finalBlow (Grid.geKey monstEntry)
+                                   damage stun
   sumM inflict . map (foldl1' combine) . groupKey keyFn . sortKey keyFn =<<
     mapM resist =<< forMaybeM hits convert
 
@@ -141,9 +143,9 @@ dealRawDamageToCharacter severity charNum damage stun = do
 
 -- | Inflict damage and stun on a monster, ignoring armor and resistances.
 -- Stun is measured in action points.  The monster must exist.
-dealRawDamageToMonster :: (FromAreaEffect f) => DamageSeverity
+dealRawDamageToMonster :: (FromAreaEffect f) => DamageSeverity -> Maybe Double
                        -> Grid.Key Monster -> Int -> Double -> Script f Int
-dealRawDamageToMonster severity key damage stun = do
+dealRawDamageToMonster severity finalBlow key damage stun = do
   -- If the damage is zero, and it's gentle damage, then don't do anything
   -- (don't even set the monster hurt anim or show a number doodad).
   if severity <= GentleDamage && damage == 0 then return 0 else do
@@ -156,18 +158,25 @@ dealRawDamageToMonster severity key damage stun = do
         if severity < HarshDamage then 0 else
           adrenalineForDamage 1 damage $ mtMaxHealth $ monstType monst
   -- Do damage and stun:
-  let health' = monstHealth monst - damage
+  (health', damage') <- do
+    let health' = max 0 (monstHealth monst - damage)
+    case finalBlow of
+      Just mult | health' > 0 &&
+                  fromIntegral health' <= fromIntegral damage * mult -> do
+        addFloatingWordOnTarget WordFinalBlow (HitMonster key)
+        return (0, monstHealth monst)
+      _ -> return (health', damage)
   let moments' = max 0 (monstMoments monst -
                         round (stun * fromIntegral momentsPerActionPoint))
   let mbMonst' = if health' <= 0 then Nothing else Just monst
                    { monstAdrenaline = adrenaline',
                      monstPose = (monstPose monst) { cpAnim = HurtAnim 12 },
                      monstHealth = health', monstMoments = moments' }
-  addFloatingNumberOnTarget damage (HitMonster key)
+  addFloatingNumberOnTarget damage' (HitMonster key)
   emitAreaEffect $ EffReplaceMonster key mbMonst'
   -- If the monster is now dead, we need do to several things.
   when (isNothing mbMonst') $ onMonsterDead entry
-  return damage
+  return damage'
 
 adrenalineForDamage :: Double -> Int -> Int -> Int
 adrenalineForDamage multiplier damage maxHealth =
@@ -338,8 +347,8 @@ inflictAllPeriodicDamage = do
         subtract damage
       return $ Just (HitMonster (Grid.geKey monstEntry), RawDamage,
                      fromIntegral damage)
-  void $ dealDamageGeneral GentleDamage (fieldDamages ++ charPoisonDamages ++
-                                         monstPoisonDamages)
+  void $ dealDamageGeneral GentleDamage Nothing $
+    fieldDamages ++ charPoisonDamages ++ monstPoisonDamages
 
 -------------------------------------------------------------------------------
 -- Private:

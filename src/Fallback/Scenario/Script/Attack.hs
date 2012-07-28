@@ -30,8 +30,11 @@ module Fallback.Scenario.Script.Attack
 where
 
 import Control.Applicative ((<$), (<$>))
-import Control.Monad (foldM, guard, replicateM, unless, when)
+import Control.Monad (foldM, guard, replicateM, unless, void, when)
+import Data.List (delete)
+import qualified Data.Map as Map (lookup)
 import Data.Maybe (fromMaybe, listToMaybe, mapMaybe)
+import Data.Monoid (Product(Product), mconcat)
 
 import Fallback.Control.Script
 import Fallback.Data.Color (Tint(Tint))
@@ -50,13 +53,13 @@ import Fallback.State.Resources
 import Fallback.State.Simple
 import Fallback.State.Status
 import Fallback.State.Tags (AbilityTag(..))
-import Fallback.Utility (flip3, maybeM)
+import Fallback.Utility (anyM, flip3, maybeM, whenM)
 
 -------------------------------------------------------------------------------
 
 data AttackModifiers = AttackModifiers
-  { amCanBackstab :: Bool, -- TODO
-    amCanFinalBlow :: Bool, -- TODO
+  { amCanBackstab :: Bool,
+    amCanFinalBlow :: Bool,
     amCanMiss :: Bool,
     amCriticalHit :: Ever Double,
     amDamageMultiplier :: Double,
@@ -66,6 +69,9 @@ data AttackModifiers = AttackModifiers
     amSeverity :: DamageSeverity,
     amWeaponData :: Maybe WeaponData }
 
+-- | The default set of attack modifiers.  Note that this has 'amCanMiss' set
+-- to 'False' (for the convenience of all the special abilities that never
+-- miss), so this must be overriden for normal attacks, which /can/ miss.
 baseAttackModifiers :: AttackModifiers
 baseAttackModifiers = AttackModifiers
   { amCanBackstab = True,
@@ -83,49 +89,112 @@ data Ever a = Never | Sometimes | Always a
 
 -------------------------------------------------------------------------------
 
+-- | Purge invisibility from the character, and set the character's attack
+-- animation for the given number of frames.
 characterOffensiveAction :: (FromAreaEffect f) => CharacterNumber -> Int
                          -> Script f ()
 characterOffensiveAction charNum frames = do
   alterStatus (HitCharacter charNum) (seSetInvisibility NoInvisibility)
   setCharacterAnim charNum (AttackAnim frames)
 
+-- | Same as 'characterOffensiveAction', but also face the character towards
+-- the given position.
 characterOffensiveActionTowards :: (FromAreaEffect f) => CharacterNumber
                                 -> Int -> Position -> Script f ()
 characterOffensiveActionTowards charNum frames target = do
   faceCharacterToward charNum target
   characterOffensiveAction charNum frames
 
+-- | Make the character attack the given position with their currently equipped
+-- weapon.  This does /not/ check whether the given position is within the
+-- weapon's usual range.
 characterWeaponAttack :: CharacterNumber -> Position -> AttackModifiers
                       -> Script CombatEffect ()
 characterWeaponAttack charNum target mods = do
+  -- If this attack counts as an "offensive action", the character will lose
+  -- invisibility.  However, we need to know later when calculating the
+  -- backstab bonus whether the character was originally invisible, so we check
+  -- that here first.
+  wasInvisible <- areaGet ((NoInvisibility /=) . seInvisibility . chrStatus .
+                           arsGetCharacter charNum)
   when (amOffensive mods) $ do
     characterOffensiveActionTowards charNum 8 target
+  -- Get the character and weapon data, and do the initial weapon animation
+  -- (e.g. arrow flying) before the hit.
   char <- areaGet (arsGetCharacter charNum)
-  let wd = let wd' = fromMaybe (chrEquippedWeaponData char) (amWeaponData mods)
-           in wd' { wdEffects = amExtraEffects mods ++ wdEffects wd' }
+  let wd = fromMaybe (chrEquippedWeaponData char) (amWeaponData mods)
   characterWeaponInitialAnimation charNum target wd
-  let isRanged = wdRange wd /= Melee
+  -- Determine if the attack misses; if it does, we stop early.
   miss <- if not (amCanMiss mods) then return False
-          else determineIfAttackMisses (Left charNum) target isRanged
+          else determineIfAttackMisses (Left charNum) target
+                                       (wdRange wd /= Melee)
   unless miss $ do
+  -- Get the base damage of the weapon, which includes a few of the possible
+  -- damage multipliers (such as from being blessed/cursed, from the Eagle Eye
+  -- skill, or from certain items).
   baseDamage <- characterWeaponBaseDamage char wd
+  -- Determine if this is a critical hit.  If it is, the damage is increased,
+  -- and the hit animation will be changed slightly.
   (critical, damage) <-
     case amCriticalHit mods of
       Never -> return (False, baseDamage)
       Sometimes -> characterWeaponChooseCritical char baseDamage
       Always mult -> return (True, baseDamage * mult)
-  origin <- areaGet (arsCharacterPosition charNum)
-  -- TODO take Backstab into account for damage
-  -- TODO take FinalBlow into account somehow
+  -- Put together all the modifiers for the attack hit.  If the hit turns out
+  -- to be an instant kill, only some of these will be relevant.
   let hitMods = HitModifiers
         { hmAppearance = wdAppearance wd, hmAttackerIsAlly = True,
           hmCritical = critical, hmElement = wdElement wd,
+          hmFinalBlow = if not (amCanFinalBlow mods) then Nothing else
+            ranked 0.2 0.4 0.7 <$> chrAbilityRank FinalBlow char,
           hmSeverity = amSeverity mods, hmHitSound = amHitSound mods }
-  mbMult <- weaponDamageMultiplier wd <$> areaGet (arsOccupant target)
-  case mbMult of
-    Just mult -> attackHit (wdEffects wd) origin target
-                           (mult * amDamageMultiplier mods * damage) hitMods
+  origin <- areaGet (arsCharacterPosition charNum)
+  -- Check the weapon's damage bonuses against certain types of monsters.  A
+  -- Nothing value here indicates an instant kill, in which case we use
+  -- instantKill instead of attackHit.
+  mbWeaponMult <- weaponDamageMultiplier wd <$> areaGet (arsOccupant target)
+  case mbWeaponMult of
     Nothing -> instantKill target hitMods
+    Just weaponMult -> do
+      -- If backstabbing is allowed for this attack, and if it's a melee
+      -- attack, and if the character has the Backstab skill, calculate the
+      -- backstab multiplier.
+      backstabMult <- if not (amCanBackstab mods) then return 1 else do
+        if wdRange wd /= Melee then return 1 else do
+        flip (maybe $ return 1) (chrAbilityRank Backstab char) $ \rank -> do
+        -- Rank 1 Backstab gives us a 15% damage bonus when we're attacking an
+        -- enemy that is flanked by an ally.
+        m1 <- do
+          mbOccupant <- areaGet (arsOccupant target)
+          case mbOccupant of
+            Just (Right entry) -> do
+              if (monstIsAlly $ Grid.geValue entry) then return Nothing else do
+              let rect = expandPrect $ Grid.geRect entry
+              charNums <- delete charNum <$> getAllConsciousCharacters
+              charFlank <- flip anyM charNums $ \charNum' -> do
+                areaGet (rectContains rect . arsCharacterPosition charNum')
+              monstFlank <- areaGet (any (monstIsAlly . Grid.geValue) .
+                                     flip Grid.searchRect rect . arsMonsters)
+              return $ if charFlank || monstFlank then Just 1.15 else Nothing
+            _ -> return Nothing
+        -- Rank 2 Backstab gives us a 25% damage bonus if we were invisible.
+        let m2 = if rank >= Rank2 && wasInvisible then Just 1.25 else Nothing
+        -- Rank 3 Backstab gives us a 20% damage bonus for standing in smoke.
+        m3 <- if rank < Rank3 then return Nothing else do
+          mbField <- areaGet (Map.lookup origin . arsFields)
+          return $ case mbField of Just (SmokeScreen _) -> Just 1.2
+                                   _ -> Nothing
+        -- We want to display a "Backstab" doodad only if at least one of the
+        -- three backstab opportunities applied.
+        case mconcat $ map (fmap Product) [m1, m2, m3] of
+          Just (Product mult) -> do
+            addFloatingWordOnTarget WordBackstab (HitPosition target)
+            return mult
+          Nothing -> return 1
+      -- Combine all the multipliers together for the final damage amount.
+      attackHit (amExtraEffects mods ++ wdEffects wd) origin target
+                (weaponMult * backstabMult * amDamageMultiplier mods * damage)
+                hitMods
 
 characterWeaponInitialAnimation  :: CharacterNumber -> Position
                                  -> WeaponData -> Script CombatEffect ()
@@ -172,55 +241,83 @@ weaponDamageMultiplier wd mbOccupant =
 
 -------------------------------------------------------------------------------
 
+-- | Purge invisibility from the monster, and set the monster's attack
+-- animation for the given number of frames.
 monsterOffensiveAction :: Grid.Key Monster -> Int -> Script CombatEffect ()
 monsterOffensiveAction key frames = do
   alterStatus (HitMonster key) (seSetInvisibility NoInvisibility)
   setMonsterAnim key (AttackAnim frames)
 
+-- | Same as 'monsterOffensiveAction', but also face the monster towards the
+-- given position.
 monsterOffensiveActionToward :: Grid.Key Monster -> Int -> Position
                              -> Script CombatEffect ()
 monsterOffensiveActionToward key frames target = do
   faceMonsterToward key target
   monsterOffensiveAction key frames
 
+-- | Make the monster use the given attack on the given position.  This does
+-- /not/ check whether the given position is within the attack's usual range.
 monsterPerformAttack :: Grid.Key Monster -> MonsterAttack -> Position
                      -> AttackModifiers -> Script CombatEffect ()
 monsterPerformAttack key attack target mods = do
   when (amOffensive mods) $ do
     monsterOffensiveActionToward key 8 target
+  -- Do the initial attack animation (e.g. arrow flying) before the hit.
   monsterAttackInitialAnimation key attack target
+  -- Determine if the attack misses.  Even if it does, the target may still get
+  -- a chance to riposte.
   miss <- if not (amCanMiss mods) then return False else do
     determineIfAttackMisses (Right key) target (maRange attack /= Melee)
+  -- The monster gets to attack, but the target may get to riposte.  These
+  -- happen concurrently.
   also_
-    -- Perform the attack:
+    -- Try to perform the attack:
     (unless miss $ do
+       -- Get the attack's base damage, which includes multipliers from
+       -- e.g. being blessed/cursed.
        baseDamage <- monsterAttackBaseDamage key attack
+       -- Determine if this is a critical hit.  If it is, the damage is
+       -- increased, and the hit animation will be changed slightly.
        (critical, damage) <-
          case amCriticalHit mods of
            Never -> return (False, baseDamage)
            Sometimes -> monsterAttackChooseCritical attack baseDamage
            Always mult -> return (True, baseDamage * mult)
+       -- Hit the target.
        origin <- getMonsterHeadPos key
-       isAlly <- maybe False (monstIsAlly . Grid.geValue) <$>
-                 lookupMonsterEntry key
+       isAlly <- monstIsAlly . Grid.geValue <$> demandMonsterEntry key
        attackHit (amExtraEffects mods ++ maEffects attack) origin target
                  (amDamageMultiplier mods * damage) HitModifiers
          { hmAppearance = maAppearance attack, hmAttackerIsAlly = isAlly,
            hmCritical = critical, hmElement = maElement attack,
-           hmHitSound = amHitSound mods, hmSeverity = amSeverity mods })
-    -- See if the target can riposte:
+           hmFinalBlow = Nothing, hmHitSound = amHitSound mods,
+           hmSeverity = amSeverity mods })
+    -- If the monster made a melee attack, see if the target can riposte:
     (when (maRange attack == Melee) $ do
        monstEntry <- demandMonsterEntry key
+       -- We don't riposte against allies (which might attack us if charmed).
        when (not $ monstIsAlly $ Grid.geValue monstEntry) $ do
-       wait 4 -- Wait to see if character survived attack.
+       wait 4 -- Wait to see if the character survives the attack.
+       -- Get the character at the target location.  If there is none, then
+       -- either it's not a character that's getting attacked, or the character
+       -- was killed by the attack; either way, no riposte happens.
        mbCharNum <- areaGet (arsCharacterAtPosition target)
        maybeM mbCharNum $ \charNum -> do
        char <- areaGet (arsGetCharacter charNum)
-       -- TODO: if character charmed, don't riposte
+       -- In order to be able to riposte, the character must 1) have learned
+       -- the Riposte skill, 2) not be charmed, 3) not be using a ranged
+       -- weapon, and 4) succeed on a random chance (dependent on the
+       -- character's Riposte rank).
+       maybeM (chrAbilityRank Riposte char) $ \rank -> do
+       when (seMentalEffect (chrStatus char) /= Just Charmed) $ do
        let wd = chrEquippedWeaponData char
        when (wdRange wd == Melee) $ do
-       failed <- randomBool (chrAbilityMultiplier Riposte 0.9 0.8 0.65 char)
-       unless failed $ do
+       whenM (randomBool $ ranked 0.1 0.2 0.35 rank) $ do
+       -- Now we can riposte.  We have to pick a particular position to attack,
+       -- so we aim for the monster's head, or any other spot that we can
+       -- reach.  Since we can only riposte against melee attacks, we should be
+       -- able to reach something.
        let counterTarget =
              let headPos = monstHeadPos monstEntry
              in if adjacent target headPos then headPos else
@@ -233,13 +330,6 @@ monsterPerformAttack key attack target mods = do
          { amCanBackstab = False, amCanMiss = False, amCriticalHit = Never,
            amDamageMultiplier = 0.75, amOffensive = False,
            amSeverity = LightDamage })
-
--- Rules for Riposte skill:
--- * Character must be being attacked by an enemy monster (not a charmed ally)
--- * Monster must be making a melee attack
--- * Character must survive said attack
--- * Character must have a melee weapon equipped
--- * Character must not be charmed (confused is okay)
 
 monsterAttackInitialAnimation :: Grid.Key Monster -> MonsterAttack -> Position
                               -> Script CombatEffect ()
@@ -268,9 +358,10 @@ monsterAttackChooseCritical attack damage = do
 
 data HitModifiers = HitModifiers
   { hmAppearance :: AttackAppearance,
-    hmAttackerIsAlly :: Bool,
-    hmCritical :: Bool,
+    hmAttackerIsAlly :: Bool, -- n.b. ally, not friend; matters for mental effs
+    hmCritical :: Bool, -- whether the should hit be animated as a critical hit
     hmElement :: DamageType,
+    hmFinalBlow :: Maybe Double, -- percent extra damage
     hmHitSound :: Bool,
     hmSeverity :: DamageSeverity }
 
@@ -431,8 +522,8 @@ attackHit effects origin target damage mods = do
         affectStatus $ seReduceMagicShield (mult * damage)
       SetField field -> hits <$ setFields field [target]
   when (hmCritical mods) $ addFloatingWordOnTarget WordCritical hitTarget
-  _ <- dealDamageGeneral (hmSeverity mods)
-                         ((hitTarget, hmElement mods, damage) : extraHits)
+  void $ dealDamageGeneral (hmSeverity mods) (hmFinalBlow mods)
+                           ((hitTarget, hmElement mods, damage) : extraHits)
   when (KnockBack `elem` effects) $ do
     _ <- tryKnockBack hitTarget $ ipointDir (target `pSub` origin)
     return ()
@@ -497,5 +588,8 @@ chrAttackAgility char =
 monstAttackAgility :: Monster -> Int
 monstAttackAgility monst =
   mtAgility (monstType monst) + seAttackAgilityModifier (monstStatus monst)
+
+ranked :: a -> a -> a -> AbilityRank -> a
+ranked v1 v2 v3 rank = case rank of { Rank1 -> v1; Rank2 -> v2; Rank3 -> v3 }
 
 -------------------------------------------------------------------------------

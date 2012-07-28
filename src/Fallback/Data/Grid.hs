@@ -109,7 +109,7 @@ empty = Grid
 
 -- | An entry in a 'Grid'.
 data Entry a = Entry
-  { geKey :: Key a,
+  { geKey :: Key a, -- TODO: rename these to remove the "ge" prefix
     geRect :: PRect,
     geValue :: a }
   deriving (Eq, Read, Show)
@@ -166,7 +166,7 @@ occupied grid pos = isJust $ Map.lookup pos $ gridMap2 grid
 
 -- | Find the 'Entry' of the object occupying a given position, if any.
 search :: Grid a -> Position -> Maybe (Entry a)
-search grid pos =
+search grid pos = -- TODO: flip the order of the args
   case Map.lookup pos (gridMap2 grid) of
     Just key -> case IntMap.lookup (fromKey key) (gridMap1 grid) of
                   Just entry -> Just entry
@@ -175,7 +175,7 @@ search grid pos =
 
 -- | Find the 'Entry' of all objects that intersect the given rect.
 searchRect :: Grid a -> PRect -> [Entry a]
-searchRect grid rect =
+searchRect grid rect = -- TODO: flip the order of the args
   -- Use a different strategy for small/large rects.
   if size grid > square (rectW rect * rectH rect)
   then nubKey geKey $ mapMaybe (search grid) (prectPositions rect)
