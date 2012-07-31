@@ -551,16 +551,17 @@ instantKill target mods = do
 characterCombatWalk :: CharacterNumber -> Position -> Script CombatEffect ()
 characterCombatWalk charNum dest = do
   char <- areaGet (arsGetCharacter charNum)
-  when (seInvisibility (chrStatus char) == NoInvisibility) $ do
   origin <- areaGet (arsCharacterPosition charNum)
-  let maybeHit entry = do
-        guard $ not $ monstIsAlly $ Grid.geValue entry
-        guard $ not $ rectIntersects (expandPosition dest) $ Grid.geRect entry
-        attack <- listToMaybe $ monstAttacks $ Grid.geValue entry
-        Just (Grid.geKey entry, attack)
-  hits <- randomPermutation =<<
-          areaGet (mapMaybe maybeHit .
-                   Grid.searchRect (expandPosition origin) . arsMonsters)
+  hits <- do
+    if seInvisibility (chrStatus char) /= NoInvisibility then return [] else do
+    let maybeHit entry = do
+          guard $ not (monstIsAlly $ Grid.geValue entry) &&
+            not (rectIntersects (expandPosition dest) $ Grid.geRect entry)
+          attack <- listToMaybe $ monstAttacks $ Grid.geValue entry
+          Just (Grid.geKey entry, attack)
+    randomPermutation =<<
+      areaGet (mapMaybe maybeHit . Grid.searchRect (expandPosition origin) .
+               arsMonsters)
   let frames = 3 -- how many frames does each attack delays the walking
   also_ (wait (frames * length hits) >> charWalkTo charNum dest >>= wait) $ do
     concurrent_ (zip hits [0, frames ..]) $ \((key, attack), delay) -> do

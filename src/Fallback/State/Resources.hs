@@ -354,7 +354,7 @@ data SoundTag = SndArrow
               | SndLevelUp | SndLever | SndLightning | SndLuminaire
               | SndMineCartStop | SndMineCartTurn
               | SndMiss1 | SndMiss2
-              | SndRevive
+              | SndRainbow | SndRevive
               | SndShielding | SndSummon | SndSunbeam
               | SndThrow
               | SndUnlock
@@ -396,6 +396,7 @@ soundPath SndMineCartStop = "minecart-stop-cfxr.wav"
 soundPath SndMineCartTurn = "minecart-turn-cfxr.wav"
 soundPath SndMiss1 = "miss1-2.wav"
 soundPath SndMiss2 = "miss2-19.wav"
+soundPath SndRainbow = "rainbow-10.wav"
 soundPath SndRevive = "resurrect-24.wav"
 soundPath SndShielding = "shielding-51.wav"
 soundPath SndSummon = "summon-61.wav"

@@ -447,7 +447,40 @@ getAbility characterClass abilityNumber rank =
         forM_ charNums $ \charNum -> do
           amount <- round . (ranked 15 25 25 * power *) <$> getRandomR 0.9 1.1
           alterAdrenaline charNum (+ amount)
-    Rainbow -> PassiveAbility -- FIXME
+    Rainbow ->
+      combat (mix DryIce Quicksilver) AutoTarget $ \caster power () -> do
+        characterOffensiveAction caster 12
+        do let alpha limit time =
+                 floor $ min limit $ 2 * limit * (1 - 2 * abs (time - 0.5))
+           let tintFn time = Tint 255 255 255 $ alpha 32 time
+           let radialFn time theta =
+                 let phase n = floor $ min 255 $
+                       128 * (1 + sin (theta + 3*pi * time + n * (2*pi/3)))
+                 in (705, Tint (phase 0) (phase 1) (phase 2) (alpha 220 time))
+           center <- areaGet (positionCenter . arsCharacterPosition caster)
+           addRadialGradientDoodad 45 center tintFn radialFn
+        playSound SndRainbow
+        wait 20
+        let numEffects = ranked 1 2 3
+        allies <- getAllAllyTargets
+        forM_ allies $ \hitTarget -> do
+          effectFn <- foldr (.) id . take numEffects <$> randomPermutation
+            [seApplyBlessing (Beneficial (10 * power)),
+             seApplyDefense (Beneficial (10 * power)),
+             seApplyHaste (Beneficial (10 * power)),
+             seApplyMagicShield (10 * power),
+             seSetInvisibility MajorInvisibility]
+          alterStatus hitTarget effectFn
+        enemies <- getAllEnemyMonsters
+        forM_ enemies $ \monstEntry -> do
+          let hitTarget = HitMonster $ Grid.geKey monstEntry
+          sequence_ =<< take numEffects <$> randomPermutation
+            [alterStatus hitTarget (seApplyBlessing (Harmful (10 * power))),
+             alterStatus hitTarget (seApplyDefense (Harmful (10 * power))),
+             alterStatus hitTarget (seApplyHaste (Harmful (10 * power))),
+             alterStatus hitTarget (seApplyEntanglement (15 * power)),
+             inflictPoison hitTarget (power * 100)]
+        wait 25
     Healing ->
       general (ManaCost 4) (AllyTarget 8) $ \_caster power eith -> do
         healAmount <- (ranked 20 35 55 * power *) <$> getRandomR 0.9 1.1
@@ -948,9 +981,10 @@ abilityDescription AdrenalineRush =
   \At rank 2, adds more adrenaline.\n\
   \At rank 3, affects all allies, nearby or not."
 abilityDescription Rainbow =
-  "Grant a random beneficial status effect to every ally.\n\
-  \At rank 2, also inflicts a random harmful status effect on every enemy.\n\
-  \At rank 3, grants/inflicts {i}two{_} status effects on every ally/enemy."
+  "Grant a random beneficial status effect to every ally, and inflict a random\
+  \ harmful status effect on every enemy.\n\
+  \At rank 2, grants/inflicts {i}two{_} status effects on every ally/enemy.\n\
+  \At rank 3, grants/inflicts {i}three{_} status effects on every ally/enemy."
 abilityDescription Healing = "Restores some health for one target.\n\
   \At rank 2, heals more damage.\n\
   \At rank 3, heals even more damage."
@@ -959,14 +993,15 @@ abilityDescription Blessing =
   \ their own weapon attacks hit more often and do more damage.\n\
   \At rank 2, also blesses any allies adjacent to the target.\n\
   \At rank 3, blesses all allies."
-abilityDescription Disruption = "Deals major damage to an undead target.\n\
-  \At rank 2, hits up to three targets.\n\
-  \At rank 3, also damages daemonic targets."
+abilityDescription Disruption = "Channel energy to deal major damage to a\
+  \ single undead creature.  Has no effect on living creatures.\n\
+  \At rank 2, hits up to three targets instead of one.\n\
+  \At rank 3, the spell can also damage daemonic creatures."
 abilityDescription Restore =
   "Cures poison, alleviates mental effects, and washes away entanglement\
   \ from everyone within an area.\n\
   \At rank 2, also reduces curses, weakness, and slowness.\n\
-  \At rank 3, the removed effects are inflicted upon any nearby enemies."
+  \At rank 3, the removed effects are inflicted upon nearby enemies."
 abilityDescription Hinder =
   "Slow several targets, causing them to take turns less often.\n\
   \At rank 2, also ensnares the targets, causing them to walk slower.\n\
@@ -989,8 +1024,8 @@ abilityDescription LucentShield =
   \At rank 3, all allies are shielded."
 abilityDescription Sunbeam =
   "Shoot an intense beam of heat and light, searing everything in its path. \
-  \ Deals additional disruption damage to undead enemies.\n\
-  \At rank 2, deals more damage, and disrupts daemonic enemies as well.\n\
+  \ Deals additional disruption damage to undead creatures.\n\
+  \At rank 2, deals more damage, and disrupts daemonic creatures as well.\n\
   \At rank 3, deals massive damage."
 abilityDescription Shock = "Strike a single target with energy damage.\n\
   \At rank 2, also slows the target.\n\

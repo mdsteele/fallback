@@ -24,7 +24,7 @@ module Fallback.Scenario.Script.Doodad
    -- * Spell effects
    addBallisticDoodad, addBeamDoodad, addBlasterDoodad, addBoomDoodadAtPoint,
    addBoomDoodadAtPosition, addLightningDoodad, addLightWallDoodad,
-   addShockwaveDoodad, doExplosionDoodad,
+   addShockwaveDoodad, addRadialGradientDoodad, doExplosionDoodad,
    -- * Swooshes
    addSwooshDoodad, linearBezierCurve, quadraticBezierCurve, cubicBezierCurve,
    -- * Hookshot
@@ -224,6 +224,14 @@ addShockwaveDoodad limit center hRad vRad innerFn outerFn = do
   addContinuousDoodad MidDood limit $ \time topleft -> do
     gradientRing (innerFn time) (outerFn time)
                  (center `pSub` fmap fromIntegral topleft) hRad vRad
+
+addRadialGradientDoodad :: (FromAreaEffect f) => Int -> DPoint
+                        -> (Double -> Tint)
+                        -> (Double -> Double -> (Double, Tint)) -> Script f ()
+addRadialGradientDoodad limit center centerTintFn outerFn = do
+  addContinuousDoodad HighDood limit $ \time topleft -> do
+    gradientFan (center `pSub` fmap fromIntegral topleft)
+                (centerTintFn time) (outerFn time)
 
 doExplosionDoodad :: (FromAreaEffect f) => StripTag -> DPoint -> Script f ()
 doExplosionDoodad tag (Point cx cy) = do

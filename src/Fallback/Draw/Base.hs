@@ -49,7 +49,7 @@ module Fallback.Draw.Base
    -- * Geometric primitives
    tintRect, tintCanvas, drawLine, drawRect,
    drawLineChain, drawPolygon, tintPolygon, gradientPolygon,
-   tintRing, gradientRing,
+   tintRing, gradientRing, gradientFan,
    -- * Fonts and text
    Font, loadFont, drawText, {-renderText,-} textRenderSize, textRenderWidth,
    -- * Minimaps
@@ -532,6 +532,22 @@ gradientRing innerFn outerFn (Point cx cy) hRad vRad = Paint $ do
         doPt outerFn (theta + step)
       doPt innerFn 0
       doPt outerFn step
+
+gradientFan :: DPoint -> Tint -> (Double -> (Double, Tint)) -> Paint ()
+gradientFan (Point cx cy) centerTint fn = Paint $ do
+  GL.preservingMatrix $ do
+    GL.translate $ GL.Vector3 (toGLdouble cx) (toGLdouble cy) 0
+    GL.textureBinding GL.Texture2D $= Nothing
+    GL.renderPrimitive GL.TriangleFan $ do
+      setTint centerTint
+      glVertex 0 0
+      let step = pi / 24 :: Double -- TODO
+      let doPt theta = do
+            let (rad, tint) = fn theta
+            setTint tint
+            axisVertex (rad * cos theta) (rad * sin theta)
+      mapM_ doPt [0, step .. 2 * pi - step]
+      doPt 0
 
 -------------------------------------------------------------------------------
 -- Fonts and text:

@@ -421,7 +421,7 @@ chrGetStat stat char = max 1 $
 -- everything except bonuses from meta-abilities).
 chrPowerModifier :: Character -> PowerModifier
 chrPowerModifier char =
-  1.01 ^^ chrGetStat Intellect char *
+  (1 + squash 1 (0.01 * fromIntegral (chrGetStat Intellect char))) *
   (product $ map bonusPowerModifier $ chrBonusesList char)
 
 chrRecuperation :: Character -> Double
@@ -431,7 +431,7 @@ chrRecuperation = chrAbilityMultiplier Recuperation 1.1 1.2 1.4
 -- bonuses, and status effects into account.
 chrSpeed :: Character -> Double
 chrSpeed char =
-  1.01 ^^ chrGetStat Agility char *
+  (1 + squash 2 (0.01 * fromIntegral (chrGetStat Agility char))) *
   (product $ map bonusSpeedMultiplier $ chrBonusesList char) *
   chrAbilityMultiplier Alacrity 1.05 1.10 1.20 char *
   seSpeedMultiplier (chrStatus char)
