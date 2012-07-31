@@ -109,10 +109,10 @@ compileFrozenPass globals = compileArea FrozenPass Nothing $ do
       \ have little choice but to press on forward.  Maybe, just maybe, you\
       \ really can defeat this Vhaegyst lich, and maybe then you'll get some\
       \ answers."
-  simpleMonster 398273 Wolf "WolfA1" ChaseAI
-  simpleMonster 142118 Wolf "WolfA2" ChaseAI
-  simpleMonster 293554 Wolf "WolfA3" ChaseAI
-  simpleMonster 828135 Wolf "WolfA4" MindlessAI
+  simpleEnemy_ 398273 "WolfA1" Wolf ChaseAI
+  simpleEnemy_ 142118 "WolfA2" Wolf ChaseAI
+  simpleEnemy_ 293554 "WolfA3" Wolf ChaseAI
+  simpleEnemy_ 828135 "WolfA4" Wolf MindlessAI
 
   once 830701 (walkIn "NearZombies") $ do
     narrate "{b}The undead!{_}\n\n\
@@ -126,14 +126,14 @@ compileFrozenPass globals = compileArea FrozenPass Nothing $ do
       \ perilous foes for warriors as inexperienced as yourselves, but with\
       \ three out of the four Astral Weapons still in your hands, you should\
       \ be able to get through this."
-  simpleMonster 547952 Zombie "ZomB1" MindlessAI
-  simpleMonster 453147 Zombie "ZomB2" MindlessAI
-  simpleMonster 448374 Zombie "ZomB3" MindlessAI
-  simpleMonster 475373 Zombie "ZomB4" MindlessAI
+  simpleEnemy_ 547952 "ZomB1" Zombie MindlessAI
+  simpleEnemy_ 453147 "ZomB2" Zombie MindlessAI
+  simpleEnemy_ 448374 "ZomB3" Zombie MindlessAI
+  simpleEnemy_ 475373 "ZomB4" Zombie MindlessAI
 
-  simpleMonster 972911 Zombie "ZomC1" MindlessAI
-  simpleMonster 080213 Zombie "ZomC2" MindlessAI
-  simpleMonster 420917 Zombie "ZomC3" MindlessAI
+  simpleEnemy_ 972911 "ZomC1" Zombie MindlessAI
+  simpleEnemy_ 080213 "ZomC2" Zombie MindlessAI
+  simpleEnemy_ 420917 "ZomC3" Zombie MindlessAI
 
   once 385861 (walkIn "NearShack") $ do
     narrate "This old, cracked building looks like it has seen better days. \
@@ -143,12 +143,12 @@ compileFrozenPass globals = compileArea FrozenPass Nothing $ do
       \ weight of the snow piled up, and the look of the walls doesn't give\
       \ you a lot of confidence.  If you're planning to step inside, you think\
       \ you might not want to linger very long."
-  simpleMonster 233177 Skeleton "SkelD1" MindlessAI
-  simpleMonster 571346 Skeleton "SkelD2" MindlessAI
-  simpleMonster 035978 Skeleton "SkelD3" MindlessAI
-  simpleMonster 697145 Ghoul "GhoulD1" MindlessAI
-  simpleMonster 296464 Ghoul "GhoulD2" MindlessAI
-  simpleMonster 080509 Wraith "WraithD" MindlessAI
+  simpleEnemy_ 233177 "SkelD1" Skeleton MindlessAI
+  simpleEnemy_ 571346 "SkelD2" Skeleton MindlessAI
+  simpleEnemy_ 035978 "SkelD3" Skeleton MindlessAI
+  simpleEnemy_ 697145 "GhoulD1" Ghoul MindlessAI
+  simpleEnemy_ 296464 "GhoulD2" Ghoul MindlessAI
+  simpleEnemy_ 080509 "WraithD" Wraith MindlessAI
 
   uniqueDevice 044279 "TornBook" 1 $ \_ _ -> do
     narrate "Aha!  This book probably holds all sorts of interesting\

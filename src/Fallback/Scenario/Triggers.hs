@@ -78,11 +78,10 @@ scenarioTriggers = compileScenario $ do
   compileArea Valhalla Nothing $ do
     onStartDaily 409487 $ do
       addUnlockedDoors globals
-    simpleMonster 660632 DaemonWolf "DemonWolf1" MindlessAI
-    simpleMonster 660633 DaemonWolf "DemonWolf2" ChaseAI
-    simpleMonster 660634 Wolf "Wolf"
-                  (PatrolAI (Point 27 16) (Point 36 16))
-    simpleMonster 978292 CaveBat "Bat" (GuardAI 4 "Bat")
+    simpleEnemy_ 660632 "DemonWolf1" DaemonWolf MindlessAI
+    simpleEnemy_ 660633 "DemonWolf2" DaemonWolf ChaseAI
+    simpleEnemy_ 660634 "Wolf" Wolf (PatrolAI (Point 27 16) (Point 36 16))
+    simpleEnemy_ 978292 "Bat" CaveBat (GuardAI 4 "Bat")
 
   compileMountainPath globals
   compileCorenglen globals

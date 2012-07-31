@@ -71,40 +71,40 @@ compileStoneBridge globals = compileArea StoneBridge Nothing $ do
       \ seems to be covered in scratches--claw marks?  The far wall looks to\
       \ be in poor shape, and you're pretty sure you can hear some kind of\
       \ noises coming from behind it."
-  simpleMonster 834714 Ghast "GhastC" MindlessAI
-  simpleMonster 471492 Ghoul "GhoulC1" MindlessAI
-  simpleMonster 947193 Ghoul "GhoulC2" MindlessAI
-  simpleMonster 978248 Skeleton "SkelC1" MindlessAI
-  simpleMonster 477421 Skeleton "SkelC2" MindlessAI
-  simpleMonster 819889 Wraith "WraithC" MindlessAI
+  simpleEnemy_ 834714 "GhastC" Ghast MindlessAI
+  simpleEnemy_ 471492 "GhoulC1" Ghoul MindlessAI
+  simpleEnemy_ 947193 "GhoulC2" Ghoul MindlessAI
+  simpleEnemy_ 978248 "SkelC1" Skeleton MindlessAI
+  simpleEnemy_ 477421 "SkelC2" Skeleton MindlessAI
+  simpleEnemy_ 819889 "WraithC" Wraith MindlessAI
 
   -- Western edge:
-  simpleMonster 108042 Wolf "WolfD1" MindlessAI
-  simpleMonster 580912 Wolf "WolfD2" MindlessAI
+  simpleEnemy_ 108042 "WolfD1" Wolf MindlessAI
+  simpleEnemy_ 580912 "WolfD2" Wolf MindlessAI
 
   -- North shore:
-  simpleMonster 740281 Wolf "WolfE1" MindlessAI
-  simpleMonster 480981 Wolf "WolfE2" MindlessAI
+  simpleEnemy_ 740281 "WolfE1" Wolf MindlessAI
+  simpleEnemy_ 480981 "WolfE2" Wolf MindlessAI
 
   -- On bridge:
   daemonWolfDead <- simpleEnemy 283948 "DaemonWolf" DaemonWolf MindlessAI
 
   -- North part of forest:
-  simpleMonster 749087 Ghast "GhastA" MindlessAI
-  simpleMonster 420424 Skeleton "SkelA" MindlessAI
-  simpleMonster 108402 Zombie "ZomA1" MindlessAI
-  simpleMonster 482902 Zombie "ZomA2" MindlessAI
-  simpleMonster 779872 Zombie "ZomA3" MindlessAI
-  simpleMonster 398795 Zombie "ZomA4" MindlessAI
+  simpleEnemy_ 749087 "GhastA" Ghast MindlessAI
+  simpleEnemy_ 420424 "SkelA" Skeleton MindlessAI
+  simpleEnemy_ 108402 "ZomA1" Zombie MindlessAI
+  simpleEnemy_ 482902 "ZomA2" Zombie MindlessAI
+  simpleEnemy_ 779872 "ZomA3" Zombie MindlessAI
+  simpleEnemy_ 398795 "ZomA4" Zombie MindlessAI
 
   -- South part of forest:
-  simpleMonster 998491 Ghoul "GhoulB1" MindlessAI
-  simpleMonster 479829 Ghoul "GhoulB2" MindlessAI
-  simpleMonster 498721 Ghoul "GhoulB3" MindlessAI
-  simpleMonster 874987 Skeleton "SkelB" MindlessAI
-  simpleMonster 749209 Wraith "WraithB" MindlessAI
-  simpleMonster 740021 Zombie "ZomB1" MindlessAI
-  simpleMonster 799211 Zombie "ZomB2" MindlessAI
+  simpleEnemy_ 998491 "GhoulB1" Ghoul MindlessAI
+  simpleEnemy_ 479829 "GhoulB2" Ghoul MindlessAI
+  simpleEnemy_ 498721 "GhoulB3" Ghoul MindlessAI
+  simpleEnemy_ 874987 "SkelB" Skeleton MindlessAI
+  simpleEnemy_ 749209 "WraithB" Wraith MindlessAI
+  simpleEnemy_ 740021 "ZomB1" Zombie MindlessAI
+  simpleEnemy_ 799211 "ZomB2" Zombie MindlessAI
 
   -- Corner of forest:
   mutantWolfBefriended <- newPersistentVar 789294 False
@@ -129,13 +129,13 @@ compileStoneBridge globals = compileArea StoneBridge Nothing $ do
               convReset
               let foodName = map toLower (itemName itemTag)
               convText $ "Without taking your eyes off the beast, you feel\
-                \ around, and then cautiously you take out some " ++
-                foodName ++ " from your pack.  As soon as it sees the food in\
+                \ around inside your pack, and then cautiously you take out\
+                \ some " ++ foodName ++ ".  As soon as it sees the food in\
                 \ your hands, the wolf-thing stops growling, and looks\
-                \ straight at the food.  Gently, you underhand toss it towards\
-                \ the creature.  It keeps its head completely still as the\
-                \ food arcs towards it, following it only with its eyes, until\
-                \ at the last moment it darts its head out with incredicble\
+                \ straight at it.  Gently, you underhand toss it towards the\
+                \ creature.  It keeps its head completely still as the food\
+                \ arcs towards it, following it only with its eyes, until at\
+                \ the last moment it darts its head out with incredicble\
                 \ speed, snatches the " ++ foodName ++ " out of the air in its\
                 \ teeth, and proceeds to devour the morsel ravenously."
               writeVar mutantWolfBefriended True
@@ -203,6 +203,9 @@ compileStoneBridge globals = compileArea StoneBridge Nothing $ do
       friend <- readVar mutantWolfBefriended
       following <- readVar mutantWolfFollowing
       if daemonDead && friend then do
+        -- TODO: Check if wolf is at its home.  If so, show this message;
+        -- otherwise, show a different message saying that the wolf is walking
+        -- back to its den.
         narrate "The mutated wolf is lying asleep next to its tree.  As you\
           \ approach, it opens one eye and sleepily lifts its head to look at\
           \ you.  After a moment, though, it puts its head back onto its paws\

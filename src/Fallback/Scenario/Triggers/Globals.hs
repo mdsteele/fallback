@@ -22,7 +22,7 @@
 module Fallback.Scenario.Triggers.Globals
   (Globals(..), compileGlobals,
    newDoorDevice, addUnlockedDoors, uniqueDevice,
-   simpleMonster, simpleEnemy, simpleEnemy_, scriptedMonster,
+   simpleEnemy, simpleEnemy_, scriptedMonster,
    simpleTownsperson, scriptedTownsperson,
    signRadius)
 where
@@ -115,11 +115,6 @@ uniqueDevice vseed key radius sfn = do
     addDevice_ device =<< demandOneTerrainMark key
 
 -------------------------------------------------------------------------------
-
--- TODO: deprecated (use simpleEnemy_ instead)
-simpleMonster :: VarSeed -> MonsterTag -> String -> MonsterTownAI
-              -> CompileArea ()
-simpleMonster vseed tag mark ai = void $ simpleEnemy vseed mark tag ai
 
 simpleEnemy :: VarSeed -> String -> MonsterTag -> MonsterTownAI
             -> CompileArea (Var Bool)
