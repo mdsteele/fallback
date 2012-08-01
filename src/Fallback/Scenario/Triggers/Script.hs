@@ -172,8 +172,8 @@ setLevelCap cap = do
 setQuestStatus :: (FromAreaEffect f) => QuestTag -> QuestStatus -> Script f ()
 setQuestStatus tag status = emitAreaEffect $ EffSetQuestStatus tag status
 
--- | Start combat, with running away disallowed, and with the top left corner
--- of the combat area being the given position.
+-- | Start combat, with running away disallowed, and with the combat arena
+-- centered on the specified terrain rect.
 startBossFight :: (FromTownEffect f) => String -> Script f ()
 startBossFight key = do
   Rect x y w h <- demandTerrainRect key
