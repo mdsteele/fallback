@@ -304,14 +304,13 @@ compileIcehold globals = do
       teleport Icehold2 (Point 16 8)
 
     -- Boss fight:
-    let bossChamberTopleft = Point 1 9
     (vhaegystKey, vhaegystDead) <-
       scriptedMonster 209103 "Vhaegyst" Vhaegyst True ImmobileAI
     once 729892 (walkIn "BossRoom") $ do
       -- TODO conversation and so forth
       setMonsterIsAlly False =<< readVar vhaegystKey
       setTerrain BasaltGateClosedTile =<< lookupTerrainMark "SouthGate"
-      startBossFight bossChamberTopleft
+      startBossFight "BossRoom"
     trigger 099022 (varTrue vhaegystDead) $ do
       setLevelCap 16
       setAreaCleared Icehold True

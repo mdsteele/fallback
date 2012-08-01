@@ -34,7 +34,8 @@ where
 
 import qualified Data.Set as Set (member, toList)
 
-import Fallback.Data.Point (Position, PRect)
+import Fallback.Constants (combatArenaSize)
+import Fallback.Data.Point
 import Fallback.Scenario.Script
 import Fallback.State.Area
 import Fallback.State.Party (partyHasItem)
@@ -44,6 +45,7 @@ import Fallback.State.Tags (AreaTag, ItemTag, QuestTag)
 import Fallback.State.Terrain
   (terrainMap, tmapGet, tmapLookupMark, tmapLookupRect)
 import Fallback.State.Tileset (TileTag, tilesetGet)
+import Fallback.Utility (ceilDiv)
 
 -------------------------------------------------------------------------------
 -- Conversation:
@@ -172,10 +174,12 @@ setQuestStatus tag status = emitAreaEffect $ EffSetQuestStatus tag status
 
 -- | Start combat, with running away disallowed, and with the top left corner
 -- of the combat area being the given position.
-startBossFight :: (FromTownEffect f) => Position -> Script f ()
--- TODO: Make this take a terrain rect key; pick a topleft that roughly centers
---       the arena on the rect.
-startBossFight = emitTownEffect . EffStartCombat False
+startBossFight :: (FromTownEffect f) => String -> Script f ()
+startBossFight key = do
+  Rect x y w h <- demandTerrainRect key
+  emitTownEffect $ EffStartCombat False $
+    locTopleft (LocCenter $ Point (x + w `ceilDiv` 2) (y + h `div` 2))
+               combatArenaSize
 
 startShopping :: (FromTownEffect f) => [Either Ingredient ItemTag]
               -> Script f ()
