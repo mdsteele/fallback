@@ -31,7 +31,8 @@ module Fallback.Data.Point
    -- * LocSpec type
    LocSpec(..), locTopleft, locRect,
    -- * Direction type
-   Direction(..), allDirections, isCardinal, ipointDir, dirDelta, plusDir,
+   Direction(..), allDirections, isCardinal,
+   ipointDir, dirTo, dirDelta, plusDir,
    -- * Position type
    Position, PRect, adjacent, bresenhamPositions, prectPositions,
    expandPrect, expandPosition,
@@ -213,7 +214,7 @@ locRect loc (w, h) = Rect x y w h where
 -- Direction type:
 
 data Direction = DirE | DirSE | DirS | DirSW | DirW | DirNW | DirN | DirNE
-  deriving (Eq, Show)
+  deriving (Eq, Ord, Show)
 
 instance Enum Direction where
   fromEnum d = case d of { DirE -> 0; DirSE -> 1; DirS -> 2; DirSW -> 3;
@@ -259,6 +260,9 @@ isCardinal DirNE = False
 ipointDir :: IPoint -> Direction
 ipointDir = toEnum . (`mod` 8) . (`div` 2) . (+1) . floor . (* (8 / pi)) .
             pAtan2 . fmap (fromIntegral :: Int -> Double)
+
+dirTo :: IPoint -> IPoint -> Direction
+dirTo from to = ipointDir (to `pSub` from)
 
 dirDelta :: Direction -> IPoint
 dirDelta DirE  = Point   1    0

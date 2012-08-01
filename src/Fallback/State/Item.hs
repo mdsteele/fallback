@@ -316,6 +316,7 @@ wdSubDesc wd = attackDesc ++ bonusesSubDesc (wdBonuses wd) ++ featsDesc ++
   effectLine (InflictWeakness x) = "Weakens target's armor" ++ effectNum x
   effectLine KnockBack = "Knocks target back\n"
   effectLine PurgeInvisibility = "Purges invisibility from target\n"
+  effectLine (StealHealth x) = "Steals health " ++ effectNum x
   effectLine _ = "FIXME some effect\n"
   effectNum x = " (effect " ++ show (round (100 * x) :: Int) ++ ")\n"
   damageModsDesc = concatMap damageModDesc $

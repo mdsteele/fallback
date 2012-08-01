@@ -30,7 +30,7 @@ module Fallback.Scenario.Script.Attack
 where
 
 import Control.Applicative ((<$), (<$>))
-import Control.Monad (foldM, guard, replicateM, unless, void, when)
+import Control.Monad (foldM, guard, replicateM, unless, when)
 import Data.List (delete)
 import qualified Data.Map as Map (lookup)
 import Data.Maybe (fromMaybe, listToMaybe, mapMaybe)
@@ -42,7 +42,7 @@ import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Scenario.Script.Base
 import Fallback.Scenario.Script.Damage
-  (DamageSeverity(..), dealDamageGeneral, killTarget)
+  (DamageSeverity(..), dealDamageGeneral, healDamage, killTarget)
 import Fallback.Scenario.Script.Doodad
 import Fallback.Scenario.Script.Other
 import Fallback.State.Area
@@ -494,38 +494,44 @@ attackHit :: [AttackEffect] -> Position -> Position -> Double -> HitModifiers
 attackHit effects origin target damage mods = do
   attackHitAnimation mods target
   let hitTarget = HitPosition target
-  extraHits <- flip3 foldM [] effects $ \hits effect -> do
-    let affectStatus fn = hits <$ alterStatus hitTarget fn
+  (extraHits, knockback, stealFraction) <- flip3 foldM ([], False, 0) effects $
+                                           \(hits, knock, steal) effect -> do
+    let performAction = ((hits, knock, steal) <$)
+    let affectStatus = performAction . alterStatus hitTarget
     case effect of
-      DrainMana mult ->
-        hits <$ alterMana hitTarget (subtract $ round $ mult * damage)
-      ExtraDamage dtype mult ->
-        return ((hitTarget, dtype, mult * damage) : hits)
-      InflictCurse mult ->
+      DrainMana mult -> do
+        performAction $ alterMana hitTarget (subtract $ round $ mult * damage)
+      ExtraDamage dtype mult -> do
+        return ((hitTarget, dtype, mult * damage) : hits, knock, steal)
+      InflictCurse mult -> do
         affectStatus $ seApplyBlessing $ Harmful (mult * damage)
-      InflictMental eff mult -> hits <$
+      InflictMental eff mult -> performAction $ do
         inflictMentalEffect (hmAttackerIsAlly mods) hitTarget eff
                             (mult * damage)
-      InflictPoison mult -> hits <$ inflictPoison hitTarget (mult * damage)
+      InflictPoison mult -> do
+        performAction $ inflictPoison hitTarget (mult * damage)
       InflictSlow mult -> affectStatus $ seApplyHaste $ Harmful (mult * damage)
-      InflictStun mult ->
-        if hmSeverity mods < HarshDamage then return hits
-        else hits <$ inflictStun hitTarget (mult * damage)
-      InflictWeakness mult ->
+      InflictStun mult -> performAction $ do
+        if hmSeverity mods < HarshDamage then return ()
+        else inflictStun hitTarget (mult * damage)
+      InflictWeakness mult -> do
         affectStatus $ seApplyDefense $ Harmful (mult * damage)
-      KnockBack -> return hits
+      KnockBack -> return (hits, True, steal)
       PurgeInvisibility -> affectStatus $ seSetInvisibility NoInvisibility
       ReduceBlessing mult -> affectStatus $ seReduceBlessing (mult * damage)
       ReduceDefense mult -> affectStatus $ seReduceDefense (mult * damage)
       ReduceHaste mult -> affectStatus $ seReduceHaste (mult * damage)
-      ReduceMagicShield mult ->
+      ReduceMagicShield mult -> do
         affectStatus $ seReduceMagicShield (mult * damage)
-      SetField field -> hits <$ setFields field [target]
+      SetField field -> performAction $ setFields field [target]
+      StealHealth frac -> return (hits, knock, steal + frac)
   when (hmCritical mods) $ addFloatingWordOnTarget WordCritical hitTarget
-  void $ dealDamageGeneral (hmSeverity mods) (hmFinalBlow mods)
-                           ((hitTarget, hmElement mods, damage) : extraHits)
-  when (KnockBack `elem` effects) $ do
-    _ <- tryKnockBack hitTarget $ ipointDir (target `pSub` origin)
+  total <- dealDamageGeneral (hmSeverity mods) (hmFinalBlow mods)
+                             ((hitTarget, hmElement mods, damage) : extraHits)
+  let stolen = stealFraction * fromIntegral total
+  when (stolen > 0) $ healDamage [(HitPosition origin, stolen)]
+  when knockback $ do
+    _ <- tryKnockBack hitTarget (origin `dirTo` target)
     return ()
   wait 16
 

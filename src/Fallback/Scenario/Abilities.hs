@@ -22,16 +22,19 @@ module Fallback.Scenario.Abilities
    abilityMinPartyLevel)
 where
 
-import Control.Applicative ((<$>))
+import Control.Applicative ((<$>), (<*>))
 import Control.Arrow ((***))
 import Control.Monad (filterM, foldM, forM, forM_, replicateM_, unless, when)
+import Data.Either (partitionEithers)
 import Data.List (delete, find, sort)
+import qualified Data.Map as Map (elems)
 import Data.Maybe (catMaybes, fromMaybe, isJust)
 import qualified Data.Set as Set
 
 import Fallback.Constants (framesPerRound, maxActionPoints)
 import Fallback.Data.Color (Tint(Tint))
 import qualified Fallback.Data.Grid as Grid
+import qualified Fallback.Data.Multimap as MM
 import Fallback.Data.Point
 import qualified Fallback.Data.Queue as Queue
 import qualified Fallback.Data.TotalMap as TM (make)
@@ -49,7 +52,7 @@ import Fallback.State.Tags
   (AbilityTag(..), MonsterTag(..), abilityClassAndNumber, abilityName,
    classAbility)
 import Fallback.State.Terrain (positionCenter, terrainSize)
-import Fallback.Utility (flip3, maybeM, sortKey, unfoldM)
+import Fallback.Utility (flip3, forMaybeM, maybeM, sortKey, unfoldM)
 
 -------------------------------------------------------------------------------
 
@@ -192,7 +195,12 @@ getAbility characterClass abilityNumber rank =
                   -- TODO: What if we have a ranged weapon equipped?
                   characterWeaponAttack caster hitPos baseAttackModifiers
     Dodge -> PassiveAbility
-    Subsume -> PassiveAbility -- FIXME
+    Subsume ->
+      meta (FocusCost 1) MeleeOnly SingleTarget $
+      \caster power endPos -> do
+        characterWeaponAttack caster endPos baseAttackModifiers
+          { amDamageMultiplier = 1.2 * power,
+            amExtraEffects = [StealHealth (ranked 0.25 0.5 1)] }
     Illusion ->
       combat (FocusCost 1) AutoTarget $ \caster power () -> do
         characterOffensiveAction caster 8
@@ -739,13 +747,27 @@ getAbility characterClass abilityNumber rank =
       combat (ManaCost 1) AutoTarget $ \caster power () -> do
         characterOffensiveAction caster 8
         startPos <- areaGet (arsCharacterPosition caster)
-        targets <- flip3 foldM Set.empty allDirections $ \taken _dir -> do
-          return taken -- FIXME
-        concurrent_ (Set.elems targets) $ \target -> do
-          addBallisticDoodad AcidProj startPos target 200.0 >>= wait
+        targets <- do
+          let chooseDirTargets positions = do
+                (enemies, empties) <- fmap partitionEithers $
+                                  forMaybeM (Set.toList positions) $ \pos -> do
+                  mbOccupant <- areaGet (arsOccupant pos)
+                  return $ case mbOccupant of
+                             Nothing -> Just (Right pos)
+                             Just (Left _) -> Nothing
+                             Just (Right entry) ->
+                               if monstIsAlly (Grid.geValue entry)
+                               then Nothing else Just (Left pos)
+                fmap (take $ ranked 1 2 2) $ (++) <$> randomPermutation enemies
+                                                  <*> randomPermutation empties
+          fmap concat . sequence =<< Map.elems . MM.collapse chooseDirTargets .
+            MM.fromList . map (\pos -> (startPos `dirTo` pos, pos)) .
+            Set.toList <$> areaGet (arsVisibleForCharacter caster)
+        concurrent_ targets $ \target -> do
+          addBallisticDoodad AcidProj startPos target 350.0 >>= wait
           damage <- (ranked 25 30 40 * power *) <$> getRandomR 0.9 1.1
           addBoomDoodadAtPosition AcidBoom 3 target >> wait 12
-          -- FIXME at rank 3, also do some poison damage
+          when (rank >= Rank3) $ inflictPoison (HitPosition target) damage
           dealDamage [(HitPosition target, AcidDamage, damage)]
           wait 12
     Luminaire ->
@@ -885,8 +907,8 @@ abilityDescription Dodge =
   \At rank 2, your chance of dodging rises to 10%.\n\
   \At rank 3, your chance of dodging rises to 20%."
 abilityDescription Subsume =
-  "Make a melee weapon attack, stealing the enemy's health and healing\
-  \ yourself by one quarter the amount of damage you inflict.\n\
+  "Make a powerful melee weapon attack, stealing the enemy's health and\
+  \ healing yourself by one quarter the amount of damage you inflict.\n\
   \At rank 2, steals fully half the amount of damage you inflict.\n\
   \At rank 3, steals {i}all{_} of the damage you inflict."
 abilityDescription Illusion =
@@ -1034,8 +1056,8 @@ abilityDescription IceBolts = "Deal cold damage to multiple targets.\n\
   \At rank 2, hits up to three targets.\n\
   \At rank 3, hits up to four targets."
 abilityDescription Vitriol = "Splash a small area with damaging acid.\n\
-  \At rank 2, deals more damage.\n\
-  \At rank 3, also poisons the targets."
+  \At rank 2, the acid deals more damage.\n\
+  \At rank 3, also poisons the targets, dealing even more damage over time."
 abilityDescription Invisibility =
   "Turn one ally invisible until she next attacks.  Only adjacent enemies will\
   \ be able to see her, but they cannot counterattack if she moves away.\n\
@@ -1058,9 +1080,11 @@ abilityDescription Disjunction =
   "Purge fields and reduce status effects from an area.\n\
   \At rank 2, harmful status effects on enemies will remain.\n\
   \At rank 3, helpful status effects on allies will also remain."
-abilityDescription AcidRain = "Spray all nearby enemies with damaging acid.\n\
-  \At rank 2, deals more damage.\n\
-  \At rank 3, also poisons the targets."
+abilityDescription AcidRain =
+  "Spray globs of damaging acid at your enemies in all directions.  Most\
+  \ effective when you are surrounded.\n\
+  \At rank 2, sprays twice as many acid globs, hitting more enemies.\n\
+  \At rank 3, also poisons the targets, dealing even more damage over time."
 abilityDescription Luminaire = "Deal major energy damage to a wide area.\n\
   \At rank 2, deals even more damage.\n\
   \At rank 3, deals massive damage."

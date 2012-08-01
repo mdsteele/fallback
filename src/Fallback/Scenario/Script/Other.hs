@@ -758,7 +758,7 @@ splashTarget maxRange = AreaTarget fn maxRange where
   fn ars origin target =
     if origin == target || cannotSeeThrough (arsTerrainOpenness target ars)
     then [target] else
-      let dir = ipointDir (target `pSub` origin)
+      let dir = origin `dirTo` target
       in [target, target `plusDir` pred dir, target `plusDir` dir,
           target `plusDir` succ dir]
 
@@ -774,7 +774,7 @@ wallTarget maxRange radius = AreaTarget fn maxRange where
                   succ dir, succ $ succ $ succ dir)
       in target : wing d1 d2 target radius ++ wing d3 d4 target radius
     where
-      dir = ipointDir (target `pSub` origin)
+      dir = origin `dirTo` target
       blocked pos =
         arsOccupied pos ars ||
         case arsTerrainOpenness pos ars of

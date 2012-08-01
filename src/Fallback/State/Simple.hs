@@ -92,7 +92,7 @@ data AttackEffect = DrainMana Double -- mana drained per base damage
                   | ReduceHaste Double -- rounds reduced per base damage
                   | ReduceMagicShield Double -- rounds reduced per base damage
                   | SetField Field -- set field on target position
-  deriving (Eq)
+                  | StealHealth Double -- fraction of damage to steal
 
 -- | Determines the maximum range of an attack, and whether the attack counts
 -- as \"melee\" or \"ranged\" for the purposes of e.g. meta-attacks or the

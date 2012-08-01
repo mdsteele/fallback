@@ -27,19 +27,26 @@
 -- >  import qualified Fallback.Data.Multimap as MM
 
 module Fallback.Data.Multimap
-  (Multimap, empty, null, insert, lookup,
-   reverseLookup, reverseSet,
-   fromList, toList)
+  (-- * 'Multimap' type
+   Multimap, empty,
+   -- * Query
+   null, lookup, reverseLookup,
+   -- * Update
+   insert, reverseSet,
+   -- * Conversion
+   collapse, fromList, toList)
 where
 
 import Prelude hiding (lookup, null)
 
+import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Set (Set)
 import qualified Data.Set as Set
 
 -------------------------------------------------------------------------------
 
-newtype Multimap k v = Multimap (Map.Map k (Set.Set v))
+newtype Multimap k v = Multimap (Map k (Set v))
 
 -- | /O(1)/.  The empty multimap.
 empty :: Multimap k v
@@ -49,6 +56,21 @@ empty = Multimap Map.empty
 null :: Multimap k v -> Bool
 null (Multimap m) = Map.null m
 
+-------------------------------------------------------------------------------
+-- Query:
+
+-- | /O(log n)/.  Look up all values for the given key.
+lookup :: (Ord k) => k -> Multimap k v -> Set v
+lookup k (Multimap m) = Map.findWithDefault Set.empty k m
+
+-- | /O(n)/.  Look up all keys that map to the given value.
+reverseLookup :: (Ord k, Ord v) => v -> Multimap k v -> Set k
+reverseLookup v (Multimap m) =
+  Set.fromAscList $ map fst $ filter (Set.member v . snd) $ Map.toAscList m
+
+-------------------------------------------------------------------------------
+-- Update:
+
 -- | /O(log n)/.  Insert a key/value pair into the map, adding it alongside any
 -- existing mappings for the same key.
 insert :: (Ord k, Ord v) => k -> v -> Multimap k v -> Multimap k v
@@ -56,21 +78,20 @@ insert k v (Multimap m) = Multimap $ Map.alter fn k m where
   fn Nothing = Just (Set.singleton v)
   fn (Just vs) = Just (Set.insert v vs)
 
--- | /O(log n)/.  Look up all values for the given key.
-lookup :: (Ord k) => k -> Multimap k v -> Set.Set v
-lookup k (Multimap m) = Map.findWithDefault Set.empty k m
-
--- | /O(n)/.  Look up all keys that map to the given value.
-reverseLookup :: (Ord k, Ord v) => v -> Multimap k v -> Set.Set k
-reverseLookup v (Multimap m) =
-  Set.fromAscList $ map fst $ filter (Set.member v . snd) $ Map.toAscList m
-
 -- | Set exactly which keys map to the given value, adding or removing
 -- key/value pairs from the multimap as necessary.
-reverseSet :: (Ord k, Ord v) => v -> Set.Set k -> Multimap k v -> Multimap k v
+reverseSet :: (Ord k, Ord v) => v -> Set k -> Multimap k v -> Multimap k v
 reverseSet v ks (Multimap m) =
   foldr (uncurry insert) (Multimap $ Map.map (Set.delete v) m) $
   map (flip (,) v) (Set.toList ks)
+
+-------------------------------------------------------------------------------
+-- Conversion:
+
+-- | Given a function that collapses all values for a key into a single value,
+-- turn a 'Multimap' into a regular 'Map'.
+collapse :: (Set a -> b) -> Multimap k a -> Map k b
+collapse fn (Multimap m) = fmap fn m
 
 -- | /O(n log n)/.  Produce a multimap containing the given key/value pairs.
 fromList :: (Ord k, Ord v) => [(k, v)] -> Multimap k v
