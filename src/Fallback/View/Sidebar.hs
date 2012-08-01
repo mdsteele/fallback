@@ -216,7 +216,6 @@ newCharacterViewBackground charNum = do
 
 newHealthBarView :: (MonadDraw m) => Resources -> m (View (Party, Character) b)
 newHealthBarView resources = do
-  paintDigits <- newDigitPaint
   let
     paint (party, char) = do
       rect <- canvasRect
@@ -226,13 +225,13 @@ newHealthBarView resources = do
       tintRect (Tint 255 32 32 255)
                (Rect 0 0 (fr * fromIntegral (rectW rect))
                      (fromIntegral (rectH rect) :: Double))
-      paintDigits (chrHealth char) $ LocCenter $ rectCenter rect
+      paintNumber (rsrcDigitsStripSmall resources) (chrHealth char)
+                  (LocCenter $ rectCenter rect)
       blitStretch (hmeLongBarSprite $ rsrcHealthManaEtc resources) rect
   return (inertView paint)
 
 newMojoBarView :: (MonadDraw m) => Resources -> m (View (Party, Character) b)
 newMojoBarView resources = do
-  paintDigits <- newDigitPaint
   let
     paint (party, char) =
       case chrClass char of
@@ -254,8 +253,10 @@ newMojoBarView resources = do
       let ingredients = partyIngredients party
       let paintIngredient ingredient index = do
             let (row, col) = index `divMod` 4
-            paintDigits (TM.get ingredient ingredients)
-                        (LocTopright $ Point (15 + 20 * col) (8 * row))
+            paintNumberTinted (rsrcDigitsStripSmall resources)
+                              (Tint 226 226 226 255)
+                              (TM.get ingredient ingredients)
+                              (LocTopright $ Point (15 + 20 * col) (8 * row))
       zipWithM_ paintIngredient [minBound .. maxBound] [0 ..]
     paintMana party char = do
       rect <- canvasRect
@@ -264,13 +265,13 @@ newMojoBarView resources = do
       tintRect translucent rect
       tintRect (Tint 0 96 255 255) (Rect 0 0 (fr * fromIntegral (rectW rect))
                                          (fromIntegral (rectH rect) :: Double))
-      paintDigits (chrMojo char) $ LocCenter $ rectCenter rect
+      paintNumber (rsrcDigitsStripSmall resources) (chrMojo char)
+                  (LocCenter $ rectCenter rect)
       blitStretch (hmeLongBarSprite $ rsrcHealthManaEtc resources) rect
   return (inertView paint)
 
 newAdrenalineBarView :: (MonadDraw m) => Resources -> m (View Character b)
 newAdrenalineBarView resources = do
-  paintDigits <- newDigitPaint
   let
     paint char = do
       rect <- canvasRect
@@ -279,14 +280,14 @@ newAdrenalineBarView resources = do
       tintRect (Tint 224 224 0 255)
                (Rect 0 0 (fr * fromIntegral (rectW rect))
                      (fromIntegral (rectH rect) :: Double))
-      paintDigits (chrAdrenaline char) $ LocCenter $ rectCenter rect
+      paintNumber (rsrcDigitsStripSmall resources) (chrAdrenaline char)
+                  ( LocCenter $ rectCenter rect)
       blitStretch (hmeShortBarSprite $ rsrcHealthManaEtc resources) rect
   return (inertView paint)
 
 newTimeBarView :: (MonadDraw m) => Resources -> CharacterNumber
                -> m (View CombatState b)
 newTimeBarView resources charNum = do
-  paintDigits <- newDigitPaint
   let
 
     paint cs = do
@@ -310,7 +311,8 @@ newTimeBarView resources charNum = do
                    _ -> Tint 0 224 0 255
       tintRect tint (Rect 0 0 (fr * fromIntegral (rectW rect))
                           (fromIntegral (rectH rect) :: Double))
-      paintDigits actionPoints (LocCenter $ rectCenter rect)
+      paintNumber (rsrcDigitsStripSmall resources) actionPoints
+                  (LocCenter $ rectCenter rect)
       blitStretch (hmeShortBarSprite $ rsrcHealthManaEtc resources) rect
 
     paintPips apStart apUsed = do

@@ -31,6 +31,7 @@ import qualified Data.Map as Map
 import Data.Maybe (fromMaybe, mapMaybe)
 
 import Fallback.Constants (secondsPerFrame)
+import Fallback.Data.Color (Tint)
 import Fallback.Data.Point
 import qualified Fallback.Data.TotalMap as TM
 import Fallback.Draw
@@ -107,9 +108,9 @@ appendFloatingWord resources wordTag = appendFloater floater where
   floater = makeFloater (blitLoc sprite . LocCenter)
   sprite = rsrcWordSprite resources wordTag
 
-appendFloatingNumber :: Resources -> Int -> PRect -> Doodads -> Doodads
-appendFloatingNumber resources number = appendFloater floater where
-  floater = makeFloater (paintNumber digits number . LocCenter)
+appendFloatingNumber :: Resources -> Tint -> Int -> PRect -> Doodads -> Doodads
+appendFloatingNumber resources tint number = appendFloater floater where
+  floater = makeFloater (paintNumberTinted digits tint number . LocCenter)
   digits = rsrcDigitsStripBig resources
 
 appendFloater :: Floater -> PRect -> Doodads -> Doodads

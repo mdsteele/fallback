@@ -73,11 +73,11 @@ addContinuousDoodad height limit paintFn = do
 -------------------------------------------------------------------------------
 -- Floaters:
 
-addFloatingNumberOnTarget :: (FromAreaEffect f) => Int -> HitTarget
+addFloatingNumberOnTarget :: (FromAreaEffect f) => Tint -> Int -> HitTarget
                           -> Script f ()
-addFloatingNumberOnTarget number hitTarget = do
+addFloatingNumberOnTarget tint number hitTarget = do
   resources <- areaGet arsResources
-  addFloaterOnTarget (appendFloatingNumber resources number) hitTarget
+  addFloaterOnTarget (appendFloatingNumber resources tint number) hitTarget
 
 addFloatingWordOnTarget :: (FromAreaEffect f) => WordTag -> HitTarget
                         -> Script f ()

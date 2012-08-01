@@ -33,6 +33,7 @@ import Data.Maybe (fromMaybe, isNothing)
 
 import Fallback.Constants (maxAdrenaline, momentsPerActionPoint)
 import Fallback.Control.Script
+import Fallback.Data.Color (Tint(Tint))
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import qualified Fallback.Data.TotalMap as TM (get)
@@ -128,7 +129,7 @@ dealRawDamageToCharacter severity charNum damage stun = do
   -- Do damage:
   minHealth <- emitAreaEffect $ EffIfCombat (return 0) (return 1)
   let health' = max minHealth (chrHealth char - damage)
-  addFloatingNumberOnTarget damage (HitCharacter charNum)
+  addFloatingNumberOnTarget hurtTint damage (HitCharacter charNum)
   emitAreaEffect $ EffAlterCharacter charNum $ \c -> c { chrHealth = health' }
   emitAreaEffect $ EffIfCombat (setCharacterAnim charNum $ HurtAnim 12)
                                (setPartyAnim $ HurtAnim 12)
@@ -172,7 +173,7 @@ dealRawDamageToMonster severity finalBlow key damage stun = do
                    { monstAdrenaline = adrenaline',
                      monstPose = (monstPose monst) { cpAnim = HurtAnim 12 },
                      monstHealth = health', monstMoments = moments' }
-  addFloatingNumberOnTarget damage' (HitMonster key)
+  addFloatingNumberOnTarget hurtTint damage' (HitMonster key)
   emitAreaEffect $ EffReplaceMonster key mbMonst'
   -- If the monster is now dead, we need do to several things.
   when (isNothing mbMonst') $ onMonsterDead entry
@@ -264,7 +265,7 @@ healCharacter charNum baseAmount = do
                            (chrHealth char + amount) }
   pos <- areaGet (arsCharacterPosition charNum)
   addBoomDoodadAtPosition HealBoom 4 pos
-  addFloatingNumberOnTarget amount (HitCharacter charNum)
+  addFloatingNumberOnTarget healTint amount (HitCharacter charNum)
 
 healMonster :: (FromAreaEffect f) => Grid.Key Monster -> Double -> Script f ()
 healMonster key baseAmount = withMonsterEntry key $ \entry -> do
@@ -276,7 +277,7 @@ healMonster key baseAmount = withMonsterEntry key $ \entry -> do
   emitAreaEffect $ EffReplaceMonster key (Just monst')
   let prect = Grid.geRect entry
   forM_ (prectPositions prect) $ addBoomDoodadAtPosition HealBoom 4
-  addFloatingNumberOnTarget amount (HitMonster key)
+  addFloatingNumberOnTarget healTint amount (HitMonster key)
 
 reviveTarget :: HitTarget -> Double -> Script CombatEffect ()
 reviveTarget hitTarget baseAmount = do
@@ -302,7 +303,7 @@ reviveTarget hitTarget baseAmount = do
         { chrHealth = health }
       addBoomDoodadAtPosition HealBoom 4 =<<
         areaGet (arsCharacterPosition charNum)
-      addFloatingNumberOnTarget health (HitCharacter charNum)
+      addFloatingNumberOnTarget healTint health (HitCharacter charNum)
     _ -> simpleHeal
 
 -------------------------------------------------------------------------------
@@ -398,5 +399,9 @@ characterScreamSound char =
     (MagusClass, Appearance0) -> SndHurtMale
     (MagusClass, Appearance1) -> SndHurtMale
     _ -> SndHurtFemale
+
+hurtTint, healTint :: Tint
+hurtTint = Tint 255 192 192 255
+healTint = Tint 140 255 192 255
 
 -------------------------------------------------------------------------------

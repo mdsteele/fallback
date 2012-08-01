@@ -22,7 +22,7 @@ module Fallback.Draw.GUI where
 import Control.Applicative ((<$>))
 import Control.Monad (zipWithM_)
 
-import Fallback.Data.Color (Tint, tintAlpha)
+import Fallback.Data.Color (Tint, tintAlpha, whiteTint)
 import Fallback.Data.Point
 import Fallback.Draw.Base
 import Fallback.Event (Key(..))
@@ -72,18 +72,17 @@ drawBevelRect tint b rect = withSubCanvas rect $ do
 -------------------------------------------------------------------------------
 
 paintNumber :: Strip -> Int -> LocSpec Int -> Paint ()
-paintNumber digits num loc = do
+paintNumber digits = paintNumberTinted digits whiteTint
+
+paintNumberTinted :: Strip -> Tint -> Int -> LocSpec Int -> Paint ()
+paintNumberTinted digits tint num loc = do
   let (w, h) = spriteSize (digits ! 0)
   let string = show (abs num)
   let Point x y = locTopleft loc (1 + (w - 1) * length string, h)
   let drawDigit dx char =
-        blitTopleft (digits ! (fromEnum char - fromEnum '0'))
-                    (Point (x + dx) y)
+        blitTopleftTinted tint (digits ! (fromEnum char - fromEnum '0'))
+                               (Point (x + dx) y)
   zipWithM_ drawDigit [0, w - 1 ..] string
-
--- TODO: deprecated
-newDigitPaint :: (MonadDraw m) => m (Int -> LocSpec Int -> Paint ())
-newDigitPaint = paintNumber <$> loadVStrip "small-digits.png" 10
 
 -------------------------------------------------------------------------------
 

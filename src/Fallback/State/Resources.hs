@@ -29,8 +29,8 @@ module Fallback.State.Resources
    -- * Fonts
    FontTag(..), rsrcFont,
    -- * GUI graphics
-   rsrcCursorsStrip, rsrcDigitsStripBig, rsrcSheetSmallButtons,
-   rsrcPaintDigits,
+   rsrcCursorsStrip, rsrcDigitsStripBig, rsrcDigitsStripSmall,
+   rsrcSheetSmallButtons,
    -- * Health, mana, etc.
    HealthManaEtc(..), rsrcHealthManaEtc,
    -- * Icons
@@ -50,7 +50,7 @@ import Control.Monad (forM)
 import Data.Array (Array, Ix, bounds, listArray, range)
 
 import Fallback.Constants (tileHeight, tileWidth)
-import Fallback.Data.Point (IRect, LocSpec, Rect(Rect))
+import Fallback.Data.Point (IRect, Rect(Rect))
 import qualified Fallback.Data.TotalMap as TM
 import Fallback.Draw
 import Fallback.Sound (Sound, loadSound)
@@ -70,10 +70,10 @@ data Resources = Resources
       TM.TotalMap CreatureSize (Array Int CreatureImages),
     rsrcCursorsStrip :: Strip,
     rsrcDigitsStripBig :: Strip,
+    rsrcDigitsStripSmall :: Strip,
     rsrcFonts :: TM.TotalMap FontTag Font,
     rsrcHealthManaEtc :: HealthManaEtc,
     rsrcItemIcons :: Sheet,
-    rsrcPaintDigits :: Int -> LocSpec Int -> Paint (),
     rsrcProjs :: TM.TotalMap ProjTag Sprite,
     rsrcSheetSmallButtons :: Sheet,
     rsrcSounds :: TM.TotalMap SoundTag Sound,
@@ -96,10 +96,10 @@ newResources = do
   sheetSmallButtons <- loadSheet "gui/small-buttons.png" (4, 6)
   fonts <- TM.makeA (uncurry loadFont . fontSpec)
   monsterImages <- TM.makeA loadMonsterImages
-  paintDigits <- newDigitPaint
   projStrip <- loadVStrip "doodads/projectiles.png" 5
-  spritesSheet <- loadSheet "doodads/sprites.png" (2, 8)
+  smallDigits <- loadVStrip "small-digits.png" 10
   sounds <- TM.makeA (loadSound . soundPath)
+  spritesSheet <- loadSheet "doodads/sprites.png" (2, 8)
   statusDecorations <- loadStatusDecorations
   statusIcons <- loadVStrip "gui/status-icons.png" 16
   strips <- TM.makeA (uncurry loadVStrip . stripSpec)
@@ -118,11 +118,11 @@ newResources = do
       rsrcDigitsStripBig =
         listArray (0, 9) $ flip map [0..9] $ \n ->
           makeSubSprite (Rect (7 * n) 0 7 9) digitsWords,
+      rsrcDigitsStripSmall = smallDigits,
       rsrcCursorsStrip = cursors,
       rsrcFonts = fonts,
       rsrcHealthManaEtc = healthManaEtc,
       rsrcItemIcons = itemIcons,
-      rsrcPaintDigits = paintDigits,
       rsrcProjs = TM.make ((projStrip !) . projIndex),
       rsrcSheetSmallButtons = sheetSmallButtons,
       rsrcSounds = sounds,

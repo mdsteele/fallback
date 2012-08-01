@@ -44,8 +44,9 @@ module Fallback.Draw.Base
    -- ** Querying
    spriteWidth, spriteHeight, spriteSize, stripLength, (!),
    -- ** Blitting
-   blitTopleft, blitLoc, blitLocTinted, blitStretch, blitStretchTinted,
-   blitRepeat, blitRepeatTinted, blitRotate, blitRotateTinted,
+   blitTopleft, blitTopleftTinted, blitLoc, blitLocTinted,
+   blitStretch, blitStretchTinted, blitRepeat, blitRepeatTinted,
+   blitRotate, blitRotateTinted,
    -- * Geometric primitives
    tintRect, tintCanvas, drawLine, drawRect,
    drawLineChain, drawPolygon, tintPolygon, gradientPolygon,
