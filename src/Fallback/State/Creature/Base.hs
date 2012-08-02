@@ -165,10 +165,12 @@ data MonsterType = MonsterType
 data MonsterSpell = BladeSweep | BlessMonsters | CrossBeam | EntangleSpray
                   | FireSpray | FrostMissiles
                   | IceBeam Int -- cooldown
+                  | MetamorphIntoBat | MetamorphIntoStrigoi
                   | Shell Int Int Double -- benefit, cooldown, duration
                   -- dieWhenGone, benefit, cooldown, duration (rounds), tags
                   | SummonOne Bool Int Int Double [MonsterTag]
                   | TeleportAway
+                  | TurnSelfInvisible Int -- cooldown
   deriving (Eq, Read, Show)
 
 -------------------------------------------------------------------------------

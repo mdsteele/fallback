@@ -207,6 +207,14 @@ prepMonsterSpell TeleportAway ge = do
   yieldSpell numAdjacentFoes $ do
   -- FIXME perform teleport to destination
   return 5
+prepMonsterSpell (TurnSelfInvisible cooldown) ge = do
+  ifSatisfies (monstInvisibility (Grid.geValue ge) < MajorInvisibility) $ do
+  ifRandom 0.5 $ do
+  yieldSpell 1 $ do
+  playSound SndIllusion
+  grantInvisibility (HitMonster $ Grid.geKey ge) MajorInvisibility
+  wait 8
+  return cooldown
 prepMonsterSpell _ _ = return Nothing -- FIXME
 
 -------------------------------------------------------------------------------

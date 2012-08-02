@@ -235,6 +235,36 @@ compileIronMine globals = compileArea IronMine Nothing $ do
       else convText "if you could find a mine cart somewhere and get it"
       convText " into this chamber, you could probably load it up with rocks."
 
+  -- Central building:
+  once 629513 (walkIn "PastWall") $ do
+    narrate "You step inside the central building through the new entrance you\
+      \ just created.  It is dimly lit inside, and the floor is covered in a\
+      \ thick layer of dust and debris, as if no one has been in here in a\
+      \ long time...\n\n\
+      \...no, wait, that's just the dust and debris that came from the section\
+      \ of wall that you just smashed into tiny bits by ramming a cart full of\
+      \ boulders into it.  So you're not really sure if anyone has been in\
+      \ here lately or not.  But now that you listen, you think you can hear\
+      \ something coming from the the hallway to the southwest."
+  uniqueDevice 172051 "OreSign" signRadius $ \_ _ -> do
+    narrate "The sign tacked to the wall reads:\n\n\
+      \      {i}ORE PROCESSING{_}\n\
+      \                {b}<--------{_}\n\n\
+      \The arrow points down the hallway to the south."
+
+  -- Boss chamber:
+  (strigoiKey, strigoiDead) <-
+    scriptedMonster 874101 "Strigoi" Strigoi True ImmobileAI
+  once 791390 (walkIn "BossRoom") $ do
+    -- TODO conversation and so forth
+    setMonsterIsAlly False =<< readVar strigoiKey
+    setTerrain AdobeGateClosedTile =<< lookupTerrainMark "BossGate"
+    startBossFight "BossRoom"
+  trigger 620397 (varTrue strigoiDead) $ do
+    setAreaCleared IronMine True
+    setTerrain AdobeGateOpenTile =<< lookupTerrainMark "BossGate"
+    setTerrain AdobeGateOpenTile =<< lookupTerrainMark "ChestGate"
+
 -------------------------------------------------------------------------------
 
 cartPath :: Bool {-^full-} -> Bool {-^turn-} -> Int {-^loc-}

@@ -98,10 +98,12 @@ monsterTownStep ge = do
     key = Grid.geKey ge
     ally = monstIsAlly monst
     takeStep_ path = void $ takeStep path
-    takeStep path = do
-      let (time, steps) = if monstWalksFast monst then (2, 2) else (4, 1)
-      mapM_ (walkMonster time key) $ take steps path
-      return (length path - steps)
+    takeStep path = if null path then return 0 else do
+      let pathLength = length path
+      let (frames, numSteps) = if monstWalksFast monst && pathLength > 1
+                               then (2, 2) else (4, 1)
+      mapM_ (walkMonster frames key) $ take numSteps path
+      return (pathLength - numSteps)
     stepTowardsParty path = do
       remaining <- takeStep path
       return (remaining <= 3 && not ally)
