@@ -84,7 +84,7 @@ compileSewerCaves globals = compileArea SewerCaves Nothing $ do
     setTerrain BasaltGateClosedTile =<< lookupTerrainMark "BossGate"
     bossStartPos <- flip Point 33 <$> getRandomR 1 15
     addBasicEnemyMonster bossStartPos Dactylid (Just dactylidDead) ChaseAI
-    startBossFight "BossRoom" -- (Point 0 23) -- XXXXX
+    startBossFight "BossRoom"
   once 923982 (varTrue dactylidDead) $ do
     setAreaCleared SewerCaves True
     setTerrain BasaltGateOpenTile =<< lookupTerrainMark "BossGate"

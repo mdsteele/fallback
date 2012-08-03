@@ -32,6 +32,7 @@ multimapTests :: Test
 multimapTests = "multimap" ~: TestList [
   insist $ MM.null MM.empty,
   qcTest $ \k v -> not $ MM.null $ MM.insert k v (MM.empty :: MMI),
+  qcTest $ \k v -> MM.singleton k v == MM.insert k v (MM.empty :: MMI),
   qcTest $ \k v ->
     MM.lookup k (MM.insert k v (MM.empty :: MMI)) == Set.singleton v,
   qcTest $ \k v ->

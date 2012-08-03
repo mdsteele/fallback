@@ -135,15 +135,14 @@ exitTo tag = do
 
 walkMonster :: (FromAreaEffect f) => Int -> Grid.Key Monster -> Position
             -> Script f ()
-walkMonster frames gkey pos' = do
-  withMonsterEntry gkey $ \entry -> do
-    let rect' = makeRect pos' $ rectSize $ Grid.geRect entry
-    ok <- emitAreaEffect $ EffTryMoveMonster gkey rect'
+walkMonster frames key pos = do
+  faceMonsterToward key pos
+  withMonsterEntry key $ \entry -> do
+    let rect = Grid.geRect entry
+    let rect' = makeRect pos $ rectSize rect
+    ok <- emitAreaEffect $ EffTryMoveMonster key rect'
     when ok $ do
-      let deltaX = pointX $ pos' `pSub` rectTopleft (Grid.geRect entry)
-      let dir = if deltaX < 0 then FaceLeft else FaceRight
-      let anim' = WalkAnim frames frames $ rectTopleft $ Grid.geRect entry
-      alterMonsterPose gkey (\p -> p { cpAnim = anim', cpFaceDir = dir })
+      setMonsterAnim key $ WalkAnim frames frames $ rectTopleft rect
       wait frames
 
 setMonsterTownAI :: (FromAreaEffect f) => MonsterTownAI -> Grid.Key Monster

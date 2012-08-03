@@ -26,12 +26,12 @@ module Fallback.Scenario.Script.Attack
    -- * Monster attacks
    monsterOffensiveAction, monsterOffensiveActionToward, monsterPerformAttack,
    -- * Miscellaneous
-   characterCombatWalk)
+   characterCombatWalk, monsterCombatWalkPath)
 where
 
 import Control.Applicative ((<$), (<$>))
 import Control.Monad (foldM, guard, replicateM, unless, when)
-import Data.List (delete)
+import Data.List (delete, find)
 import qualified Data.Map as Map (lookup)
 import Data.Maybe (fromMaybe, listToMaybe, mapMaybe)
 import Data.Monoid (Product(Product), mconcat)
@@ -53,7 +53,7 @@ import Fallback.State.Resources
 import Fallback.State.Simple
 import Fallback.State.Status
 import Fallback.State.Tags (AbilityTag(..))
-import Fallback.Utility (anyM, flip3, maybeM, whenM)
+import Fallback.Utility (anyM, flip3, forMaybeM, maybeM, whenM)
 
 -------------------------------------------------------------------------------
 
@@ -314,15 +314,9 @@ monsterPerformAttack key attack target mods = do
        let wd = chrEquippedWeaponData char
        when (wdRange wd == Melee) $ do
        whenM (randomBool $ ranked 0.1 0.2 0.35 rank) $ do
-       -- Now we can riposte.  We have to pick a particular position to attack,
-       -- so we aim for the monster's head, or any other spot that we can
-       -- reach.  Since we can only riposte against melee attacks, we should be
-       -- able to reach something.
+       -- Now we can riposte.
        let counterTarget =
-             let headPos = monstHeadPos monstEntry
-             in if adjacent target headPos then headPos else
-                  fromMaybe headPos $ listToMaybe $ filter (adjacent target) $
-                  prectPositions $ Grid.geRect monstEntry
+             chooseCounterTarget monstEntry $ expandPosition target
        faceCharacterToward charNum counterTarget
        setCharacterAnim charNum (AttackAnim 6)
        addFloatingWordOnTarget WordRiposte (HitPosition counterTarget)
@@ -553,7 +547,6 @@ instantKill target mods = do
 
 -------------------------------------------------------------------------------
 
--- TODO: This belongs in a different module.
 characterCombatWalk :: CharacterNumber -> Position -> Script CombatEffect ()
 characterCombatWalk charNum dest = do
   char <- areaGet (arsGetCharacter charNum)
@@ -564,19 +557,70 @@ characterCombatWalk charNum dest = do
           guard $ not (monstIsAlly $ Grid.geValue entry) &&
             not (rectIntersects (expandPosition dest) $ Grid.geRect entry)
           attack <- listToMaybe $ monstAttacks $ Grid.geValue entry
-          Just (Grid.geKey entry, attack)
+          Just $ monsterAttackOfOpportunity (Grid.geKey entry) attack origin
     randomPermutation =<<
       areaGet (mapMaybe maybeHit . Grid.searchRect (expandPosition origin) .
                arsMonsters)
   let frames = 3 -- how many frames does each attack delays the walking
   also_ (wait (frames * length hits) >> charWalkTo charNum dest >>= wait) $ do
-    concurrent_ (zip hits [0, frames ..]) $ \((key, attack), delay) -> do
-      wait delay
-      faceMonsterToward key origin
-      setMonsterAnim key (AttackAnim 6)
-      monsterPerformAttack key attack origin baseAttackModifiers
-        { amCanMiss = True, amCriticalHit = Never, amDamageMultiplier = 0.75,
-          amOffensive = False, amSeverity = LightDamage }
+    concurrent_ (zip hits [0, frames ..]) $ \(action, delay) -> do
+      wait delay >> action
+
+monsterCombatWalk :: Grid.Key Monster -> Position -> Script CombatEffect ()
+monsterCombatWalk key dest = withMonsterEntry key $ \entry -> do
+  let rect = Grid.geRect entry
+  let destRect = makeRect dest $ rectSize rect
+  hits <- do
+    if monstInvisibility (Grid.geValue entry) /= NoInvisibility
+    then return [] else do
+    charHits <- if monstIsAlly (Grid.geValue entry) then return [] else do
+      charNums <- getAllConsciousCharacters
+      forMaybeM charNums $ \charNum -> do
+        pos <- areaGet (arsCharacterPosition charNum)
+        let rect' = expandPosition pos
+        return $ do
+          guard $ rectIntersects rect' rect
+          guard $ not $ rectIntersects rect' destRect
+          Just (characterAttackOfOpportunity charNum $
+                chooseCounterTarget entry $ expandPosition pos)
+    let maybeMonstHit entry' = do
+          guard (monstIsAlly (Grid.geValue entry) /=
+                 monstIsAlly (Grid.geValue entry))
+          guard (not $ rectIntersects destRect $ expandPrect $
+                 Grid.geRect entry')
+          attack <- listToMaybe $ monstAttacks $ Grid.geValue entry'
+          Just (monsterAttackOfOpportunity key attack $
+                chooseCounterTarget entry $ expandPrect $ Grid.geRect entry')
+    monstHits <- areaGet (mapMaybe maybeMonstHit .
+                          Grid.searchRect (expandPrect rect) . arsMonsters)
+    randomPermutation (charHits ++ monstHits)
+  let frames = 3 -- how many frames does each attack delays the walking
+  also_ (wait (frames * length hits) >> walkMonster 4 key dest) $ do
+    concurrent_ (zip hits [0, frames ..]) $ \(action, delay) -> do
+      wait delay >> action
+
+monsterCombatWalkPath :: Grid.Key Monster -> [Position]
+                      -> Script CombatEffect ()
+monsterCombatWalkPath key = mapM_ (monsterCombatWalk key)
+
+characterAttackOfOpportunity :: CharacterNumber -> Position
+                             -> Script CombatEffect ()
+characterAttackOfOpportunity charNum target = do
+  faceCharacterToward charNum target
+  setCharacterAnim charNum (AttackAnim 6)
+  characterWeaponAttack charNum target attackOfOpportunityModifiers
+
+monsterAttackOfOpportunity :: Grid.Key Monster -> MonsterAttack -> Position
+                           -> Script CombatEffect ()
+monsterAttackOfOpportunity key attack target = do
+  faceMonsterToward key target
+  setMonsterAnim key (AttackAnim 6)
+  monsterPerformAttack key attack target attackOfOpportunityModifiers
+
+attackOfOpportunityModifiers :: AttackModifiers
+attackOfOpportunityModifiers = baseAttackModifiers
+  { amCanMiss = True, amCriticalHit = Never, amDamageMultiplier = 0.75,
+    amOffensive = False, amSeverity = LightDamage }
 
 -------------------------------------------------------------------------------
 
@@ -598,5 +642,13 @@ monstAttackAgility monst =
 
 ranked :: a -> a -> a -> AbilityRank -> a
 ranked v1 v2 v3 rank = case rank of { Rank1 -> v1; Rank2 -> v2; Rank3 -> v3 }
+
+-- | Pick a position occupied by the given monster and within the given
+-- 'PRect'.  Prefer the monster's head, if possible.
+chooseCounterTarget :: Grid.Entry Monster -> PRect -> Position
+chooseCounterTarget entry prect =
+  let headPos = monstHeadPos entry
+  in fromMaybe headPos $ find (rectContains prect) $ prectPositions $
+     Grid.geRect entry
 
 -------------------------------------------------------------------------------

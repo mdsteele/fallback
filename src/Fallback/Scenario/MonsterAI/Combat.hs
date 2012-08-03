@@ -21,11 +21,13 @@ module Fallback.Scenario.MonsterAI.Combat
   (defaultMonsterCombatAI)
 where
 
-import Control.Applicative ((<$), (<$>))
-import Control.Arrow ((***), second)
+import Control.Applicative ((<$>))
+import Control.Arrow ((&&&), (***), second)
 import Control.Monad (forM, unless)
-import Data.List (partition)
-import qualified Data.Set as Set
+import Data.List (minimumBy, partition)
+import Data.Maybe (isNothing)
+import Data.Ord (comparing)
+import qualified Data.Set as Set (member)
 
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
@@ -34,7 +36,6 @@ import Fallback.Scenario.MonsterAI.Spells (prepMonsterSpell)
 import Fallback.Scenario.Script
 import Fallback.State.Area
 import Fallback.State.Creature
-import Fallback.State.Pathfind (pathfindRectToRanges)
 import Fallback.State.Simple
 import Fallback.State.Status (seMentalEffect)
 import Fallback.Utility (forEither)
@@ -59,30 +60,24 @@ attackAI charmed key = do
   ge <- demandMonsterEntry key
   let attacks = monstAttacks $ Grid.geValue ge
   if null attacks then fleeAI charmed ge else do
-  attack <- getRandomElem attacks
-  let sqDist = rangeSqDist $ maRange attack
-  isBlocked <- areaGet (arsIsBlockedForMonster ge)
   goals <- getMonsterOpponentPositions charmed key
   if null goals then drunkAI key else do
-  loopM (4 :: Int) $ \actionPoints -> do
-    entry <- demandMonsterEntry key
-    let rect = Grid.geRect entry
-    case pathfindRectToRanges isBlocked rect goals sqDist 20 of
-      Just (pos : _) -> do
-        -- TODO: Invite attacks of opportunity
-        walkMonster 4 key pos
-        let entangled = monstIsEntangled $ Grid.geValue entry
-        let actionPoints' = actionPoints - (if entangled then 2 else 1)
-        return $ if actionPoints' <= 0 then Nothing else Just actionPoints'
-      Just [] -> Nothing <$ do
-        visible <- getMonsterFieldOfView key
-        let targets = filter (\pos -> rangeTouchesRect pos sqDist rect &&
-                              Set.member pos visible) goals
-        if null targets then return () else do
-        target <- getRandomElem targets
-        monsterPerformAttack key attack target baseAttackModifiers
-          { amCanMiss = True }
-      Nothing -> return Nothing
+  (path, action) <- planCombatPath key $ \prect canAttack -> do
+    visible <- getFieldOfViewFrom prect
+    let goals' = filter (flip Set.member visible) goals
+    if null goals' then return (-10000, return ()) else do
+    let (dist, goal) =
+          minimum $ map (prectSqDistToPosition prect &&& id) goals'
+    let attacks' = filter ((dist <=) . rangeSqDist . maRange) attacks
+    if canAttack && not (null attacks') then do
+      let attack = minimumBy (comparing maRange) attacks'
+      return (50 + fromIntegral (radiusOf dist),
+              monsterPerformAttack key attack goal baseAttackModifiers
+                { amCanMiss = True })
+    else return (negate $ sqDistRadius dist, return ())
+  monsterCombatWalkPath key path
+  mbMonst <- lookupMonsterEntry key
+  unless (isNothing mbMonst) action
 
 drunkAI :: Grid.Key Monster -> Script CombatEffect ()
 drunkAI _key = return () -- TODO move randomly
@@ -90,9 +85,6 @@ drunkAI _key = return () -- TODO move randomly
 fleeAI :: Bool -> Grid.Entry Monster -> Script CombatEffect ()
 fleeAI _charmed _ge = do
   return () -- FIXME run away from opponents
-
-loopM :: (Monad m) => a -> (a -> m (Maybe a)) -> m ()
-loopM input fn = maybe (return ()) (flip loopM fn) =<< fn input
 
 -------------------------------------------------------------------------------
 

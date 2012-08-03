@@ -19,7 +19,8 @@
 
 module Fallback.Scenario.Script.Damage
   (DamageSeverity(..), dealDamage, dealDamageTotal, dealDamageGeneral,
-   killTarget, healDamage, reviveTarget, inflictAllPeriodicDamage)
+   killTarget, healDamage, reviveTarget, inflictAllPeriodicDamage,
+   expectedDamage)
 where
 
 import Control.Applicative ((<$), (<$>))
@@ -350,6 +351,12 @@ inflictAllPeriodicDamage = do
                      fromIntegral damage)
   void $ dealDamageGeneral GentleDamage Nothing $
     fieldDamages ++ charPoisonDamages ++ monstPoisonDamages
+
+-------------------------------------------------------------------------------
+
+expectedDamage :: Monster -> DamageType -> Double -> Double
+expectedDamage monst dmgType damage =
+  fromIntegral $ fst $ applyMonsterResistances monst dmgType damage 0
 
 -------------------------------------------------------------------------------
 -- Private:

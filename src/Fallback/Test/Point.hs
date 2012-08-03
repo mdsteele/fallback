@@ -31,7 +31,8 @@ pointTests :: Test
 pointTests = "point" ~: TestList [
   bresenhamTests,
   directionTests,
-  rectTests]
+  rectTests,
+  sqDistTests]
 
 bresenhamTests :: Test
 bresenhamTests = "bresenham" ~: TestList [
@@ -62,6 +63,16 @@ rectTests = "rect" ~: TestList [
                    in i == rectIntersection r i && i == rectIntersection s i,
   insist $ rectIntersects (Rect 1 2 3 4) (Rect 3 1 5 5 :: IRect),
   insist $ not $ rectIntersects (Rect 1 2 3 4) (Rect 4 1 5 5 :: IRect)]
+
+sqDistTests :: Test
+sqDistTests = "sqdist" ~: TestList [
+  qcTest $ \n -> let r = n `mod` 35 in radiusOf (ofRadius r) == r,
+  qcTest $ \n -> let s = SqDist (n `mod` 1007) in ofRadius (radiusOf s) >= s,
+  qcTest $ \p1 p2 -> pSqDist p1 p2 == pSqDist p2 p1,
+  qcTest $ \p1 p2 -> prectSqDistToPosition (makeRect p1 (1, 1)) p2 ==
+                     pSqDist p1 p2,
+  qcTest $ \p1 p2 -> prectSqDistToPosition (expandPosition p1) p2 ==
+                     prectSqDistToPosition (expandPosition p2) p1]
 
 -------------------------------------------------------------------------------
 

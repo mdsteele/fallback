@@ -379,9 +379,9 @@ decayFields frames fields = fmap (Map.mapMaybe id) $ for fields $ \field -> do
     BarrierWall duration -> do
       return $ if duration <= frames then Nothing
                else Just $ BarrierWall (duration - frames)
-    FireWall _ -> decay 180
-    IceWall _ -> decay 240
-    PoisonCloud _ -> decay 150
+    FireWall _ -> decay 360
+    IceWall _ -> decay 480
+    PoisonCloud _ -> decay 300
     SmokeScreen halflife -> decay halflife
     Webbing _ -> return (Just field)
 

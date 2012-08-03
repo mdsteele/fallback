@@ -28,7 +28,9 @@
 
 module Fallback.Data.Multimap
   (-- * 'Multimap' type
-   Multimap, empty,
+   Multimap,
+   -- * Construction
+   empty, singleton,
    -- * Query
    null, lookup, reverseLookup,
    -- * Update
@@ -47,17 +49,25 @@ import qualified Data.Set as Set
 -------------------------------------------------------------------------------
 
 newtype Multimap k v = Multimap (Map k (Set v))
+  deriving (Eq)
+
+-------------------------------------------------------------------------------
+-- Construction:
 
 -- | /O(1)/.  The empty multimap.
 empty :: Multimap k v
 empty = Multimap Map.empty
 
--- | /O(1)/.  Is the map empty?
-null :: Multimap k v -> Bool
-null (Multimap m) = Map.null m
+-- | /O(1)/.  A multimap with a single key/value pair.
+singleton :: k -> v -> Multimap k v
+singleton k v = Multimap (Map.singleton k (Set.singleton v))
 
 -------------------------------------------------------------------------------
 -- Query:
+
+-- | /O(1)/.  Is the map empty?
+null :: Multimap k v -> Bool
+null (Multimap m) = Map.null m
 
 -- | /O(log n)/.  Look up all values for the given key.
 lookup :: (Ord k) => k -> Multimap k v -> Set v
@@ -89,7 +99,8 @@ reverseSet v ks (Multimap m) =
 -- Conversion:
 
 -- | Given a function that collapses all values for a key into a single value,
--- turn a 'Multimap' into a regular 'Map'.
+-- turn a 'Multimap' into a regular 'Map'.  The sets passed to the function are
+-- guaranteed to be nonempty.
 collapse :: (Set a -> b) -> Multimap k a -> Map k b
 collapse fn (Multimap m) = fmap fn m
 

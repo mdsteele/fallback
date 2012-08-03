@@ -36,7 +36,8 @@ module Fallback.Data.Point
    -- * Position type
    Position, PRect, adjacent, bresenhamPositions, prectPositions,
    expandPrect, expandPosition,
-   SqDist(..), sqDistRadius, pSqDist, ofRadius, rangeTouchesRect)
+   SqDist(..), sqDistRadius, pSqDist, ofRadius, radiusOf,
+   prectSqDistToPosition, rangeTouchesRect)
 where
 
 import Data.Ix (Ix, range)
@@ -44,7 +45,7 @@ import Data.List (unfoldr)
 import System.Random (Random(random, randomR))
 import Text.Read (readPrec)
 
-import Fallback.Utility (hypot)
+import Fallback.Utility (hypot, square)
 
 -------------------------------------------------------------------------------
 -- Axis class:
@@ -345,14 +346,19 @@ pSqDist (Point x1 y1) (Point x2 y2) =
 -- nice circle of that radius.  In particular, this gives a better-shaped
 -- circle than simply squaring the input.
 ofRadius :: Int -> SqDist
-ofRadius r = SqDist $ floor ((fromIntegral r + 0.5 :: Double) ^^ (2 :: Int))
+ofRadius r = SqDist $ floor $ square (fromIntegral r + 0.5 :: Double)
 
-rangeTouchesRect :: Position -> SqDist -> PRect -> Bool
-rangeTouchesRect (Point cx cy) sqDist (Rect x1 y1 w h) =
+-- | Return the smallest number @n@ such that @'ofRadius' n@ is no smaller than
+-- the given squared distance.
+radiusOf :: SqDist -> Int
+radiusOf (SqDist d) = ceiling (sqrt (fromIntegral d :: Double) - 0.5)
+
+prectSqDistToPosition :: PRect -> Position -> SqDist
+prectSqDistToPosition (Rect x1 y1 w h) (Point cx cy) =
   let x2 = x1 + w - 1
       y2 = y1 + h - 1
-      corner x y = pSqDist (Point cx cy) (Point x y) <= sqDist
-      side a b = SqDist ((a - b) * (a - b)) <= sqDist
+      corner x y = pSqDist (Point cx cy) (Point x y)
+      side a b = SqDist $ square (a - b)
   in if cx < x1 then
        if cy < y1 then corner x1 y1
        else if cy > y2 then corner x1 y2 else side cx x1
@@ -361,6 +367,11 @@ rangeTouchesRect (Point cx cy) sqDist (Rect x1 y1 w h) =
        else if cy > y2 then corner x2 y2 else side cx x2
      else
        if cy < y1 then side cy y1
-       else if cy > y2 then side cy y2 else True
+       else if cy > y2 then side cy y2 else SqDist 0
+
+-- TODO: deprecated
+rangeTouchesRect :: Position -> SqDist -> PRect -> Bool
+rangeTouchesRect pos sqDist prect =
+  prectSqDistToPosition prect pos <= sqDist
 
 -------------------------------------------------------------------------------
