@@ -48,7 +48,7 @@ data TileOverlay = NoOverlay | Overlay !Int !Int
 
 data TileTag = OffTile | NullTile
              | StoneFloorTile | WhiteTileFloorTile | WaterAnimTile
-             | LavaAnimTile | AdobeCrackedWallTile
+             | LavaAnimTile | SnowMushroomsTile | AdobeCrackedWallTile
              -- Doors and gates:
              | AdobeDoorClosedTile | AdobeDoorOpenTile
              | AdobeGateClosedTile | AdobeGateOpenTile
@@ -74,6 +74,7 @@ tileTagId StoneFloorTile = 8222
 tileTagId WhiteTileFloorTile = 0040
 tileTagId WaterAnimTile = 2937
 tileTagId LavaAnimTile = 0285
+tileTagId SnowMushroomsTile = 7591
 tileTagId AdobeCrackedWallTile = 7185
 tileTagId AdobeDoorClosedTile = 3891
 tileTagId AdobeDoorOpenTile = 2993
@@ -446,6 +447,7 @@ tilesList = [
  Tile 2011 (Still 22 4) TerrainWindow gray, -- big rocks center
  Tile 8721 (Still 6 11) TerrainWindow gray, -- big rocks right
  Tile 5390 (Still 24 7) TerrainSolid cyan, -- snow w/ ice wall
+ Tile 2978 (Still 17 10) TerrainWindow lightgray, -- chest
  Tile 9409 (Still 18 2) TerrainOpen lightgray, -- green trash
  Tile 9456 (Still 18 4) TerrainOpen lightgray, -- red trash
  Tile 1287 (Still 18 5) TerrainWindow lightgray, -- signpost

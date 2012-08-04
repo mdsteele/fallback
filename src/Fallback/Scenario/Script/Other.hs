@@ -52,9 +52,10 @@ module Fallback.Scenario.Script.Other
    -- ** Devices
    addDevice_, removeDevice, replaceDevice,
    -- ** Monsters
-   addBasicEnemyMonster, setMonsterIsAlly, tryAddMonster, trySummonMonster,
-   trySummonMonsterNear, degradeMonstersSummonedBy, unsummonMonster,
-   unsummonDependentsOf, tickSummonsByOneRound,
+   addBasicEnemyMonster, setMonsterIsAlly,
+   tryAddMonster, tryMoveMonster, removeMonster,
+   trySummonMonster, trySummonMonsterNear, degradeMonstersSummonedBy,
+   unsummonMonster, unsummonDependentsOf, tickSummonsByOneRound,
    -- ** Items
    grantAndEquipWeapon, grantItem, removeItem,
 
@@ -624,6 +625,16 @@ tryAddMonster :: (FromAreaEffect f) => Position -> Monster
               -> Script f (Maybe (Grid.Entry Monster))
 tryAddMonster position monster = do
   emitAreaEffect $ EffTryAddMonster position monster
+
+tryMoveMonster :: (FromAreaEffect f) => Grid.Key Monster -> Position
+               -> Script f Bool
+tryMoveMonster key pos = maybeMonsterEntry key False $ \entry -> do
+  let rect = Grid.geRect entry
+  let rect' = makeRect pos $ rectSize rect
+  emitAreaEffect $ EffTryMoveMonster key rect'
+
+removeMonster :: (FromAreaEffect f) => Grid.Key Monster -> Script f ()
+removeMonster key = emitAreaEffect $ EffReplaceMonster key Nothing
 
 -- | Summon a monster allied to and somewhere near the given summoner.  Return
 -- 'True' on success, or 'False' if there was no open spot to place the

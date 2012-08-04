@@ -185,6 +185,10 @@ newEditorSidebarView resources ref = do
      vmap (\es -> (0, (snd $ bounds $ esTileArray es) `ceilDiv` 3, 9,
                    esPaletteTop es)) .
      fmap ScrollPalette <$> newScrollZone),
+    -- Unsaved data indicator:
+    (let paint bool = when bool $ tintCanvas (Tint 255 0 0 255)
+     in return $ subView_ (Rect 100 466 10 10) $ vmap esUnsaved $
+        inertView paint),
     -- Position label:
     (viewMapM (const (readHoverRef ref)) (return . Action) <$>
      (newMaybeView (fmap show) $ makeLabel font blackColor $ \(_, h) ->

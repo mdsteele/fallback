@@ -39,6 +39,7 @@ import Fallback.Scenario.Triggers.Script
 import Fallback.Scenario.Triggers.SewerCaves (compileSewerCaves)
 import Fallback.Scenario.Triggers.StoneBridge (compileStoneBridge)
 import Fallback.Scenario.Triggers.Tragorda (compileTragorda)
+import Fallback.Scenario.Triggers.WhistlingWoods (compileWhistlingWoods)
 import Fallback.State.Creature (MonsterTownAI(..))
 import Fallback.State.Progress (Progress)
 import Fallback.State.Tags
@@ -148,11 +149,7 @@ scenarioTriggers = compileScenario $ do
 
   compileStoneBridge globals
   compileTragorda globals
-
-  compileArea WhistlingWoods Nothing $ do
-    makeExit IcyConfluence [Rect 0 3 2 5] (Point 3 5)
-    makeExit Tragorda [Rect 5 10 5 2] (Point 7 8)
-    makeExit Duskwood [Rect 13 3 2 5] (Point 11 5)
+  compileWhistlingWoods globals
 
   compileArea IcyConfluence Nothing $ do
     makeExit PerilousRoad [Rect 0 3 2 6] (Point 3 6)

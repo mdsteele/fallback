@@ -38,7 +38,7 @@ module Fallback.Scenario.Compile
    Var, getVar, readVar, writeVar, modifyVar,
    -- * Trigger predicates
    Predicate, andP, orP, xorP, notP, getP, whenP,
-   varTrue, varFalse, varEq, varNeq,
+   varIs, varTrue, varFalse, varEq, varNeq,
    walkOn, walkOff, walkIn,
    questUntaken, questActive)
 where
@@ -373,6 +373,9 @@ whenP :: (FromAreaEffect f) => Predicate -> Script f () -> Script f ()
 whenP predicate action = do
   bool <- getP predicate
   when bool action
+
+varIs :: (VarType a) => (a -> Bool) -> Var a -> Predicate
+varIs fn var = Predicate (fn . getVar var)
 
 varTrue :: Var Bool -> Predicate
 varTrue var = Predicate (getVar var)
