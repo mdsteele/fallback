@@ -344,7 +344,7 @@ arsSetMessage text ars =
 
 data AreaExit = AreaExit
   { aeDestination :: AreaTag,
-    aeRects :: [PRect] }
+    aeRectKeys :: [String] }
 
 -------------------------------------------------------------------------------
 

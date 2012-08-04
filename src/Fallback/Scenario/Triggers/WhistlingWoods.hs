@@ -38,9 +38,9 @@ import Fallback.State.Tileset (TileTag(SnowMushroomsTile))
 compileWhistlingWoods :: Globals -> CompileScenario ()
 compileWhistlingWoods _globals = compileArea WhistlingWoods Nothing $ do
 
-  makeExit IcyConfluence [Rect 0 32 2 9] (Point 3 36)
-  makeExit Tragorda [Rect 24 64 10 2] (Point 28 62)
-  makeExit Duskwood [Rect 80 39 2 6] (Point 78 42)
+  makeExit IcyConfluence ["ToIcyConfluence"] (Point 3 36)
+  makeExit Tragorda ["ToTragorda"] (Point 28 62)
+  makeExit Duskwood ["ToDuskwood"] (Point 78 42)
 
   uniqueDevice 198298 "RoadSign" signRadius $ \_ _ -> do
     narrate "There's a weather-beaten signpost along the road here.  It\

@@ -51,7 +51,7 @@ import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
 
 import qualified Fallback.Data.Grid as Grid (Entry)
-import Fallback.Data.Point (Position, PRect, pZero, rectContains)
+import Fallback.Data.Point (Position, pZero, rectContains)
 import qualified Fallback.Data.SparseMap as SM
 import qualified Fallback.Data.TotalMap as TM
 import Fallback.Scenario.Script
@@ -173,8 +173,8 @@ compileArea tag mbTerraFn (CompileArea compile) = CompileScenario $ do
                 casDevices = cssDevices css, casEntrances = Map.empty,
                 casMonsterScripts = cssMonsterScripts css,
                 casProgress = cssProgress css, casTriggers = [] }
-  let mkExit (dest, (prects, _)) =
-        AreaExit { aeDestination = dest, aeRects = prects }
+  let mkExit (dest, (rectKeys, _)) =
+        AreaExit { aeDestination = dest, aeRectKeys = rectKeys }
   let aspec = AreaSpec { aspecDevices = casDevices cas,
                          aspecEntrances = fmap snd $ casEntrances cas,
                          aspecExits = map mkExit $ Map.assocs $
@@ -195,7 +195,7 @@ newtype CompileArea a = CompileArea (State.State CompileAreaState a)
 data CompileAreaState = CompileAreaState
   { casAllVarSeeds :: Set.Set VarSeed,
     casDevices :: Map.Map DeviceId Device,
-    casEntrances :: Map.Map AreaTag ([PRect], Position),
+    casEntrances :: Map.Map AreaTag ([String], Position),
     casMonsterScripts :: Map.Map MonsterScriptId MonsterScript,
     casProgress :: Progress,
     casTriggers :: [Trigger TownState TownEffect] }
@@ -217,13 +217,13 @@ newTransientVar vseed initialize = do
     writeVar var =<< initialize
   return var
 
-makeExit :: AreaTag -> [PRect] -> Position -> CompileArea ()
-makeExit tag rects pos = CompileArea $ do
+makeExit :: AreaTag -> [String] -> Position -> CompileArea ()
+makeExit tag rectKeys pos = CompileArea $ do
   cas <- State.get
   let entrances = casEntrances cas
   when (Map.member tag entrances) $ do
     fail ("Repeated exit: " ++ show tag)
-  State.put cas { casEntrances = Map.insert tag (rects, pos) entrances }
+  State.put cas { casEntrances = Map.insert tag (rectKeys, pos) entrances }
 
 -------------------------------------------------------------------------------
 -- Checking VarSeeds:

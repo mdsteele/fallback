@@ -91,9 +91,9 @@ scenarioTriggers = compileScenario $ do
 
   compileArea Holmgare Nothing $ do
 
-    makeExit FrozenPass [Rect 0 0 2 13, Rect 2 0 5 2] (Point 3 7)
-    makeExit SewerCaves [Rect 33 0 6 2] (Point 36 3)
-    makeExit PerilousRoad [Rect 53 17 2 17] (Point 51 25)
+    makeExit FrozenPass ["ToFrozenPass1", "ToFrozenPass2"] (Point 3 7)
+    makeExit SewerCaves ["ToSewerCaves"] (Point 36 3)
+    makeExit PerilousRoad ["ToPerilousRoad"] (Point 51 25)
 
     onStartDaily 472927 $ do
       addUnlockedDoors globals
@@ -143,24 +143,24 @@ scenarioTriggers = compileScenario $ do
   compileSewerCaves globals
 
   compileArea PerilousRoad Nothing $ do
-    makeExit Holmgare [Rect 0 4 2 5] (Point 3 6)
-    makeExit StoneBridge [Rect 13 4 2 5] (Point 11 6)
-    makeExit IcyConfluence [Rect 8 0 5 2] (Point 10 3)
+    makeExit Holmgare ["ToHolmgare"] (Point 3 6)
+    makeExit StoneBridge ["ToStoneBridge"] (Point 11 6)
+    makeExit IcyConfluence ["ToIcyConfluence"] (Point 10 3)
 
   compileStoneBridge globals
   compileTragorda globals
   compileWhistlingWoods globals
 
   compileArea IcyConfluence Nothing $ do
-    makeExit PerilousRoad [Rect 0 3 2 6] (Point 3 6)
-    makeExit Marata [Rect 4 0 7 2] (Point 7 3)
-    makeExit WhistlingWoods [Rect 13 3 2 6] (Point 11 6)
+    makeExit PerilousRoad ["ToPerilousRoad"] (Point 3 6)
+    makeExit Marata ["ToMarata"] (Point 7 3)
+    makeExit WhistlingWoods ["ToWhistlingWoods"] (Point 11 6)
 
   compileArea Marata Nothing $ do
 
-    makeExit IcyConfluence [Rect 9 42 8 2] (Point 11 40)
-    makeExit IronMine [Rect 37 0 9 2] (Point 41 3)
-    makeExit NorthernTundra [Rect 53 11 2 12] (Point 51 16)
+    makeExit IcyConfluence ["ToIcyConfluence"] (Point 11 40)
+    makeExit IronMine ["ToIronMine"] (Point 41 3)
+    makeExit NorthernTundra ["ToNorthernTundra"] (Point 51 16)
 
     onStartDaily 109833 $ do
       addUnlockedDoors globals
@@ -168,14 +168,14 @@ scenarioTriggers = compileScenario $ do
   compileIronMine globals
 
   compileArea NorthernTundra Nothing $ do
-    makeExit Marata [Rect 0 3 2 5] (Point 3 5)
-    makeExit Duskwood [Rect 13 3 2 5] (Point 11 5)
+    makeExit Marata ["ToMarata"] (Point 3 5)
+    makeExit Duskwood ["ToDuskwood"] (Point 11 5)
 
   compileArea Duskwood Nothing $ do
-    makeExit WhistlingWoods [Rect 0 3 2 5] (Point 3 5)
-    makeExit Icehold [Rect 13 3 2 5] (Point 11 5)
-    makeExit NorthernTundra [Rect 5 0 5 2] (Point 7 3)
-    makeExit Tragorda [Rect 5 10 5 2] (Point 7 8)
+    makeExit WhistlingWoods ["ToWhistlingWoods"] (Point 3 5)
+    makeExit Icehold ["ToIcehold"] (Point 11 5)
+    makeExit NorthernTundra ["ToNorthernTundra"] (Point 7 3)
+    makeExit Tragorda ["ToTragorda"] (Point 7 8)
 
   compileIcehold globals
 

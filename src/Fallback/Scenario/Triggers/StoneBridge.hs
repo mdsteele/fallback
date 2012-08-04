@@ -42,8 +42,8 @@ import Fallback.State.Tileset (TileTag(StoneGateClosedTile, StoneGateOpenTile))
 compileStoneBridge :: Globals -> CompileScenario ()
 compileStoneBridge globals = compileArea StoneBridge Nothing $ do
 
-  makeExit PerilousRoad [Rect 0 0 2 10, Rect 2 0 6 2] (Point 3 4)
-  makeExit Tragorda [Rect 53 0 2 44] (Point 51 22)
+  makeExit PerilousRoad ["ToPerilousRoad1", "ToPerilousRoad2"] (Point 3 4)
+  makeExit Tragorda ["ToTragorda"] (Point 51 22)
 
   onStartDaily 423026 $ do
     addUnlockedDoors globals

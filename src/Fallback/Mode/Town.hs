@@ -75,6 +75,7 @@ import Fallback.State.Simple
   (CastingCost, Ingredient, ItemSlot, deltaFaceDir, ingredientCost)
 import Fallback.State.Tags
   (AreaTag, ItemTag(PotionItemTag), allItemTags, areaRegion)
+import Fallback.State.Terrain (terrainMap, tmapLookupRect)
 import Fallback.State.Town
 import Fallback.State.Trigger (fireTrigger, makeUnfiredTriggers)
 import Fallback.Utility (flip3)
@@ -544,8 +545,9 @@ executeTriggers ts = do
 
 checkForAreaExit :: TownState -> (TownState, Maybe Interrupt)
 checkForAreaExit ts =
-  let isActive = any (flip rectContains $ tsPartyPosition ts) . aeRects
-  in (ts, fmap (DoExit . aeDestination) $ find isActive $
+  let partyIsIn key = maybe False (flip rectContains $ tsPartyPosition ts) $
+                      tmapLookupRect key $ terrainMap $ arsTerrain ts
+  in (ts, fmap (DoExit . aeDestination) $ find (any partyIsIn . aeRectKeys) $
           getAreaExits scenarioTriggers $ arsCurrentArea ts)
 
 executeScript :: (TownState -> IO (TownState, Maybe Interrupt)) -> TownState

@@ -40,9 +40,9 @@ import Fallback.State.Tags
 compileTragorda :: Globals -> CompileScenario ()
 compileTragorda globals = compileArea Tragorda Nothing $ do
 
-  makeExit StoneBridge [Rect 0 2 2 40] (Point 3 22)
-  makeExit WhistlingWoods [Rect 2 0 51 2] (Point 19 3)
-  makeExit Duskwood [Rect 53 2 2 40] (Point 51 20)
+  makeExit StoneBridge ["ToStoneBridge"] (Point 3 22)
+  makeExit WhistlingWoods ["ToWhistlingWoods"] (Point 19 3)
+  makeExit Duskwood ["ToDuskwood"] (Point 51 20)
 
   onStartDaily 269446 $ do
     addUnlockedDoors globals

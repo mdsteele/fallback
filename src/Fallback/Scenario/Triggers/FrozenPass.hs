@@ -40,7 +40,7 @@ import Fallback.State.Tags
 compileFrozenPass :: Globals -> CompileScenario ()
 compileFrozenPass globals = compileArea FrozenPass Nothing $ do
 
-  makeExit Holmgare [Rect 53 36 2 7] (Point 51 38)
+  makeExit Holmgare ["ToHolmgare"] (Point 51 38)
 
   onStartDaily 028371 $ do
     addUnlockedDoors globals

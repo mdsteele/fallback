@@ -36,7 +36,7 @@ import Fallback.State.Tags
 compileCorenglen :: Globals -> CompileScenario ()
 compileCorenglen globals = compileArea Corenglen Nothing $ do
 
-  makeExit MountainPath [Rect 0 10 2 12] (Point 2 16)
+  makeExit MountainPath ["ToMountainPath"] (Point 2 16)
 
   alwaysLockedDoor <- newDevice 963970 1 $ \_ _ -> do
     setMessage "The door is locked."

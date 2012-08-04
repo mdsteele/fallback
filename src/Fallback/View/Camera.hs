@@ -383,9 +383,10 @@ paintTargetingRegion tint1 cameraTopleft positions = do
       gradientPolygon [(tint1, Point xL yB), (tint1, Point xR yB),
                        (tint2, Point xR y'), (tint2, Point xL y')]
 
-paintAreaExits :: IPoint -> [AreaExit] -> Paint ()
-paintAreaExits cameraTopleft exits = mapM_ paintExit exits where
-  paintExit = mapM_ paintExitRect . aeRects
+paintAreaExits :: IPoint -> TerrainMap -> [AreaExit] -> Paint ()
+paintAreaExits cameraTopleft tmap exits = mapM_ paintExit exits where
+  paintExit = mapM_ paintExitRectKey . aeRectKeys
+  paintExitRectKey rectKey = maybeM (tmapLookupRect rectKey tmap) paintExitRect
   paintExitRect prect = do
     tintRect (Tint 128 64 255 96) $ prectRect prect `rectMinus` cameraTopleft
 
