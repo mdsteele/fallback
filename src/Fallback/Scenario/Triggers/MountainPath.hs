@@ -18,7 +18,7 @@
 ============================================================================ -}
 
 module Fallback.Scenario.Triggers.MountainPath
-  (compileMountainPath, startingPosition)
+  (compileMountainPath)
 where
 
 import Control.Applicative ((<$>))
@@ -42,13 +42,10 @@ import Fallback.Utility (firstJust, flip3, maybeM)
 
 -------------------------------------------------------------------------------
 
-startingPosition :: Position
-startingPosition = Point 14 6
-
 compileMountainPath :: Globals -> CompileScenario ()
 compileMountainPath globals = compileArea MountainPath Nothing $ do
 
-  makeExit Corenglen ["ToCorenglen1", "ToCorenglen2"] (Point 36 42)
+  makeExit Corenglen ["ToCorenglen1", "ToCorenglen2"] "FromCorenglen"
 
   let isFirstTimeThroughLongvale = varEq (gTimesThroughLongvale globals) 0
   let isSecondTimeThroughLongvale = varEq (gTimesThroughLongvale globals) 1

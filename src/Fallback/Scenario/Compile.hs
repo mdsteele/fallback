@@ -51,7 +51,7 @@ import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
 
 import qualified Fallback.Data.Grid as Grid (Entry)
-import Fallback.Data.Point (Position, pZero, rectContains)
+import Fallback.Data.Point (rectContains)
 import qualified Fallback.Data.SparseMap as SM
 import qualified Fallback.Data.TotalMap as TM
 import Fallback.Scenario.Script
@@ -75,7 +75,7 @@ data ScenarioTriggers = ScenarioTriggers
 
 data AreaSpec = AreaSpec
   { aspecDevices :: Map.Map DeviceId Device,
-    aspecEntrances :: Map.Map AreaTag Position,
+    aspecEntrances :: Map.Map AreaTag String,
     aspecExits :: [AreaExit],
     aspecMonsterScripts :: Map.Map MonsterScriptId MonsterScript,
     aspecTerrain :: Party -> String,
@@ -85,10 +85,12 @@ getAreaDevice :: ScenarioTriggers -> AreaTag -> DeviceId -> Maybe Device
 getAreaDevice scenario tag di =
   Map.lookup di $ aspecDevices $ TM.get tag $ scenarioAreas scenario
 
-getAreaEntrance :: ScenarioTriggers -> AreaTag -> AreaTag -> Position
+getAreaEntrance :: ScenarioTriggers -> AreaTag -> AreaTag -> String
 getAreaEntrance scenario tag from =
-  Map.findWithDefault pZero from $ aspecEntrances $ TM.get tag $
+  Map.findWithDefault err from $ aspecEntrances $ TM.get tag $
   scenarioAreas scenario
+  where err = error ("getAreaEntrance: no entrance to " ++ show tag ++
+                     " from " ++ show from)
 
 getAreaExits :: ScenarioTriggers -> AreaTag -> [AreaExit]
 getAreaExits scenario tag = aspecExits $ TM.get tag $ scenarioAreas scenario
@@ -195,7 +197,7 @@ newtype CompileArea a = CompileArea (State.State CompileAreaState a)
 data CompileAreaState = CompileAreaState
   { casAllVarSeeds :: Set.Set VarSeed,
     casDevices :: Map.Map DeviceId Device,
-    casEntrances :: Map.Map AreaTag ([String], Position),
+    casEntrances :: Map.Map AreaTag ([String], String),
     casMonsterScripts :: Map.Map MonsterScriptId MonsterScript,
     casProgress :: Progress,
     casTriggers :: [Trigger TownState TownEffect] }
@@ -217,13 +219,13 @@ newTransientVar vseed initialize = do
     writeVar var =<< initialize
   return var
 
-makeExit :: AreaTag -> [String] -> Position -> CompileArea ()
-makeExit tag rectKeys pos = CompileArea $ do
+makeExit :: AreaTag -> [String] -> String -> CompileArea ()
+makeExit tag rectKeys markKey = CompileArea $ do
   cas <- State.get
   let entrances = casEntrances cas
   when (Map.member tag entrances) $ do
     fail ("Repeated exit: " ++ show tag)
-  State.put cas { casEntrances = Map.insert tag (rectKeys, pos) entrances }
+  State.put cas { casEntrances = Map.insert tag (rectKeys, markKey) entrances }
 
 -------------------------------------------------------------------------------
 -- Checking VarSeeds:

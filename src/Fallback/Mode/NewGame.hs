@@ -34,9 +34,8 @@ import Fallback.Event
 import Fallback.Mode.Base
 import Fallback.Mode.Dialog (newHorizontalDialogMode, newQuitWithoutSavingMode)
 import Fallback.Mode.Error (popupIfErrors)
-import Fallback.Scenario.Areas
-  (enterPartyIntoArea, startingArea, startingPosition)
-import Fallback.Scenario.Triggers (initialProgress)
+import Fallback.Scenario.Areas (enterPartyIntoArea)
+import Fallback.Scenario.Triggers (initialProgress, startingArea, startingMark)
 import Fallback.State.Party
 import Fallback.State.Resources (Resources)
 import Fallback.State.Simple
@@ -80,7 +79,8 @@ newDiscardPartyMode resources menuMode prevMode bgView bgInput =
 newGameTownState :: Resources -> NewGameSpec -> IOEO TownState
 newGameTownState resources spec = do
   party <- onlyIO $ newParty spec
-  enterPartyIntoArea resources party (partyCurrentArea party) startingPosition
+  enterPartyIntoArea resources party (partyCurrentArea party)
+                     (Right startingMark)
 
 initCharacter :: NewCharacterSpec -> Character
 initCharacter spec = Character

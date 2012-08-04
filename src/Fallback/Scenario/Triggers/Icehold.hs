@@ -63,7 +63,7 @@ compileIcehold globals = do
 
   compileArea Icehold Nothing $ do
 
-    makeExit Duskwood ["ToDuskwood"] (Point 25 40)
+    makeExit Duskwood ["ToDuskwood"] "FromDuskwood"
 
     onStartDaily 789321 $ do
       addUnlockedDoors globals

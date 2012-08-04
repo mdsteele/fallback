@@ -47,7 +47,7 @@ import Fallback.Utility (maybeM)
 compileIronMine :: Globals -> CompileScenario ()
 compileIronMine globals = compileArea IronMine Nothing $ do
 
-  makeExit Marata ["ToMarata"] (Point 46 56)
+  makeExit Marata ["ToMarata"] "FromMarata"
 
   onStartDaily 244106 $ do
     addUnlockedDoors globals

@@ -23,7 +23,6 @@ where
 
 import Control.Applicative ((<$>))
 
-import Fallback.Data.Point
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Globals
@@ -40,7 +39,7 @@ import Fallback.State.Tags
 compileFrozenPass :: Globals -> CompileScenario ()
 compileFrozenPass globals = compileArea FrozenPass Nothing $ do
 
-  makeExit Holmgare ["ToHolmgare"] (Point 51 38)
+  makeExit Holmgare ["ToHolmgare"] "FromHolmgare"
 
   onStartDaily 028371 $ do
     addUnlockedDoors globals

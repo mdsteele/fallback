@@ -480,7 +480,8 @@ data TownEffect :: * -> * where
   EffShop :: [Either Ingredient ItemTag] -> TownEffect ()
   EffStartCombat :: Bool {-can run away-} -> Position {-arena topleft-}
                  -> TownEffect ()
-  EffTeleportToArea :: AreaTag -> Position -> TownEffect ()
+  EffTeleportToMark :: AreaTag -> String -> TownEffect ()
+  EffTeleportToPosition :: AreaTag -> Position -> TownEffect ()
 
 -------------------------------------------------------------------------------
 

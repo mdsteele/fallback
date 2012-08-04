@@ -18,7 +18,7 @@
 ============================================================================ -}
 
 module Fallback.Scenario.Triggers
-  (startingArea, startingPosition, scenarioTriggers, initialProgress,
+  (startingArea, startingMark, scenarioTriggers, initialProgress,
    getAreaDevice, getAreaEntrance, getAreaExits, getAreaLinks, getAreaTerrain,
    getAreaTriggers, getMonsterScript, getRegionBackground)
 where
@@ -33,8 +33,7 @@ import Fallback.Scenario.Triggers.FrozenPass (compileFrozenPass)
 import Fallback.Scenario.Triggers.Globals
 import Fallback.Scenario.Triggers.Icehold (compileIcehold)
 import Fallback.Scenario.Triggers.IronMine (compileIronMine)
-import Fallback.Scenario.Triggers.MountainPath
-  (compileMountainPath, startingPosition)
+import Fallback.Scenario.Triggers.MountainPath (compileMountainPath)
 import Fallback.Scenario.Triggers.Script
 import Fallback.Scenario.Triggers.SewerCaves (compileSewerCaves)
 import Fallback.Scenario.Triggers.StoneBridge (compileStoneBridge)
@@ -48,6 +47,9 @@ import Fallback.State.Tags
 
 startingArea :: AreaTag
 startingArea = MountainPath
+
+startingMark :: String
+startingMark = "Start"
 
 initialProgress :: Progress
 initialProgress = scenarioInitialProgress scenarioTriggers
@@ -91,9 +93,9 @@ scenarioTriggers = compileScenario $ do
 
   compileArea Holmgare Nothing $ do
 
-    makeExit FrozenPass ["ToFrozenPass1", "ToFrozenPass2"] (Point 3 7)
-    makeExit SewerCaves ["ToSewerCaves"] (Point 36 3)
-    makeExit PerilousRoad ["ToPerilousRoad"] (Point 51 25)
+    makeExit FrozenPass ["ToFrozenPass1", "ToFrozenPass2"] "FromFrozenPass"
+    makeExit SewerCaves ["ToSewerCaves"] "FromSewerCaves"
+    makeExit PerilousRoad ["ToPerilousRoad"] "FromPerilousRoad"
 
     onStartDaily 472927 $ do
       addUnlockedDoors globals
@@ -143,24 +145,24 @@ scenarioTriggers = compileScenario $ do
   compileSewerCaves globals
 
   compileArea PerilousRoad Nothing $ do
-    makeExit Holmgare ["ToHolmgare"] (Point 3 6)
-    makeExit StoneBridge ["ToStoneBridge"] (Point 11 6)
-    makeExit IcyConfluence ["ToIcyConfluence"] (Point 10 3)
+    makeExit Holmgare ["ToHolmgare"] "FromHolmgare"
+    makeExit StoneBridge ["ToStoneBridge"] "FromStoneBridge"
+    makeExit IcyConfluence ["ToIcyConfluence"] "FromIcyConfluence"
 
   compileStoneBridge globals
   compileTragorda globals
   compileWhistlingWoods globals
 
   compileArea IcyConfluence Nothing $ do
-    makeExit PerilousRoad ["ToPerilousRoad"] (Point 3 6)
-    makeExit Marata ["ToMarata"] (Point 7 3)
-    makeExit WhistlingWoods ["ToWhistlingWoods"] (Point 11 6)
+    makeExit PerilousRoad ["ToPerilousRoad"] "FromPerilousRoad"
+    makeExit Marata ["ToMarata"] "FromMarata"
+    makeExit WhistlingWoods ["ToWhistlingWoods"] "FromWhistlingWoods"
 
   compileArea Marata Nothing $ do
 
-    makeExit IcyConfluence ["ToIcyConfluence"] (Point 11 40)
-    makeExit IronMine ["ToIronMine"] (Point 41 3)
-    makeExit NorthernTundra ["ToNorthernTundra"] (Point 51 16)
+    makeExit IcyConfluence ["ToIcyConfluence"] "FromIcyConfluence"
+    makeExit IronMine ["ToIronMine"] "FromIronMine"
+    makeExit NorthernTundra ["ToNorthernTundra"] "FromNorthernTundra"
 
     onStartDaily 109833 $ do
       addUnlockedDoors globals
@@ -168,14 +170,14 @@ scenarioTriggers = compileScenario $ do
   compileIronMine globals
 
   compileArea NorthernTundra Nothing $ do
-    makeExit Marata ["ToMarata"] (Point 3 5)
-    makeExit Duskwood ["ToDuskwood"] (Point 11 5)
+    makeExit Marata ["ToMarata"] "FromMarata"
+    makeExit Duskwood ["ToDuskwood"] "FromDuskwood"
 
   compileArea Duskwood Nothing $ do
-    makeExit WhistlingWoods ["ToWhistlingWoods"] (Point 3 5)
-    makeExit Icehold ["ToIcehold"] (Point 11 5)
-    makeExit NorthernTundra ["ToNorthernTundra"] (Point 7 3)
-    makeExit Tragorda ["ToTragorda"] (Point 7 8)
+    makeExit WhistlingWoods ["ToWhistlingWoods"] "FromWhistlingWoods"
+    makeExit Icehold ["ToIcehold"] "FromIcehold"
+    makeExit NorthernTundra ["ToNorthernTundra"] "FromNorthernTundra"
+    makeExit Tragorda ["ToTragorda"] "FromTragorda"
 
   compileIcehold globals
 

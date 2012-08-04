@@ -27,7 +27,6 @@ import Fallback.Data.Point
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Globals
-import Fallback.Scenario.Triggers.MountainPath (startingPosition)
 import Fallback.Scenario.Triggers.Script
 import Fallback.State.Tags
 
@@ -36,7 +35,7 @@ import Fallback.State.Tags
 compileCorenglen :: Globals -> CompileScenario ()
 compileCorenglen globals = compileArea Corenglen Nothing $ do
 
-  makeExit MountainPath ["ToMountainPath"] (Point 2 16)
+  makeExit MountainPath ["ToMountainPath"] "FromMountainPath"
 
   alwaysLockedDoor <- newDevice 963970 1 $ \_ _ -> do
     setMessage "The door is locked."
@@ -185,7 +184,7 @@ compileCorenglen globals = compileArea Corenglen Nothing $ do
       \ drop out from under you; you are in freefall.  You feel cold, and\
       \ hot, at the same time.  Somehow.  And then..."
     writeVar (gTimesThroughLongvale globals) 1
-    teleport MountainPath startingPosition
+    teleportToMark MountainPath "Start"
 
   once 832345 isSecondTimeThroughLongvale $ do
     wait 40

@@ -135,9 +135,9 @@ newTownMode resources modes initState = do
           handleAction action
         Just (DoStartCombat canRunAway topleft) -> do
           doStartCombat ts canRunAway topleft
-        Just (DoTeleport tag pos) -> do
+        Just (DoTeleport tag dest) -> do
           popupIfErrors resources view ts (return mode)
-                        (enterPartyIntoArea resources (arsParty ts) tag pos) $
+                        (enterPartyIntoArea resources (arsParty ts) tag dest) $
                         \ts' -> do
             writeIORef stateRef ts'
             handleAction action
@@ -501,7 +501,7 @@ data Interrupt = DoExit AreaTag
                | DoNarrate String (Script TownEffect ())
                | DoShopping [Either Ingredient ItemTag] (Script TownEffect ())
                | DoStartCombat Bool Position
-               | DoTeleport AreaTag Position
+               | DoTeleport AreaTag (Either Position String)
                | DoWait (Script TownEffect ())
 
 -- | Perform our once-per-tick update of the 'TownState', which may include
@@ -581,17 +581,20 @@ executeEffect ts eff sfn =
     EffShop forsale -> return (ts, Left $ DoShopping forsale $ sfn ())
     EffStartCombat canRunAway topleft ->
       return (ts, Left $ DoStartCombat canRunAway topleft)
-    EffTeleportToArea tag pos -> return (ts, Left $ DoTeleport tag pos)
+    EffTeleportToMark tag mark -> do
+      return (ts, Left $ DoTeleport tag $ Right mark)
+    EffTeleportToPosition tag pos -> do
+      return (ts, Left $ DoTeleport tag $ Left pos)
     EffTownArea eff' ->
       case eff' of
         EffAreaCommon eff'' -> do
           (result, ts') <- executeAreaCommonEffect eff'' ts
           return (ts', Right $ sfn result)
-        EffFork script ->
+        EffFork script -> do
           return (ts, Right (mapEffect EffTownArea script `also_` sfn ()))
         EffGameOver -> return (ts, Left DoGameOver)
         EffIfCombat _ script -> return (ts, Right (script >>= sfn))
-        EffMultiChoice text choices cancel ->
+        EffMultiChoice text choices cancel -> do
           return (ts, Left $ DoMultiChoice text choices cancel sfn)
         EffNarrate text -> return (ts, Left $ DoNarrate text $ sfn ())
         EffWait -> return (ts, Left $ DoWait $ sfn ())

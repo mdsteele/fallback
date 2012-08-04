@@ -18,8 +18,7 @@
 ============================================================================ -}
 
 module Fallback.Scenario.Areas
-  (areaEntrance, areaLinks, areaLocation, areaTerrain,
-   enterPartyIntoArea, startingArea, startingPosition)
+  (areaEntrance, areaLinks, areaLocation, areaTerrain, enterPartyIntoArea)
 where
 
 import qualified Data.Map as Map
@@ -45,7 +44,7 @@ import Fallback.State.Trigger (Trigger, makeUnfiredTriggers)
 
 -------------------------------------------------------------------------------
 
-areaEntrance :: AreaTag -> AreaTag -> Position
+areaEntrance :: AreaTag -> AreaTag -> String
 areaEntrance = getAreaEntrance scenarioTriggers
 
 areaLinks :: AreaTag -> Set.Set AreaTag
@@ -77,11 +76,18 @@ areaTriggers = getAreaTriggers scenarioTriggers
 
 -------------------------------------------------------------------------------
 
-enterPartyIntoArea :: Resources -> Party -> AreaTag -> Position
+enterPartyIntoArea :: Resources -> Party -> AreaTag -> Either Position String
                    -> IOEO TownState
-enterPartyIntoArea resources origParty tag position = do
+enterPartyIntoArea resources origParty tag destination = do
   let party = origParty { partyCurrentArea = tag }
   tmap <- loadTerrainMap resources (areaTerrain party tag)
+  position <- do
+    case destination of
+      Left pos -> return pos
+      Right mark -> do
+        case Set.toList $ tmapLookupMark mark tmap of
+          [pos] -> return pos
+          _ -> fail ("No such entrance mark: " ++ show mark)
   let terrain = Terrain { terrainMap = tmap, terrainOverrides = Map.empty }
   let mapCenter = fmap half $ uncurry Point $ terrainSize terrain
   minimap <- onlyIO $ newMinimapFromTerrain terrain $

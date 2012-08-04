@@ -41,7 +41,7 @@ import Fallback.State.Tileset (TileTag(..))
 compileSewerCaves :: Globals -> CompileScenario ()
 compileSewerCaves globals = compileArea SewerCaves Nothing $ do
 
-  makeExit Holmgare ["ToHolmgare"] (Point 32 40)
+  makeExit Holmgare ["ToHolmgare"] "FromHolmgare"
 
   ironKeyLockedDoor <- do
     let tryOpen _ _ = do

@@ -24,7 +24,6 @@ where
 import Data.Char (toLower)
 
 import qualified Fallback.Data.Grid as Grid
-import Fallback.Data.Point
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Globals
@@ -42,8 +41,9 @@ import Fallback.State.Tileset (TileTag(StoneGateClosedTile, StoneGateOpenTile))
 compileStoneBridge :: Globals -> CompileScenario ()
 compileStoneBridge globals = compileArea StoneBridge Nothing $ do
 
-  makeExit PerilousRoad ["ToPerilousRoad1", "ToPerilousRoad2"] (Point 3 4)
-  makeExit Tragorda ["ToTragorda"] (Point 51 22)
+  makeExit PerilousRoad ["ToPerilousRoad1", "ToPerilousRoad2"]
+           "FromPerilousRoad"
+  makeExit Tragorda ["ToTragorda"] "FromTragorda"
 
   onStartDaily 423026 $ do
     addUnlockedDoors globals

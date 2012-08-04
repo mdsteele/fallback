@@ -92,7 +92,8 @@ newRegionMode resources modes initState = do
           let tag = rsSelectedArea rs
           popupIfErrors resources view rs (return mode)
                         (enterPartyIntoArea resources (rsParty rs) tag $
-                         areaEntrance tag (rsPreviousArea rs)) $ \ts -> do
+                         Right $ areaEntrance tag (rsPreviousArea rs)) $
+                        \ts -> do
             ChangeMode <$> newTownMode' modes ts
         Just ShowMenu -> do
           screenshot <- takeScreenshot screenRect
