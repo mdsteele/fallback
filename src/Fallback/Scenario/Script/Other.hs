@@ -21,8 +21,7 @@ module Fallback.Scenario.Script.Other
   (-- * Actions
    -- ** Movement
    getPartyPosition, setPartyPosition, partyWalkTo, charWalkTo, charLeapTo,
-   teleport, teleportToMark, exitTo, walkMonster, setMonsterTownAI,
-   tryKnockBack,
+   teleportToMark, exitTo, walkMonster, setMonsterTownAI, tryKnockBack,
 
    -- * Effects
    -- ** Mojo/adrenaline
@@ -126,10 +125,6 @@ charLeapTo charNum pos = do
   emitEffect $ EffSetCharPosition charNum pos
   emitEffect $ EffSetCharAnim charNum $ JumpAnim frames frames oldPos
   return frames
-
--- TODO: deprecated (use teleportToMark)
-teleport :: AreaTag -> Position -> Script TownEffect ()
-teleport tag pos = emitEffect $ EffTeleportToPosition tag pos
 
 teleportToMark :: AreaTag -> String -> Script TownEffect ()
 teleportToMark tag mark = emitEffect $ EffTeleportToMark tag mark

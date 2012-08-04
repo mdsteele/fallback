@@ -46,7 +46,6 @@ compileCorenglen globals = compileArea Corenglen Nothing $ do
 
   let isFirstTimeThroughLongvale = varEq (gTimesThroughLongvale globals) 0
   let isSecondTimeThroughLongvale = varEq (gTimesThroughLongvale globals) 1
-  let svengaardEntryPosition = Point 5 9
 
   once 340838 isFirstTimeThroughLongvale $ do
     wait 40
@@ -328,6 +327,6 @@ compileCorenglen globals = compileArea Corenglen Nothing $ do
       \ realize you have been flipped upside down--or maybe the rest of the\
       \ world has been--because you are falling headlong, somewhere.  And\
       \ then..."
-    teleport FrozenPass svengaardEntryPosition
+    teleportToMark FrozenPass "Start"
 
 -------------------------------------------------------------------------------

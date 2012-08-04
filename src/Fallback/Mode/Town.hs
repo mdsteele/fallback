@@ -55,7 +55,7 @@ import Fallback.Scenario.MonsterAI (monsterTownStep)
 import Fallback.Scenario.Potions (runPotionAction)
 import Fallback.Scenario.Script
   (also_, alsoWith, alterAdrenaline, areaGet, concurrentAny, grantExperience,
-   grantItem, inflictAllPeriodicDamage, partyWalkTo, setMessage, teleport,
+   grantItem, inflictAllPeriodicDamage, partyWalkTo, setMessage,
    tickSummonsByOneRound)
 import Fallback.Scenario.Triggers (getAreaExits, scenarioTriggers)
 import Fallback.Scenario.Triggers.Script (startShopping)
@@ -467,7 +467,8 @@ newTownMode resources modes initState = do
             StuffMart -> startShopping $ map Right allItemTags ++
                          map Left [minBound .. maxBound]
             WhereAmI -> setMessage $ show $ tsPartyPosition ts
-            Xyzzy area x y -> teleport area (Point x y)
+            Xyzzy area x y -> do
+              emitEffect $ EffTeleportToPosition area (Point x y)
         _ -> do
           let msg = "A hollow voice says, \"Fool!\""
           writeIORef stateRef $ arsSetMessage msg ts

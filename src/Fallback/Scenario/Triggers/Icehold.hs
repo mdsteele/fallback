@@ -70,11 +70,11 @@ compileIcehold globals = do
       addDeviceOnMarks brassKeyLockedDoor "BrassDoor"
 
     -- Stairs up to second floor:
-    trigger 182832 (walkOn "StairsUp") $ do
-      teleport Icehold2 (Point 21 27)
+    trigger 182832 (walkOn "To2ndFloor") $ do
+      teleportToMark Icehold2 "From1stFloor"
     -- Stairs back up from hidden treasure room:
-    trigger 987237 (walkOn "SecretStairsUp") $ do
-      teleport Icehold2 (Point 24 8)
+    trigger 987237 (walkOn "ToSecretStairwell") $ do
+      teleportToMark Icehold2 "FromSecretRoom"
 
     -- Triggers to adjust contents of water tank:
     trigger 427921 (varFalse waterPumpedUp) $ do
@@ -151,14 +151,14 @@ compileIcehold globals = do
       addDeviceOnMarks brassKeyLockedDoor "SteamDoor" -- FIXME
 
     -- Stairs up to third floor:
-    trigger 094082 (walkOn "StairsUp") $ do
-      teleport Icehold3 (Point 15 25)
+    trigger 094082 (walkOn "To3rdFloor") $ do
+      teleportToMark Icehold3 "From2ndFloor"
     -- Stairs down to hidden treasure room:
-    trigger 895279 (walkOn "SecretStairsDown") $ do
-      teleport Icehold (Point 31 8)
+    trigger 895279 (walkOn "ToSecretRoom") $ do
+      teleportToMark Icehold "FromSecretStairwell"
     -- Stairs down to main floor:
-    trigger 982111 (walkOn "StairsDown") $ do
-      teleport Icehold (Point 24 27)
+    trigger 982111 (walkOn "To1stFloor") $ do
+      teleportToMark Icehold "From2ndFloor"
 
     -- Triggers to adjust gates:
     let southGatePos = Point 20 31
@@ -300,8 +300,8 @@ compileIcehold globals = do
       addDeviceOnMarks brassKeyLockedDoor "BrassDoor"
 
     -- Stairs back down to second floor:
-    trigger 472987 (walkOn "StairsDown") $ do
-      teleport Icehold2 (Point 16 8)
+    trigger 472987 (walkOn "To2ndFloor") $ do
+      teleportToMark Icehold2 "From3rdFloor"
 
     -- Boss fight:
     (vhaegystKey, vhaegystDead) <-
