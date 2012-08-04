@@ -113,8 +113,7 @@ ciAttack FaceRight = ciRightAttack
 -------------------------------------------------------------------------------
 
 data Monster = Monster
-  { monstAdrenaline :: Int,
-    monstDeadVar :: Maybe (Var Bool),  -- var to set to True when monst dies
+  { monstDeadVar :: Maybe (Var Bool),  -- var to set to True when monst dies
     monstHealth :: Int,
     monstIsAlly :: Bool, -- True for townspeople, False for baddies
     monstMoments :: Int,

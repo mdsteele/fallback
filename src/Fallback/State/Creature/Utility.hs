@@ -38,8 +38,7 @@ import Fallback.State.Tags (MonsterTag)
 -- You may need to override some of these values after calling this function.
 makeMonster :: MonsterTag -> Monster
 makeMonster tag = Monster
-  { monstAdrenaline = 0,
-    monstDeadVar = Nothing,
+  { monstDeadVar = Nothing,
     monstHealth = mtMaxHealth mtype,
     monstIsAlly = False,
     monstMoments = 0,

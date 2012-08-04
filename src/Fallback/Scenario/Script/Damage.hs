@@ -152,13 +152,10 @@ dealRawDamageToMonster severity finalBlow key damage stun = do
   -- (don't even set the monster hurt anim or show a number doodad).
   if severity <= GentleDamage && damage == 0 then return 0 else do
   -- If this is harsh damage (the normal kind of damage), wake us up from being
-  -- dazed and add adrenaline.
+  -- dazed.
   when (severity >= HarshDamage) $ alterMonsterStatus key seWakeFromDaze
   entry <- demandMonsterEntry key
   let monst = Grid.geValue entry
-  let adrenaline' = monstAdrenaline monst +
-        if severity < HarshDamage then 0 else
-          adrenalineForDamage 1 damage $ mtMaxHealth $ monstType monst
   -- Do damage and stun:
   (health', damage') <- do
     let health' = max 0 (monstHealth monst - damage)
@@ -171,8 +168,7 @@ dealRawDamageToMonster severity finalBlow key damage stun = do
   let moments' = max 0 (monstMoments monst -
                         round (stun * fromIntegral momentsPerActionPoint))
   let mbMonst' = if health' <= 0 then Nothing else Just monst
-                   { monstAdrenaline = adrenaline',
-                     monstPose = (monstPose monst) { cpAnim = HurtAnim 12 },
+                   { monstPose = (monstPose monst) { cpAnim = HurtAnim 12 },
                      monstHealth = health', monstMoments = moments' }
   addFloatingNumberOnTarget hurtTint damage' (HitMonster key)
   emitAreaEffect $ EffReplaceMonster key mbMonst'
