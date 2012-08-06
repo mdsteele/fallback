@@ -59,9 +59,9 @@ data AreaTag = Valhalla
              | MountainPath | Corenglen
              -- Svengaard:
              | FrozenPass | Holmgare | SewerCaves | PerilousRoad
-             | StoneBridge | Tragorda | WhistlingWoods | IcyConfluence
-             | Marata | IronMine | NorthernTundra | Duskwood
-             | Icehold | Icehold2 | Icehold3
+             | StoneBridge | Tragorda | WhistlingWoods
+             | IcyConfluence | IcyConfluenceB | Marata | IronMine
+             | NorthernTundra | Duskwood | Icehold | Icehold2 | Icehold3
              -- Tahariam:
              | BurningMaze
              -- Bailagua:
@@ -97,6 +97,7 @@ areaRegion StoneBridge = Svengaard
 areaRegion Tragorda = Svengaard
 areaRegion WhistlingWoods = Svengaard
 areaRegion IcyConfluence = Svengaard
+areaRegion IcyConfluenceB = OtherFloors
 areaRegion Marata = Svengaard
 areaRegion IronMine = Svengaard
 areaRegion NorthernTundra = Svengaard

@@ -127,8 +127,8 @@ trySelectAreaNode rs dest = bfs initVisited initQueue where
   linkIsFound tag1 tag2 = Set.member (makeCouple tag1 tag2) foundLinks
   foundLinks = Set.filter (isRealLink . fromCouple) $ rsFoundAreaLinks rs
   isRealLink (tag1, tag2) = Set.member tag1 $ areaLinks tag2
-  initQueue = Queue.fromList [(rsSelectedArea rs, rsPreviousArea rs),
-                              (rsPreviousArea rs, rsSelectedArea rs)]
+  initQueue = Queue.fromList [(rsPreviousArea rs, rsSelectedArea rs),
+                              (rsSelectedArea rs, rsPreviousArea rs)]
   initVisited = Set.fromList [rsPreviousArea rs, rsSelectedArea rs]
 
 -------------------------------------------------------------------------------

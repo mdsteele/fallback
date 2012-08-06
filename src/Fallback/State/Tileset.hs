@@ -49,6 +49,7 @@ data TileOverlay = NoOverlay | Overlay !Int !Int
 data TileTag = OffTile | NullTile
              | StoneFloorTile | WhiteTileFloorTile | WaterAnimTile
              | LavaAnimTile | SnowMushroomsTile | AdobeCrackedWallTile
+             | StairsDownEastTile
              -- Doors and gates:
              | AdobeDoorClosedTile | AdobeDoorOpenTile
              | AdobeGateClosedTile | AdobeGateOpenTile
@@ -76,6 +77,7 @@ tileTagId WaterAnimTile = 2937
 tileTagId LavaAnimTile = 0285
 tileTagId SnowMushroomsTile = 7591
 tileTagId AdobeCrackedWallTile = 7185
+tileTagId StairsDownEastTile = 4839
 tileTagId AdobeDoorClosedTile = 3891
 tileTagId AdobeDoorOpenTile = 2993
 tileTagId AdobeGateClosedTile = 8625
@@ -350,10 +352,10 @@ tilesList = [
  Tile 5844 (Still 26 6) TerrainSolid white, -- whitestone painting
  Tile 6394 (Still 26 7) TerrainWindow white, -- whitestone window
 
- Tile 8559 (Still 13 0) TerrainOpen darkgray, -- stairs up
- Tile 5724 (Still 13 1) TerrainOpen darkgray, -- stairs up
- Tile 9605 (Still 14 0) TerrainOpen darkgray, -- stairs down
- Tile 4839 (Still 14 1) TerrainOpen darkgray, -- stairs down
+ Tile 8559 (Still 13 0) TerrainOpen darkgray, -- stairs up (west)
+ Tile 5724 (Still 13 1) TerrainOpen darkgray, -- stairs up (east)
+ Tile 9605 (Still 14 0) TerrainOpen darkgray, -- stairs down (west)
+ Tile 4839 (Still 14 1) TerrainOpen darkgray, -- stairs down (east)
  Tile 0832 (Still 15 0) TerrainHover black, -- pit
 
  Tile 8222 (Still 12 5) TerrainOpen gray, -- stone floor

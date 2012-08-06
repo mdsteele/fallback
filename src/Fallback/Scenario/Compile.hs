@@ -40,7 +40,7 @@ module Fallback.Scenario.Compile
    Predicate, andP, orP, xorP, notP, getP, whenP,
    varIs, varTrue, varFalse, varEq, varNeq,
    walkOn, walkOff, walkIn,
-   questUntaken, questActive)
+   questUntaken, questActive, areaCleared)
 where
 
 import Control.Monad (when)
@@ -57,7 +57,7 @@ import qualified Fallback.Data.TotalMap as TM
 import Fallback.Scenario.Script
 import Fallback.State.Area
 import Fallback.State.Creature
-import Fallback.State.Party (Party, partyQuests)
+import Fallback.State.Party (Party, partyClearedAreas, partyQuests)
 import Fallback.State.Progress
 import Fallback.State.Simple
 import Fallback.State.Tags (AreaTag, QuestTag, RegionTag)
@@ -414,5 +414,8 @@ questActive = questStatus (== QuestActive)
 
 questStatus :: (QuestStatus -> Bool) -> QuestTag -> Predicate
 questStatus fn tag = Predicate (fn . SM.get tag . partyQuests . arsParty)
+
+areaCleared :: AreaTag -> Predicate
+areaCleared tag = Predicate (Set.member tag . partyClearedAreas . arsParty)
 
 -------------------------------------------------------------------------------

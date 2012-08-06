@@ -32,6 +32,7 @@ import Fallback.Scenario.Triggers.Corenglen (compileCorenglen)
 import Fallback.Scenario.Triggers.FrozenPass (compileFrozenPass)
 import Fallback.Scenario.Triggers.Globals
 import Fallback.Scenario.Triggers.Icehold (compileIcehold)
+import Fallback.Scenario.Triggers.IcyConfluence (compileIcyConfluence)
 import Fallback.Scenario.Triggers.IronMine (compileIronMine)
 import Fallback.Scenario.Triggers.MountainPath (compileMountainPath)
 import Fallback.Scenario.Triggers.Script
@@ -152,11 +153,7 @@ scenarioTriggers = compileScenario $ do
   compileStoneBridge globals
   compileTragorda globals
   compileWhistlingWoods globals
-
-  compileArea IcyConfluence Nothing $ do
-    makeExit PerilousRoad ["ToPerilousRoad"] "FromPerilousRoad"
-    makeExit Marata ["ToMarata"] "FromMarata"
-    makeExit WhistlingWoods ["ToWhistlingWoods"] "FromWhistlingWoods"
+  compileIcyConfluence globals
 
   compileArea Marata Nothing $ do
 

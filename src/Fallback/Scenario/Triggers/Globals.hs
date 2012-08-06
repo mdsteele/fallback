@@ -49,15 +49,18 @@ import Fallback.Utility (firstJust, maybeM, whenM)
 
 data Globals = Globals
   { gTimesThroughLongvale :: Var Int,
+    gLearnedAboutIcyConfluenceStairs :: Var Bool,
     gUnlockedDoor :: Device }
 
 compileGlobals :: CompileScenario Globals
 compileGlobals = do
   timesThroughLongvale <- newGlobalVar 092343 0
+  learnedAboutStairs <- newGlobalVar 630928 False
   unlockedDoor <- do
     let succeed _ _ = return True
     newDoorDevice 978249 succeed succeed
   return Globals { gTimesThroughLongvale = timesThroughLongvale,
+                   gLearnedAboutIcyConfluenceStairs = learnedAboutStairs,
                    gUnlockedDoor = unlockedDoor }
 
 -------------------------------------------------------------------------------
