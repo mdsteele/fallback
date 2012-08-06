@@ -27,7 +27,7 @@ import Data.List (find)
 import qualified Data.Set as Set
 
 import Fallback.Data.Clock (clockZigzag)
-import Fallback.Data.Color (Tint(Tint))
+import Fallback.Data.Color (Tint(Tint), whiteColor)
 import Fallback.Data.Couple (flattenCoupleSet, fromCouple)
 import Fallback.Data.Point
 import Fallback.Draw
@@ -35,8 +35,8 @@ import Fallback.Event
 import Fallback.Scenario.Areas (areaLinks, areaLocation)
 import Fallback.State.Party (partyClearedArea)
 import Fallback.State.Region
-import Fallback.State.Resources (Resources)
-import Fallback.State.Tags (AreaTag, regionAreas)
+import Fallback.State.Resources (FontTag(FontChancery18), Resources, rsrcFont)
+import Fallback.State.Tags (AreaTag, areaName, regionAreas)
 import Fallback.View.Base
 import Fallback.View.Widget (newSimpleTextButton)
 
@@ -50,15 +50,15 @@ newRegionView :: (MonadDraw m) => Resources -> String
               -> m (View RegionState RegionAction)
 newRegionView resources bgPath = do
   compoundViewM
-    [ newRegionMapView bgPath
-    , subView_ (Rect 20 436 120 24) <$>
-      newSimpleTextButton resources "Menu" [KeyEscape, KeyM] ShowMenu
-    , subView_ (Rect 500 436 120 24) <$>
-      newSimpleTextButton resources "Travel" [KeyReturn] TravelToSelectedArea]
+    [(newRegionMapView resources bgPath),
+     (subView_ (Rect 20 436 120 24) <$>
+      newSimpleTextButton resources "Menu" [KeyEscape, KeyM] ShowMenu),
+     (subView_ (Rect 500 436 120 24) <$>
+      newSimpleTextButton resources "Travel" [KeyReturn] TravelToSelectedArea)]
 
-newRegionMapView :: (MonadDraw m) => String
+newRegionMapView :: (MonadDraw m) => Resources -> String
                  -> m (View RegionState RegionAction)
-newRegionMapView bgPath = do
+newRegionMapView resources bgPath = do
   clearedNodeSprite <- loadSubSprite "gui/area-nodes.png" $ Rect 0 0 14 12
   unclearedNodeSprite <- loadSubSprite "gui/area-nodes.png" $ Rect 14 0 14 12
   selectedNodeStrip <- loadVStrip "gui/area-select.png" 4
@@ -69,8 +69,11 @@ newRegionMapView bgPath = do
       -- Paint background:
       rect <- canvasRect
       blitStretch backgroundSprite rect
-      -- Paint links:
+      -- Paint selected area name:
       let selected = rsSelectedArea rs
+      drawText (rsrcFont resources FontChancery18) whiteColor
+               (LocCenter (Point 320 448 :: IPoint)) (areaName selected)
+      -- Paint links:
       let foundLinks = rsFoundAreaLinks rs
       let drawLink (tag1, tag2) = do
             let pos1 = fmap fromIntegral $ areaLocation tag1
