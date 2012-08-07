@@ -243,13 +243,16 @@ getAbility characterClass abilityNumber rank =
         setCharacterAnim caster (AttackAnim 8)
         degradeMonstersSummonedBy (Left caster)
         playSound SndSummon
-        -- TODO Add other possible monster tags; at higher ranks, give better
-        --      monster choices.
         replicateM_ (ranked 1 1 2) $ do
-          mtag <- getRandomElem $ [Wolf]
+          mtag <- getRandomElem [
+            AcidCrab, Cobra, Firefly, Hound, LightningBug, Mantis,
+            MonitorLizard, RabidBat, Roach, Rous, Spider, Unicorn, Wolf]
           let lifetime = summonedLifetime power 21
-          _ <- trySummonMonster (Left caster) mtag lifetime False
-          return ()
+          mbEntry <- trySummonMonster (Left caster) mtag lifetime False
+          maybeM mbEntry $ \entry -> do
+          when (rank >= Rank2) $ do
+            alterStatus (HitMonster $ Grid.geKey entry)
+                        (seApplyBlessing $ Beneficial (power * 6))
         wait 16
     FireShot ->
       meta (2 `parts` Naphtha) RangedOnly SingleTarget $
@@ -922,7 +925,7 @@ abilityDescription Alacrity =
   \At rank 3, the increase rises to 20%."
 abilityDescription BeastCall =
   "Summon a wild animal to fight at your side.\n\
-  \At rank 2, summons a stronger animal.\n\
+  \At rank 2, the summoned animal starts out blessed.\n\
   \At rank 3, summons {i}two{_} animals."
 abilityDescription FireShot =
   "Add additional fire damage to your next ranged weapon attack.\n\

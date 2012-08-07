@@ -637,11 +637,11 @@ removeMonster :: (FromAreaEffect f) => Grid.Key Monster -> Script f ()
 removeMonster key = emitAreaEffect $ EffReplaceMonster key Nothing
 
 -- | Summon a monster allied to and somewhere near the given summoner.  Return
--- 'True' on success, or 'False' if there was no open spot to place the
--- summoned monster.
+-- the new monster's entry on success, or 'Nothing' if there was no open spot
+-- to place the summoned monster.
 trySummonMonster :: (FromAreaEffect f) =>
                     Either CharacterNumber (Grid.Key Monster) -> MonsterTag
-                 -> Int -> Bool -> Script f Bool
+                 -> Int -> Bool -> Script f (Maybe (Grid.Entry Monster))
 trySummonMonster summonerKey tag lifetime dieWhenGone = do
   position <- do
     case summonerKey of
@@ -650,11 +650,12 @@ trySummonMonster summonerKey tag lifetime dieWhenGone = do
   trySummonMonsterNear position summonerKey tag lifetime dieWhenGone
 
 -- | Summon a monster allied to and somewhere near the given position.  Return
--- 'True' on success, or 'False' if there was no open spot to place the
--- summoned monster.
+-- the new monster's entry on success, or 'Nothing' if there was no open spot
+-- to place the summoned monster.
 trySummonMonsterNear :: (FromAreaEffect f) =>
                         Position -> Either CharacterNumber (Grid.Key Monster)
-                     -> MonsterTag -> Int -> Bool -> Script f Bool
+                     -> MonsterTag -> Int -> Bool
+                     -> Script f (Maybe (Grid.Entry Monster))
 trySummonMonsterNear position summonerKey tag lifetime dieWhenGone = do
   isAlly <- do
     case summonerKey of
@@ -670,7 +671,7 @@ trySummonMonsterNear position summonerKey tag lifetime dieWhenGone = do
       not $ any (blocked ars) $ prectPositions $ makeRect pos size
     directions <- randomPermutation allDirections
     areaGet (find unblocked . arsAccessiblePositions directions position)
-  flip (maybe $ return False) mbSpot $ \spot -> do
+  flip (maybe $ return Nothing) mbSpot $ \spot -> do
   faceDir <- getRandomElem [FaceLeft, FaceRight]
   addSummonDoodad $ makeRect spot size
   mbEntry <- tryAddMonster spot monster
@@ -684,7 +685,7 @@ trySummonMonsterNear position summonerKey tag lifetime dieWhenGone = do
           msUnsummonWhenSummonerGone = dieWhenGone },
       monstTownAI = ChaseAI }
   when (isNothing mbEntry) $ fail "trySummonMonster: tryAddMonster failed"
-  return True
+  return mbEntry
 
 -- | Call this when a summoned monster has zero remaining frames; it will
 -- unsummon the monster, as well as any other summoned monsters that depend on
