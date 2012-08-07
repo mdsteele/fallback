@@ -115,11 +115,15 @@ tmapResize nullTile (w, h) tmap = tmap { tmapArray = arr' } where
   bound = (Point 0 0, Point (w - 1) (h - 1))
 
 tmapShift :: TerrainTile -> IPoint -> TerrainMap -> TerrainMap
-tmapShift nullTile delta tmap = tmap { tmapArray = arr' } where
-  arr' = listArray bound (repeat nullTile) //
-         (filter (inRange bound . fst) $ map shift $ assocs $ tmapArray tmap)
-  shift (point, tile) = (point `pAdd` delta, tile)
-  bound = bounds (tmapArray tmap)
+tmapShift nullTile delta tmap =
+  tmap { tmapArray = arr',
+         tmapMarks = MM.map (`pAdd` delta) (tmapMarks tmap),
+         tmapRects = Map.map (`rectPlus` delta) (tmapRects tmap) }
+  where
+    arr' = listArray bound (repeat nullTile) //
+           (filter (inRange bound . fst) $ map shift $ assocs $ tmapArray tmap)
+    shift (point, tile) = (point `pAdd` delta, tile)
+    bound = bounds (tmapArray tmap)
 
 tmapAllMarks :: TerrainMap -> [(String, Position)]
 tmapAllMarks = MM.toList . tmapMarks

@@ -34,13 +34,14 @@ module Fallback.Data.Multimap
    -- * Query
    null, lookup, reverseLookup,
    -- * Update
-   insert, reverseSet,
+   map, insert, reverseSet,
    -- * Conversion
    collapse, fromList, toList)
 where
 
-import Prelude hiding (lookup, null)
+import Prelude hiding (lookup, map, null)
 
+import qualified Data.List as List (map)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -76,10 +77,17 @@ lookup k (Multimap m) = Map.findWithDefault Set.empty k m
 -- | /O(n)/.  Look up all keys that map to the given value.
 reverseLookup :: (Ord k, Ord v) => v -> Multimap k v -> Set k
 reverseLookup v (Multimap m) =
-  Set.fromAscList $ map fst $ filter (Set.member v . snd) $ Map.toAscList m
+  Set.fromAscList $ List.map fst $ filter (Set.member v . snd) $
+  Map.toAscList m
 
 -------------------------------------------------------------------------------
 -- Update:
+
+-- | Map a function over the multimap.  Note that the size of the resulting
+-- multimap may be smaller, if the function maps multiple inputs onto equal
+-- values.
+map :: (Ord a, Ord b) => (a -> b) -> Multimap k a -> Multimap k b
+map fn (Multimap m) = Multimap (Map.map (Set.map fn) m)
 
 -- | /O(log n)/.  Insert a key/value pair into the map, adding it alongside any
 -- existing mappings for the same key.
@@ -93,7 +101,7 @@ insert k v (Multimap m) = Multimap $ Map.alter fn k m where
 reverseSet :: (Ord k, Ord v) => v -> Set k -> Multimap k v -> Multimap k v
 reverseSet v ks (Multimap m) =
   foldr (uncurry insert) (Multimap $ Map.map (Set.delete v) m) $
-  map (flip (,) v) (Set.toList ks)
+  List.map (flip (,) v) (Set.toList ks)
 
 -------------------------------------------------------------------------------
 -- Conversion:
@@ -111,6 +119,6 @@ fromList = foldr (uncurry insert) empty
 -- | /O(n)/.  Extract all key/value pairs from the multimap.
 toList :: Multimap k v -> [(k, v)]
 toList (Multimap m) = concatMap fn $ Map.toList m where
-  fn (k, vs) = map ((,) k) $ Set.toList vs
+  fn (k, vs) = List.map ((,) k) $ Set.toList vs
 
 -------------------------------------------------------------------------------
