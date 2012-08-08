@@ -366,7 +366,18 @@ getMonsterType Vhaegyst = baseMonsterType
                 SummonOne True 4 5 20 [Ghoul, Skeleton, Zombie],
                 SummonOne True 2 5 20 [Ghoul, Skeleton, Zombie]] }
 getMonsterType Rous = baseMonsterType { mtImageRow = 40 } -- TODO
-getMonsterType Unicorn = baseMonsterType { mtImageRow = 45 } -- TODO
+getMonsterType Unicorn = baseMonsterType
+  { mtAgility = 35,
+    mtAttacks = [baseMonsterAttack
+      { maAppearance = BluntAttack,
+        maDamageCount = 9,
+        maDamageRange = (1, 8),
+        maEffects = [KnockBack] }],
+    mtExperienceValue = 50,
+    mtImageRow = 45,
+    mtMaxHealth = 70,
+    mtName = "Unicorn",
+    mtSpeed = 1.3 }
 getMonsterType MonitorLizard = baseMonsterType { mtImageRow = 46 } -- TODO
 getMonsterType Salamander = baseMonsterType { mtImageRow = 47 } -- TODO
 getMonsterType IceLizard = baseMonsterType
@@ -386,10 +397,45 @@ getMonsterType IceLizard = baseMonsterType
 getMonsterType Basilisk = baseMonsterType { mtImageRow = 49 } -- TODO
 getMonsterType Firefly = baseMonsterType { mtImageRow = 54 } -- TODO
 getMonsterType LightningBug = baseMonsterType { mtImageRow = 55 } -- TODO
-getMonsterType Roach = baseMonsterType { mtImageRow = 56 } -- TODO
+getMonsterType Roach = baseMonsterType
+  { mtAgility = 40,
+    mtAttacks = [baseMonsterAttack
+      { maAppearance = ClawAttack,
+        maDamageCount = 7,
+        maDamageRange = (1, 7),
+        maEffects = [SetField (PoisonCloud 15)] }],
+    mtExperienceValue = 50,
+    mtImageRow = 56,
+    mtMaxHealth = 65,
+    mtName = "Roach",
+    mtResistances = resistances [ResistChemical =% 50, ResistFire -% 15],
+    mtSpeed = 1.8 }
 getMonsterType Spider = baseMonsterType { mtImageRow = 57 } -- TODO
-getMonsterType Mantis = baseMonsterType { mtImageRow = 59 } -- TODO
-getMonsterType Cobra = baseMonsterType { mtImageRow = 67 } -- TODO
+getMonsterType Mantis = baseMonsterType
+  { mtAgility = 40,
+    mtAttacks = [baseMonsterAttack
+      { maAppearance = ClawAttack,
+        maDamageCount = 8,
+        maDamageRange = (1, 7) }],
+    mtExperienceValue = 50,
+    mtImageRow = 59,
+    mtMaxHealth = 70,
+    mtName = "Mantis",
+    mtResistances = resistances [Armor =% 15, ResistFire -% 15],
+    mtSpeed = 1.8 }
+getMonsterType Cobra = baseMonsterType
+  { mtAgility = 60,
+    mtAttacks = [baseMonsterAttack
+      { maAppearance = BiteAttack,
+        maDamageCount = 4,
+        maDamageRange = (1, 8),
+        maEffects = [InflictPoison 2] }],
+    mtExperienceValue = 50,
+    mtImageRow = 67,
+    mtMaxHealth = 50,
+    mtName = "Cobra",
+    mtResistances = (ResistFire =% 8),
+    mtSpeed = 2.2 }
 getMonsterType TownWomanApron = townsperson { mtImageRow = 0 }
 getMonsterType TownManApron = townsperson { mtImageRow = 1 }
 getMonsterType TownManRed = townsperson { mtImageRow = 2 }
