@@ -232,6 +232,12 @@ partyGrantExperience xp party =
     statOf (_, a, _) Agility = a
     statOf (_, _, i) Intellect = i
 
+partyAlterIngredients :: (Ingredients -> Ingredients) -> Party -> Party
+partyAlterIngredients fn party = party { partyIngredients = ings' } where
+  ings' = fmap (max 0 . min (partyMaxIngredientCount party)) $
+          fn $ partyIngredients party
+
+-- TODO: deprecated
 partyGrantIngredient :: Int -> Ingredient -> Party -> Party
 partyGrantIngredient n ingredient party =
   party { partyIngredients = TM.adjust ingredient fn (partyIngredients party) }

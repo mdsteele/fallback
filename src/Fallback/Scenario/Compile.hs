@@ -43,6 +43,7 @@ module Fallback.Scenario.Compile
    questUntaken, questActive, areaCleared)
 where
 
+import Control.Applicative (Applicative)
 import Control.Monad (when)
 import Control.Monad.Fix (MonadFix)
 import qualified Control.Monad.State as State
@@ -124,7 +125,7 @@ getRegionBackground scenario party tag =
 
 newtype CompileScenario a =
   CompileScenario (State.State CompileScenarioState a)
-  deriving (Functor, Monad, MonadFix)
+  deriving (Applicative, Functor, Monad, MonadFix)
 
 data CompileScenarioState = CompileScenarioState
   { cssAllVarSeeds :: Set.Set VarSeed,
@@ -192,7 +193,7 @@ compileArea tag mbTerraFn (CompileArea compile) = CompileScenario $ do
 -- Defining an area:
 
 newtype CompileArea a = CompileArea (State.State CompileAreaState a)
-  deriving (Functor, Monad, MonadFix)
+  deriving (Applicative, Functor, Monad, MonadFix)
 
 data CompileAreaState = CompileAreaState
   { casAllVarSeeds :: Set.Set VarSeed,

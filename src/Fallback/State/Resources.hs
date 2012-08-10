@@ -351,6 +351,7 @@ data SoundTag = SndArrow
               | SndHit1 | SndHit2 | SndHit3 | SndHit4
               | SndHurtFemale | SndHurtMale
               | SndIllusion
+              | SndJingle
               | SndLevelUp | SndLever | SndLightning | SndLuminaire
               | SndMineCartStop | SndMineCartTurn
               | SndMiss1 | SndMiss2
@@ -388,6 +389,7 @@ soundPath SndHit4 = "hit4-71.wav"
 soundPath SndHurtFemale = "hurt-female-30.wav"
 soundPath SndHurtMale = "hurt-male-29.wav"
 soundPath SndIllusion = "illusion-52.wav"
+soundPath SndJingle = "jingle-39.wav"
 soundPath SndLevelUp = "level-up-16.wav"
 soundPath SndLever = "lever-94.wav"
 soundPath SndLightning = "lightning-43.wav"

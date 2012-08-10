@@ -47,9 +47,11 @@ data TileOverlay = NoOverlay | Overlay !Int !Int
 -------------------------------------------------------------------------------
 
 data TileTag = OffTile | NullTile
-             | StoneFloorTile | WhiteTileFloorTile | WaterAnimTile
-             | LavaAnimTile | SnowMushroomsTile | AdobeCrackedWallTile
-             | StairsDownEastTile
+             | WaterAnimTile | LavaAnimTile | SnowMushroomsTile
+             | AdobeCrackedWallTile | StairsDownEastTile
+             -- Floors:
+             | CaveFloorTile | SnowFloorTile | StoneFloorTile
+             | WhiteTileFloorTile
              -- Doors and gates:
              | AdobeDoorClosedTile | AdobeDoorOpenTile
              | AdobeGateClosedTile | AdobeGateOpenTile
@@ -61,6 +63,8 @@ data TileTag = OffTile | NullTile
              | WhitestoneGateClosedTile | WhitestoneGateOpenTile
              | WoodDoorClosedTile | WoodDoorOpenTile
              | WoodGateClosedTile | WoodGateOpenTile
+             -- Chests:
+             | CaveChestTile | IndoorChestTile | SnowChestTile
              -- Mine cart:
              | MineCartEmptyHorzTile | MineCartEmptyVertTile
              | MineCartFullHorzTile | MineCartFullVertTile
@@ -71,13 +75,15 @@ data TileTag = OffTile | NullTile
 tileTagId :: TileTag -> Int
 tileTagId OffTile = 0000
 tileTagId NullTile = 0001
-tileTagId StoneFloorTile = 8222
-tileTagId WhiteTileFloorTile = 0040
 tileTagId WaterAnimTile = 2937
 tileTagId LavaAnimTile = 0285
 tileTagId SnowMushroomsTile = 7591
 tileTagId AdobeCrackedWallTile = 7185
 tileTagId StairsDownEastTile = 4839
+tileTagId CaveFloorTile = 1171
+tileTagId SnowFloorTile = 5709
+tileTagId StoneFloorTile = 8222
+tileTagId WhiteTileFloorTile = 0040
 tileTagId AdobeDoorClosedTile = 3891
 tileTagId AdobeDoorOpenTile = 2993
 tileTagId AdobeGateClosedTile = 8625
@@ -98,6 +104,9 @@ tileTagId WoodDoorClosedTile = 6162
 tileTagId WoodDoorOpenTile = 0534
 tileTagId WoodGateClosedTile = 6605
 tileTagId WoodGateOpenTile = 1167
+tileTagId CaveChestTile = 3086
+tileTagId IndoorChestTile = 2367
+tileTagId SnowChestTile = 2978
 tileTagId MineCartEmptyHorzTile = 8300
 tileTagId MineCartEmptyVertTile = 5199
 tileTagId MineCartFullHorzTile = 3187

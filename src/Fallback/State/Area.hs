@@ -394,6 +394,8 @@ data PartyEffect :: * -> * where
                     -> PartyEffect ()
   -- Change how many coins the party has.
   EffAlterCoins :: (Integer -> Integer) -> PartyEffect ()
+  -- Change what ingredients the party has.
+  EffAlterIngredients :: (Ingredients -> Ingredients) -> PartyEffect ()
   -- Print a debugging string to the console.
   EffDebug :: String -> PartyEffect ()
   -- Give experience points to the party.
@@ -492,6 +494,7 @@ executePartyEffect eff party =
       return ((), partyAlterCharacter charNum fn party)
     EffAlterCoins fn ->
       return ((), party { partyCoins = max 0 $ fn $ partyCoins party })
+    EffAlterIngredients fn -> return ((), partyAlterIngredients fn party)
     EffDebug string -> ((), party) <$ putStrLn string
     EffGrantExperience xp -> return ((), partyGrantExperience xp party)
     EffGrantItem tag -> return ((), partyGrantItem tag party)

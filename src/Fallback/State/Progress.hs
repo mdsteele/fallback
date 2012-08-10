@@ -21,7 +21,7 @@ module Fallback.State.Progress
   (-- * Progress
    Progress, emptyProgress, HasProgress(..),
    -- * VarSeeds
-   VarSeed, HasVarSeeds(..), splitVarSeed,
+   VarSeed, HasVarSeeds(..), splitVarSeed, splitVarSeed3, splitVarSeed4,
    -- * Vars
    Var, newVar, VarType(..),
    -- * Other IDs
@@ -84,6 +84,20 @@ splitVarSeed :: (HasVarSeeds m) => VarSeed -> m (VarSeed, VarSeed)
 splitVarSeed vseed@(VarSeed n m) = do
   useVarSeed vseed
   return (VarSeed n (2 * m), VarSeed n (2 * m + 1))
+
+splitVarSeed3 :: (HasVarSeeds m) => VarSeed -> m (VarSeed, VarSeed, VarSeed)
+splitVarSeed3 vseed = do
+  (vseed', vseed1) <- splitVarSeed vseed
+  (vseed2, vseed3) <- splitVarSeed vseed'
+  return (vseed1, vseed2, vseed3)
+
+splitVarSeed4 :: (HasVarSeeds m) => VarSeed
+              -> m (VarSeed, VarSeed, VarSeed, VarSeed)
+splitVarSeed4 vseed = do
+  (vseed', vseed'') <- splitVarSeed vseed
+  (vseed1, vseed2) <- splitVarSeed vseed'
+  (vseed3, vseed4) <- splitVarSeed vseed''
+  return (vseed1, vseed2, vseed3, vseed4)
 
 -------------------------------------------------------------------------------
 -- Vars:

@@ -37,6 +37,7 @@ import Fallback.State.Area
 import Fallback.State.Creature (MonsterTownAI(..))
 import Fallback.State.Doodad (Doodad(..), DoodadHeight(LowDood))
 import Fallback.State.Resources
+import Fallback.State.Simple (Ingredient(AquaVitae))
 import Fallback.State.Tags
 import Fallback.State.Terrain (positionCenter, positionTopleft)
 import Fallback.State.Tileset (TileTag(..))
@@ -58,9 +59,6 @@ compileIronMine globals = compileArea IronMine Nothing $ do
   uniqueDevice 895064 "SwitchingSign" signRadius $ \_ _ -> do
     narrate "The sign tacked to the wall reads:\n\n\
       \      {i}SWITCHING STATION{_}"
-  uniqueDevice 208934 "RecordsSign" signRadius $ \_ _ -> do
-    narrate "The sign tacked to the wall reads:\n\n\
-      \      {i}RECORDS OFFICE{_}"
 
   -- South-southwest chamber:
   simpleEnemy_ 984023 "BatA1" CaveBat MindlessAI
@@ -79,6 +77,13 @@ compileIronMine globals = compileArea IronMine Nothing $ do
     narrate "Ulgghh.  It appears that the miners used this narrow tunnel as a\
       \ latrine, to save themselves the trouble of walking all the way back\
       \ outside the mine.  The smell of urine and garbage back here is awful."
+
+  -- Records office:
+  uniqueDevice 208934 "RecordsSign" signRadius $ \_ _ -> do
+    narrate "The sign tacked to the wall reads:\n\n\
+      \      {i}RECORDS OFFICE{_}"
+  treasureChest_ 750928 "NorthChest" [PotionItemTag HealingPotion]
+                 [(AquaVitae, 10)] 240
 
   -- Snow chamber:
   (iceLizard1Key, iceLizard1Dead) <-

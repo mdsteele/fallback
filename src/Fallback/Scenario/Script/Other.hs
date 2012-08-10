@@ -32,7 +32,8 @@ module Fallback.Scenario.Script.Other
    grantInvisibility, inflictPoison, curePoison, inflictStun,
    inflictMentalEffect, massInflictMentalEffect,
    -- ** Other
-   alterPartyCoins, grantExperience, removeFields, setFields,
+   alterPartyCoins, alterPartyIngredients, grantExperience,
+   removeFields, setFields,
 
    -- * Animation
    -- ** Camera motion
@@ -550,6 +551,10 @@ grantAndEquipWeapon tag charNum = do
 
 alterPartyCoins :: (FromAreaEffect f) => (Integer -> Integer) -> Script f ()
 alterPartyCoins = emitAreaEffect . EffAlterCoins
+
+alterPartyIngredients :: (FromAreaEffect f) => (Ingredients -> Ingredients)
+                      -> Script f ()
+alterPartyIngredients = emitAreaEffect . EffAlterIngredients
 
 grantExperience :: (FromAreaEffect f) => Int -> Script f ()
 grantExperience xp = do

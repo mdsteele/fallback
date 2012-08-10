@@ -22,25 +22,30 @@
 module Fallback.Scenario.Triggers.Globals
   (Globals(..), compileGlobals,
    newDoorDevice, addUnlockedDoors, uniqueDevice,
+   treasureChest, treasureChest_,
    simpleEnemy, simpleEnemy_, scriptedMonster,
    simpleTownsperson, scriptedTownsperson,
    signRadius)
 where
 
+import Control.Arrow (second)
 import Control.Monad (unless, void)
+import Data.List (intercalate)
 
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
+import qualified Fallback.Data.TotalMap as TM (adjust)
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Script
   (addDeviceOnMarks, demandOneTerrainMark, setTerrain)
 import Fallback.State.Area
 import Fallback.State.Creature (Monster(..), MonsterTownAI, makeMonster)
-import Fallback.State.Progress (VarSeed, splitVarSeed)
+import Fallback.State.Item (itemName, showCoins)
+import Fallback.State.Progress (VarSeed, splitVarSeed, splitVarSeed4)
 import Fallback.State.Resources (SoundTag(..), rsrcTileset)
-import Fallback.State.Simple (CharacterNumber)
-import Fallback.State.Tags (MonsterTag)
+import Fallback.State.Simple (CharacterNumber, Ingredient, ingredientName)
+import Fallback.State.Tags (ItemTag, MonsterTag)
 import Fallback.State.Tileset (TileTag(..), tilesetGet, ttId)
 import Fallback.State.Terrain (terrainGetTile)
 import Fallback.Utility (firstJust, maybeM, whenM)
@@ -116,6 +121,46 @@ uniqueDevice vseed key radius sfn = do
   device <- newDevice vseed' radius sfn
   onStartDaily vseed'' $ do
     addDevice_ device =<< demandOneTerrainMark key
+
+treasureChest :: VarSeed -> String -> [ItemTag] -> [(Ingredient, Int)]
+              -> Integer -> CompileArea (Var Bool)
+treasureChest vseed mark items ingredients coins = do
+  (vseed1, vseed2, vseed3, vseed4) <- splitVarSeed4 vseed
+  gone <- newPersistentVar vseed1 False
+  device <- newDevice vseed2 1 $ \ge _ -> do
+    mapM_ grantItem items
+    alterPartyIngredients $ \ings ->
+      foldr (uncurry TM.adjust . second (+)) ings ingredients
+    alterPartyCoins (+ coins)
+    let ingString (ing, n) = show n ++ " " ++ ingredientName ing
+    let coinsStrings = if coins == 0 then [] else [showCoins coins]
+    let conjoin [] = "nothing"
+        conjoin [x] = x
+        conjoin [x, y] = x ++ " and " ++ y
+        conjoin xs = intercalate ", " (init xs) ++ ", and " ++ last xs
+    playSound SndJingle
+    setMessage $ ("Found " ++) $ (++ ".") $ conjoin $
+      map itemName items ++ map ingString ingredients ++ coinsStrings
+    writeVar gone True
+    removeDevice (Grid.geKey ge)
+  onStartDaily vseed3 $ whenP (varFalse gone) $ do
+    addDevice_ device =<< demandOneTerrainMark mark
+  trigger vseed4 (varTrue gone) $ do
+    let pairs = [(CaveChestTile, CaveFloorTile),
+                 (IndoorChestTile, StoneFloorTile),
+                 (SnowChestTile, SnowFloorTile)]
+    pos <- demandOneTerrainMark mark
+    tid <- areaGet (ttId . terrainGetTile pos . arsTerrain)
+    tileset <- areaGet (rsrcTileset . arsResources)
+    let mbTile = flip firstJust pairs $ \(cTag, fTag) ->
+          if ttId (tilesetGet cTag tileset) == tid then Just fTag else Nothing
+    maybeM mbTile $ \tile -> setTerrain tile [pos]
+  return gone
+
+treasureChest_ :: VarSeed -> String -> [ItemTag] -> [(Ingredient, Int)]
+               -> Integer -> CompileArea ()
+treasureChest_ vseed mark items ingredients coins =
+  void $ treasureChest vseed mark items ingredients coins
 
 -------------------------------------------------------------------------------
 
