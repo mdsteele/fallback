@@ -187,8 +187,6 @@ paintStatusDecorations resources cameraTopleft clock offset
                         centerPlus (signx * offsetX) (halfH - 5)
       paint 1
       paint (negate 1)
-  -- TODO decoration for poison
-  -- TODO decoration for bless/curse
   case seHaste status of
     Harmful _ -> do
       let offsetX = fromIntegral ((4 + clockZigzag 4 5 clock) * rectW prect)
@@ -210,6 +208,30 @@ paintStatusDecorations resources cameraTopleft clock offset
         drawLine (Tint 0 255 0 192)
                  (centerPlus (fx * r1 * cos theta) (fy * r1 * sin theta))
                  (centerPlus (fx * r2 * cos theta) (fy * r2 * sin theta))
+  case seBlessing status of
+    Harmful _ -> do
+      let index = clockMod 4 4 clock
+      forM_ (prectPositions prect) $ \pos -> do
+        let topleft = positionTopleft pos `pAdd` offset `pSub` cameraTopleft
+        let sparkle x y = blitTopleft (sdCurseStrip decor ! index)
+                                      (topleft `pAdd` Point x y)
+        sparkle 10  4
+        sparkle 17 13
+        sparkle  4 13
+        sparkle 11 22
+    Unaffected -> return ()
+    Beneficial _ -> do
+      let tau = clockMod 10 3 clock
+      forM_ (prectPositions prect) $ \pos -> do
+        let topleft = positionTopleft pos `pAdd` offset `pSub` cameraTopleft
+        let sparkle x y index = when (0 <= index && index < 4) $ do
+              blitTopleft (sdBlessingStrip decor ! index)
+                          (topleft `pAdd` Point x y)
+        sparkle  5  4 tau
+        sparkle 17 10 (tau - 2)
+        sparkle  4 16 (tau - 4)
+        sparkle 16 22 (tau - 6)
+  -- TODO decoration for poison
   case seDefense status of
     Harmful _ -> do
       let offset' = 3 + clockZigzag 4 5 clock

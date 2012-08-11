@@ -205,7 +205,9 @@ loadHealthManaEtc = do
 -------------------------------------------------------------------------------
 
 data StatusDecorations = StatusDecorations
-  { sdDefenseSprite :: Sprite,
+  { sdBlessingStrip :: Strip,
+    sdCurseStrip :: Strip,
+    sdDefenseSprite :: Sprite,
     sdWeaknessSprite :: Sprite,
     sdSlowSprite :: Sprite,
     sdDazedStrip :: Strip,
@@ -218,7 +220,11 @@ loadStatusDecorations :: IO StatusDecorations
 loadStatusDecorations = do
   texture <- loadTexture "status-decorations.png"
   return StatusDecorations
-    { sdDefenseSprite = makeSubSprite (Rect 0 0 4 12) texture,
+    { sdBlessingStrip = listArray (0, 3) $
+        [makeSubSprite (Rect 28 (7 * n) 7 7) texture | n <- [0 .. 3]],
+      sdCurseStrip = listArray (0, 3) $
+        [makeSubSprite (Rect 28 (29 + 7 * n) 7 7) texture | n <- [0 .. 3]],
+      sdDefenseSprite = makeSubSprite (Rect 0 0 4 12) texture,
       sdWeaknessSprite = makeSubSprite (Rect 5 1 7 7) texture,
       sdSlowSprite = makeSubSprite (Rect 21 1 6 25) texture,
       sdDazedStrip = listArray (0, 2) $
