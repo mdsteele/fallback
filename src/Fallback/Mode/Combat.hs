@@ -60,6 +60,7 @@ import Fallback.State.Status
 import Fallback.State.Tags (ItemTag(PotionItemTag))
 import Fallback.State.Terrain (positionTopleft)
 import Fallback.State.Town (TownPhase(WalkingPhase), TownState(..))
+import Fallback.State.Trigger (fireTrigger)
 import Fallback.Utility (maybeM, minimumKey)
 import Fallback.View (fromAction, viewHandler, viewPaint)
 import Fallback.View.Abilities (AbilitiesAction(..))
@@ -91,7 +92,7 @@ newCombatMode resources modes initState = do
       case mbInterrupt of
         Just (DoActivateCharacter charNum) ->
           switchToCommandPhase charNum cs
-        Just (DoMonsterTurn script) -> switchToMonsterTurn cs script
+        Just (DoRunScript script) -> switchToNonCharacterTurn cs script
         Just DoEndCombat -> doEndCombat cs
         Just DoGameOver -> ChangeMode <$> newGameOverMode' modes
         Just (DoNarrate text) -> do
@@ -245,8 +246,6 @@ newCombatMode resources modes initState = do
                 Just (Left _charNum') -> -- Switch places if possible
                   ignore -- FIXME switch places
                 Just (Right _) -> ignore
-              -- TODO If moving away from hostile monster (and not invisible)
-              --      monster gets free hit.
             _ -> ignore
         Just (CombatAttack target) ->
           case csPhase cs of
@@ -437,8 +436,9 @@ newCombatMode resources modes initState = do
                    ceScript = inflictAllPeriodicDamage }
       changeState cs { csPhase = ExecutionPhase ce }
 
-    switchToMonsterTurn :: CombatState -> Script CombatEffect () -> IO NextMode
-    switchToMonsterTurn cs script = do
+    switchToNonCharacterTurn :: CombatState -> Script CombatEffect ()
+                             -> IO NextMode
+    switchToNonCharacterTurn cs script = do
       let ce = CombatExecution
                  { ceCommander = Nothing,
                    cePendingCharacter = Nothing,
@@ -509,17 +509,19 @@ newCombatMode resources modes initState = do
 -------------------------------------------------------------------------------
 
 data Interrupt = DoActivateCharacter CharacterNumber
-               | DoMonsterTurn (Script CombatEffect ())
+               | DoRunScript (Script CombatEffect ())
                | DoEndCombat
                | DoGameOver
                | DoPeriodicAction
                | DoNarrate String
                | DoWait
 
+-- | Perform per-frame actions for the current phase, possibly creating an
+-- interrupt (which may put us into another phase).
 doTick :: CombatState -> IO (CombatState, Maybe Interrupt)
 doTick cs =
   case csPhase cs of
-    WaitingPhase -> tickWaiting cs'
+    WaitingPhase -> doTickWaiting cs'
     CommandPhase _ -> animationsOnly
     ChooseAbilityPhase _ -> animationsOnly
     MetaAbilityPhase _ -> animationsOnly
@@ -539,9 +541,23 @@ doTick cs =
     camTarget = fromIntegral <$> (positionTopleft (csArenaTopleft cs) `pSub`
                                   combatCameraOffset)
 
-tickWaiting :: CombatState -> IO (CombatState, Maybe Interrupt)
-tickWaiting cs = do
+-- | Perform per-frame actions for the waiting phase, possibly creating an
+-- interrupt (which may put us into another phase).
+doTickWaiting :: CombatState -> IO (CombatState, Maybe Interrupt)
+doTickWaiting cs = do
   if noMoreEnemyMonsters cs then return (cs, Just DoEndCombat) else do
+  -- See if any combat triggers are ready to fire.
+  let (triggers', mbScript) = fireTrigger cs (csTriggers cs)
+  let cs' = cs { csTriggers = triggers' }
+  case mbScript of
+    Just script -> return (cs', Just $ DoRunScript script)
+    Nothing -> doTickWaitingNoTriggers cs'
+
+-- | Perform per-frame actions for the waiting phase, given that we have
+-- already determined that there are no triggers to run.  This is called only
+-- from 'doTickWaiting'.
+doTickWaitingNoTriggers :: CombatState -> IO (CombatState, Maybe Interrupt)
+doTickWaitingNoTriggers cs = do
   let acs = csCommon cs
   -- Update monster status effects and time bars, and see if any monsters are
   -- ready for a turn.
@@ -560,7 +576,7 @@ tickWaiting cs = do
   -- Ready characters take precedence over ready monsters.
   let mbInterrupt = if timer' == 0 then Just DoPeriodicAction
                     else (DoActivateCharacter <$> mbCharNum) <|>
-                         (DoMonsterTurn <$> mbScript)
+                         (DoRunScript <$> mbScript)
   return (cs { csCharStates = ccss',
                csCommon = acs { acsFields = fields', acsMonsters = monsters',
                                 acsParty = party' },

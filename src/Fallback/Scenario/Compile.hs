@@ -23,13 +23,15 @@ module Fallback.Scenario.Compile
   (-- * Reading the scenario
    ScenarioTriggers, scenarioInitialProgress,
    getAreaDevice, getAreaEntrance, getAreaExits, getAreaLinks, getAreaTerrain,
-   getAreaTriggers, getMonsterScript, getRegionBackground,
+   getAreaTriggers, getMonsterScript, getRegionBackground, getScriptedBattle,
    -- * Defining the scenario
    CompileScenario, compileScenario, newGlobalVar, compileRegion, compileArea,
    -- * Defining an area
    CompileArea, newPersistentVar, newTransientVar, makeExit,
+   -- * Scripted battles
+   CompileBattle, ScriptedBattle(..), newScriptedBattle,
    -- * Defining triggers
-   DefineTrigger(..), onStartDaily, onStartOnce, daily, once,
+   DefineTrigger(..), onStartDaily, onStartOnce, daily, once, onBattleStart,
    -- * Devices
    DefineDevice(..),
    -- * Monster scripts
@@ -58,6 +60,7 @@ import qualified Fallback.Data.TotalMap as TM
 import Fallback.Scenario.Script
 import Fallback.State.Area
 import Fallback.State.Creature
+import Fallback.State.Combat (CombatState)
 import Fallback.State.Party (Party, partyClearedAreas, partyQuests)
 import Fallback.State.Progress
 import Fallback.State.Simple
@@ -79,6 +82,7 @@ data AreaSpec = AreaSpec
     aspecEntrances :: Map.Map AreaTag String,
     aspecExits :: [AreaExit],
     aspecMonsterScripts :: Map.Map MonsterScriptId MonsterScript,
+    aspecScriptedBattles :: Map.Map BattleId ScriptedBattle,
     aspecTerrain :: Party -> String,
     aspecTriggers :: [Trigger TownState TownEffect] }
 
@@ -119,6 +123,12 @@ getMonsterScript scenario tag scriptId =
 getRegionBackground :: ScenarioTriggers -> Party -> RegionTag -> String
 getRegionBackground scenario party tag =
   TM.get tag (scenarioRegionBackgrounds scenario) party
+
+getScriptedBattle :: ScenarioTriggers -> AreaTag -> BattleId -> ScriptedBattle
+getScriptedBattle scenario areaTag battleId =
+  fromMaybe (error ("getScriptedBattle: no such battle: " ++ show battleId)) $
+  Map.lookup battleId $ aspecScriptedBattles $ TM.get areaTag $
+  scenarioAreas scenario
 
 -------------------------------------------------------------------------------
 -- Defining the scenario:
@@ -175,7 +185,9 @@ compileArea tag mbTerraFn (CompileArea compile) = CompileScenario $ do
               { casAllVarSeeds = cssAllVarSeeds css,
                 casDevices = cssDevices css, casEntrances = Map.empty,
                 casMonsterScripts = cssMonsterScripts css,
-                casProgress = cssProgress css, casTriggers = [] }
+                casProgress = cssProgress css,
+                casScriptedBattles = Map.empty,
+                casTriggers = [] }
   let mkExit (dest, (rectKeys, _)) =
         AreaExit { aeDestination = dest, aeRectKeys = rectKeys }
   let aspec = AreaSpec { aspecDevices = casDevices cas,
@@ -183,6 +195,7 @@ compileArea tag mbTerraFn (CompileArea compile) = CompileScenario $ do
                          aspecExits = map mkExit $ Map.assocs $
                                       casEntrances cas,
                          aspecMonsterScripts = casMonsterScripts cas,
+                         aspecScriptedBattles = casScriptedBattles cas,
                          aspecTerrain = fromMaybe (const $ show tag) mbTerraFn,
                          aspecTriggers = reverse (casTriggers cas) }
   State.put css { cssAllVarSeeds = casAllVarSeeds cas,
@@ -201,6 +214,7 @@ data CompileAreaState = CompileAreaState
     casEntrances :: Map.Map AreaTag ([String], String),
     casMonsterScripts :: Map.Map MonsterScriptId MonsterScript,
     casProgress :: Progress,
+    casScriptedBattles :: Map.Map BattleId ScriptedBattle,
     casTriggers :: [Trigger TownState TownEffect] }
 
 newPersistentVar :: (VarType a) => VarSeed -> a -> CompileArea (Var a)
@@ -229,6 +243,36 @@ makeExit tag rectKeys markKey = CompileArea $ do
   State.put cas { casEntrances = Map.insert tag (rectKeys, markKey) entrances }
 
 -------------------------------------------------------------------------------
+
+newtype CompileBattle a = CompileBattle (State.State CompileBattleState a)
+  deriving (Applicative, Functor, Monad, MonadFix)
+
+data CompileBattleState = CompileBattleState
+  { cbsAllVarSeeds :: Set.Set VarSeed,
+    cbsTriggers :: [Trigger CombatState CombatEffect] }
+
+data ScriptedBattle = ScriptedBattle
+  { sbId :: BattleId,
+    sbRectKey :: String,
+    sbTriggers :: [Trigger CombatState CombatEffect] }
+
+newScriptedBattle :: VarSeed -> String -> CompileBattle ()
+                  -> CompileArea BattleId
+newScriptedBattle vseed rectKey (CompileBattle compile) = do
+  battleId <- newBattleId vseed
+  CompileArea $ do
+    cas <- State.get
+    let cbs = State.execState compile CompileBattleState
+                { cbsAllVarSeeds = casAllVarSeeds cas,
+                  cbsTriggers = [] }
+    let battle = ScriptedBattle { sbId = battleId, sbRectKey = rectKey,
+                                  sbTriggers = cbsTriggers cbs }
+    State.put cas { casAllVarSeeds = cbsAllVarSeeds cbs,
+                    casScriptedBattles = Map.insert battleId battle $
+                                         casScriptedBattles cas }
+    return battleId
+
+-------------------------------------------------------------------------------
 -- Checking VarSeeds:
 
 instance HasVarSeeds CompileScenario where
@@ -244,6 +288,13 @@ instance HasVarSeeds CompileArea where
     when (Set.member vseed varSeeds) $ do
       fail ("Repeated VarSeed: " ++ show vseed)
     State.modify $ \cas -> cas { casAllVarSeeds = Set.insert vseed varSeeds }
+
+instance HasVarSeeds CompileBattle where
+  useVarSeed vseed = CompileBattle $ do
+    varSeeds <- State.gets cbsAllVarSeeds
+    when (Set.member vseed varSeeds) $ do
+      fail ("Repeated VarSeed: " ++ show vseed)
+    State.modify $ \cbs -> cbs { cbsAllVarSeeds = Set.insert vseed varSeeds }
 
 -------------------------------------------------------------------------------
 -- Defining triggers:
@@ -264,11 +315,21 @@ instance DefineTrigger CompileArea where
       State.put cas { casTriggers = makeTrigger tid predicate action :
                                     casTriggers cas }
 
+instance DefineTrigger CompileBattle where
+  type TriggerState CompileBattle = CombatState
+  type TriggerEffect CompileBattle = CombatEffect
+  trigger vseed (Predicate predicate) action = do
+    tid <- newTriggerId vseed
+    CompileBattle $ do
+      cbs <- State.get
+      State.put cbs { cbsTriggers = makeTrigger tid predicate action :
+                                    cbsTriggers cbs }
+
 onStartDaily :: VarSeed -> Script TownEffect () -> CompileArea ()
-onStartDaily vseed = trigger vseed (Predicate $ const True)
+onStartDaily vseed = trigger vseed alwaysP
 
 onStartOnce :: VarSeed -> Script TownEffect () -> CompileArea ()
-onStartOnce vseed = once vseed (Predicate $ const True)
+onStartOnce vseed = once vseed alwaysP
 
 daily :: VarSeed -> Predicate -> Script TownEffect () -> CompileArea ()
 daily vseed predicate script = do
@@ -283,6 +344,9 @@ once vseed predicate script = do
   canFire <- newPersistentVar vseed' True
   trigger vseed'' (varTrue canFire `andP` predicate) $ do
     writeVar canFire False >> script
+
+onBattleStart :: VarSeed -> Script CombatEffect () -> CompileBattle ()
+onBattleStart vseed = trigger vseed alwaysP
 
 -------------------------------------------------------------------------------
 -- Defining devices:
@@ -353,6 +417,9 @@ modifyVar var fn = do
 -- Trigger predicates:
 
 data Predicate = Predicate (forall s. (AreaState s) => s -> Bool)
+
+alwaysP :: Predicate
+alwaysP = Predicate (const True)
 
 infixr 3 `andP`
 andP :: Predicate -> Predicate -> Predicate

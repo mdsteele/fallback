@@ -31,13 +31,10 @@ import Data.IORef
 import qualified Data.Set as Set
 
 import Fallback.Constants
-  (combatArenaCols, combatArenaRows, combatArenaSize, framesPerRound,
-   momentsPerActionPoint, screenRect)
+  (combatArenaSize, framesPerRound, momentsPerActionPoint, screenRect)
 import Fallback.Control.Script
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
-  (Point(Point), Position, half, makeRect, ofRadius, plusDir, pSqDist, pSub,
-   rectContains)
 import qualified Fallback.Data.SparseMap as SM
 import qualified Fallback.Data.TotalMap as TM (get, unfold)
 import Fallback.Draw (handleScreen, paintScreen, takeScreenshot)
@@ -57,7 +54,8 @@ import Fallback.Scenario.Script
   (also_, alsoWith, alterAdrenaline, areaGet, concurrentAny, grantExperience,
    grantItem, inflictAllPeriodicDamage, partyWalkTo, setMessage,
    tickSummonsByOneRound)
-import Fallback.Scenario.Triggers (getAreaExits, scenarioTriggers)
+import Fallback.Scenario.Triggers
+  (ScriptedBattle(..), getAreaExits, getScriptedBattle, scenarioTriggers)
 import Fallback.Scenario.Triggers.Script (startShopping)
 import Fallback.Sound (playSound)
 import Fallback.State.Action
@@ -77,8 +75,8 @@ import Fallback.State.Tags
   (AreaTag, ItemTag(PotionItemTag), allItemTags, areaRegion)
 import Fallback.State.Terrain (terrainMap, tmapLookupRect)
 import Fallback.State.Town
-import Fallback.State.Trigger (fireTrigger, makeUnfiredTriggers)
-import Fallback.Utility (flip3)
+import Fallback.State.Trigger (Trigger, fireTrigger, makeUnfiredTriggers)
+import Fallback.Utility (ceilDiv, flip3)
 import Fallback.View (fromAction, viewHandler, viewPaint)
 import Fallback.View.Abilities (AbilitiesAction(..))
 import Fallback.View.Inventory (InventoryAction(..), ShoppingAction(..))
@@ -133,8 +131,9 @@ newTownMode resources modes initState = do
           modifyIORef stateRef $ \ts' ->
             ts' { tsPhase = ShoppingPhase Nothing forsale script }
           handleAction action
-        Just (DoStartCombat canRunAway topleft) -> do
-          doStartCombat ts canRunAway topleft
+        Just (DoStartCombat canRunAway (Rect x y w h) combatTriggers) -> do
+          let center = Point (x + w `ceilDiv` 2) (y + h `div` 2)
+          doStartCombat ts canRunAway center combatTriggers
         Just (DoTeleport tag dest) -> do
           popupIfErrors resources view ts (return mode)
                         (enterPartyIntoArea resources (arsParty ts) tag dest) $
@@ -417,16 +416,16 @@ newTownMode resources modes initState = do
     tryToManuallyStartCombat :: TownState -> IO NextMode
     tryToManuallyStartCombat ts = do
       if arsAreEnemiesNearby ts then do
-        let topleft = (tsPartyPosition ts `pSub`
-                       Point (half combatArenaCols) (half combatArenaRows))
-        doStartCombat ts True topleft
+        doStartCombat ts True (tsPartyPosition ts) []
       else do
         let msg = "Can't start combat -- there are no enemies nearby."
         writeIORef stateRef $ arsSetMessage msg ts
         return SameMode
 
-    doStartCombat :: TownState -> Bool -> Position -> IO NextMode
-    doStartCombat ts canRunAway arenaTopleft = do
+    doStartCombat :: TownState -> Bool -> Position
+                  -> [Trigger CombatState CombatEffect] -> IO NextMode
+    doStartCombat ts canRunAway arenaCenter combatTriggers = do
+      let arenaTopleft = locTopleft (LocCenter arenaCenter) combatArenaSize
       let arenaRect = makeRect arenaTopleft combatArenaSize
       let pp = tsPartyPosition ts
       let mkCharState _charNum claimed =
@@ -452,7 +451,7 @@ newTownMode resources modes initState = do
           csPeriodicTimer = 0,
           csPhase = WaitingPhase,
           csTownTriggers = tsTriggers ts,
-          csTriggers = makeUnfiredTriggers [] } -- FIXME
+          csTriggers = makeUnfiredTriggers combatTriggers }
 
     tryCheating :: TownState -> String -> IO Mode
     tryCheating ts string = do
@@ -501,7 +500,7 @@ data Interrupt = DoExit AreaTag
                                          (a -> Script TownEffect ())
                | DoNarrate String (Script TownEffect ())
                | DoShopping [Either Ingredient ItemTag] (Script TownEffect ())
-               | DoStartCombat Bool Position
+               | DoStartCombat Bool PRect [Trigger CombatState CombatEffect]
                | DoTeleport AreaTag (Either Position String)
                | DoWait (Script TownEffect ())
 
@@ -580,8 +579,15 @@ executeEffect ts eff sfn =
       ts' <- updateTownVisibility ts { tsPartyPosition = dest }
       return (ts', Right $ sfn ())
     EffShop forsale -> return (ts, Left $ DoShopping forsale $ sfn ())
-    EffStartCombat canRunAway topleft ->
-      return (ts, Left $ DoStartCombat canRunAway topleft)
+    EffStartCombat canRunAway prect ->
+      return (ts, Left $ DoStartCombat canRunAway prect [])
+    EffStartScriptedBattle battleId -> do
+      let sb = getScriptedBattle scenarioTriggers (arsCurrentArea ts) battleId
+      let rectKey = sbRectKey sb
+      let prect = fromMaybe (error ("EffStartScriptedBattle: no such terrain\
+                                    \ rect: " ++ show rectKey)) $
+                  tmapLookupRect rectKey $ terrainMap $ arsTerrain ts
+      return (ts, Left $ DoStartCombat False prect (sbTriggers sb))
     EffTeleportToMark tag mark -> do
       return (ts, Left $ DoTeleport tag $ Right mark)
     EffTeleportToPosition tag pos -> do
@@ -617,7 +623,6 @@ doTownStep partyWalkDest = do
   -- TODO decay status effects by one round
   when shouldStartCombat $ do
     partyPos <- emitEffect EffGetPartyPosition
-    emitEffect $ EffStartCombat True $ partyPos `pSub`
-      Point (half combatArenaCols) (half combatArenaRows)
+    emitEffect $ EffStartCombat True $ makeRect partyPos (1, 1)
 
 -------------------------------------------------------------------------------

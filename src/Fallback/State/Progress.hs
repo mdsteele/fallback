@@ -17,6 +17,8 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
+{-# LANGUAGE KindSignatures #-}
+
 module Fallback.State.Progress
   (-- * Progress
    Progress, emptyProgress, HasProgress(..),
@@ -25,6 +27,7 @@ module Fallback.State.Progress
    -- * Vars
    Var, newVar, VarType(..),
    -- * Other IDs
+   BattleId, newBattleId,
    DeviceId, newDeviceId,
    MonsterScriptId, newMonsterScriptId,
    TriggerId, newTriggerId)
@@ -143,6 +146,16 @@ instance VarType (Grid.Key a) where
 -------------------------------------------------------------------------------
 -- Other IDs:
 
+newtype BattleId = BattleId VarSeed
+  deriving (Eq, Ord, Read, Show)
+
+-- | Create a new 'BattleId' from the given 'VarSeed'.  This uses up the
+-- 'VarSeed'.
+newBattleId :: (HasVarSeeds m) => VarSeed -> m BattleId
+newBattleId vseed = do
+  useVarSeed vseed
+  return (BattleId vseed)
+
 newtype DeviceId = DeviceId VarSeed
   deriving (Eq, Ord, Read, Show)
 
@@ -163,12 +176,12 @@ newMonsterScriptId vseed = do
   useVarSeed vseed
   return (MonsterScriptId vseed)
 
-newtype TriggerId = TriggerId VarSeed
+newtype TriggerId (s :: *) (f :: * -> *) = TriggerId VarSeed
   deriving (Eq, Ord, Read, Show)
 
 -- | Create a new 'TriggerId' from the given 'VarSeed'.  This uses up the
 -- 'VarSeed'.
-newTriggerId :: (HasVarSeeds m) => VarSeed -> m TriggerId
+newTriggerId :: (HasVarSeeds m) => VarSeed -> m (TriggerId s f)
 newTriggerId vseed = do
   useVarSeed vseed
   return (TriggerId vseed)

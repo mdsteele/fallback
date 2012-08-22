@@ -78,6 +78,8 @@ terrainSetTile pos tile terrain = terrain { terrainOverrides = over' } where
 
 -------------------------------------------------------------------------------
 
+-- TODO introduce `type MarkKey = String` and `type RectKey = String`
+
 data TerrainMap = TerrainMap
   { tmapArray :: Array Position TerrainTile,
     tmapMarks :: MM.Multimap String Position,

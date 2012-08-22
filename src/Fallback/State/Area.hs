@@ -48,7 +48,7 @@ import Fallback.State.FOV (fieldOfView)
 import Fallback.State.Minimap (updateMinimapFromTerrain)
 import Fallback.State.Party
 import Fallback.State.Progress
-  (DeviceId, HasProgress, Var, VarType, progressSetVar)
+  (BattleId, DeviceId, HasProgress, Var, VarType, progressSetVar)
 import Fallback.State.Resources (MusicTag, Resources, musicPath)
 import Fallback.State.Simple
 import Fallback.State.Tags (AreaTag, ItemTag, QuestTag)
@@ -480,8 +480,9 @@ data TownEffect :: * -> * where
   EffSetPartyFaceDir :: FaceDir -> TownEffect ()
   EffSetPartyPosition :: Position -> TownEffect ()
   EffShop :: [Either Ingredient ItemTag] -> TownEffect ()
-  EffStartCombat :: Bool {-can run away-} -> Position {-arena topleft-}
+  EffStartCombat :: Bool {-can run away-} -> PRect {-arena centered on-}
                  -> TownEffect ()
+  EffStartScriptedBattle :: BattleId -> TownEffect ()
   EffTeleportToMark :: AreaTag -> String -> TownEffect ()
   EffTeleportToPosition :: AreaTag -> Position -> TownEffect ()
 

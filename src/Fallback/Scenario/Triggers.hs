@@ -20,7 +20,8 @@
 module Fallback.Scenario.Triggers
   (startingArea, startingMark, scenarioTriggers, initialProgress,
    getAreaDevice, getAreaEntrance, getAreaExits, getAreaLinks, getAreaTerrain,
-   getAreaTriggers, getMonsterScript, getRegionBackground)
+   getAreaTriggers, getMonsterScript, getRegionBackground,
+   ScriptedBattle(..), getScriptedBattle)
 where
 
 import Control.Monad (join)
@@ -184,38 +185,5 @@ scenarioTriggers = compileScenario $ do
 
   compileArea ArcaneLab Nothing $ return ()
   compileArea InnerLab Nothing $ return ()
-{-
-    fooCount <- newPersistentVar 238238 0
-    trigger 119323 (walkIn (Rect 0 0 5 5)) $ do
-      foo <- readVar fooCount
-      when (foo < 5) $ do
-        modifyVar fooCount (+ 1)
-        narrate "You can't go there."
-      backUp
-
-    boss <- monster' 729382 MasterRevenant (Point 4 6)
-
-    daily 203942 (walkIn (Rect)) $ do
-      monsterWalk boss (Point)
-
-    bossFight <- scriptedCombat 827349 $ do
-      once 193822 ((<= 500) . monstHealth <$> getMonster boss) $ do
-        pos <- monsterPosition boss
-        monologue pos "You know, there's really no reason for us to fight\
-                      \ like this.  We should be able to work this out\
-                      \ reasonably, like adults, don't you think?"
-        wait 30
-        monologue pos "...after you're dead, of course."
-        orderMonsterUseAttack 4
-
-    once 203942 (walkIn (Rect)) $ do
-      narrate "Boss time!"
-      startCombat bossFight
--}
-
--------------------------------------------------------------------------------
-
--- 400278, 372710, 262175, 115489, 648882, 642527, 643253, 035698, 904223,
--- 915362, 041045, 514224, 762406, 999849, 390882, 028595, 542093
 
 -------------------------------------------------------------------------------

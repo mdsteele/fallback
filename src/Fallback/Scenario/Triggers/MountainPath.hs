@@ -22,7 +22,7 @@ module Fallback.Scenario.Triggers.MountainPath
 where
 
 import Control.Applicative ((<$>))
-import Control.Monad (forM, zipWithM_)
+import Control.Monad (forM, forM_, zipWithM_)
 import qualified Control.Monad.State as State
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -31,7 +31,8 @@ import Fallback.Data.Point
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Globals
-import Fallback.Scenario.Triggers.Script (setLevelCap)
+import Fallback.Scenario.Triggers.Script
+  (demandOneTerrainMark, setLevelCap, startScriptedBattle)
 import Fallback.State.Area
 import Fallback.State.Creature (MonsterTownAI(..))
 import Fallback.State.Party (chrClass)
@@ -51,6 +52,7 @@ compileMountainPath globals = compileArea MountainPath Nothing $ do
   let isSecondTimeThroughLongvale = varEq (gTimesThroughLongvale globals) 1
   let isLastTimeThroughLongvale = varEq (gTimesThroughLongvale globals) 2
 
+  -- Upper path:
   trigger 908784 (walkIn "UpperPath1" `orP` walkIn "UpperPath2") $ do
     whenP isFirstTimeThroughLongvale $ do
       narrate "You look back up the mountain, towards the way you came\
@@ -69,6 +71,8 @@ compileMountainPath globals = compileArea MountainPath Nothing $ do
     pos <- getPartyPosition
     partyWalkTo (pos `plusDir` DirSE)
 
+  ---------------------------- First time through -----------------------------
+
   once 085585 (isFirstTimeThroughLongvale `andP` walkOff "Start") $ do
     setLevelCap 2
     narrate "You're finally here!  A brand new band of adventures, on a\
@@ -81,18 +85,6 @@ compileMountainPath globals = compileArea MountainPath Nothing $ do
       \ beginning to set over the western peaks.\n\n\
       \You know very little about this village, but it's a remote town in\
       \ dangerous territory; surely {i}they'll{_} have some quests for you!"
-
-  once 741589 (isSecondTimeThroughLongvale `andP` walkOff "Start") $ do
-    narrate "You blink.  Your head feels fuzzy.  Looking around, you find\
-      \ yourselves back on the mountain path leading down into Corenglen. \
-      \ The sun is just beginning to set over the peaks to the west, just as\
-      \ it was when you were hiking into Corenglen before.\n\n\
-      \This is bizarre.  Could you really have gone back in time by half a\
-      \ day?  Surely that's impossible--you've never heard of such magic. \
-      \ But the only way you can think of to find out for sure is to head\
-      \ down towards Corenglen again and see if that revenant shows up.  And\
-      \ if the town throws another party for you, you're going to be asking\
-      \ a lot more questions this time."
 
   loneRevenantDead <- newPersistentVar 960522 False
   once 582362 (isFirstTimeThroughLongvale `andP`
@@ -112,8 +104,8 @@ compileMountainPath globals = compileArea MountainPath Nothing $ do
       \ even given that they can probably already hear it coming.  You ready\
       \ your weapons and move to attack it.  You just hope it won't kill a\
       \ few of {i}you{_}..."
-    addBasicEnemyMonster (Point 33 13) Revenant (Just loneRevenantDead)
-                         ChaseAI
+    pos <- demandOneTerrainMark "LoneRevenant"
+    addBasicEnemyMonster pos Revenant (Just loneRevenantDead) ChaseAI
   once 520543 (isFirstTimeThroughLongvale `andP`
                varTrue loneRevenantDead) $ do
     wait 40
@@ -125,6 +117,43 @@ compileMountainPath globals = compileArea MountainPath Nothing $ do
       \ something.\n\n\
       \Now, time to get back to that adventure you've been meaning to get\
       \ started on."
+
+  ---------------------------- Second time through ----------------------------
+
+  once 741589 (isSecondTimeThroughLongvale `andP` walkOff "Start") $ do
+    narrate "You blink.  Your head feels fuzzy.  Looking around, you find\
+      \ yourselves back on the mountain path leading down into Corenglen. \
+      \ The sun is just beginning to set over the peaks to the west, just as\
+      \ it was when you were hiking into Corenglen before.\n\n\
+      \This is bizarre.  Could you really have gone back in time by half a\
+      \ day?  Surely that's impossible--you've never heard of such magic. \
+      \ But the only way you can think of to find out for sure is to head\
+      \ down towards Corenglen again and see if that revenant shows up.  And\
+      \ if the town throws another party for you, you're going to be asking\
+      \ a lot more questions this time."
+
+  firstMasterRevenantDead <- newPersistentVar 840291 False
+
+  firstBossBattle <- newScriptedBattle 572093 "BossArea" $ do
+    onBattleStart 650989 $ do
+      wait 6
+      narrate "But when you pull out your weapons, you are shocked to find not\
+        \ the meager armaments that you were barely able to afford when\
+        \ packing for your journey out here, but four powerful magical\
+        \ artifacts--a sword, a bow, a spear, and a wand--the likes of which\
+        \ you have never seen, or even {i}heard{_} of.  These are no ordinary\
+        \ enchanted weapons, like the sort that veteran adventurers are always\
+        \ bragging about winning from daring quests.  You can actually\
+        \ {i}feel{_} the power flowing through you the moment you lay your\
+        \ hands on them.\n\n\
+        \Each of the four bears a different inscription:\n\n\
+        \    {c}Lifeblade, the fount of strength and light.{_}\n\n\
+        \    {c}Moonbow, the master of the night.{_}\n\n\
+        \    {c}Starspear, the guard that hell hath dread.{_}\n\n\
+        \    {c}Sunrod, the bane of all undead.{_}\n\n\
+        \Whoa.  With weapons like these...you might actually survive this.\n\n\
+        \But where could they have come from?"
+      startMusic MusicMovementProposition
 
   once 309037 (isSecondTimeThroughLongvale `andP`
                (walkIn "MidPath1" `orP` walkIn "MidPath2")) $ do
@@ -159,7 +188,17 @@ compileMountainPath globals = compileArea MountainPath Nothing $ do
       \Then you feel even sicker as you realize, also, that you are right in\
       \ between the pack and the village, and the valley walls offer you no\
       \ escape."
-    -- TODO create revenant pack, give astral weapons to party
+    -- Create revenant pack:
+    forM_ [1 .. 15] $ \num -> do
+      pos <- demandOneTerrainMark ("Rev" ++ show (num :: Int))
+      addBasicEnemyMonster pos Revenant Nothing ChaseAI
+    forM_ [1 .. 6] $ \num -> do
+      pos <- demandOneTerrainMark ("Rtor" ++ show (num :: Int))
+      addBasicEnemyMonster pos Revenantor Nothing ChaseAI
+    odPos <- demandOneTerrainMark "Od"
+    addBasicEnemyMonster odPos MasterRevenant (Just firstMasterRevenantDead)
+                         ChaseAI
+    -- Grant astral weapons to party:
     numsAndClasses <- forM [minBound .. maxBound] $ \charNum -> do
       (,) charNum . chrClass <$> areaGet (arsGetCharacter charNum)
     flip State.evalStateT (Map.fromList numsAndClasses,
@@ -197,26 +236,24 @@ compileMountainPath globals = compileArea MountainPath Nothing $ do
       \ least slow them down enough for some of the villagers to escape? \
       \ No, that's a joke.  You're all going to be dead in about thirty\
       \ seconds, tops.  Still, you have no choice but to try."
-    -- TODO start combat (makes "schwing!" noise) before showing this next
-    -- message.
-    narrate "But when you pull out your weapons, you are shocked to find not\
-      \ the meager armaments that you were barely able to afford when\
-      \ packing for your journey out here, but four powerful magical\
-      \ artifacts--a sword, a bow, a spear, and a wand--the likes of which\
-      \ you have never seen, or even {i}heard{_} of.  These are no ordinary\
-      \ enchanted weapons, like the sort that veteran adventurers are always\
-      \ bragging about winning from daring quests.  You can actually\
-      \ {i}feel{_} the power flowing through you the moment you lay your\
-      \ hands on them.\n\n\
-      \Each of the four bears a different inscription:\n\n\
-      \    {c}Lifeblade, the fount of strength and light.{_}\n\n\
-      \    {c}Moonbow, the master of the night.{_}\n\n\
-      \    {c}Starspear, the guard that hell hath dread.{_}\n\n\
-      \    {c}Sunrod, the bane of all undead.{_}\n\n\
-      \Whoa.  With weapons like these...you might actually survive this.\n\n\
-      \But where could they have come from?"
-    startMusic MusicMovementProposition
+    startScriptedBattle firstBossBattle
 
-  -- TODO: when big revenant battle over, do setLevelCap 9
+  once 239081 (varTrue firstMasterRevenantDead) $ do
+    setLevelCap 9
+    narrate "TODO"
+
+  ---------------------------- Third time through -----------------------------
+
+  once 470390 (isLastTimeThroughLongvale `andP` walkOff "Start") $ do
+    narrate "TODO"
+
+  secondMasterRevenantDead <- newPersistentVar 380981 False
+
+  once 180484 (isLastTimeThroughLongvale `andP`
+               (walkIn "MidPath1" `orP` walkIn "MidPath2")) $ do
+    narrate "TODO"
+
+  once 650918 (varTrue secondMasterRevenantDead) $ do
+    narrate "TODO"
 
 -------------------------------------------------------------------------------

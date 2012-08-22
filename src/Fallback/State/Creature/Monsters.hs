@@ -59,7 +59,7 @@ getMonsterType Revenant = baseMonsterType
     mtAttacks = [baseMonsterAttack
       { maAppearance = BladeAttack,
         maCriticalChance = 0.05,
-        maDamageCount = 10,
+        maDamageCount = 8,
         maDamageRange = (1, 10) }],
     mtExperienceValue = 100,
     mtImageRow = 99,
@@ -86,7 +86,7 @@ getMonsterType Revenantor = baseMonsterType
   where
     attack element = baseMonsterAttack
       { maAppearance = WandAttack,
-        maDamageCount = 10,
+        maDamageCount = 8,
         maDamageRange = (1, 10),
         maElement = element,
         maRange = Ranged 3 }

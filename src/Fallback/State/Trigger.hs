@@ -42,12 +42,12 @@ import Fallback.State.Progress (TriggerId)
 -- | A trigger is an action (with effect type @f@) that takes place when a
 -- certain condition of the input state (of type @s@) is met.
 data Trigger s f = Trigger
-  { triggerId :: TriggerId,
+  { triggerId :: TriggerId s f,
     triggerCondition :: s -> Bool,
     triggerAction :: Script f () }
 
 -- | Create a trigger with the given ID, condition, and action.
-makeTrigger :: TriggerId -> (s -> Bool) -> Script f () -> Trigger s f
+makeTrigger :: TriggerId s f -> (s -> Bool) -> Script f () -> Trigger s f
 makeTrigger = Trigger
 
 -------------------------------------------------------------------------------
@@ -82,14 +82,14 @@ fireTrigger state (Triggers ts) = first Triggers $ testTriggers ts where
       (_, _) -> first ((trigger, fired) :) $ testTriggers rest
 
 -- | Return the set of IDs of triggers that are marked as fired.
-distillTriggers :: Triggers s f -> Set TriggerId
+distillTriggers :: Triggers s f -> Set (TriggerId s f)
 distillTriggers (Triggers ts) =
   Set.fromList $ map (triggerId . fst) $ filter snd ts
 
 -- | Given the set returned from 'distillTriggers', and the original list of
 -- triggers, recreate the 'Triggers' object with the appropriate triggers
 -- marked as fired.
-reconstituteTriggers :: Set TriggerId -> [Trigger s f] -> Triggers s f
+reconstituteTriggers :: Set (TriggerId s f) -> [Trigger s f] -> Triggers s f
 reconstituteTriggers ids = Triggers . map fn where
   fn trigger = (trigger, Set.member (triggerId trigger) ids)
 

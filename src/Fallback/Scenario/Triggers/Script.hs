@@ -29,23 +29,23 @@ module Fallback.Scenario.Triggers.Script
    lookupTerrainMark, demandOneTerrainMark, isOnTerrainMark, demandTerrainRect,
    -- * Miscellaneous
    addDeviceOnMarks, doesPartyHaveItem, playDoorUnlockSound, setAreaCleared,
-   setLevelCap, setQuestStatus, startBossFight, startShopping)
+   setLevelCap, setQuestStatus, startBossFight, startScriptedBattle,
+   startShopping)
 where
 
 import qualified Data.Set as Set (member, toList)
 
-import Fallback.Constants (combatArenaSize)
 import Fallback.Data.Point
 import Fallback.Scenario.Script
 import Fallback.State.Area
 import Fallback.State.Party (partyHasItem)
+import Fallback.State.Progress (BattleId)
 import Fallback.State.Resources (SoundTag(SndUnlock), rsrcTileset)
 import Fallback.State.Simple (Ingredient, QuestStatus)
 import Fallback.State.Tags (AreaTag, ItemTag, QuestTag)
 import Fallback.State.Terrain
   (terrainMap, tmapGet, tmapLookupMark, tmapLookupRect)
 import Fallback.State.Tileset (TileTag, tilesetGet)
-import Fallback.Utility (ceilDiv)
 
 -------------------------------------------------------------------------------
 -- Conversation:
@@ -176,10 +176,11 @@ setQuestStatus tag status = emitAreaEffect $ EffSetQuestStatus tag status
 -- centered on the specified terrain rect.
 startBossFight :: (FromTownEffect f) => String -> Script f ()
 startBossFight key = do
-  Rect x y w h <- demandTerrainRect key
-  emitTownEffect $ EffStartCombat False $
-    locTopleft (LocCenter $ Point (x + w `ceilDiv` 2) (y + h `div` 2))
-               combatArenaSize
+  rect <- demandTerrainRect key
+  emitTownEffect $ EffStartCombat False rect
+
+startScriptedBattle :: (FromTownEffect f) => BattleId -> Script f ()
+startScriptedBattle = emitTownEffect . EffStartScriptedBattle
 
 startShopping :: (FromTownEffect f) => [Either Ingredient ItemTag]
               -> Script f ()
