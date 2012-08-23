@@ -67,7 +67,8 @@ import Fallback.State.Party (Party, partyClearedAreas, partyQuests)
 import Fallback.State.Progress
 import Fallback.State.Simple
 import Fallback.State.Tags (AreaTag, QuestTag, RegionTag)
-import Fallback.State.Terrain (terrainMap, tmapLookupMark, tmapLookupRect)
+import Fallback.State.Terrain
+  (MarkKey, RectKey, terrainMap, tmapLookupMark, tmapLookupRect)
 import Fallback.State.Town (TownState)
 import Fallback.State.Trigger (Trigger, makeTrigger)
 
@@ -81,7 +82,7 @@ data ScenarioTriggers = ScenarioTriggers
 
 data AreaSpec = AreaSpec
   { aspecDevices :: Map.Map DeviceId Device,
-    aspecEntrances :: Map.Map AreaTag String,
+    aspecEntrances :: Map.Map AreaTag MarkKey,
     aspecExits :: [AreaExit],
     aspecMonsterScripts :: Map.Map MonsterScriptId MonsterScript,
     aspecScriptedBattles :: Map.Map BattleId ScriptedBattle,
@@ -92,7 +93,7 @@ getAreaDevice :: ScenarioTriggers -> AreaTag -> DeviceId -> Maybe Device
 getAreaDevice scenario tag di =
   Map.lookup di $ aspecDevices $ TM.get tag $ scenarioAreas scenario
 
-getAreaEntrance :: ScenarioTriggers -> AreaTag -> AreaTag -> String
+getAreaEntrance :: ScenarioTriggers -> AreaTag -> AreaTag -> MarkKey
 getAreaEntrance scenario tag from =
   Map.findWithDefault err from $ aspecEntrances $ TM.get tag $
   scenarioAreas scenario
@@ -213,7 +214,7 @@ newtype CompileArea a = CompileArea (State.State CompileAreaState a)
 data CompileAreaState = CompileAreaState
   { casAllVarSeeds :: Set.Set VarSeed,
     casDevices :: Map.Map DeviceId Device,
-    casEntrances :: Map.Map AreaTag ([String], String),
+    casEntrances :: Map.Map AreaTag ([RectKey], MarkKey),
     casMonsterScripts :: Map.Map MonsterScriptId MonsterScript,
     casProgress :: Progress,
     casScriptedBattles :: Map.Map BattleId ScriptedBattle,
@@ -236,7 +237,7 @@ newTransientVar vseed initialize = do
     writeVar var =<< initialize
   return var
 
-makeExit :: AreaTag -> [String] -> String -> CompileArea ()
+makeExit :: AreaTag -> [RectKey] -> MarkKey -> CompileArea ()
 makeExit tag rectKeys markKey = CompileArea $ do
   cas <- State.get
   let entrances = casEntrances cas
@@ -255,10 +256,10 @@ data CompileBattleState = CompileBattleState
 
 data ScriptedBattle = ScriptedBattle
   { sbId :: BattleId,
-    sbRectKey :: String,
+    sbRectKey :: RectKey,
     sbTriggers :: [Trigger CombatState CombatEffect] }
 
-newScriptedBattle :: VarSeed -> String -> CompileBattle ()
+newScriptedBattle :: VarSeed -> RectKey -> CompileBattle ()
                   -> CompileArea BattleId
 newScriptedBattle vseed rectKey (CompileBattle compile) = do
   battleId <- newBattleId vseed
@@ -472,17 +473,17 @@ varEq var value = Predicate ((value ==) . getVar var)
 varNeq :: (Eq a, VarType a, HasProgress s) => Var a -> a -> Predicate s
 varNeq var value = Predicate ((value /=) . getVar var)
 
-walkOn :: (AreaState s) => String -> Predicate s
+walkOn :: (AreaState s) => MarkKey -> Predicate s
 walkOn key = Predicate $ \s ->
   any (flip Set.member (tmapLookupMark key $ terrainMap $ arsTerrain s)) $
   arsPartyPositions s
 
-walkOff :: (AreaState s) => String -> Predicate s
+walkOff :: (AreaState s) => MarkKey -> Predicate s
 walkOff = notP . walkOn
 
 -- | True if the specified terrain rect exists and at least one character is
 -- currently within it.
-walkIn :: (AreaState s) => String -> Predicate s
+walkIn :: (AreaState s) => RectKey -> Predicate s
 walkIn key = Predicate $ \s ->
   maybe False (\r -> any (rectContains r) (arsPartyPositions s)) $
   tmapLookupRect key $ terrainMap $ arsTerrain s

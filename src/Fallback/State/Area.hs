@@ -344,7 +344,7 @@ arsSetMessage text ars =
 
 data AreaExit = AreaExit
   { aeDestination :: AreaTag,
-    aeRectKeys :: [String] }
+    aeRectKeys :: [RectKey] }
 
 -------------------------------------------------------------------------------
 
@@ -483,7 +483,7 @@ data TownEffect :: * -> * where
   EffStartCombat :: Bool {-can run away-} -> PRect {-arena centered on-}
                  -> TownEffect ()
   EffStartScriptedBattle :: BattleId -> TownEffect ()
-  EffTeleportToMark :: AreaTag -> String -> TownEffect ()
+  EffTeleportToMark :: AreaTag -> MarkKey -> TownEffect ()
   EffTeleportToPosition :: AreaTag -> Position -> TownEffect ()
 
 -------------------------------------------------------------------------------

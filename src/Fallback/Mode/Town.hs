@@ -73,7 +73,7 @@ import Fallback.State.Simple
   (CastingCost, Ingredient, ItemSlot, deltaFaceDir, ingredientCost)
 import Fallback.State.Tags
   (AreaTag, ItemTag(PotionItemTag), allItemTags, areaRegion)
-import Fallback.State.Terrain (terrainMap, tmapLookupRect)
+import Fallback.State.Terrain (MarkKey, terrainMap, tmapLookupRect)
 import Fallback.State.Town
 import Fallback.State.Trigger (Trigger, fireTrigger, makeUnfiredTriggers)
 import Fallback.Utility (ceilDiv, flip3)
@@ -104,7 +104,7 @@ newTownMode resources modes initState = do
       action <- handleScreen $ viewHandler view ts event
       when (event == EvTick) $ paintScreen (viewPaint view ts)
       case mbInterrupt of
-        Just (DoExit area) -> do
+        Just (DoExit destination) -> do
           let party = arsParty ts
           let restore char = char { chrAdrenaline = 0,
                                     chrHealth = chrMaxHealth party char,
@@ -115,7 +115,7 @@ newTownMode resources modes initState = do
           ChangeMode <$> newRegionMode' modes RegionState
             { rsClock = arsClock ts, rsParty = party',
               rsPreviousArea = areaTag, rsRegion = areaRegion areaTag,
-              rsSelectedArea = area, rsUnsaved = True }
+              rsSelectedArea = destination, rsUnsaved = True }
         Just DoGameOver -> ChangeMode <$> newGameOverMode' modes
         Just (DoMultiChoice text choices cancel sfn) -> do
           fmap ChangeMode $ newMultiChoiceMode resources view ts text choices
@@ -501,7 +501,7 @@ data Interrupt = DoExit AreaTag
                | DoNarrate String (Script TownEffect ())
                | DoShopping [Either Ingredient ItemTag] (Script TownEffect ())
                | DoStartCombat Bool PRect [Trigger CombatState CombatEffect]
-               | DoTeleport AreaTag (Either Position String)
+               | DoTeleport AreaTag (Either Position MarkKey)
                | DoWait (Script TownEffect ())
 
 -- | Perform our once-per-tick update of the 'TownState', which may include

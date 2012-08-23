@@ -44,7 +44,7 @@ import Fallback.State.Trigger (Trigger, makeUnfiredTriggers)
 
 -------------------------------------------------------------------------------
 
-areaEntrance :: AreaTag -> AreaTag -> String
+areaEntrance :: AreaTag -> AreaTag -> MarkKey
 areaEntrance = getAreaEntrance scenarioTriggers
 
 areaLinks :: AreaTag -> Set.Set AreaTag
@@ -76,7 +76,7 @@ areaTriggers = getAreaTriggers scenarioTriggers
 
 -------------------------------------------------------------------------------
 
-enterPartyIntoArea :: Resources -> Party -> AreaTag -> Either Position String
+enterPartyIntoArea :: Resources -> Party -> AreaTag -> Either Position MarkKey
                    -> IOEO TownState
 enterPartyIntoArea resources origParty tag destination = do
   let party = origParty { partyCurrentArea = tag }

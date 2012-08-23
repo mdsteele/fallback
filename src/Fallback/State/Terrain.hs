@@ -25,8 +25,8 @@ module Fallback.State.Terrain
    -- * Terrain maps
    TerrainMap, makeEmptyTerrainMap, tmapSize, tmapName, tmapOffTile,
    tmapAllPositions, tmapGet, tmapSet, tmapResize, tmapShift,
-   tmapAllMarks, tmapLookupMark, tmapGetMarks, tmapSetMarks,
-   tmapAllRects, tmapLookupRect, tmapSetRect,
+   MarkKey, tmapAllMarks, tmapLookupMark, tmapGetMarks, tmapSetMarks,
+   RectKey, tmapAllRects, tmapLookupRect, tmapSetRect,
    loadTerrainMap, saveTerrainMap,
    -- * Positions
    positionRect, positionTopleft, positionCenter, pointPosition, prectRect,
@@ -78,14 +78,12 @@ terrainSetTile pos tile terrain = terrain { terrainOverrides = over' } where
 
 -------------------------------------------------------------------------------
 
--- TODO introduce `type MarkKey = String` and `type RectKey = String`
-
 data TerrainMap = TerrainMap
   { tmapArray :: Array Position TerrainTile,
-    tmapMarks :: MM.Multimap String Position,
+    tmapMarks :: MM.Multimap MarkKey Position,
     tmapName :: String,
     tmapOffTile :: TerrainTile,
-    tmapRects :: Map.Map String PRect }
+    tmapRects :: Map.Map RectKey PRect }
 
 makeEmptyTerrainMap :: (Int, Int) -> TerrainTile -> TerrainTile -> TerrainMap
 makeEmptyTerrainMap (w, h) offTile nullTile = TerrainMap
@@ -127,26 +125,32 @@ tmapShift nullTile delta tmap =
     shift (point, tile) = (point `pAdd` delta, tile)
     bound = bounds (tmapArray tmap)
 
-tmapAllMarks :: TerrainMap -> [(String, Position)]
+-------------------------------------------------------------------------------
+
+type MarkKey = String
+
+tmapAllMarks :: TerrainMap -> [(MarkKey, Position)]
 tmapAllMarks = MM.toList . tmapMarks
 
-tmapLookupMark :: String -> TerrainMap -> Set.Set Position
+tmapLookupMark :: MarkKey -> TerrainMap -> Set.Set Position
 tmapLookupMark key = MM.lookup key . tmapMarks
 
-tmapGetMarks :: Position -> TerrainMap -> Set.Set String
+tmapGetMarks :: Position -> TerrainMap -> Set.Set MarkKey
 tmapGetMarks pos tmap = MM.reverseLookup pos $ tmapMarks tmap
 
-tmapSetMarks :: Position -> Set.Set String -> TerrainMap -> TerrainMap
+tmapSetMarks :: Position -> Set.Set MarkKey -> TerrainMap -> TerrainMap
 tmapSetMarks pos keys tmap =
   tmap { tmapMarks = MM.reverseSet pos keys $ tmapMarks tmap }
 
-tmapAllRects :: TerrainMap -> [(String, PRect)]
+type RectKey = String
+
+tmapAllRects :: TerrainMap -> [(RectKey, PRect)]
 tmapAllRects = Map.toList . tmapRects
 
-tmapLookupRect :: String -> TerrainMap -> Maybe PRect
+tmapLookupRect :: RectKey -> TerrainMap -> Maybe PRect
 tmapLookupRect key = Map.lookup key . tmapRects
 
-tmapSetRect :: String -> Maybe PRect -> TerrainMap -> TerrainMap
+tmapSetRect :: RectKey -> Maybe PRect -> TerrainMap -> TerrainMap
 tmapSetRect key mbRect tmap =
   tmap { tmapRects = (maybe (Map.delete key) (Map.insert key) mbRect) $
                      tmapRects tmap }

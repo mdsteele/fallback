@@ -44,7 +44,7 @@ import Fallback.State.Resources (SoundTag(SndUnlock), rsrcTileset)
 import Fallback.State.Simple (Ingredient, QuestStatus)
 import Fallback.State.Tags (AreaTag, ItemTag, QuestTag)
 import Fallback.State.Terrain
-  (terrainMap, tmapGet, tmapLookupMark, tmapLookupRect)
+  (MarkKey, RectKey, terrainMap, tmapGet, tmapLookupMark, tmapLookupRect)
 import Fallback.State.Tileset (TileTag, tilesetGet)
 
 -------------------------------------------------------------------------------
@@ -122,11 +122,11 @@ resetTerrain positions = do
   let update pos = (pos, tmapGet tmap pos)
   emitAreaEffect $ EffSetTerrain $ map update positions
 
-lookupTerrainMark :: (FromAreaEffect f) => String -> Script f [Position]
+lookupTerrainMark :: (FromAreaEffect f) => MarkKey -> Script f [Position]
 lookupTerrainMark key =
   areaGet (Set.toList . tmapLookupMark key . terrainMap . arsTerrain)
 
-demandOneTerrainMark :: (FromAreaEffect f) => String -> Script f Position
+demandOneTerrainMark :: (FromAreaEffect f) => MarkKey -> Script f Position
 demandOneTerrainMark key = do
   positions <- lookupTerrainMark key
   case positions of
@@ -134,14 +134,14 @@ demandOneTerrainMark key = do
     _ -> fail ("demandOneTerrainMark: " ++ show key ++ " yields " ++
                show positions)
 
-isOnTerrainMark :: (FromAreaEffect f) => String -> Position -> Script f Bool
+isOnTerrainMark :: (FromAreaEffect f) => MarkKey -> Position -> Script f Bool
 isOnTerrainMark key pos =
   areaGet (Set.member pos . tmapLookupMark key . terrainMap . arsTerrain)
 
-lookupTerrainRect :: (FromAreaEffect f) => String -> Script f (Maybe PRect)
+lookupTerrainRect :: (FromAreaEffect f) => RectKey -> Script f (Maybe PRect)
 lookupTerrainRect key = areaGet (tmapLookupRect key . terrainMap . arsTerrain)
 
-demandTerrainRect :: (FromAreaEffect f) => String -> Script f PRect
+demandTerrainRect :: (FromAreaEffect f) => RectKey -> Script f PRect
 demandTerrainRect key =
   maybe (fail $ "demandTerrainRect: no such rect: " ++ show key) return =<<
   lookupTerrainRect key
