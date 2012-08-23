@@ -48,9 +48,12 @@ compileMountainPath globals = compileArea MountainPath Nothing $ do
 
   makeExit Corenglen ["ToCorenglen1", "ToCorenglen2"] "FromCorenglen"
 
-  let isFirstTimeThroughLongvale = varEq (gTimesThroughLongvale globals) 0
-  let isSecondTimeThroughLongvale = varEq (gTimesThroughLongvale globals) 1
-  let isLastTimeThroughLongvale = varEq (gTimesThroughLongvale globals) 2
+  let isFirstTimeThroughLongvale :: (AreaState s) => Predicate s
+      isFirstTimeThroughLongvale = varEq (gTimesThroughLongvale globals) 0
+  let isSecondTimeThroughLongvale :: (AreaState s) => Predicate s
+      isSecondTimeThroughLongvale = varEq (gTimesThroughLongvale globals) 1
+  let isLastTimeThroughLongvale :: (AreaState s) => Predicate s
+      isLastTimeThroughLongvale = varEq (gTimesThroughLongvale globals) 2
 
   -- Upper path:
   trigger 908784 (walkIn "UpperPath1" `orP` walkIn "UpperPath2") $ do

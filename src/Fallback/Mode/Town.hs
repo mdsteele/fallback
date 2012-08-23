@@ -560,6 +560,8 @@ executeScript done ts script = do
       case interruptOrScript of
         Left interrupt -> return (ts', Just interrupt)
         Right script' -> executeScript done ts' script'
+    ResultFailure message -> do
+      return (ts, Just (DoNarrate ("SCRIPT ERROR:\n" ++ message) (return ())))
 
 executeEffect :: TownState -> TownEffect a -> (a -> Script TownEffect ())
               -> IO (TownState, Either Interrupt (Script TownEffect ()))

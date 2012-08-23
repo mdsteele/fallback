@@ -39,12 +39,14 @@ newtype Script f a = Script { execScript :: Result f a }
 data Result :: (* -> *) -> * -> * where
   ResultFinal :: a -> Result f a
   ResultEffect :: f b -> (b -> Script f a) -> Result f a
+  ResultFailure :: String -> Result f a
 
 instance Functor (Script f) where
   fmap fn script = Script $
     case execScript script of
       ResultFinal value -> ResultFinal (fn value)
       ResultEffect eff sfn -> ResultEffect eff (fmap fn . sfn)
+      ResultFailure message -> ResultFailure message
 
 instance Applicative (Script f) where
   pure = Script . ResultFinal
@@ -52,6 +54,7 @@ instance Applicative (Script f) where
     case execScript script1 of
       ResultFinal value -> execScript (value <$> script2)
       ResultEffect eff sfn -> ResultEffect eff ((<*> script2) . sfn)
+      ResultFailure message -> ResultFailure message
 
 instance Monad (Script f) where
   return = Script . ResultFinal
@@ -59,7 +62,8 @@ instance Monad (Script f) where
     case execScript script of
       ResultFinal value -> execScript (bindFn value)
       ResultEffect eff sfn -> ResultEffect eff ((>>= bindFn) . sfn)
-  fail msg = error ("Script failure: " ++ msg)
+      ResultFailure message -> ResultFailure message
+  fail = Script . ResultFailure
 
 -------------------------------------------------------------------------------
 
@@ -69,6 +73,7 @@ mapEffect fn script = Script $
   case execScript script of
     ResultFinal value -> ResultFinal value
     ResultEffect eff sfn -> ResultEffect (fn eff) (mapEffect fn . sfn)
+    ResultFailure message -> ResultFailure message
 
 -- | Create a script that emits the given effect, and then simply returns the
 -- value produced by the effect.

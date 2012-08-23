@@ -39,10 +39,11 @@ module Fallback.Scenario.Compile
    -- * Variables
    Var, getVar, readVar, writeVar, modifyVar,
    -- * Trigger predicates
-   Predicate, andP, orP, xorP, notP, getP, whenP,
+   Predicate, periodicP, andP, orP, xorP, notP, getP, whenP,
    varIs, varTrue, varFalse, varEq, varNeq,
    walkOn, walkOff, walkIn,
-   questUntaken, questActive, areaCleared)
+   questUntaken, questActive, areaCleared,
+   monsterReady)
 where
 
 import Control.Applicative (Applicative)
@@ -53,14 +54,15 @@ import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
 
-import qualified Fallback.Data.Grid as Grid (Entry)
+import Fallback.Constants (maxActionPoints, momentsPerActionPoint)
+import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point (rectContains)
 import qualified Fallback.Data.SparseMap as SM
 import qualified Fallback.Data.TotalMap as TM
 import Fallback.Scenario.Script
 import Fallback.State.Area
 import Fallback.State.Creature
-import Fallback.State.Combat (CombatState)
+import Fallback.State.Combat (CombatState, csPeriodicTimer)
 import Fallback.State.Party (Party, partyClearedAreas, partyQuests)
 import Fallback.State.Progress
 import Fallback.State.Simple
@@ -302,7 +304,7 @@ instance HasVarSeeds CompileBattle where
 class (HasVarSeeds m) => DefineTrigger m where
   type TriggerState m :: *
   type TriggerEffect m :: * -> *
-  trigger :: VarSeed -> Predicate
+  trigger :: VarSeed -> Predicate (TriggerState m)
           -> Script (TriggerEffect m) () -> m ()
 
 instance DefineTrigger CompileArea where
@@ -331,14 +333,16 @@ onStartDaily vseed = trigger vseed alwaysP
 onStartOnce :: VarSeed -> Script TownEffect () -> CompileArea ()
 onStartOnce vseed = once vseed alwaysP
 
-daily :: VarSeed -> Predicate -> Script TownEffect () -> CompileArea ()
+daily :: VarSeed -> Predicate TownState -> Script TownEffect ()
+      -> CompileArea ()
 daily vseed predicate script = do
   (vseed', vseed'') <- splitVarSeed vseed
   canFire <- newTransientVar vseed' (return True)
   trigger vseed'' (varTrue canFire `andP` predicate) $ do
     writeVar canFire False >> script
 
-once :: VarSeed -> Predicate -> Script TownEffect () -> CompileArea ()
+once :: VarSeed -> Predicate TownState -> Script TownEffect ()
+     -> CompileArea ()
 once vseed predicate script = do
   (vseed', vseed'') <- splitVarSeed vseed
   canFire <- newPersistentVar vseed' True
@@ -416,74 +420,93 @@ modifyVar var fn = do
 -------------------------------------------------------------------------------
 -- Trigger predicates:
 
-data Predicate = Predicate (forall s. (AreaState s) => s -> Bool)
+newtype Predicate s = Predicate (s -> Bool)
 
-alwaysP :: Predicate
+-- | A predicate that is always true.
+alwaysP :: Predicate s
 alwaysP = Predicate (const True)
 
+-- | A predicate that is true just after each periodic combat tick (once per
+-- round).
+periodicP :: Predicate CombatState
+periodicP = Predicate ((0 ==) . csPeriodicTimer)
+
 infixr 3 `andP`
-andP :: Predicate -> Predicate -> Predicate
+andP :: Predicate s -> Predicate s -> Predicate s
 andP (Predicate fn1) (Predicate fn2) = Predicate (\s -> fn1 s && fn2 s)
 
 infixr 2 `orP`
-orP :: Predicate -> Predicate -> Predicate
+orP :: Predicate s -> Predicate s -> Predicate s
 orP (Predicate fn1) (Predicate fn2) = Predicate (\s -> fn1 s || fn2 s)
 
 infixr 2 `xorP`
-xorP :: Predicate -> Predicate -> Predicate
+xorP :: Predicate s -> Predicate s -> Predicate s
 xorP (Predicate fn1) (Predicate fn2) = Predicate (\s -> fn1 s /= fn2 s)
 
-notP :: Predicate -> Predicate
+notP :: Predicate s -> Predicate s
 notP (Predicate fn) = Predicate (not . fn)
 
-getP :: (FromAreaEffect f) => Predicate -> Script f Bool
-getP (Predicate fn) = areaGet fn
+-- | Evaluate a predicate from within a script.
+getP :: (FromAreaEffect f) => (forall s. (AreaState s) => Predicate s)
+     -> Script f Bool
+getP predicate = areaGet (case predicate of Predicate fn -> fn)
 
-whenP :: (FromAreaEffect f) => Predicate -> Script f () -> Script f ()
+whenP :: (FromAreaEffect f) => (forall s. (AreaState s) => Predicate s)
+      -> Script f () -> Script f ()
 whenP predicate action = do
   bool <- getP predicate
   when bool action
 
-varIs :: (VarType a) => (a -> Bool) -> Var a -> Predicate
+varIs :: (VarType a, HasProgress s) => (a -> Bool) -> Var a -> Predicate s
 varIs fn var = Predicate (fn . getVar var)
 
-varTrue :: Var Bool -> Predicate
+varTrue :: (HasProgress s) => Var Bool -> Predicate s
 varTrue var = Predicate (getVar var)
 
-varFalse :: Var Bool -> Predicate
+varFalse :: (HasProgress s) => Var Bool -> Predicate s
 varFalse var = Predicate (not . getVar var)
 
-varEq :: (Eq a, VarType a) => Var a -> a -> Predicate
+varEq :: (Eq a, VarType a, HasProgress s) => Var a -> a -> Predicate s
 varEq var value = Predicate ((value ==) . getVar var)
 
-varNeq :: (Eq a, VarType a) => Var a -> a -> Predicate
+varNeq :: (Eq a, VarType a, HasProgress s) => Var a -> a -> Predicate s
 varNeq var value = Predicate ((value /=) . getVar var)
 
-walkOn :: String -> Predicate
+walkOn :: (AreaState s) => String -> Predicate s
 walkOn key = Predicate $ \s ->
   any (flip Set.member (tmapLookupMark key $ terrainMap $ arsTerrain s)) $
   arsPartyPositions s
 
-walkOff :: String -> Predicate
+walkOff :: (AreaState s) => String -> Predicate s
 walkOff = notP . walkOn
 
 -- | True if the specified terrain rect exists and at least one character is
 -- currently within it.
-walkIn :: String -> Predicate
+walkIn :: (AreaState s) => String -> Predicate s
 walkIn key = Predicate $ \s ->
   maybe False (\r -> any (rectContains r) (arsPartyPositions s)) $
   tmapLookupRect key $ terrainMap $ arsTerrain s
 
-questUntaken :: QuestTag -> Predicate
+questUntaken :: (AreaState s) => QuestTag -> Predicate s
 questUntaken = questStatus (== QuestUntaken)
 
-questActive :: QuestTag -> Predicate
+questActive :: (AreaState s) => QuestTag -> Predicate s
 questActive = questStatus (== QuestActive)
 
-questStatus :: (QuestStatus -> Bool) -> QuestTag -> Predicate
+questStatus :: (AreaState s) => (QuestStatus -> Bool) -> QuestTag
+            -> Predicate s
 questStatus fn tag = Predicate (fn . SM.get tag . partyQuests . arsParty)
 
-areaCleared :: AreaTag -> Predicate
+-- | A predicate that is true when the given area has been cleared.
+areaCleared :: (AreaState s) => AreaTag -> Predicate s
 areaCleared tag = Predicate (Set.member tag . partyClearedAreas . arsParty)
+
+monsterReady :: Var (Grid.Key Monster) -> Predicate CombatState
+monsterReady var = Predicate $ \cs ->
+  -- TODO: Right now, monster moment-gain and turn-taking are atomic, so this
+  --   won't really work.  We need to change it so trigger testing happens in
+  --   between increasing monster moments and checking if monsters are ready.
+  maybe False ((maxActionPoints * momentsPerActionPoint <=) . monstMoments .
+               Grid.geValue) $ Grid.lookup (getVar var cs) (arsMonsters cs)
 
 -------------------------------------------------------------------------------

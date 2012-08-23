@@ -128,7 +128,9 @@ alsoWith oper script1 script2 =
                 Just script2' -> do
                   emitAreaEffect EffWait
                   alsoWith oper script1' script2'
+            ResultFailure message -> fail message
           where continue1 = emitAreaEffect EffWait >> script1'
+    ResultFailure message -> fail message
 
 -- | Run two scripts in parallel.
 also_ :: (FromAreaEffect f) => Script f () -> Script f () -> Script f ()

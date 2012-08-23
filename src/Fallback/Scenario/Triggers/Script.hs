@@ -92,6 +92,7 @@ conversation = doTalk initState where
               let (before, (_, action) : after) = splitAt idx choices
               doTalk ("", before ++ after) (action >>= sfn)
           EffTalkReset -> doTalk initState $ sfn ()
+      ResultFailure message -> fail message
   initState = ("", [])
 
 convText :: (FromAreaEffect f) => String -> Script (TalkEffect f) ()

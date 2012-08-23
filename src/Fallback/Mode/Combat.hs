@@ -596,6 +596,7 @@ doTickExecution cs ce = do
   (cs', mbScriptInterrupt) <- executeScript cs (ceScript ce)
   case mbScriptInterrupt of
     Nothing -> do
+      -- TODO see if there are more triggers to run
       if (noMoreEnemyMonsters cs' ||
           cePendingEndCombat ce && csCanRunAway cs' &&
           not (arsAreEnemiesNearby cs'))
@@ -634,6 +635,8 @@ executeScript cs script =
       case mbInterrupt of
         Nothing -> executeScript cs' script'
         Just interrupt -> return (cs', Just (script', interrupt))
+    ResultFailure message -> do
+      return (cs, Just (return (), DoNarrate ("SCRIPT ERROR:\n" ++ message)))
 
 -- | Execute a single effect.  Return the updated 'CombatState', the remainder
 -- of the script to run, and the interrupt (if any).
