@@ -54,6 +54,7 @@ run = helper id where
       ResultFinal () -> fn []
       ResultEffect (TestEffect msg value) sfn ->
         helper (fn . (msg :)) (sfn value)
+      ResultFailure msg -> error msg
 
 testI :: [Int] -> Script (TestEffect Int) () -> Test
 testI expected script = insist (expected == run script)

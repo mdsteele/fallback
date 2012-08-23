@@ -37,7 +37,7 @@ module Fallback.Data.Point
    Position, PRect, adjacent, bresenhamPositions, prectPositions,
    expandPrect, expandPosition,
    SqDist(..), sqDistRadius, pSqDist, ofRadius, radiusOf,
-   prectSqDistToPosition, rangeTouchesRect)
+   prectSqDistToPosition)
 where
 
 import Data.Ix (Ix, range)
@@ -368,10 +368,5 @@ prectSqDistToPosition (Rect x1 y1 w h) (Point cx cy) =
      else
        if cy < y1 then side cy y1
        else if cy > y2 then side cy y2 else SqDist 0
-
--- TODO: deprecated
-rangeTouchesRect :: Position -> SqDist -> PRect -> Bool
-rangeTouchesRect pos sqDist prect =
-  prectSqDistToPosition prect pos <= sqDist
 
 -------------------------------------------------------------------------------

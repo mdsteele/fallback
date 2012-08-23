@@ -75,7 +75,7 @@ monsterTownStep ge = do
       let attacks = monstAttacks monst
       if null attacks then return False else do
       let sqDist = maximum $ map (rangeSqDist . maRange) attacks
-      if not (rangeTouchesRect partyPos sqDist rect) then return False else do
+      if prectSqDistToPosition rect partyPos > sqDist then return False else do
       canMonsterSeeParty key
     MindlessAI -> do
       canSee <- canMonsterSeeParty key

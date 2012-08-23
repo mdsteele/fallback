@@ -145,8 +145,8 @@ pathfindSizeToRanges _isBlocked _size [] _sqDist _limit _start = Nothing
 pathfindSizeToRanges isBlocked (w, h) goals sqDist limit start =
   pathfind isBlocked isGoal heuristic limit start
   where
-    isGoal pos = any (\goal -> rangeTouchesRect goal sqDist $
-                               makeRect pos (w, h)) goals
+    isGoal pos =
+      any ((sqDist >=) . prectSqDistToPosition (makeRect pos (w, h))) goals
     heuristic pos = max 0 $ subtract radius $ minimum $ map (distTo pos) goals
     pos `distTo` goal = pDist (fromIntegral <$> goal) $
                         pAdd offset (fromIntegral <$> pos)

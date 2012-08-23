@@ -92,7 +92,7 @@ prepMonsterSpell FireSpray ge = do
   let rect = Grid.geRect ge
   viewField <- getMonsterFieldOfView key
   targets <- fmap (take 5) $ randomPermutation =<<
-             filter (flip3 rangeTouchesRect (ofRadius maxRange) rect) .
+             filter ((ofRadius maxRange >=) . prectSqDistToPosition rect) .
              filter (`Set.member` viewField) <$>
              getMonsterOpponentPositions False key
   let numTargets = length targets
