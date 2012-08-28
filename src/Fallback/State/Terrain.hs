@@ -219,7 +219,7 @@ prectRect (Rect x y w h) =
 -- Explored maps:
 
 -- TODO: Which ends up being more efficient for our use case, a (UArray
--- Position Bool), or a (Set Position)?
+-- Position Bool), or a QuadTree (or a (Set Position))?
 newtype ExploredMap = ExploredMap (UArray Position Bool)
 
 instance Show ExploredMap where
@@ -242,5 +242,22 @@ hasExplored (ExploredMap arr) pos = inRange (bounds arr) pos && (arr ! pos)
 
 setExplored :: [Position] -> ExploredMap -> ExploredMap
 setExplored ps (ExploredMap arr) = ExploredMap $ arr // map (flip (,) True) ps
+{-
+newtype ExploredMap = ExploredMap QT.QuadTree
 
+instance Show ExploredMap where
+  showsPrec p (ExploredMap qt) = showsPrec p qt
+
+instance Read ExploredMap where
+  readPrec = fmap ExploredMap Read.readPrec
+
+unexploredMap :: Terrain -> ExploredMap
+unexploredMap _ = ExploredMap QT.empty
+
+hasExplored :: ExploredMap -> Position -> Bool
+hasExplored (ExploredMap qt) pos = QT.member pos qt
+
+setExplored :: [Position] -> ExploredMap -> ExploredMap
+setExplored ps (ExploredMap qt) = ExploredMap $ foldr QT.insert qt ps
+-}
 -------------------------------------------------------------------------------

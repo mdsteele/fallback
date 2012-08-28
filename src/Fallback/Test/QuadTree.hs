@@ -1,5 +1,5 @@
 {- ============================================================================
-| Copyright 2010 Matthew D. Steele <mdsteele@alum.mit.edu>                    |
+| Copyright 2011 Matthew D. Steele <mdsteele@alum.mit.edu>                    |
 |                                                                             |
 | This file is part of Fallback.                                              |
 |                                                                             |
@@ -17,34 +17,38 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
-module Test (main) where
+module Fallback.Test.QuadTree (quadtreeTests) where
 
-import Test.HUnit (Test(TestList), runTestTT)
+import Test.HUnit ((~:), Test(TestList))
+import Test.QuickCheck ((==>))
 
-import Fallback.Test.Couple (coupleTests)
-import Fallback.Test.Error (errorTests)
-import Fallback.Test.FOV (fovTests)
-import Fallback.Test.Grid (gridTests)
-import Fallback.Test.Pathfind (pathfindTests)
-import Fallback.Test.Point (pointTests)
-import Fallback.Test.PriorityQueue (pqTests)
-import Fallback.Test.Multimap (multimapTests)
-import Fallback.Test.Parse (parseTests)
-import Fallback.Test.QuadTree (quadtreeTests)
-import Fallback.Test.Queue (queueTests)
-import Fallback.Test.Script (scriptTests)
-import Fallback.Test.SparseMap (smTests)
-import Fallback.Test.Utility (utilityTests)
+import qualified Fallback.Data.QuadTree as QT
+import Fallback.Test.Base (insist, insistEq, qcTest)
 
 -------------------------------------------------------------------------------
 
-main :: IO ()
-main = runTestTT allTests >> return ()
-
-allTests :: Test
-allTests = TestList $
-  [coupleTests, errorTests, fovTests, gridTests, multimapTests, pathfindTests,
-   pointTests, pqTests, parseTests, quadtreeTests, queueTests, scriptTests,
-   smTests, utilityTests]
+quadtreeTests :: Test
+quadtreeTests = "quadtree" ~: TestList [
+  insist $ QT.valid QT.empty,
+  insist $ QT.empty == QT.empty,
+  qcTest $ \p -> not $ QT.member p QT.empty,
+  qcTest $ \p -> QT.valid (QT.insert p QT.empty),
+  qcTest $ \p -> QT.insert p QT.empty /= QT.empty,
+  qcTest $ \p -> QT.insert p QT.empty == QT.insert p QT.empty,
+  qcTest $ \p -> QT.member p (QT.insert p QT.empty),
+  qcTest $ \p q -> (p /= q) ==> not (QT.member p (QT.insert q QT.empty)),
+  qcTest $ \ps -> QT.valid (foldr QT.insert QT.empty ps),
+  qcTest $ \ps -> let qt = foldr QT.insert QT.empty ps
+                  in all (flip QT.member qt) ps,
+  qcTest $ \p ps ->
+    (p `notElem` ps) ==> not (QT.member p (foldr QT.insert QT.empty ps)),
+  qcTest $ \ps -> foldr QT.insert QT.empty ps ==
+                  foldr QT.insert QT.empty (reverse ps),
+  insistEq "0e0e0e0e" (show QT.empty),
+  insistEq [(QT.empty, "")] (reads "0e0e0e0e"),
+  qcTest $ \ps -> let qt = foldr QT.insert QT.empty ps
+                  in reads (show qt) == [(qt, "")],
+  qcTest $ \ps -> let qt = foldr QT.insert QT.empty ps
+                  in reads (show [QT.empty, qt]) == [([QT.empty, qt], "")]]
 
 -------------------------------------------------------------------------------
