@@ -306,13 +306,14 @@ data PotionItemTag = HealingTincture | HealingPotion | HealingElixir
                    -- Food:
                    | Grapes | Pineapple | Bread | Cheese | Carrot | Fish | Meat
                    | Eggs | Radish | Apple | Orange | Strawberry | Pear | Lemon
+                   | Mushroom
   deriving (Bounded, Enum, Eq, Ord, Read, Show)
 
 data InertItemTag = IronKey | BrassKey
   deriving (Bounded, Enum, Eq, Ord, Read, Show)
 
 isFoodItem :: ItemTag -> Bool
-isFoodItem (PotionItemTag t) = Grapes <= t && t <= Lemon
+isFoodItem (PotionItemTag t) = Grapes <= t && t <= Mushroom
 isFoodItem _ = False
 
 -------------------------------------------------------------------------------
@@ -338,11 +339,12 @@ data MonsterTag = Revenant | Revenantor | MasterRevenant
                 | Dactylid | Kuriyos | Straeyeng | Strigoi | Uhnkanae
                 | VampireBat | Vhaegyst
                 -- Townspeople:
-                | TownChildPurple | TownManApron | TownManBlue | TownManRed
-                | TownManYellow | TownWomanApron | TownWomanBlue
-                | TownWomanGreen | TownWomanPink | TownWomanRed
+                | TownChildBlue | TownChildPurple | TownManApron | TownManBlue
+                | TownManGreen | TownManRed | TownManYellow | TownWomanApron
+                | TownWomanBlue | TownWomanGreen | TownWomanPink | TownWomanRed
                 -- Town guards:
-                | GuardSmallShield | GuardLargeShield | GuardArcher
+                | GuardLargeShield | GuardSmallShield | GuardWoman
+                | GuardArcher
                 -- Rogue illusions:
                 | RogueIllusion0 | RogueIllusion1
                 | RogueIllusion2 | RogueIllusion3

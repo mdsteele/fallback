@@ -191,11 +191,11 @@ data MonsterSummoning = MonsterSummoning
   deriving (Read, Show)
 
 data MonsterTownAI = ChaseAI -- chase party relentlessly
-                   | DrunkAI PRect -- random walk within rect
-                   | GuardAI Int String -- chase radius, terrain mark to guard
+                   | DrunkAI RectKey -- random walk within rect
+                   | GuardAI Int MarkKey -- chase radius, terrain mark to guard
                    | ImmobileAI -- never move; start combat when could attack
                    | MindlessAI -- chase party only when visible
-                   | PatrolAI Position Position
+                   | PatrolAI MarkKey MarkKey
   deriving (Read, Show)
 
 -------------------------------------------------------------------------------

@@ -333,6 +333,11 @@ nullStats :: Stats
 nullStats = TM.make (const 0)
 
 -------------------------------------------------------------------------------
+-- Terrain:
+
+type MarkKey = String
+
+type RectKey = String
 
 data TerrainOpenness = TerrainHover | TerrainHoverSmoke | TerrainOpen
                      | TerrainSmoke | TerrainSolid | TerrainWindow

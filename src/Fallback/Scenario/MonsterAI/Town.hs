@@ -28,7 +28,7 @@ import qualified Data.Set as Set
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Scenario.Script
-import Fallback.Scenario.Triggers.Script (lookupTerrainMark)
+import Fallback.Scenario.Triggers.Script (demandTerrainRect, lookupTerrainMark)
 import Fallback.State.Area
 import Fallback.State.Creature
 import Fallback.State.Pathfind (pathfindRectToRange, pathfindRectToRanges)
@@ -51,7 +51,8 @@ monsterTownStep ge = do
         return False else do
       maybe (return False) stepTowardsParty
             (pathfindRectToRange isBlocked rect partyPos (SqDist 2) 30)
-    DrunkAI zone -> do
+    DrunkAI zoneKey -> do
+      zone <- demandTerrainRect zoneKey
       -- TODO if non-ally and party nearby, chase party
       -- TODO if outside of zone, pathfind back to zone
       pos' <- (rectTopleft rect `plusDir`) <$> getRandomElem allDirections
@@ -82,15 +83,17 @@ monsterTownStep ge = do
       if not canSee then return False else do
       maybe (return False) stepTowardsParty
             (pathfindRectToRange isBlocked rect partyPos (SqDist 2) 20)
-    PatrolAI home goal -> do
-      case pathfindRectToRange isBlocked rect partyPos (SqDist 2) 5 of
+    PatrolAI homeMark goalMark -> do
+      case if ally then Nothing else
+             pathfindRectToRange isBlocked rect partyPos (SqDist 2) 5 of
         Just path -> stepTowardsParty path
         Nothing -> do
-          maybeM (pathfindRectToRange isBlocked rect goal (SqDist 0) 30) $
+          goals <- lookupTerrainMark goalMark
+          maybeM (pathfindRectToRanges isBlocked rect goals (SqDist 0) 30) $
                  \path -> do
             remaining <- takeStep path
             when (remaining <= 0) $ do
-              setMonsterTownAI (PatrolAI goal home) key
+              setMonsterTownAI (PatrolAI goalMark homeMark) key
           return False
   where
     monst = Grid.geValue ge

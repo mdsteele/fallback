@@ -24,19 +24,15 @@ module Fallback.Scenario.Triggers
    ScriptedBattle(..), getScriptedBattle)
 where
 
-import Control.Monad (join)
-
-import Fallback.Data.Point
 import Fallback.Scenario.Compile
-import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Corenglen (compileCorenglen)
 import Fallback.Scenario.Triggers.FrozenPass (compileFrozenPass)
 import Fallback.Scenario.Triggers.Globals
+import Fallback.Scenario.Triggers.Holmgare (compileHolmgare)
 import Fallback.Scenario.Triggers.Icehold (compileIcehold)
 import Fallback.Scenario.Triggers.IcyConfluence (compileIcyConfluence)
 import Fallback.Scenario.Triggers.IronMine (compileIronMine)
 import Fallback.Scenario.Triggers.MountainPath (compileMountainPath)
-import Fallback.Scenario.Triggers.Script
 import Fallback.Scenario.Triggers.SewerCaves (compileSewerCaves)
 import Fallback.Scenario.Triggers.StoneBridge (compileStoneBridge)
 import Fallback.Scenario.Triggers.Tragorda (compileTragorda)
@@ -85,65 +81,14 @@ scenarioTriggers = compileScenario $ do
       addUnlockedDoors globals
     simpleEnemy_ 660632 "DemonWolf1" DaemonWolf MindlessAI
     simpleEnemy_ 660633 "DemonWolf2" DaemonWolf ChaseAI
-    simpleEnemy_ 660634 "Wolf" Wolf (PatrolAI (Point 27 16) (Point 36 16))
+    simpleEnemy_ 660634 "Wolf" Wolf (PatrolAI "Wolf" "WolfPatrol")
     simpleEnemy_ 978292 "Bat" CaveBat (GuardAI 4 "Bat")
 
   compileMountainPath globals
   compileCorenglen globals
 
   compileFrozenPass globals
-
-  compileArea Holmgare Nothing $ do
-
-    makeExit FrozenPass ["ToFrozenPass1", "ToFrozenPass2"] "FromFrozenPass"
-    makeExit SewerCaves ["ToSewerCaves"] "FromSewerCaves"
-    makeExit PerilousRoad ["ToPerilousRoad"] "FromPerilousRoad"
-
-    onStartDaily 472927 $ do
-      addUnlockedDoors globals
-      setAreaCleared Holmgare True
-
-    simpleTownsperson 217809 TownManApron "Gregor" ImmobileAI $ \_ -> do
-      let page1 = multiChoice
-            "The blacksmith wipes his brow and sets down his tongs.  \"The\
-            \ name's Gregor.  What can I do for you?\""
-            [("\"Tell us about your smithy.\"", join page2),
-             ("\"What have you got for sale?\"", join page3),
-             ("\"What's been going on in this village?\"", join page4),
-             ("\"I think we're all set.\"  (Leave.)", return ())]
-            (return ())
-          page2 = multiChoice
-            "Otay.\""
-            [("\"Whatever wrod!\"", return ())]
-            (return ())
-          page3 = multiChoice
-            "He frowns.  \"Not a lot right now, to be honest,\" he says, with\
-            \ apparent regret.  \"I can do repair work, and I can show you\
-            \ what little I've got in stock.  But I'm short on raw materials,\
-            \ and until I can get more I'm not going to be able to do any\
-            \ commission work."
-            [("\"Well, let's see what you have on hand.\"",
-              return ()),
-             ("\"You're short on raw materials?  Is that something we could\
-              \ help with?\"", return ()),
-             ("\"I wanted to ask you about something else.\"", join page1)]
-            (return ())
-          page4 = multiChoice
-            "\"Otay.\""
-            [("\"Whatever wrod!\"", return ())]
-            (return ())
-      join page1
-    simpleTownsperson 092833 TownWomanBlue "SophiaMom"
-                      ImmobileAI $ \_ge -> do
-      narrate "Oh hai."
-    simpleTownsperson 711833 TownManRed "SophiaDad" ImmobileAI $ \_ge -> do
-      narrate "Hi, folks!"
-      number <- forcedChoice "Please pick a number."
-                  [("\"One!\"", 1), ("\"Two?\"", 2), ("\"Wait, I'm confused.  Is this a trick question?  Can I get a hint?  I don't know what to do!  I want my mommy!  Um, sorry...I meant 'three.'\"", 3),
-                  ("(Just walk away.)", 4), ("\"Oh, yeah, we totally picked five.\"  (Lie.)", 5)]
-      narrate $ "You chose " ++ show (number :: Int) ++ ", I guess."
-    return ()
-
+  compileHolmgare globals
   compileSewerCaves globals
 
   compileArea PerilousRoad Nothing $ do

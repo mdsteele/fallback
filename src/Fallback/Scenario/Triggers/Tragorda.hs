@@ -23,7 +23,6 @@ where
 
 import Control.Monad (when)
 
-import Fallback.Data.Point
 import qualified Fallback.Data.TotalMap as TM (get)
 import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
@@ -56,7 +55,7 @@ compileTragorda globals = compileArea Tragorda Nothing $ do
     narrate "The sign mounted on the wall reads:\n\n\
       \      {b}APOTHECARY{_}"
   simpleTownsperson 109230 TownWomanApron "Lucca"
-                    (DrunkAI $ Rect 11 17 5 1) $ \_ -> conversation $ do
+                    (DrunkAI "LuucaZone") $ \_ -> conversation $ do
     convText "Well, hello!"  -- TODO
     let
       initialChoices = convNode $ do
@@ -118,7 +117,7 @@ compileTragorda globals = compileArea Tragorda Nothing $ do
       \                           {i}Est. 1136{_}\n\
       \                   {i}A family business.{_}"
   simpleTownsperson 020394 TownManBlue "Bisla"
-                    (DrunkAI $ Rect 31 34 3 1) $ \_ -> conversation $ do
+                    (DrunkAI "BislaZone") $ \_ -> conversation $ do
     narrate "Oh hai." -- FIXME
     startShopping $ map (Right . AccessoryItemTag) $
       [GroundedCharm, IcyNecklace, JeweledPin, ShieldRing, WizardsRing]

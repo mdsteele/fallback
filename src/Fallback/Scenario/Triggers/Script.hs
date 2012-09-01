@@ -41,10 +41,10 @@ import Fallback.State.Area
 import Fallback.State.Party (partyHasItem)
 import Fallback.State.Progress (BattleId)
 import Fallback.State.Resources (SoundTag(SndUnlock), rsrcTileset)
-import Fallback.State.Simple (Ingredient, QuestStatus)
+import Fallback.State.Simple (Ingredient, MarkKey, QuestStatus, RectKey)
 import Fallback.State.Tags (AreaTag, ItemTag, QuestTag)
 import Fallback.State.Terrain
-  (MarkKey, RectKey, terrainMap, tmapGet, tmapLookupMark, tmapLookupRect)
+  (terrainMap, tmapGet, tmapLookupMark, tmapLookupRect)
 import Fallback.State.Tileset (TileTag, tilesetGet)
 
 -------------------------------------------------------------------------------

@@ -25,8 +25,8 @@ module Fallback.State.Terrain
    -- * Terrain maps
    TerrainMap, makeEmptyTerrainMap, tmapSize, tmapName, tmapOffTile,
    tmapAllPositions, tmapGet, tmapSet, tmapResize, tmapShift,
-   MarkKey, tmapAllMarks, tmapLookupMark, tmapGetMarks, tmapSetMarks,
-   RectKey, tmapAllRects, tmapLookupRect, tmapSetRect,
+   tmapAllMarks, tmapLookupMark, tmapGetMarks, tmapSetMarks,
+   tmapAllRects, tmapLookupRect, tmapSetRect,
    loadTerrainMap, saveTerrainMap,
    -- * Positions
    positionRect, positionTopleft, positionCenter, pointPosition, prectRect,
@@ -51,6 +51,7 @@ import qualified Fallback.Data.Multimap as MM
 import Fallback.Data.Point
 import Fallback.Resource (getResourcePath, parseFromFile, saveToFile)
 import Fallback.State.Resources (Resources, rsrcTileset)
+import Fallback.State.Simple (MarkKey, RectKey)
 import Fallback.State.Tileset
 
 -------------------------------------------------------------------------------
@@ -127,8 +128,6 @@ tmapShift nullTile delta tmap =
 
 -------------------------------------------------------------------------------
 
-type MarkKey = String
-
 tmapAllMarks :: TerrainMap -> [(MarkKey, Position)]
 tmapAllMarks = MM.toList . tmapMarks
 
@@ -141,8 +140,6 @@ tmapGetMarks pos tmap = MM.reverseLookup pos $ tmapMarks tmap
 tmapSetMarks :: Position -> Set.Set MarkKey -> TerrainMap -> TerrainMap
 tmapSetMarks pos keys tmap =
   tmap { tmapMarks = MM.reverseSet pos keys $ tmapMarks tmap }
-
-type RectKey = String
 
 tmapAllRects :: TerrainMap -> [(RectKey, PRect)]
 tmapAllRects = Map.toList . tmapRects

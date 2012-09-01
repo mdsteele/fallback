@@ -36,7 +36,7 @@ import Fallback.State.Doodad (emptyDoodads)
 import Fallback.State.Minimap (newMinimapFromTerrain)
 import Fallback.State.Party (Party(partyCurrentArea), partyExploredMap)
 import Fallback.State.Resources (Resources)
-import Fallback.State.Simple (deltaFaceDir)
+import Fallback.State.Simple (MarkKey, deltaFaceDir)
 import Fallback.State.Tags (AreaTag(..))
 import Fallback.State.Terrain
 import Fallback.State.Town

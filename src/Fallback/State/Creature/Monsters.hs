@@ -446,6 +446,26 @@ getMonsterType TownWomanPink = townsperson { mtImageRow = 6 }
 getMonsterType TownWomanBlue = townsperson { mtImageRow = 7 }
 getMonsterType TownWomanRed = townsperson { mtImageRow = 8 }
 getMonsterType TownChildPurple = townsperson { mtImageRow = 9 }
+getMonsterType TownChildBlue = townsperson { mtImageRow = 10 }
+getMonsterType TownManGreen = townsperson { mtImageRow = 14 }
+getMonsterType GuardLargeShield = (getMonsterType GuardSmallShield)
+  { mtImageRow = 20,
+    mtResistances = (Armor =% 40) }
+getMonsterType GuardSmallShield = baseMonsterType
+  { mtAgility = 30,
+    mtAttacks = [baseMonsterAttack
+      { maAppearance = BladeAttack,
+        maCriticalChance = 0.08,
+        maDamageCount = 8,
+        maDamageRange = (1, 6),
+        maRange = Melee }],
+    mtImageRow = 21,
+    mtIsHuman = True,
+    mtMaxHealth = 150,
+    mtName = "Guard",
+    mtResistances = (Armor =% 30) }
+getMonsterType GuardWoman = (getMonsterType GuardSmallShield)
+  { mtImageRow = 22 }
 getMonsterType GuardArcher = baseMonsterType
   { mtAgility = 30,
     mtAttacks = [baseMonsterAttack

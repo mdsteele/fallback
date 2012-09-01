@@ -253,6 +253,7 @@ potionValue Orange = CanSell 18
 potionValue Strawberry = CanSell 10
 potionValue Pear = CanSell 15
 potionValue Lemon = CanSell 18
+potionValue Mushroom = CanSell 12
 potionValue _ = CanSell 10 -- FIXME
 
 inertValue :: InertItemTag -> ItemValue
@@ -798,6 +799,7 @@ getPotionAction Orange = RestoreHealthAndMana 15 5
 getPotionAction Strawberry = RestoreHealthAndMana 10 3
 getPotionAction Pear = RestoreHealthAndMana 15 3
 getPotionAction Lemon = RestoreHealthAndMana 15 5
+getPotionAction Mushroom = RestoreHealth 25
 getPotionAction _ = RestoreHealth 42 -- FIXME
 
 -------------------------------------------------------------------------------

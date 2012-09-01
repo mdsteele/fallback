@@ -70,10 +70,10 @@ import Fallback.State.Region (RegionState(..))
 import Fallback.State.Resources
   (Resources, SoundTag(SndCombatStart), rsrcSound)
 import Fallback.State.Simple
-  (CastingCost, Ingredient, ItemSlot, deltaFaceDir, ingredientCost)
+  (CastingCost, Ingredient, ItemSlot, MarkKey, deltaFaceDir, ingredientCost)
 import Fallback.State.Tags
   (AreaTag, ItemTag(PotionItemTag), allItemTags, areaRegion)
-import Fallback.State.Terrain (MarkKey, terrainMap, tmapLookupRect)
+import Fallback.State.Terrain (terrainMap, tmapLookupRect)
 import Fallback.State.Town
 import Fallback.State.Trigger (Trigger, fireTrigger, makeUnfiredTriggers)
 import Fallback.Utility (ceilDiv, flip3)

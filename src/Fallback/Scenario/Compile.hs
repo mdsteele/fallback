@@ -67,8 +67,7 @@ import Fallback.State.Party (Party, partyClearedAreas, partyQuests)
 import Fallback.State.Progress
 import Fallback.State.Simple
 import Fallback.State.Tags (AreaTag, QuestTag, RegionTag)
-import Fallback.State.Terrain
-  (MarkKey, RectKey, terrainMap, tmapLookupMark, tmapLookupRect)
+import Fallback.State.Terrain (terrainMap, tmapLookupMark, tmapLookupRect)
 import Fallback.State.Town (TownState)
 import Fallback.State.Trigger (Trigger, makeTrigger)
 
