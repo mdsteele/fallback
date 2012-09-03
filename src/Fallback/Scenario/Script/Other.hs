@@ -39,8 +39,8 @@ module Fallback.Scenario.Script.Other
    -- ** Camera motion
    shakeCamera,
    -- ** Creature animation
-   faceCharacterToward, faceCharacterAwayFrom, faceMonsterToward,
-   faceMonsterAwayFrom, facePartyToward, facePartyAwayFrom,
+   faceCharacterToward, faceCharacterAwayFrom, setMonsterFaceDir,
+   faceMonsterToward, faceMonsterAwayFrom, facePartyToward, facePartyAwayFrom,
    setCharacterAnim, setMonsterAnim, setPartyAnim,
    getHitTargetHeadPos, getMonsterHeadPos, alterMonsterPose,
 
@@ -412,14 +412,18 @@ faceCharacterAwayFrom charNum pos = do
   face <- emitEffect (EffGetCharFaceDir charNum)
   emitEffect $ EffSetCharFaceDir charNum $ oppositeFaceDir face
 
+setMonsterFaceDir :: (FromAreaEffect f) => Grid.Key Monster -> FaceDir
+                  -> Script f ()
+setMonsterFaceDir key dir = do
+  alterMonsterPose key (\p -> p { cpFaceDir = dir })
+
 faceMonsterToward :: (FromAreaEffect f) => Grid.Key Monster -> Position
                   -> Script f ()
 faceMonsterToward key pos = do
   withMonsterEntry key $ \entry -> do
     let deltaX = pointX $ (pos `pSub`) $ monstHeadPos entry
     when (deltaX /= 0) $ do
-      let dir = if deltaX < 0 then FaceLeft else FaceRight
-      alterMonsterPose key (\p -> p { cpFaceDir = dir })
+      setMonsterFaceDir key (if deltaX < 0 then FaceLeft else FaceRight)
 
 faceMonsterAwayFrom :: (FromAreaEffect f) => Grid.Key Monster -> Position
                     -> Script f ()

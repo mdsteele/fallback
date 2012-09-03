@@ -414,7 +414,7 @@ tilesList = [
  Tile 5736 (Still 14 4) TerrainOpen gray, -- chair
  Tile 0422 (Still 14 5) TerrainWindow gray, -- bed
  Tile 4530 (Still 23 2) TerrainWindow gray, -- bed w/ person
- Tile 8329 (Still 14 6) TerrainWindow gray, -- throne
+ Tile 8329 (Still 14 6) TerrainOpen gray, -- throne
  Tile 1231 (Still 14 7) TerrainWindow gray, -- dresser
  Tile 3432 (Still 15 1) TerrainWindow gray, -- wardrobe
  Tile 9028 (Still 15 5) TerrainWindow gray, -- cauldron
@@ -430,7 +430,7 @@ tilesList = [
  Tile 5268 (Still 15 10) TerrainWindow lightgray, -- white alter
  Tile 9820 (Still 15 11) TerrainWindow lightgray, -- black alter
  Tile 8211 (Still 16 2) TerrainWindow lightgray, -- brazier
- Tile 6392 (Still 16 3) TerrainWindow lightgray, -- throne
+ Tile 6392 (Still 16 3) TerrainOpen lightgray, -- throne
 
  Tile 4252 (Still 16 5) TerrainOpen green, -- green tile floor
  Tile 5404 (Still 16 8) TerrainOpen green, -- rug
@@ -438,7 +438,7 @@ tilesList = [
  Tile 9349 (Still 24 8) TerrainWindow cyan, -- ice column
  Tile 4357 (Still 21 11) TerrainSolid cyan, -- large ice crystal
  Tile 7021 (Still 17 2) TerrainOpen green, -- rune
- Tile 5215 (Still 17 3) TerrainWindow green, -- throne
+ Tile 5215 (Still 17 3) TerrainOpen green, -- throne
  Tile 3038 (Still 17 9) TerrainHover green, -- fire pit
  Tile 5664 (Still 24 9) TerrainOpen green, -- pentagram top-left
  Tile 7118 (Still 24 10) TerrainOpen green, -- pentagram top-right

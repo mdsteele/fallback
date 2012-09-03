@@ -60,7 +60,7 @@ monsterTownStep ge = do
         blocked <- areaGet (flip (arsIsBlockedForMonster ge) pos')
         unless blocked $ takeStep_ [pos']
       return False
-    GuardAI chaseSteps homeMark -> do
+    GuardAI chaseSteps homeMark faceDir -> do
       case if ally then Nothing else
              pathfindRectToRange isBlocked rect partyPos
                                  (SqDist 2) chaseSteps of
@@ -69,7 +69,8 @@ monsterTownStep ge = do
         Nothing -> do
           homePositions <- lookupTerrainMark homeMark
           maybeM (pathfindRectToRanges isBlocked rect homePositions
-                                       (SqDist 0) 60) takeStep_
+                                       (SqDist 0) 60) $ \path -> do
+            if null path then setMonsterFaceDir key faceDir else takeStep_ path
           return False
     ImmobileAI -> do
       if ally then return False else do

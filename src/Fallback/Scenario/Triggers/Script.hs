@@ -24,6 +24,7 @@
 module Fallback.Scenario.Triggers.Script
   (-- * Conversation
    TalkEffect(..), conversation, convText, convChoice, convNode, convReset,
+   convResetNode,
    -- * Terrain
    setTerrain, resetTerrain,
    lookupTerrainMark, demandOneTerrainMark, isOnTerrainMark, demandTerrainRect,
@@ -107,6 +108,9 @@ convNode = (>> emitEffect EffTalkNode)
 
 convReset :: Script (TalkEffect f) ()
 convReset = emitEffect EffTalkReset
+
+convResetNode :: Script (TalkEffect f) () -> Script (TalkEffect f) ()
+convResetNode = convNode . (convReset >>)
 
 -------------------------------------------------------------------------------
 -- Terrain:

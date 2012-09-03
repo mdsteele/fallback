@@ -55,7 +55,7 @@ compileTragorda globals = compileArea Tragorda Nothing $ do
     narrate "The sign mounted on the wall reads:\n\n\
       \      {b}APOTHECARY{_}"
   simpleTownsperson 109230 TownWomanApron "Lucca"
-                    (DrunkAI "LuucaZone") $ \_ -> conversation $ do
+                    (DrunkAI "LuccaZone") $ \_ -> conversation $ do
     convText "Well, hello!"  -- TODO
     let
       initialChoices = convNode $ do

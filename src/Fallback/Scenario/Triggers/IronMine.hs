@@ -37,7 +37,7 @@ import Fallback.State.Area
 import Fallback.State.Creature (MonsterTownAI(..))
 import Fallback.State.Doodad (Doodad(..), DoodadHeight(LowDood))
 import Fallback.State.Resources
-import Fallback.State.Simple (Ingredient(AquaVitae))
+import Fallback.State.Simple (FaceDir(..), Ingredient(AquaVitae))
 import Fallback.State.Tags
 import Fallback.State.Terrain (positionCenter, positionTopleft)
 import Fallback.State.Tileset (TileTag(..))
@@ -101,8 +101,10 @@ compileIronMine globals = compileArea IronMine Nothing $ do
       \ the two wild ice lizards that have somehow gotten in here.  They look\
       \ up at you from their nap, evidentally deciding that you will make a\
       \ nice meal."
-    setMonsterTownAI (GuardAI 7 "IceLizard1") =<< readVar iceLizard1Key
-    setMonsterTownAI (GuardAI 7 "IceLizard2") =<< readVar iceLizard2Key
+    setMonsterTownAI (GuardAI 7 "IceLizard1" FaceRight) =<<
+      readVar iceLizard1Key
+    setMonsterTownAI (GuardAI 7 "IceLizard2" FaceLeft) =<<
+      readVar iceLizard2Key
 
   -- Mine tracks/cart state:
   tracksSetToTurn <- newPersistentVar 231202 False

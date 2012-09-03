@@ -197,6 +197,7 @@ potionIconCoords Orange = (7, 2)
 potionIconCoords Strawberry = (7, 3)
 potionIconCoords Pear = (7, 4)
 potionIconCoords Lemon = (7, 5)
+potionIconCoords Mushroom = (7, 6)
 potionIconCoords _ = (0, 0) -- FIXME
 
 inertIconCoords :: InertItemTag -> (Int, Int)
@@ -454,8 +455,9 @@ potionFlavorText Strawberry = "Strawberries are blushing because their seeds\
   \ are on the outside."
 potionFlavorText Pear = "Pears are like apples, but they're shaped wrong and\
   \ they taste different."
-potionFlavorText Lemon = "If life gives you lemons, make lemonade.  Or pie! \
-  \ Lemon cream pie is quite good."
+potionFlavorText Lemon = "If life gives you lemons, make lemonade.  Ooh, or\
+  \ pie!  Lemon cream pie is delicious."
+potionFlavorText Mushroom = "There's a fungus among us."
 potionFlavorText _ = "FIXME a potion"
 
 inertFlavorText :: InertItemTag -> String

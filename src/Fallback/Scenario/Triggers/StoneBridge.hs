@@ -33,6 +33,7 @@ import Fallback.State.Creature (MonsterTownAI(..))
 import Fallback.State.Item (itemName)
 import Fallback.State.Party (partyFindItem)
 import Fallback.State.Resources (SoundTag(SndLever))
+import Fallback.State.Simple (FaceDir(..))
 import Fallback.State.Tags (AreaTag(..), MonsterTag(..), isFoodItem)
 import Fallback.State.Tileset (TileTag(StoneGateClosedTile, StoneGateOpenTile))
 
@@ -111,7 +112,8 @@ compileStoneBridge globals = compileArea StoneBridge Nothing $ do
   mutantWolfFollowing <- newTransientVar 498104 $ return False
   (mutantWolfKey, mutantWolfDead) <-
     scriptedTownsperson 233894 "MutantWolf" MutantWolf
-                        (GuardAI 5 "MutantWolf") $ \ge -> conversation $ do
+                        (GuardAI 5 "MutantWolf" FaceRight) $
+                        \ge -> conversation $ do
       let
         initialChoices = do
           convChoice backAway "Back away.  Slowly."
@@ -259,7 +261,7 @@ compileStoneBridge globals = compileArea StoneBridge Nothing $ do
        setTerrain StoneGateClosedTile =<< lookupTerrainMark "RearGate"
 
   let archerGuard vseed key sfn =
-        simpleTownsperson vseed GuardArcher key (GuardAI 5 key) sfn
+        simpleTownsperson vseed GuardArcher key (GuardAI 5 key FaceRight) sfn
 
   archerGuard 129578 "Archer1" $ \_ -> conversation $ do
     convText "\"Ho, there, travellers.  The bridge is closed.\"  FIXME" -- TODO
@@ -343,6 +345,7 @@ compileStoneBridge globals = compileArea StoneBridge Nothing $ do
       \With its enemy gone, the mutant wolf trots off back towards its den to\
       \ rest."
     writeVar mutantWolfFollowing False
-    setMonsterTownAI (GuardAI 5 "MutantWolf") =<< readVar mutantWolfKey
+    setMonsterTownAI (GuardAI 5 "MutantWolf" FaceRight) =<<
+      readVar mutantWolfKey
 
 -------------------------------------------------------------------------------
