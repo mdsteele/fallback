@@ -194,6 +194,8 @@ addLightningDoodad tint startPos endPos = do
   let step = (endPt `pSub` startPt) `pDiv` fromIntegral numSteps
   lists <- fmap (listArray (0, limit)) $ replicateM (limit + 1) $ do
     forM [0 .. numSteps] $ \idx -> do
+      if idx == 0 then return startPt else
+        if idx == numSteps then return endPt else do
       let center = startPt `pAdd` step `pMul` fromIntegral idx
       dx <- getRandomR (-10) 10
       dy <- getRandomR (-10) 10

@@ -33,6 +33,7 @@ import Fallback.Scenario.Triggers.Icehold (compileIcehold)
 import Fallback.Scenario.Triggers.IcyConfluence (compileIcyConfluence)
 import Fallback.Scenario.Triggers.IronMine (compileIronMine)
 import Fallback.Scenario.Triggers.MountainPath (compileMountainPath)
+import Fallback.Scenario.Triggers.PerilousRoad (compilePerilousRoad)
 import Fallback.Scenario.Triggers.SewerCaves (compileSewerCaves)
 import Fallback.Scenario.Triggers.StoneBridge (compileStoneBridge)
 import Fallback.Scenario.Triggers.Tragorda (compileTragorda)
@@ -90,12 +91,7 @@ scenarioTriggers = compileScenario $ do
   compileFrozenPass globals
   compileHolmgare globals
   compileSewerCaves globals
-
-  compileArea PerilousRoad Nothing $ do
-    makeExit Holmgare ["ToHolmgare"] "FromHolmgare"
-    makeExit StoneBridge ["ToStoneBridge"] "FromStoneBridge"
-    makeExit IcyConfluence ["ToIcyConfluence"] "FromIcyConfluence"
-
+  compilePerilousRoad globals
   compileStoneBridge globals
   compileTragorda globals
   compileWhistlingWoods globals

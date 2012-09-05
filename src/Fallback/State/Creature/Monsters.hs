@@ -309,6 +309,23 @@ getMonsterType Zombie = baseMonsterType
     mtName = "Zombie",
     mtResistances = (ResistStun =% 60),
     mtSpeed = 0.9 }
+getMonsterType Bonemaster = baseMonsterType
+  { mtAgility = 60,
+    mtAttacks = [baseMonsterAttack
+      { maAppearance = ClawAttack,
+        maDamageCount = 10,
+        maDamageRange = (1, 15),
+        maEffects = [InflictMental Confused 0.07] }],
+    mtCoins = (100, 200),
+    mtExperienceValue = 500,
+    mtImageRow = 85,
+    mtIsUndead = True,
+    mtMaxHealth = 2000,
+    mtName = "Bonemaster",
+    mtResistances = resistances [ResistChemical =% 20, ResistMental =% 100,
+                                 ResistStun =% 20],
+    mtSpeed = 1.5,
+    mtSpells = [] } -- FIXME
 getMonsterType Strigoi = baseMonsterType
   { mtAgility = 60,
     mtAttacks = [baseMonsterAttack

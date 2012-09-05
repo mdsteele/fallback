@@ -73,7 +73,8 @@ import Data.Maybe (isNothing)
 import qualified Data.Set as Set
 
 import Fallback.Constants
-  (framesPerRound, maxAdrenaline, momentsPerActionPoint, sightRange)
+  (framesPerRound, maxAdrenaline, maxMoments, momentsPerActionPoint,
+   sightRange)
 import Fallback.Control.Script
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
@@ -679,12 +680,14 @@ trySummonMonsterNear position summonerKey tag lifetime dieWhenGone = do
     unblocked <- areaGet $ \ars pos ->
       not $ any (blocked ars) $ prectPositions $ makeRect pos size
     directions <- randomPermutation allDirections
-    areaGet (find unblocked . arsAccessiblePositions directions position)
+    areaGet (find unblocked . (position :) .
+             arsAccessiblePositions directions position)
   flip (maybe $ return Nothing) mbSpot $ \spot -> do
   faceDir <- getRandomElem [FaceLeft, FaceRight]
   addSummonDoodad $ makeRect spot size
   mbEntry <- tryAddMonster spot monster
     { monstIsAlly = isAlly,
+      monstMoments = maxMoments,
       monstName = "Summoned " ++ monstName monster,
       monstPose = (monstPose monster) { cpAlpha = 0, cpFaceDir = faceDir },
       monstSummoning = Just MonsterSummoning

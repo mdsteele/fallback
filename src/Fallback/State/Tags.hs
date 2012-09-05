@@ -336,8 +336,8 @@ data MonsterTag = Revenant | Revenantor | MasterRevenant
                 | Shroud | Skeleton | SlimeZombie | Spectre | Wight | Wraith
                 | Zombie
                 -- Bosses:
-                | Dactylid | Kuriyos | Straeyeng | Strigoi | Uhnkanae
-                | VampireBat | Vhaegyst
+                | Bonemaster | Dactylid | Kuriyos | Straeyeng | Strigoi
+                | Uhnkanae | VampireBat | Vhaegyst
                 -- Townspeople:
                 | TownChildBlue | TownChildPurple | TownManApron | TownManBlue
                 | TownManGreen | TownManRed | TownManYellow | TownWomanApron

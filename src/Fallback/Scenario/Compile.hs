@@ -39,7 +39,7 @@ module Fallback.Scenario.Compile
    -- * Variables
    Var, getVar, readVar, writeVar, modifyVar,
    -- * Trigger predicates
-   Predicate, periodicP, andP, orP, xorP, notP, getP, whenP,
+   Predicate, periodicP, andP, orP, xorP, notP, getP, whenP, unlessP,
    varIs, varTrue, varFalse, varEq, varNeq,
    walkOn, walkOff, walkIn,
    questUntaken, questActive, areaCleared,
@@ -47,7 +47,7 @@ module Fallback.Scenario.Compile
 where
 
 import Control.Applicative (Applicative)
-import Control.Monad (when)
+import Control.Monad (unless, when)
 import Control.Monad.Fix (MonadFix)
 import qualified Control.Monad.State as State
 import qualified Data.Map as Map
@@ -456,6 +456,12 @@ whenP :: (FromAreaEffect f) => (forall s. (AreaState s) => Predicate s)
 whenP predicate action = do
   bool <- getP predicate
   when bool action
+
+unlessP :: (FromAreaEffect f) => (forall s. (AreaState s) => Predicate s)
+      -> Script f () -> Script f ()
+unlessP predicate action = do
+  bool <- getP predicate
+  unless bool action
 
 varIs :: (VarType a, HasProgress s) => (a -> Bool) -> Var a -> Predicate s
 varIs fn var = Predicate (fn . getVar var)
