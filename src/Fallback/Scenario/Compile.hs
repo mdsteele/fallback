@@ -54,7 +54,7 @@ import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
 
-import Fallback.Constants (maxActionPoints, momentsPerActionPoint)
+import Fallback.Constants (maxMoments)
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point (rectContains)
 import qualified Fallback.Data.SparseMap as SM
@@ -512,7 +512,7 @@ monsterReady var = Predicate $ \cs ->
   -- TODO: Right now, monster moment-gain and turn-taking are atomic, so this
   --   won't really work.  We need to change it so trigger testing happens in
   --   between increasing monster moments and checking if monsters are ready.
-  maybe False ((maxActionPoints * momentsPerActionPoint <=) . monstMoments .
-               Grid.geValue) $ Grid.lookup (getVar var cs) (arsMonsters cs)
+  maybe False ((maxMoments <=) . monstMoments . Grid.geValue)
+        (Grid.lookup (getVar var cs) (arsMonsters cs))
 
 -------------------------------------------------------------------------------

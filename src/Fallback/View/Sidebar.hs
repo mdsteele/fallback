@@ -31,8 +31,8 @@ import Control.Arrow ((&&&))
 import Control.Monad (forM_, when, zipWithM_)
 
 import Fallback.Constants
-  (cameraSize, maxActionPoints, maxAdrenaline, momentsPerActionPoint,
-   sidebarWidth, tileHeight, tileWidth)
+  (cameraSize, maxActionPoints, maxAdrenaline, maxMoments,
+   momentsPerActionPoint, sidebarWidth, tileHeight, tileWidth)
 import Fallback.Data.Color
 import Fallback.Data.Point
 import qualified Fallback.Data.TotalMap as TM (get)
@@ -298,8 +298,7 @@ newTimeBarView resources charNum = do
         _ -> paintBar (ccsMoments ccs)
 
     paintBar moments = do
-      let fr = fromIntegral moments /
-               fromIntegral (momentsPerActionPoint * maxActionPoints)
+      let fr = fromIntegral moments / fromIntegral maxMoments
       let actionPoints = moments `div` momentsPerActionPoint
       rect <- canvasRect
       tintRect translucent rect

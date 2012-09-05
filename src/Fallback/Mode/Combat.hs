@@ -33,7 +33,7 @@ import qualified Data.Set as Set
 
 import Fallback.Constants
   (baseMomentsPerFrame, combatCameraOffset, framesPerRound, maxActionPoints,
-   momentsPerActionPoint, roundsPerFrame)
+   maxMoments, momentsPerActionPoint, roundsPerFrame)
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import qualified Fallback.Data.TotalMap as TM
@@ -699,7 +699,7 @@ tickMonsterWaiting entry = (monst', mbScript) where
                    monstSummoning = summoning' }
   mbScript = if maybe False ((0 >=) . msRemainingFrames) summoning'
              then Just (unsummonMonster key)
-             else if moments' >= maxActionPoints * momentsPerActionPoint
+             else if moments' >= maxMoments
                   then Just (defaultMonsterCombatAI key >> resetMoments)
                   else Nothing
   resetMoments = do
@@ -707,7 +707,7 @@ tickMonsterWaiting entry = (monst', mbScript) where
     maybeM (Grid.lookup key monsters) $ \entry' -> do
       emitAreaEffect $ EffReplaceMonster key $
         Just (Grid.geValue entry') { monstMoments = 0 }
-  moments' = max moments $ min (maxActionPoints * momentsPerActionPoint) $
+  moments' = max moments $ min maxMoments $
              round (monstSpeed monst * seSpeedMultiplier status *
                     fromIntegral baseMomentsPerFrame) + moments
   moments = monstMoments monst

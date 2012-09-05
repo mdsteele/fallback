@@ -26,7 +26,7 @@ import Data.List (find)
 import qualified Data.Set as Set
 
 import Fallback.Constants
-  (baseMomentsPerFrame, combatArenaSize, maxActionPoints,
+  (baseMomentsPerFrame, combatArenaSize, maxActionPoints, maxMoments,
    momentsPerActionPoint, sightRangeSquared)
 import Fallback.Control.Script (Script)
 import qualified Fallback.Data.Grid as Grid (Grid)
@@ -186,8 +186,7 @@ tickCharStateWaiting char ccs =
         ccsWantsTurn = ccsWantsTurn ccs || wantsTurn }
   where
     moments' = if not (chrIsConscious char) then 0 else
-                 max (ccsMoments ccs) $
-                 min (momentsPerActionPoint * maxActionPoints) $
+                 max (ccsMoments ccs) $ min maxMoments $
                  ccsMoments ccs +
                  round (chrSpeed char * fromIntegral baseMomentsPerFrame)
     wantsTurn = aps < maxActionPoints && aps' >= maxActionPoints

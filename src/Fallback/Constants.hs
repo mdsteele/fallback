@@ -114,7 +114,6 @@ roundsPerFrame = recip (fromIntegral framesPerRound)
 maxActionPoints :: Int
 maxActionPoints = 4
 
--- TODO use this in more places
 maxMoments :: Int
 maxMoments = momentsPerActionPoint * maxActionPoints
 
