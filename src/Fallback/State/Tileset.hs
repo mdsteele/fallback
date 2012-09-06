@@ -530,6 +530,8 @@ tilesList = [
  Tile 0545 (Still 30 3) TerrainWindow bluegreen, -- obelisk
  Tile 5306 (Still 30 4) TerrainWindow bluegreen, -- totems
  Tile 4196 (Still 30 5) TerrainWindow bluegreen, -- statue
+ Tile 2081 (Still 26 0) TerrainWindow bluegreen, -- petrified rat standing
+ Tile 0940 (Still 26 1) TerrainWindow bluegreen, -- petrified rat crouching
 
  Tile 3431 (Still 28 1) TerrainOpen gray, -- mine tracks
  Tile 4408 (Still 29 0) TerrainOpen gray,

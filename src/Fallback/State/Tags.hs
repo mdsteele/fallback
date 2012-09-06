@@ -326,6 +326,8 @@ data MonsterTag = Revenant | Revenantor | MasterRevenant
                 | Salamander | Spider | Unicorn | Wolf
                 -- Daemonic:
                 | DaemonWolf | Fiend | Hoardling | Imp
+                -- Drakes:
+                | BabyBlackDrake | BlackDrake | BlueDrake
                 -- Golems:
                 | CopperGolem | IronGolem | SilverGolem | SteelGolem
                 -- Slimes and fungi:

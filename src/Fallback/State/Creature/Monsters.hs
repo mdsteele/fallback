@@ -31,7 +31,29 @@ import Fallback.State.Tags (MonsterTag(..))
 
 -------------------------------------------------------------------------------
 
+-- TODO Clean up the order of the monsters in here.
 getMonsterType :: MonsterTag -> MonsterType
+getMonsterType BlueDrake = baseMonsterType
+  { mtAgility = 40,
+    mtAttacks = [baseMonsterAttack
+      { maAppearance = ClawAttack,
+        maDamageCount = 10,
+        maDamageRange = (1, 10) }, baseMonsterAttack
+      { maAppearance = BreathAttack,
+        maCriticalChance = 0.3,
+        maDamageCount = 6,
+        maDamageRange = (1, 8),
+        maElement = ColdDamage,
+        maRange = Ranged 6 }],
+    mtExperienceValue = 300,
+    mtImageRow = 2,
+    mtMaxHealth = 1000,
+    mtName = "Blue Drake",
+    mtResistances = resistances [ResistCold =% 50, ResistFire =% 20,
+                                 ResistMental =% 70, ResistStun =% 20],
+    mtSize = SizeWide,
+    mtSpells = [IceBeam 4],
+    mtSpeed = 2 }
 getMonsterType Dactylid = baseMonsterType
   { mtAgility = 40,
     mtAttacks = [baseMonsterAttack
@@ -51,7 +73,6 @@ getMonsterType Dactylid = baseMonsterType
     mtMaxHealth = 1000,
     mtName = "Dactylid",
     mtResistances = resistances [ResistFire =% 25, ResistMental =% 100],
-    mtSize = SizeSmall,
     mtSpells = [CrossBeam, TeleportAway],
     mtSpeed = 2 }
 getMonsterType Revenant = baseMonsterType
@@ -67,7 +88,6 @@ getMonsterType Revenant = baseMonsterType
     mtMaxHealth = 200,
     mtName = "Revenant",
     mtResistances = (ResistStun =% 30),
-    mtSize = SizeSmall,
     mtSpeed = 1.5,
     mtWalksFast = True }
 getMonsterType Revenantor = baseMonsterType
@@ -79,7 +99,6 @@ getMonsterType Revenantor = baseMonsterType
     mtMaxHealth = 150,
     mtName = "Revenantor",
     mtResistances = resistances [ResistMental =% 40, ResistStun =% 15],
-    mtSize = SizeSmall,
     mtSpeed = 1.5,
     -- TODO spells
     mtWalksFast = True }
@@ -382,7 +401,19 @@ getMonsterType Vhaegyst = baseMonsterType
                 Shell 2 15 5,
                 SummonOne True 4 5 20 [Ghoul, Skeleton, Zombie],
                 SummonOne True 2 5 20 [Ghoul, Skeleton, Zombie]] }
-getMonsterType Rous = baseMonsterType { mtImageRow = 40 } -- TODO
+getMonsterType Rous = baseMonsterType
+  { mtAgility = 45,
+    mtAttacks = [baseMonsterAttack
+      { maAppearance = BiteAttack,
+        maCriticalChance = 0.2,
+        maDamageCount = 10,
+        maDamageRange = (1, 6),
+        maEffects = [InflictWeakness 0.04] }],
+    mtExperienceValue = 50,
+    mtImageRow = 40,
+    mtMaxHealth = 65,
+    mtName = "Rous",
+    mtSpeed = 1.5 }
 getMonsterType Unicorn = baseMonsterType
   { mtAgility = 35,
     mtAttacks = [baseMonsterAttack
@@ -411,7 +442,19 @@ getMonsterType IceLizard = baseMonsterType
                                  ResistStun =% 10],
     mtSpeed = 1.8,
     mtSpells = [IceBeam 3, IceBeam 4] }
-getMonsterType Basilisk = baseMonsterType { mtImageRow = 49 } -- TODO
+getMonsterType Basilisk = baseMonsterType
+  { mtAgility = 60,
+    mtAttacks = [baseMonsterAttack
+      { maAppearance = ClawAttack,
+        maDamageCount = 15,
+        maDamageRange = (1, 9) }],
+    mtExperienceValue = 150,
+    mtImageRow = 49,
+    mtMaxHealth = 300,
+    mtName = "Basilisk",
+    mtResistances = resistances [ResistFire =% 25, ResistStun =% 15],
+    mtSpeed = 1.8,
+    mtSpells = [] } -- FIXME petrify
 getMonsterType Firefly = baseMonsterType { mtImageRow = 54 } -- TODO
 getMonsterType LightningBug = baseMonsterType { mtImageRow = 55 } -- TODO
 getMonsterType Roach = baseMonsterType

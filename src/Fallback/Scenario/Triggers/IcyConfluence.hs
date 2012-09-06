@@ -27,8 +27,10 @@ import Fallback.Scenario.Compile
 import Fallback.Scenario.Script
 import Fallback.Scenario.Triggers.Globals
 import Fallback.Scenario.Triggers.Script
+import Fallback.State.Creature (MonsterTownAI(..))
 import Fallback.State.Resources (SoundTag(SndLever))
-import Fallback.State.Tags (AreaTag(..))
+import Fallback.State.Simple (FaceDir(..))
+import Fallback.State.Tags (AreaTag(..), MonsterTag(..))
 import Fallback.State.Tileset (TileTag(..))
 
 -------------------------------------------------------------------------------
@@ -135,5 +137,41 @@ compileIcyConfluence globals = do
       teleportToMark IcyConfluence "FromStairsA"
     trigger 740810 (walkOn "StairsB") $ do
       teleportToMark IcyConfluence "FromStairsB"
+
+    simpleEnemy_ 448092 "BatA1" CaveBat MindlessAI
+    simpleEnemy_ 294001 "BatA2" CaveBat MindlessAI
+
+    simpleEnemy_ 550982 "RousB1" Rous MindlessAI
+    simpleEnemy_ 802992 "RousB2" Rous MindlessAI
+    simpleEnemy_ 582181 "RousB3" Rous MindlessAI
+
+    simpleEnemy_ 760283 "BatC1" CaveBat MindlessAI
+    simpleEnemy_ 287164 "BatC2" CaveBat MindlessAI
+    simpleEnemy_ 409481 "RousC1" Rous MindlessAI
+    simpleEnemy_ 019371 "RousC2" Rous MindlessAI
+    simpleEnemy_ 319917 "RousC3" Rous MindlessAI
+
+    once 582019 (walkIn "NearStatues") $ do
+      narrate "You reach for your weapons to attack what look like more giant\
+        \ rats, but then you realize that what you are seeing are two\
+        \ (startlingly realistic) giant rat {i}statues{_}.  They are very\
+        \ life-like; other than the stone texture, they look just like the\
+        \ real thing.  One of them is standing, the other seems to be in\
+        \ mid-lunge, as though attacking.\n\n\
+        \Why a master sculptor would create the perfect likeness of two\
+        \ unusually-sized rodents and then leave those statues down here in\
+        \ this tunnel is not clear."
+    simpleEnemy_ 750188 "Basilisk" Basilisk MindlessAI
+
+    (drakeKey, drakeDead) <-
+      scriptedMonster 479179 "Drake" BlueDrake False
+                      (GuardAI 1 "Drake" FaceRight)
+    once 530181 (walkIn "NearDrake" `andP` varFalse drakeDead) $ do
+      narrate "...Ah.  Well.  Now you know where that room full of bones came\
+        \ from.  They were the remains from the many meals of the blue drake\
+        \ whose lair you have just stumbled into.  It does not seem very\
+        \ pleased that you have invaded its home, and presently, it starts\
+        \ lumbering over to you to express its displeasure."
+      setMonsterTownAI (GuardAI 12 "Drake" FaceRight) =<< readVar drakeKey
 
 -------------------------------------------------------------------------------
