@@ -23,7 +23,8 @@ module Fallback.View.Camera
   (-- * Painting terrain
    paintTerrain, paintTerrainFullyExplored, tintNonVisibleTiles,
    -- * Painting fields and creatures
-   paintFields, paintMonsters, paintStatusDecorations, paintHealthBar,
+   paintRemains, paintFields,
+   paintMonsters, paintStatusDecorations, paintHealthBar,
    -- * Painting GUI elements
    paintMessage, paintTargeting, paintWeaponRange, paintAreaExits,
    -- * Utility views
@@ -42,6 +43,7 @@ import Fallback.Data.Clock (Clock, clockMod, clockZigzag)
 import Fallback.Data.Color (Tint(..), blackTint, whiteColor)
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
+import qualified Fallback.Data.SparseMap as SM
 import Fallback.Draw
 import Fallback.State.Area
 import Fallback.State.Camera (camTopleft)
@@ -112,6 +114,17 @@ paintCells paintFn cameraTopleft = do
                            pointPosition cameraBottomright)
 
 -------------------------------------------------------------------------------
+
+paintRemains :: AreaCommonState -> Paint ()
+paintRemains acs = do
+  let cameraTopleft = camTopleft $ acsCamera acs
+  let resources = acsResources acs
+  let paintList (pos, remainsList) = do
+        let rect = positionRect pos `rectMinus` cameraTopleft
+        let paint remains = do
+              blitStretch (rsrcRemainsSprite resources remains) rect
+        mapM_ paint (reverse remainsList)
+  mapM_ paintList (SM.sparseAssocs $ acsRemains acs)
 
 paintFields :: Resources -> IPoint -> Set.Set Position -> Clock
            -> Map.Map Position Field -> Paint ()

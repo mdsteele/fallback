@@ -101,6 +101,7 @@ newCombatMapView resources = do
       let acs = csCommon cs
       let cameraTopleft = camTopleft (acsCamera acs)
       paintTerrain acs
+      paintRemains acs
       paintDoodads cameraTopleft LowDood (acsDoodads acs)
       paintFields resources cameraTopleft (acsVisible acs)
                   (acsClock acs) (acsFields acs)

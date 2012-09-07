@@ -230,6 +230,46 @@ data Field = BarrierWall Int -- duration in frames
            | Webbing Double -- duration of entanglement, in rounds
   deriving (Eq, Read, Show)
 
+data Remains = SmallBlood | MediumBlood | LargeBlood
+             | SmallIchor | LargeIchor | Crater | Bones
+  deriving (Eq, Read, Show)
+
+appendRemains :: Remains -> [Remains] -> [Remains]
+appendRemains r [] = [r]
+appendRemains SmallBlood (r : rs) =
+  case r of
+    SmallBlood -> MediumBlood : rs
+    MediumBlood -> MediumBlood : rs
+    LargeBlood -> LargeBlood : rs
+    _ -> SmallBlood : r : rs
+appendRemains MediumBlood (r : rs) =
+  case r of
+    SmallBlood -> MediumBlood : rs
+    MediumBlood -> LargeBlood : rs
+    LargeBlood -> LargeBlood : rs
+    _ -> MediumBlood : r : rs
+appendRemains LargeBlood (r : rs) =
+  case r of
+    SmallBlood -> LargeBlood : rs
+    MediumBlood -> LargeBlood : rs
+    LargeBlood -> LargeBlood : rs
+    _ -> LargeBlood : r : rs
+appendRemains SmallIchor (r : rs) =
+  case r of
+    SmallIchor -> LargeIchor : rs
+    LargeIchor -> LargeIchor : rs
+    _ -> SmallIchor : r : rs
+appendRemains LargeIchor (r : rs) =
+  case r of
+    SmallIchor -> LargeIchor : rs
+    LargeIchor -> LargeIchor : rs
+    _ -> LargeIchor : r : rs
+appendRemains Bones (r : rs) =
+  case r of
+    Bones -> Bones : rs
+    _ -> Bones : r : rs
+appendRemains Crater _ = [Crater]
+
 -------------------------------------------------------------------------------
 
 data Ingredient = AquaVitae | Naphtha | Limestone | Mandrake

@@ -33,7 +33,7 @@ module Fallback.Scenario.Script.Other
    inflictMentalEffect, massInflictMentalEffect,
    -- ** Other
    alterPartyCoins, alterPartyIngredients, grantExperience,
-   removeFields, setFields,
+   removeFields, setFields, addRemains,
 
    -- * Animation
    -- ** Camera motion
@@ -543,6 +543,9 @@ addBasicEnemyMonster nearPos tag mbDeadVar townAi = do
 
 addDevice_ :: (FromAreaEffect f) => Device -> Position -> Script f ()
 addDevice_ device pos = void $ emitAreaEffect (EffTryAddDevice pos device)
+
+addRemains :: (FromAreaEffect f) => Remains -> Position -> Script f ()
+addRemains remains pos = emitAreaEffect (EffAddRemains remains pos)
 
 grantAndEquipWeapon :: (FromAreaEffect f) => WeaponItemTag -> CharacterNumber
                     -> Script f ()

@@ -222,6 +222,11 @@ onMonsterDead entry = do
   resources <- areaGet arsResources
   addDeathDoodad (rsrcMonsterImages resources $ monstType monst)
                  (cpFaceDir $ monstPose monst) (Grid.geRect entry)
+  -- Add the monster's remains (if any).
+  maybeM (mtRemains $ monstType monst) $ \remains -> do
+    -- TODO Do something prettier for non-small monsters.  For example, maybe
+    --   do a random collection of large and small bloods.
+    mapM_ (addRemains remains) $ prectPositions $ Grid.geRect entry
   -- If the monster has a "dead" var, set it to True.
   maybeM (monstDeadVar monst) (emitAreaEffect . flip EffSetVar True)
   -- If this was an enemy monster, grant experience and coins for killing it,

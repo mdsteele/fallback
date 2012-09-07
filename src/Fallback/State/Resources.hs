@@ -26,6 +26,7 @@ module Fallback.State.Resources
    SpriteTag(..), rsrcSprite,
    StripTag(..), rsrcStrip,
    WordTag(..), rsrcWordSprite,
+   rsrcRemainsSprite,
    -- * Fonts
    FontTag(..), rsrcFont,
    -- * GUI graphics
@@ -57,7 +58,7 @@ import Fallback.Sound (Sound, loadSound)
 import Fallback.State.Creature
   (CreatureImages(CreatureImages), MonsterType, mtImageRow, mtSize)
 import Fallback.State.Simple
-  (CharacterClass, CharacterAppearance, CreatureSize(..))
+  (CharacterClass, CharacterAppearance, CreatureSize(..), Remains(..))
 import Fallback.State.Tileset (Tileset, loadTileset)
 
 -------------------------------------------------------------------------------
@@ -75,6 +76,7 @@ data Resources = Resources
     rsrcHealthManaEtc :: HealthManaEtc,
     rsrcItemIcons :: Sheet,
     rsrcProjs :: TM.TotalMap ProjTag Sprite,
+    rsrcRemainsStrip :: Strip,
     rsrcSheetSmallButtons :: Sheet,
     rsrcSounds :: TM.TotalMap SoundTag Sound,
     rsrcSprites :: TM.TotalMap SpriteTag Sprite,
@@ -97,6 +99,7 @@ newResources = do
   fonts <- TM.makeA (uncurry loadFont . fontSpec)
   monsterImages <- TM.makeA loadMonsterImages
   projStrip <- loadVStrip "doodads/projectiles.png" 5
+  remainsStrip <- loadVStrip "remains.png" 7
   smallDigits <- loadVStrip "small-digits.png" 10
   sounds <- TM.makeA (loadSound . soundPath)
   spritesSheet <- loadSheet "doodads/sprites.png" (2, 8)
@@ -124,6 +127,7 @@ newResources = do
       rsrcHealthManaEtc = healthManaEtc,
       rsrcItemIcons = itemIcons,
       rsrcProjs = TM.make ((projStrip !) . projIndex),
+      rsrcRemainsStrip = remainsStrip,
       rsrcSheetSmallButtons = sheetSmallButtons,
       rsrcSounds = sounds,
       rsrcSprites = TM.make ((spritesSheet !) . spriteCoords),
@@ -312,6 +316,18 @@ wordRect WordRiposte = Rect 37 18 28 9
 
 rsrcWordSprite :: Resources -> WordTag -> Sprite
 rsrcWordSprite rsrc tag = TM.get tag $ rsrcWordSprites rsrc
+
+rsrcRemainsSprite :: Resources -> Remains -> Sprite
+rsrcRemainsSprite resources remains =
+  rsrcRemainsStrip resources !
+  case remains of
+    SmallBlood -> 0
+    MediumBlood -> 1
+    LargeBlood -> 2
+    SmallIchor -> 3
+    LargeIchor -> 4
+    Crater -> 5
+    Bones -> 6
 
 -------------------------------------------------------------------------------
 -- Fonts:

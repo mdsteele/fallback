@@ -123,6 +123,7 @@ newTownMapView resources cursorSink = do
       let cameraTopleft = camTopleft $ acsCamera acs
       -- TODO factor out duplicated code from here and Fallback.View.Combat
       paintTerrain acs
+      paintRemains acs
       paintAreaExits cameraTopleft (terrainMap $ acsTerrain acs) $
         getAreaExits scenarioTriggers $ arsCurrentArea ts
       paintDoodads cameraTopleft LowDood (acsDoodads acs)

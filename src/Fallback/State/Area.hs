@@ -66,6 +66,7 @@ data AreaCommonState = AreaCommonState
     acsMinimap :: Minimap,
     acsMonsters :: Grid.Grid Monster,
     acsParty :: Party,
+    acsRemains :: SM.SparseMap Position [Remains],
     acsResources :: Resources,
     acsTerrain :: Terrain,
     acsVisible :: Set.Set Position }
@@ -428,6 +429,7 @@ data PartyEffect :: * -> * where
 -- | Effects that can occur in any AreaState.
 data AreaCommonEffect :: * -> * where
   EffAreaParty :: PartyEffect a -> AreaCommonEffect a
+  EffAddRemains :: Remains -> Position -> AreaCommonEffect ()
   EffAlterDoodads :: (Doodads -> Doodads) -> AreaCommonEffect ()
   EffAlterFields :: (Maybe Field -> Maybe Field) -> [Position]
                  -> AreaCommonEffect ()
@@ -528,6 +530,8 @@ executeAreaCommonEffect eff ars = do
     EffAreaParty partyEff -> do
       (result, party') <- executePartyEffect partyEff (arsParty ars)
       return (result, set acs { acsParty = party' })
+    EffAddRemains remains pos -> return ((), set acs { acsRemains =
+      SM.adjust (appendRemains remains) pos (acsRemains acs) })
     EffAlterDoodads fn -> change acs { acsDoodads = fn (acsDoodads acs) }
     EffAlterFields fn ps -> do
       let fields' = foldr (Map.alter fn) (acsFields acs) ps

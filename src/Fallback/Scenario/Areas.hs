@@ -28,6 +28,7 @@ import Fallback.Control.Error (IOEO, onlyIO)
 import Fallback.Data.Clock (initClock)
 import qualified Fallback.Data.Grid as Grid (empty)
 import Fallback.Data.Point (IPoint, Point(Point), Position, half, pSub)
+import qualified Fallback.Data.SparseMap as SM (make)
 import Fallback.Scenario.Triggers
 import Fallback.State.Area (AreaCommonState(..), TownEffect)
 import Fallback.State.Camera (makeCameraWithCenter)
@@ -104,6 +105,7 @@ enterPartyIntoArea resources origParty tag destination = do
           acsMinimap = minimap,
           acsMonsters = Grid.empty,
           acsParty = party,
+          acsRemains = SM.make [],
           acsResources = resources,
           acsTerrain = terrain,
           acsVisible = Set.empty },

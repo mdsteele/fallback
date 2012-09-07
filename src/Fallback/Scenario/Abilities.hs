@@ -439,7 +439,9 @@ getAbility characterClass abilityNumber rank =
         shakeCamera 20 20
         playSound SndBoomBig
         forkScript $ doExplosionDoodad FireBoom $ positionCenter endPos
-        wait 5 >> dealDamage hits
+        wait 5
+        addRemains Crater endPos
+        dealDamage hits
     AdrenalineRush ->
       general (mix Mandrake Quicksilver) AutoTarget $ \caster power () -> do
         setCharacterAnim caster (AttackAnim 8)

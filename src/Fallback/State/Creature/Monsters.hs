@@ -49,6 +49,7 @@ getMonsterType BlueDrake = baseMonsterType
     mtImageRow = 2,
     mtMaxHealth = 1000,
     mtName = "Blue Drake",
+    mtRemains = Just LargeBlood,
     mtResistances = resistances [ResistCold =% 50, ResistFire =% 20,
                                  ResistMental =% 70, ResistStun =% 20],
     mtSize = SizeWide,
@@ -138,6 +139,7 @@ getMonsterType Hound = baseMonsterType
     mtImageRow = 41,
     mtMaxHealth = 40,
     mtName = "Hound",
+    mtRemains = Just SmallBlood,
     mtSpeed = 5 }
 getMonsterType Wolf = baseMonsterType
   { mtAgility = 40,
@@ -149,6 +151,7 @@ getMonsterType Wolf = baseMonsterType
     mtImageRow = 42,
     mtMaxHealth = 50,
     mtName = "Wolf",
+    mtRemains = Just MediumBlood,
     mtSpeed = 2 }
 getMonsterType MutantWolf = baseMonsterType
   { mtAgility = 70,
@@ -167,6 +170,7 @@ getMonsterType MutantWolf = baseMonsterType
     mtImageRow = 44,
     mtMaxHealth = 200,
     mtName = "Mutant Wolf",
+    mtRemains = Just LargeBlood,
     mtSpeed = 2.5,
     mtWalksFast = True }
 getMonsterType DaemonWolf = baseMonsterType
@@ -189,6 +193,7 @@ getMonsterType DaemonWolf = baseMonsterType
     mtIsDaemonic = True,
     mtMaxHealth = 600,
     mtName = "Daemon Wolf",
+    mtRemains = Just LargeBlood,
     mtSize = SizeWide,
     mtSpeed = 2,
     mtSpells = [FireSpray] }
@@ -203,6 +208,7 @@ getMonsterType CaveBat = baseMonsterType
     mtImageRow = 50,
     mtMaxHealth = 50,
     mtName = "Cave Bat",
+    mtRemains = Just SmallBlood,
     mtSpeed = 1.5,
     mtWalksFast = True }
 getMonsterType FireBat = baseMonsterType
@@ -222,6 +228,7 @@ getMonsterType FireBat = baseMonsterType
     mtImageRow = 51,
     mtMaxHealth = 50,
     mtName = "Fire Bat",
+    mtRemains = Just SmallBlood,
     mtSpeed = 1.5,
     mtWalksFast = True }
 getMonsterType RabidBat = baseMonsterType
@@ -236,6 +243,7 @@ getMonsterType RabidBat = baseMonsterType
     mtImageRow = 52,
     mtMaxHealth = 50,
     mtName = "Rabid Bat",
+    mtRemains = Just SmallBlood,
     mtSpeed = 1.5,
     mtWalksFast = True }
 getMonsterType Ghoul = baseMonsterType
@@ -250,6 +258,7 @@ getMonsterType Ghoul = baseMonsterType
     mtIsUndead = True,
     mtMaxHealth = 80,
     mtName = "Ghoul",
+    mtRemains = Just Bones,
     mtSpeed = 1.4 }
 getMonsterType Invisighoul = (getMonsterType Ghoul)
   { mtInherentInvisibility = MinorInvisibility,
@@ -266,6 +275,7 @@ getMonsterType Ghast = baseMonsterType
     mtIsUndead = True,
     mtMaxHealth = 120,
     mtName = "Ghast",
+    mtRemains = Just Bones,
     mtSpeed = 1.2 }
 getMonsterType Wight = baseMonsterType
   { mtAgility = 35,
@@ -280,6 +290,7 @@ getMonsterType Wight = baseMonsterType
     mtIsUndead = True,
     mtMaxHealth = 120,
     mtName = "Wight",
+    mtRemains = Just Bones,
     mtResistances = resistances [ResistCold =% 50, ResistMental =% 50],
     mtSpeed = 1.2 }
 getMonsterType Skeleton = baseMonsterType
@@ -293,6 +304,7 @@ getMonsterType Skeleton = baseMonsterType
     mtIsUndead = True,
     mtMaxHealth = 80,
     mtName = "Skeleton",
+    mtRemains = Just Bones,
     mtResistances =
       resistances [Armor =% 30, ResistMental =% 100, ResistStun =% 40],
     mtSpeed = 1.1,
@@ -326,6 +338,7 @@ getMonsterType Zombie = baseMonsterType
     mtIsUndead = True,
     mtMaxHealth = 150,
     mtName = "Zombie",
+    mtRemains = Just SmallIchor,
     mtResistances = (ResistStun =% 60),
     mtSpeed = 0.9 }
 getMonsterType Bonemaster = baseMonsterType
@@ -341,6 +354,7 @@ getMonsterType Bonemaster = baseMonsterType
     mtIsUndead = True,
     mtMaxHealth = 2000,
     mtName = "Bonemaster",
+    mtRemains = Just Bones,
     mtResistances = resistances [ResistChemical =% 20, ResistMental =% 100,
                                  ResistStun =% 20],
     mtSpeed = 1.5,
@@ -365,6 +379,7 @@ getMonsterType Strigoi = baseMonsterType
     mtIsUndead = True,
     mtMaxHealth = 1500,
     mtName = "Strigoi",
+    mtRemains = Just MediumBlood,
     mtResistances = resistances [ResistMental =% 100, ResistStun =% 40],
     mtSpeed = 3.0,
     mtSpells = [MetamorphIntoBat, TurnSelfInvisible 8] } -- TODO summon bats
@@ -378,6 +393,7 @@ getMonsterType VampireBat = (getMonsterType Strigoi)
     mtCanFly = True,
     mtImageRow = 51,
     mtName = "Vampire Bat",
+    mtRemains = Just MediumBlood,
     mtSpeed = 4.0,
     mtSpells = [MetamorphIntoStrigoi],
     mtWalksFast = True }
@@ -394,6 +410,7 @@ getMonsterType Vhaegyst = baseMonsterType
     mtIsUndead = True,
     mtMaxHealth = 3000,
     mtName = "Vhaegyst",
+    mtRemains = Just Bones,
     mtResistances = resistances [ResistCold =% 75, ResistMental =% 100,
                                  ResistStun =% 50],
     mtSpeed = 3.5,
@@ -413,6 +430,7 @@ getMonsterType Rous = baseMonsterType
     mtImageRow = 40,
     mtMaxHealth = 65,
     mtName = "Rous",
+    mtRemains = Just MediumBlood,
     mtSpeed = 1.5 }
 getMonsterType Unicorn = baseMonsterType
   { mtAgility = 35,
@@ -425,6 +443,7 @@ getMonsterType Unicorn = baseMonsterType
     mtImageRow = 45,
     mtMaxHealth = 70,
     mtName = "Unicorn",
+    mtRemains = Just MediumBlood,
     mtSpeed = 1.3 }
 getMonsterType MonitorLizard = baseMonsterType { mtImageRow = 46 } -- TODO
 getMonsterType Salamander = baseMonsterType { mtImageRow = 47 } -- TODO
@@ -438,6 +457,7 @@ getMonsterType IceLizard = baseMonsterType
     mtImageRow = 48,
     mtMaxHealth = 150,
     mtName = "Ice Lizard",
+    mtRemains = Just MediumBlood,
     mtResistances = resistances [ResistFire -% 25, ResistCold =% 98,
                                  ResistStun =% 10],
     mtSpeed = 1.8,
@@ -452,6 +472,7 @@ getMonsterType Basilisk = baseMonsterType
     mtImageRow = 49,
     mtMaxHealth = 300,
     mtName = "Basilisk",
+    mtRemains = Just MediumBlood,
     mtResistances = resistances [ResistFire =% 25, ResistStun =% 15],
     mtSpeed = 1.8,
     mtSpells = [] } -- FIXME petrify
@@ -468,6 +489,7 @@ getMonsterType Roach = baseMonsterType
     mtImageRow = 56,
     mtMaxHealth = 65,
     mtName = "Roach",
+    mtRemains = Just SmallIchor,
     mtResistances = resistances [ResistChemical =% 50, ResistFire -% 15],
     mtSpeed = 1.8 }
 getMonsterType Spider = baseMonsterType { mtImageRow = 57 } -- TODO
@@ -481,6 +503,7 @@ getMonsterType Mantis = baseMonsterType
     mtImageRow = 59,
     mtMaxHealth = 70,
     mtName = "Mantis",
+    mtRemains = Just SmallIchor,
     mtResistances = resistances [Armor =% 15, ResistFire -% 15],
     mtSpeed = 1.8 }
 getMonsterType Cobra = baseMonsterType
@@ -494,6 +517,7 @@ getMonsterType Cobra = baseMonsterType
     mtImageRow = 67,
     mtMaxHealth = 50,
     mtName = "Cobra",
+    mtRemains = Just MediumBlood,
     mtResistances = (ResistFire =% 8),
     mtSpeed = 2.2 }
 getMonsterType TownWomanApron = townsperson { mtImageRow = 0 }
@@ -523,6 +547,7 @@ getMonsterType GuardSmallShield = baseMonsterType
     mtIsHuman = True,
     mtMaxHealth = 150,
     mtName = "Guard",
+    mtRemains = Just MediumBlood,
     mtResistances = (Armor =% 30) }
 getMonsterType GuardWoman = (getMonsterType GuardSmallShield)
   { mtImageRow = 22 }
@@ -538,6 +563,7 @@ getMonsterType GuardArcher = baseMonsterType
     mtIsHuman = True,
     mtMaxHealth = 150,
     mtName = "Guard",
+    mtRemains = Just MediumBlood,
     mtResistances = (Armor =% 30) }
 getMonsterType RogueIllusion0 = rogueillusion { mtImageRow = 100 }
 getMonsterType RogueIllusion1 = rogueillusion { mtImageRow = 101 }
@@ -561,6 +587,7 @@ baseMonsterType = MonsterType
     mtIsUndead = False,
     mtMaxHealth = 100,
     mtName = "???",
+    mtRemains = Nothing,
     mtResistances = nullResistances,
     mtSize = SizeSmall,
     mtSpeed = 1,
@@ -582,7 +609,8 @@ townsperson = baseMonsterType
   { mtExperienceValue = 100,
     mtIsHuman = True,
     mtMaxHealth = 40,
-    mtName = "Townsperson" }
+    mtName = "Townsperson",
+    mtRemains = Just MediumBlood }
 
 rogueillusion :: MonsterType
 rogueillusion = baseMonsterType

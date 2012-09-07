@@ -205,7 +205,7 @@ newtype ReadAreaCommonState = ReadAreaCommonState
 
 instance Read ReadAreaCommonState where
   readPrec = do
-    (deviceIds, fields, monsters, party, wrappedTerrain) <- readPrec
+    (deviceIds, fields, monsters, party, remains, wrappedTerrain) <- readPrec
     return $ ReadAreaCommonState $ \resources partyPosition -> do
       let getDevice di =
             maybe (fail $ "Unknown device ID: " ++ show di) return $
@@ -224,6 +224,7 @@ instance Read ReadAreaCommonState where
           acsMinimap = minimap,
           acsMonsters = monsters,
           acsParty = party,
+          acsRemains = remains,
           acsResources = resources,
           acsTerrain = terrain,
           acsVisible = Set.empty }
@@ -233,7 +234,7 @@ newtype ShowAreaCommonState = ShowAreaCommonState AreaCommonState
 instance Show ShowAreaCommonState where
   showsPrec p (ShowAreaCommonState acs) = showsPrec p $
     (fmap devId (acsDevices acs), acsFields acs, acsMonsters acs, acsParty acs,
-     ShowTerrain (acsTerrain acs))
+     acsRemains acs, ShowTerrain (acsTerrain acs))
 
 -------------------------------------------------------------------------------
 

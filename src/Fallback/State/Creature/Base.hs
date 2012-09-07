@@ -153,6 +153,7 @@ data MonsterType = MonsterType
     mtIsUndead :: Bool,
     mtMaxHealth :: Int,
     mtName :: String,
+    mtRemains :: Maybe Remains,
     mtResistances :: Resistances,
     mtSize :: CreatureSize,
     mtSpeed :: Double,

@@ -53,6 +53,7 @@ compilePerilousRoad globals = compileArea PerilousRoad Nothing $ do
 
   onStartDaily 184809 $ do
     addUnlockedDoors globals
+    mapM_ (addRemains Bones) =<< lookupTerrainMark "Bones"
 
   uniqueDevice 572098 "RoadSign" signRadius $ \_ _ -> do
     narrate "There's a weather-beaten signpost along the road here.  It\
