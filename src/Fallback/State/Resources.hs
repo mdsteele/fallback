@@ -275,7 +275,6 @@ data StripTag = SrpBarrierAura | SrpFireAura | SrpGasAura | SrpIceAura
               | SrpSmokeAura
               | AcidBoom | DarkBoom | EnergyBoom | FireBoom | HealBoom
               | IceBoom | LightBoom | SmokeBoom | SunBoom
-              | SlashLeft | SlashRight
   deriving (Bounded, Eq, Ix, Ord)
 
 stripSpec :: StripTag -> (String, Int)
@@ -293,8 +292,6 @@ stripSpec IceBoom = ("doodads/boom-ice.png", 8)
 stripSpec LightBoom = ("doodads/boom-light.png", 8)
 stripSpec SmokeBoom = ("doodads/boom-smoke.png", 8)
 stripSpec SunBoom = ("doodads/boom-sun.png", 8)
-stripSpec SlashLeft = ("doodads/slash-left.png", 8)
-stripSpec SlashRight = ("doodads/slash-right.png", 8)
 
 rsrcStrip :: Resources -> StripTag -> Strip
 rsrcStrip rsrc tag = TM.get tag $ rsrcStrips rsrc

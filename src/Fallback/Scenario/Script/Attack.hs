@@ -468,19 +468,22 @@ attackHitAnimation mods target = do
                      EnergyDamage -> EnergyBoom
                      FireDamage -> FireBoom
                      MagicDamage -> DarkBoom
-                     PhysicalDamage -> SlashRight
-                     RawDamage -> SlashRight
+                     PhysicalDamage -> DarkBoom
+                     RawDamage -> DarkBoom
         addBoomDoodadAtPosition boom (if critical then 3 else 2) target
   case hmAppearance mods of
-    BiteAttack -> addBoomDoodadAtPosition SlashRight 2 target -- FIXME
-    BowAttack -> addBoomDoodadAtPosition SlashRight 2 target -- FIXME
+    BiteAttack -> if critical then addCriticalBiteDoodad target
+                  else addBiteDoodad target
+    BowAttack -> addArrowHitDoodad (if critical then 6 else 4) 2 17 target
     BladeAttack -> do
-      addBoomDoodadAtPosition SlashRight 2 target
-      when critical $ addBoomDoodadAtPosition SlashLeft 3 target
-    BluntAttack -> addBoomDoodadAtPosition SlashRight 2 target -- FIXME
+      addSlashDownRightDoodad 7 target
+      when critical $ addSlashDownLeftDoodad 11 target
+    BluntAttack -> addArrowHitDoodad (if critical then 7 else 5) 4 14 target
     BreathAttack -> elementBoom
-    ClawAttack -> addBoomDoodadAtPosition SlashRight 2 target -- FIXME
-    ThrownAttack -> addBoomDoodadAtPosition SlashRight 2 target -- FIXME
+    ClawAttack -> do
+      addClawDownRightDoodad 7 target
+      when critical $ addClawDownLeftDoodad 11 target
+    ThrownAttack -> addArrowHitDoodad (if critical then 5 else 3) 2 16 target
     WandAttack -> elementBoom
 
 attackHit :: [AttackEffect] -> Position -> Position -> Double -> HitModifiers

@@ -27,6 +27,10 @@ module Fallback.Scenario.Script.Doodad
    addShockwaveDoodad, addRadialGradientDoodad, doExplosionDoodad,
    -- * Swooshes
    addSwooshDoodad, linearBezierCurve, quadraticBezierCurve, cubicBezierCurve,
+   -- * Attack hits
+   addSlashDownRightDoodad, addSlashDownLeftDoodad, addArrowHitDoodad,
+   addClawDownRightDoodad, addClawDownLeftDoodad,
+   addBiteDoodad, addCriticalBiteDoodad,
    -- * Hookshot
    addExtendingHookshotDoodad, addExtendedHookshotDoodad,
    addRetractingHookshotDoodad,
@@ -40,7 +44,7 @@ import Data.Array (listArray)
 
 import Fallback.Constants (framesPerSecond)
 import Fallback.Control.Script
-import Fallback.Data.Color (Tint(Tint, tintAlpha))
+import Fallback.Data.Color (Tint(Tint, tintAlpha), whiteTint)
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Draw
@@ -280,6 +284,72 @@ cubicBezierCurve p0 p1 p2 p3 t =
   let t' = 1 - t
   in p0 `pMul` (t' * t' * t') `pAdd` p1 `pMul` (3 * t' * t' * t) `pAdd`
      p2 `pMul` (3 * t' * t * t) `pAdd` p3 `pMul` (t * t * t)
+
+-------------------------------------------------------------------------------
+-- Attack hits:
+
+addSlashDownRightDoodad :: (FromAreaEffect f) => Int -> Position -> Script f ()
+addSlashDownRightDoodad limit pos = do
+  let Point x y = positionCenter pos
+  addSwooshDoodad whiteTint 2 limit limit $
+    linearBezierCurve (Point (x - 13) (y - 17)) (Point (x + 13) (y + 17))
+
+addSlashDownLeftDoodad :: (FromAreaEffect f) => Int -> Position -> Script f ()
+addSlashDownLeftDoodad limit pos = do
+  let Point x y = positionCenter pos
+  addSwooshDoodad whiteTint 2 limit limit $
+    linearBezierCurve (Point (x + 13) (y - 17)) (Point (x - 13) (y + 17))
+
+addArrowHitDoodad :: (FromAreaEffect f) => Int -> Double -> Double -> Position
+                  -> Script f ()
+addArrowHitDoodad numLines thickness radius pos = do
+  let theta0 = pi / 5
+  let thStep = 2 * pi / fromIntegral numLines
+  let Point x y = positionCenter pos
+  forM_ [0 .. numLines - 1] $ \i -> do
+    let theta = theta0 + fromIntegral i * thStep
+    addSwooshDoodad whiteTint thickness 8 8 $ linearBezierCurve (Point x y) $
+      (Point (x + radius * cos theta) (y + radius * sin theta))
+
+addClawDownRightDoodad :: (FromAreaEffect f) => Int -> Position -> Script f ()
+addClawDownRightDoodad limit pos = do
+  let Point x y = positionCenter pos
+  let line x1 y1 x2 y2 = addSwooshDoodad whiteTint 2 limit limit $
+                         linearBezierCurve (Point x1 y1) (Point x2 y2)
+  line (x - 14) (y -  8) (x +  6) (y + 16)
+  line (x - 10) (y - 12) (x + 10) (y + 12)
+  line (x -  6) (y - 16) (x + 14) (y +  8)
+
+addClawDownLeftDoodad :: (FromAreaEffect f) => Int -> Position -> Script f ()
+addClawDownLeftDoodad limit pos = do
+  let Point x y = positionCenter pos
+  let line x1 y1 x2 y2 = addSwooshDoodad whiteTint 2 limit limit $
+                         linearBezierCurve (Point x1 y1) (Point x2 y2)
+  line (x + 14) (y -  8) (x -  6) (y + 16)
+  line (x + 10) (y - 12) (x - 10) (y + 12)
+  line (x +  6) (y - 16) (x - 14) (y +  8)
+
+addBiteDoodad :: (FromAreaEffect f) => Position -> Script f ()
+addBiteDoodad pos = do
+  let Point x y = positionCenter pos
+  let line x1 y1 x2 y2 = addSwooshDoodad whiteTint 2 8 8 $
+                         linearBezierCurve (Point x1 y1) (Point x2 y2)
+  line (x - 9) (y + 11) (x - 8) (y - 8)
+  line (x - 3) (y - 13) (x - 2) (y + 8)
+  line (x + 3) (y + 13) (x + 2) (y - 8)
+  line (x + 9) (y - 11) (x + 8) (y + 8)
+
+addCriticalBiteDoodad :: (FromAreaEffect f) => Position -> Script f ()
+addCriticalBiteDoodad pos = do
+  let Point x y = positionCenter pos
+  let line x1 y1 x2 y2 = addSwooshDoodad whiteTint 2 8 8 $
+                         linearBezierCurve (Point x1 y1) (Point x2 y2)
+  line (x - 10) (y - 10) (x - 9) (y + 7)
+  line (x -  6) (y + 12) (x - 5) (y - 8)
+  line (x -  2) (y - 13) (x - 1) (y + 8)
+  line (x +  2) (y + 13) (x + 1) (y - 8)
+  line (x +  6) (y - 12) (x + 5) (y + 8)
+  line (x + 10) (y + 10) (x + 9) (y - 7)
 
 -------------------------------------------------------------------------------
 -- Hookshot:
