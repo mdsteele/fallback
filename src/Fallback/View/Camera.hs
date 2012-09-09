@@ -45,6 +45,7 @@ import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import qualified Fallback.Data.SparseMap as SM
 import Fallback.Draw
+import Fallback.State.Action (Targeting(..))
 import Fallback.State.Area
 import Fallback.State.Camera (camTopleft)
 import Fallback.State.Creature
@@ -337,13 +338,13 @@ paintTargeting cameraTopleft mbMousePt ars charNum targeting = do
       paintRegion targetable
       whenMouse $ \targetPos -> do
         if targetPos `Set.notMember` targetable then paintX targetPos else do
-        let targets = areaFn ars originPos targetPos
+        let targets = areaFn ars charNum targetPos
         if null targets then paintX targetPos else mapM_ paintTile targets
     TargetingJump areaFn targetable -> do
       paintRegion targetable
       whenMouse $ \targetPos -> do
         if targetPos `Set.notMember` targetable then paintX targetPos else do
-        mapM_ paintTile $ areaFn ars originPos targetPos
+        mapM_ paintTile $ areaFn ars charNum targetPos
         paintO targetPos
     TargetingMulti _ radius targets -> do
       let targetable = getRegionOfRadius radius

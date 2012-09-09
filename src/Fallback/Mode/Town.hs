@@ -353,12 +353,12 @@ newTownMode resources modes initState = do
                    if cannotHit rng then ignore else execute (sfn $ Left pos)
                  TargetingArea areaFn rng -> do
                    if cannotHit rng then ignore else do
-                   let targets = areaFn ts originPos pos
+                   let targets = areaFn ts charNum pos
                    if null targets then ignore else do
                    execute $ sfn (pos, targets)
                  TargetingJump areaFn targetable -> do
                    if Set.notMember pos targetable then ignore else do
-                   execute $ sfn (pos, areaFn ts originPos pos)
+                   execute $ sfn (pos, areaFn ts charNum pos)
                  TargetingMulti n rng ps ->
                    if pos `elem` ps then switch (delete pos ps) else
                      if cannotHit rng then ignore else
@@ -374,11 +374,11 @@ newTownMode resources modes initState = do
                    if cannotHit rng then ignore
                    else execute (sfn pos)
                where
+                 charNum = tsActiveCharacter ts
                  cannotHit rng =
-                   pSqDist pos originPos > ofRadius rng ||
-                   not (arsIsVisibleToCharacter (tsActiveCharacter ts) ts pos)
+                   pSqDist pos (tsPartyPosition ts) > ofRadius rng ||
+                   not (arsIsVisibleToCharacter charNum ts pos)
                  execute = executeAbility ts cost
-                 originPos = tsPartyPosition ts
              _ -> ignore) :: IO NextMode
         Just TownCancelTargeting -> do
           case tsPhase ts of

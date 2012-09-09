@@ -36,6 +36,7 @@ import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import Fallback.Scenario.MonsterAI.Script
 import Fallback.Scenario.Script
+import Fallback.State.Action (circleArea)
 import Fallback.State.Area
 import Fallback.State.Creature
 import Fallback.State.Party (partyDifficulty)

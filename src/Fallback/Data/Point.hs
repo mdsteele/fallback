@@ -22,7 +22,7 @@ module Fallback.Data.Point
    Axis(..),
    -- * Point type
    Point(..), IPoint, DPoint,
-   pZero, pPolar, pNeg, pAdd, pSub, pMul, pDiv, pDist, pAtan2,
+   pZero, pPolar, pNeg, pAdd, pSub, pMul, pDiv, pDist, pAtan2, pVectorAngle,
    -- * Rect type
    Rect(..), IRect, DRect,
    makeRect, rectContains, rectIntersects, rectIntersection,
@@ -111,8 +111,14 @@ pDiv (Point x y) a = Point (x / a) (y / a)
 pDist :: DPoint -> DPoint -> Double
 pDist (Point x1 y1) (Point x2 y2) = hypot (x2 - x1) (y2 - y1)
 
-pAtan2 :: (RealFloat a) => Point a -> a
+pAtan2 :: DPoint -> Double
 pAtan2 (Point x y) = atan2 y x
+
+-- | Compute the angle (in radians) between two vectors.  If either vector is
+-- zero, the result will be NaN.
+pVectorAngle :: DPoint -> DPoint -> Double
+pVectorAngle (Point x1 y1) (Point x2 y2) =
+  acos ((x1 * x2 + y1 * y2) / (hypot x1 y1 * hypot x2 y2))
 
 -------------------------------------------------------------------------------
 -- Rect type:

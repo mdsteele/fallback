@@ -27,6 +27,7 @@ import Fallback.Constants (cameraCenterOffset, sightRangeSquared)
 import Fallback.Control.Script (Script)
 import Fallback.Data.Point
 import qualified Fallback.Data.SparseMap as SM
+import Fallback.State.Action (Targeting)
 import Fallback.State.Area
 import Fallback.State.Creature (CreaturePose, tickCreaturePose)
 import Fallback.State.FOV (fieldOfView)

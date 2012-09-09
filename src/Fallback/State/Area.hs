@@ -357,19 +357,6 @@ data Device = Device
 
 -------------------------------------------------------------------------------
 
-data Targeting :: * -> * where
-  TargetingAlly :: Int -> Targeting (Either Position CharacterNumber)
-  TargetingArea :: (forall a. (AreaState a) => a -> Position -> Position ->
-                    [Position]) -> Int -> Targeting (Position, [Position])
-  TargetingJump :: (forall a. (AreaState a) => a -> Position -> Position ->
-                    [Position])
-                -> Set.Set Position -> Targeting (Position, [Position])
-  TargetingMulti :: Int {-max num targets-} -> Int {-range-}
-                 -> [Position] {-targets so far-} -> Targeting [Position]
-  TargetingSingle :: Int -> Targeting Position
-
--------------------------------------------------------------------------------
-
 decayFields :: Int -> Map.Map Position Field -> IO (Map.Map Position Field)
 decayFields frames fields = fmap (Map.mapMaybe id) $ for fields $ \field -> do
   let decay halflife = do

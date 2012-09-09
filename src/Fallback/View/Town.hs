@@ -36,6 +36,7 @@ import Fallback.Draw
 import Fallback.Event
 import Fallback.Scenario.Triggers
   (getAreaExits, getMonsterScript, scenarioTriggers)
+import Fallback.State.Action (Targeting(TargetingAlly))
 import Fallback.State.Area
 import Fallback.State.Camera (camTopleft)
 import Fallback.State.Creature

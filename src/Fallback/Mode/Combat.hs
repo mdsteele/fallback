@@ -289,12 +289,12 @@ newCombatMode resources modes initState = do
                    if cannotHit rng then ignore else execute (sfn $ Left pos)
                  TargetingArea areaFn rng -> do
                    if cannotHit rng then ignore else do
-                   let targets = areaFn cs originPos pos
+                   let targets = areaFn cs charNum pos
                    if null targets then ignore else do
                    execute $ sfn (pos, targets)
                  TargetingJump areaFn targetable -> do
                    if Set.notMember pos targetable then ignore else do
-                   execute $ sfn (pos, areaFn cs originPos pos)
+                   execute $ sfn (pos, areaFn cs charNum pos)
                  TargetingMulti n rng ps ->
                    if pos `elem` ps then switch (delete pos ps) else
                      if cannotHit rng then ignore else
@@ -313,10 +313,9 @@ newCombatMode resources modes initState = do
                where
                  cannotHit rng =
                    not (arsIsVisibleToCharacter charNum cs pos) ||
-                   pSqDist pos originPos > ofRadius rng
+                   pSqDist pos (arsCharacterPosition charNum cs) > ofRadius rng
                  charNum = ccCharacterNumber cc
                  execute = executeCommand cs cc cost apNeeded
-                 originPos = arsCharacterPosition charNum cs
              _ -> ignore) :: IO NextMode
         Just (CombatTargetCharacter charNum) ->
           (case csPhase cs of

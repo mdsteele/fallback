@@ -58,30 +58,24 @@ module Fallback.Scenario.Script.Other
    trySummonMonster, trySummonMonsterNear, degradeMonstersSummonedBy,
    unsummonMonster, unsummonDependentsOf, tickSummonsByOneRound,
    -- ** Items
-   grantAndEquipWeapon, grantItem, removeItem,
-
-   -- * Targeting
-   circleArea, aoeTarget, beamTarget, splashTarget, wallTarget)
+   grantAndEquipWeapon, grantItem, removeItem)
 where
 
 import Control.Applicative ((<$>))
 import Control.Arrow (second)
 import Control.Monad (filterM, forM_, unless, void, when)
-import Data.Array (range)
 import Data.List (find)
 import Data.Maybe (isNothing)
 import qualified Data.Set as Set
 
 import Fallback.Constants
-  (framesPerRound, maxAdrenaline, maxMoments, momentsPerActionPoint,
-   sightRange)
+  (framesPerRound, maxAdrenaline, maxMoments, momentsPerActionPoint)
 import Fallback.Control.Script
 import qualified Fallback.Data.Grid as Grid
 import Fallback.Data.Point
 import qualified Fallback.Data.TotalMap as TM (get)
 import Fallback.Scenario.Script.Base
 import Fallback.Scenario.Script.Doodad
-import Fallback.State.Action (TargetKind(..))
 import Fallback.State.Area
 import Fallback.State.Creature
 import Fallback.State.Party
@@ -759,57 +753,5 @@ tickSummonsByOneRound = do
           { monstSummoning = Just ms { msRemainingFrames = frames' } }
         return Nothing
   mapM_ unsummonMonster keys
-
--------------------------------------------------------------------------------
--- Targeting:
-
--- TODO move this stuff to Fallback.State.Action
-
-circleArea :: Position -> SqDist -> [Position]
-circleArea center dist =
-  let limit = floor (sqDistRadius dist)
-      corner = Point limit limit
-  in filter ((dist >=) . pSqDist center) $
-     range (center `pSub` corner, center `pAdd` corner)
-
-aoeTarget :: Int -> SqDist -> TargetKind (Position, [Position])
-aoeTarget maxRange blastRadiusSquared = AreaTarget fn maxRange
-  where fn _ars _origin target = circleArea target blastRadiusSquared
-
-beamTarget :: TargetKind (Position, [Position])
-beamTarget = AreaTarget arsBeamPositions sightRange
-
-splashTarget :: Int -> TargetKind (Position, [Position])
-splashTarget maxRange = AreaTarget fn maxRange where
-  fn ars origin target =
-    if origin == target || cannotSeeThrough (arsTerrainOpenness target ars)
-    then [target] else
-      let dir = origin `dirTo` target
-      in [target, target `plusDir` pred dir, target `plusDir` dir,
-          target `plusDir` succ dir]
-
-wallTarget :: Int -> Int -> TargetKind (Position, [Position])
-wallTarget maxRange radius = AreaTarget fn maxRange where
-  fn ars origin target =
-    if origin == target || blocked target then [] else
-      let (d1, d2, d3, d4) =
-            if isCardinal dir
-            then (pred $ pred dir, pred $ pred dir,
-                  succ $ succ dir, succ $ succ dir)
-            else (pred dir, pred $ pred $ pred dir,
-                  succ dir, succ $ succ $ succ dir)
-      in target : wing d1 d2 target radius ++ wing d3 d4 target radius
-    where
-      dir = origin `dirTo` target
-      blocked pos =
-        arsOccupied pos ars ||
-        case arsTerrainOpenness pos ars of
-          TerrainOpen -> False
-          TerrainHover -> False
-          _ -> True
-      wing dir1 dir2 start n =
-        if n <= 0 then [] else
-          let pos = start `plusDir` (if n `mod` 2 == 1 then dir1 else dir2)
-          in if blocked pos then [] else pos : wing dir1 dir2 pos (n - 1)
 
 -------------------------------------------------------------------------------

@@ -32,6 +32,7 @@ import Fallback.Control.Script (Script)
 import qualified Fallback.Data.Grid as Grid (Grid)
 import Fallback.Data.Point
 import qualified Fallback.Data.TotalMap as TM
+import Fallback.State.Action (Targeting)
 import Fallback.State.Area
 import Fallback.State.Creature (CreaturePose, Monster)
 import Fallback.State.Doodad (makeMessage)

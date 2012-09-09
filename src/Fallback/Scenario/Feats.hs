@@ -189,7 +189,9 @@ featEffect JumpSlash =
     concurrent_ targets $ \target -> do
       characterWeaponAttack caster target baseAttackModifiers
         { amCanBackstab = False, amDamageMultiplier = 2, amOffensive = False }
-  where areaFn _ start end = [end `plusDir` ipointDir (end `pSub` start)]
+  where areaFn ars charNum end =
+          [end `plusDir`
+           ipointDir (end `pSub` arsCharacterPosition charNum ars)]
 featEffect JumpStrike =
   StandardFeat (const $ JumpTarget areaFn 3) $ \caster (endPos, targets) -> do
     characterOffensiveActionTowards caster 8 endPos
