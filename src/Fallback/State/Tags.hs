@@ -226,14 +226,16 @@ data FeatTag = Concentrate
              | TidalForce | Eclipse | LunarBeam
              | PulseOfLife | Avatar | AllCreation
              -- For melee weapons:
-             | Cleave | Envenom | FireSpin | JumpSlash | JumpStrike | Rampage
-             | Spincut | SweepSlash | Whirlwind
-             -- For throwing stars:
-             | NeutronBomb | Pierce
-             -- For bows:
-             | Longshot | Shortshot | SprayArrows | TripleTap
+             | Cleave | Earthquake | Envenom | FireSpin | Frenzy | GrandThud
+             | Hammerblow | JumpSlash | JumpStrike | Rampage | Spincut
+             | SweepSlash | Whirlwind
+             -- For bows and throwing stars:
+             | ExplosiveArrow | Longshot | NeutronBomb | Pierce | Shortshot
+             | SprayArrows | ThunderArrow | TripleTap
              -- For wands:
              | Glow | Amplify | Radiate | Resonate | TimeStop | Catalyze
+             -- General:
+             | Assassinate | BattleRoar | Crisis | HealingRain
   deriving (Eq, Show)
 
 featName :: FeatTag -> String

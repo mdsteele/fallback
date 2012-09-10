@@ -30,7 +30,9 @@ import Fallback.Data.Point
 import Fallback.Scenario.Script
 import Fallback.State.Action
 import Fallback.State.Area
-import Fallback.State.Creature (CreatureAnim(..), monstIsAlly, monstIsSummoned)
+import Fallback.State.Creature
+  (CreatureAnim(..), monstHealth, monstIsAlly, monstIsSummoned)
+import Fallback.State.Party (chrHealth, chrMaxHealth, partyGetCharacter)
 import Fallback.State.Resources
 import Fallback.State.Simple
 import Fallback.State.Status
@@ -40,6 +42,7 @@ import Fallback.State.Terrain (positionCenter, prectRect)
 -------------------------------------------------------------------------------
 
 featEffect :: FeatTag -> FeatEffect
+featEffect Concentrate = MetaAbility FullAP NormalCost 1.2
 featEffect Offering = MetaAbility FullAP ZeroCost 3
 featEffect SolarFlare =
   StandardFeat (MultiTarget 3) $ \caster targets -> do
@@ -217,11 +220,36 @@ featEffect Radiate = MetaAbility FullAP ZeroCost 1
 featEffect Resonate = MetaAbility FullAP NormalCost 2
 featEffect TimeStop = MetaAbility ZeroAP NormalCost 1
 featEffect Catalyze = MetaAbility FullAP DoubleCost 3
+featEffect Assassinate =
+  StandardFeat SingleTarget $ \caster target -> do
+    health <- do
+      mbOccupant <- areaGet (arsOccupant target)
+      case mbOccupant of
+        Nothing -> return 0
+        Just (Left charNum) -> areaGet (chrHealth . arsGetCharacter charNum)
+        Just (Right entry) -> return $ monstHealth $ Grid.geValue entry
+    characterWeaponAttack caster target $
+      if health <= 250 then baseAttackModifiers
+        { amCriticalHit = Always 1, amInstantKill = True }
+      else baseAttackModifiers
+        { amCanBackstab = False, amCanFinalBlow = False, amCriticalHit = Never,
+          amDamageMultiplier = 0.2 }
+featEffect Crisis =
+  StandardFeat SingleTarget $ \caster target -> do
+    party <- areaGet arsParty
+    let char = partyGetCharacter party caster
+    let frac = fromIntegral (chrHealth char) /
+               fromIntegral (chrMaxHealth party char)
+    let mult = 4 * frac * frac - 8 * frac + 5
+    characterWeaponAttack caster target baseAttackModifiers
+      { amCriticalHit = if mult >= 1.5 then Always 1 else Never,
+        amDamageMultiplier = mult }
 featEffect _ = MetaAbility FullAP NormalCost 1.1 -- FIXME
 
 -------------------------------------------------------------------------------
 
 featCastingCost :: FeatTag -> CastingCost
+featCastingCost Concentrate = AdrenalineCost 100
 featCastingCost Offering = AdrenalineCost 10
 featCastingCost SolarFlare = AdrenalineCost 30
 featCastingCost Energize = AdrenalineCost 100
@@ -238,6 +266,7 @@ featCastingCost TimeStop = AdrenalineCost 50
 featCastingCost _ = NoCost -- FIXME
 
 featDescription :: FeatTag -> String
+featDescription Concentrate = "Use any one ability, at +20% power."
 featDescription Offering = "Use any one ability for free, at triple power."
 featDescription SolarFlare =
   "Deal massive fire damage to up to three enemies.  Any undead targets, no\
@@ -286,13 +315,20 @@ featDescription Shortshot =
   "Fire an arrow, at reduced range, for double damage."
 featDescription TripleTap = "Fire three arrows at the same target."
 featDescription Glow = "Use any one ability for one third of its normal cost."
-featDescription Amplify = "Use any one ability, at 1.5x power."
+featDescription Amplify = "Use any one ability, at +50% power."
 featDescription Radiate = "Use any one ability for free."
 featDescription Resonate = "Use any one ability, at double power."
 featDescription TimeStop =
   "Use any one ability, without using up any action points."
 featDescription Catalyze =
   "Use any one ability, at triple power, for double its normal cost."
+featDescription Assassinate =
+  "Attempt to strike a single, fatal blow on an enemy.  If the target has 250\
+  \ remaining health or less, it is instantly killed; otherwise, it takes only\
+  \ a small amount of damage."
+featDescription Crisis =
+  "Make a single, desparate blow against an enemy.  The less health you have\
+  \ remaining, the more damage the attack will do."
 featDescription _ = "??? FIXME ???"
 
 featIconCoords :: FeatTag -> (Int, Int)
@@ -320,6 +356,8 @@ featIconCoords Radiate = (9, 5)
 featIconCoords Resonate = (9, 6)
 featIconCoords TimeStop = (9, 7)
 featIconCoords Catalyze = (9, 8)
+featIconCoords Assassinate = (8, 3)
+featIconCoords Crisis = (8, 4)
 featIconCoords _ = (9, 9) -- FIXME
 
 -------------------------------------------------------------------------------

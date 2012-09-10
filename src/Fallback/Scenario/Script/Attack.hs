@@ -65,6 +65,7 @@ data AttackModifiers = AttackModifiers
     amDamageMultiplier :: Double,
     amExtraEffects :: [AttackEffect],
     amHitSound :: Bool,
+    amInstantKill :: Bool,
     amOffensive :: Bool,
     amSeverity :: DamageSeverity,
     amWeaponData :: Maybe WeaponData }
@@ -81,6 +82,7 @@ baseAttackModifiers = AttackModifiers
     amDamageMultiplier = 1,
     amExtraEffects = [],
     amHitSound = True,
+    amInstantKill = False,
     amOffensive = True,
     amSeverity = HarshDamage,
     amWeaponData = Nothing }
@@ -152,7 +154,8 @@ characterWeaponAttack charNum target mods = do
   -- Check the weapon's damage bonuses against certain types of monsters.  A
   -- Nothing value here indicates an instant kill, in which case we use
   -- instantKill instead of attackHit.
-  mbWeaponMult <- weaponDamageMultiplier wd <$> areaGet (arsOccupant target)
+  mbWeaponMult <- if amInstantKill mods then return Nothing else
+    weaponDamageMultiplier wd <$> areaGet (arsOccupant target)
   case mbWeaponMult of
     Nothing -> instantKill target hitMods
     Just weaponMult -> do

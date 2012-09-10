@@ -723,7 +723,7 @@ getAbility characterClass abilityNumber rank =
           addBoomDoodadAtPosition EnergyBoom 3 target >> wait 6
           dealDamage [(HitPosition target, EnergyDamage, damage)] >> wait 18
     Freeze ->
-      combat (ManaCost 1) (aoeTarget 4 $ SqDist 1) $
+      combat (ManaCost 1) (coneTarget (ranked 45 60 60) (ranked 4 4 5)) $
       \caster power (endPos, targets) -> do
         characterOffensiveActionTowards caster 8 endPos
         damage <- (ranked 10 20 30 * power *) <$> getRandomR 0.9 1.1
