@@ -318,8 +318,8 @@ paintMessage resources (Message time string) = do
   drawText font whiteColor (LocMidbottom $ Point (half width) bottom) string
 
 paintTargeting :: (AreaState a) => IPoint -> Maybe IPoint -> a
-               -> CharacterNumber -> Targeting b -> Paint ()
-paintTargeting cameraTopleft mbMousePt ars charNum targeting = do
+               -> CharacterNumber -> Targeting b -> Clock -> Paint ()
+paintTargeting cameraTopleft mbMousePt ars charNum targeting clock = do
   rect <- canvasRect
   let whenMouse = maybeM $ do
         mousePt <- mbMousePt
@@ -361,26 +361,42 @@ paintTargeting cameraTopleft mbMousePt ars charNum targeting = do
       in Set.filter ((sqdist >=) . pSqDist originPos) visible
     originPos = arsCharacterPosition charNum ars
     paintRegion = paintTargetingRegion (Tint 255 0 128 128) cameraTopleft
-    paintTile pos = drawRect (Tint 255 0 128 255) $
-                    positionRect pos `rectMinus` cameraTopleft
+    paintTile pos = do
+      gradientRing (const (0.3 + 0.05 * fromIntegral (clockZigzag 8 2 clock),
+                           Tint 255 0 128 0))
+                   (\th -> (1 + cos (4 * th + pi) / 16, Tint 255 0 128 192))
+                   (positionCenter pos `pSub` fmap fromIntegral cameraTopleft)
+                   (fromIntegral tileWidth / 2) (fromIntegral tileHeight / 2)
     paintX pos = do
-      let rect = positionRect pos `rectMinus` cameraTopleft
-      let x1 = rectX rect
-          x2 = x1 + rectW rect - 1
-          y1 = rectY rect
-          y2 = y1 + rectH rect - 1
-      drawLine (Tint 255 0 0 192) (Point x1 y1) (Point x2 y2)
-      drawLine (Tint 255 0 0 192) (Point x2 y1) (Point x1 y2)
+      gradientRing (const (0.03 * fromIntegral (clockZigzag 8 2 clock),
+                           Tint 255 0 128 0))
+                   (\th -> ((1 + cos (4 * th + pi) / 2) * 0.8,
+                            Tint 255 0 0 192))
+                   (positionCenter pos `pSub` fmap fromIntegral cameraTopleft)
+                   (fromIntegral tileWidth / 2) (fromIntegral tileHeight / 2)
     paintO pos = do
       let rect = positionRect pos `rectMinus` cameraTopleft
+      let pulse = 6 + clockZigzag 8 2 clock
       let x1 = rectX rect
+          x1' = x1 + pulse
           x2 = x1 + half (rectW rect)
           x3 = x1 + rectW rect - 1
+          x3' = x3 - pulse
           y1 = rectY rect
+          y1' = y1 + pulse
           y2 = y1 + half (rectH rect)
           y3 = y1 + rectH rect - 1
-      drawPolygon (Tint 0 0 255 192)
-                  [Point x1 y2, Point x2 y1, Point x3 y2, Point x2 y3]
+          y3' = y3 - pulse
+      let tint1 = Tint 0 0 255 192
+      let tint2 = Tint 0 128 255 0
+      gradientPolygon [(tint1, Point x1 y2), (tint1, Point x2 y1),
+                       (tint2, Point x2 y1'), (tint2, Point x1' y2)]
+      gradientPolygon [(tint1, Point x3 y2), (tint1, Point x2 y1),
+                       (tint2, Point x2 y1'), (tint2, Point x3' y2)]
+      gradientPolygon [(tint1, Point x1 y2), (tint1, Point x2 y3),
+                       (tint2, Point x2 y3'), (tint2, Point x1' y2)]
+      gradientPolygon [(tint1, Point x3 y2), (tint1, Point x2 y3),
+                       (tint2, Point x2 y3'), (tint2, Point x3' y2)]
     visible = arsVisibleForCharacter charNum ars
 
 paintWeaponRange :: (AreaState a) => IPoint -> a -> CharacterNumber

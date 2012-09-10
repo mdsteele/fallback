@@ -118,7 +118,14 @@ pAtan2 (Point x y) = atan2 y x
 -- zero, the result will be NaN.
 pVectorAngle :: DPoint -> DPoint -> Double
 pVectorAngle (Point x1 y1) (Point x2 y2) =
-  acos ((x1 * x2 + y1 * y2) / (hypot x1 y1 * hypot x2 y2))
+  -- Force the argument to acos to be between -1 and 1 (mathematically, it
+  -- always will be anyway, but these are floating point numbers we're talking
+  -- about here, so sometimes we have to force it), *except* that if it was
+  -- NaN, it should stay NaN (note the use of @flip max@ instead of @max@ to
+  -- ensure this).  Don't worry, there are unit tests in Fallback.Test.Point
+  -- that (hopefully) make sure that all this trickery works correctly.
+  acos $ flip max (-1) $ min 1 $
+  (x1 * x2 + y1 * y2) / (hypot x1 y1 * hypot x2 y2)
 
 -------------------------------------------------------------------------------
 -- Rect type:

@@ -121,7 +121,7 @@ newCombatMapView resources = do
                                           ctTargeting = targeting }) -> do
           mbMousePt <- getRelativeMousePos
           paintTargeting cameraTopleft mbMousePt cs
-                         (ccCharacterNumber cc) targeting
+                         (ccCharacterNumber cc) targeting (acsClock acs)
         ExecutionPhase ce -> maybeM (ceCommander ce) paintRange
         _ -> return ()
       maybeM (acsMessage acs) (paintMessage resources)

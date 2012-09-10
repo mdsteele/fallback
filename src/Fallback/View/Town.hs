@@ -140,7 +140,7 @@ newTownMapView resources cursorSink = do
         TargetingPhase (TownTargeting { ttTargeting = targeting }) -> do
           mbMousePt <- getRelativeMousePos
           paintTargeting cameraTopleft mbMousePt ts
-                         (tsActiveCharacter ts) targeting
+                         (tsActiveCharacter ts) targeting (acsClock acs)
         _ -> return ()
       maybeM (acsMessage acs) (paintMessage resources)
 

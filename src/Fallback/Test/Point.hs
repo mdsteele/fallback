@@ -32,7 +32,8 @@ pointTests = "point" ~: TestList [
   bresenhamTests,
   directionTests,
   rectTests,
-  sqDistTests]
+  sqDistTests,
+  vectorTests]
 
 bresenhamTests :: Test
 bresenhamTests = "bresenham" ~: TestList [
@@ -73,6 +74,14 @@ sqDistTests = "sqdist" ~: TestList [
                      pSqDist p1 p2,
   qcTest $ \p1 p2 -> prectSqDistToPosition (expandPosition p1) p2 ==
                      prectSqDistToPosition (expandPosition p2) p1]
+
+vectorTests :: Test
+vectorTests = "vector" ~: TestList [
+  qcTest $ \p -> isNaN (pVectorAngle pZero p),
+  qcTest $ \p -> isNaN (pVectorAngle p pZero),
+  insistEq 0.0 $ pVectorAngle (Point 2 3) (Point 2 3),
+  insistEq 0.0 $ pVectorAngle (Point 3 3) (Point 3 3),
+  insistEq pi $ pVectorAngle (Point 3 3) (pNeg $ Point 3 3)]
 
 -------------------------------------------------------------------------------
 
