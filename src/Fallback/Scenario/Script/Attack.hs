@@ -22,7 +22,7 @@ module Fallback.Scenario.Script.Attack
    AttackModifiers(..), baseAttackModifiers, Ever(..),
    -- * Character attacks
    characterOffensiveAction, characterOffensiveActionTowards,
-   characterWeaponAttack,
+   characterWeaponBaseDamage, characterWeaponAttack,
    -- * Monster attacks
    monsterOffensiveAction, monsterOffensiveActionToward, monsterPerformAttack,
    -- * Miscellaneous

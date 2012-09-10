@@ -98,7 +98,7 @@ newResources = do
   sheetSmallButtons <- loadSheet "gui/small-buttons.png" (4, 6)
   fonts <- TM.makeA (uncurry loadFont . fontSpec)
   monsterImages <- TM.makeA loadMonsterImages
-  projStrip <- loadVStrip "doodads/projectiles.png" 5
+  projStrip <- loadVStrip "doodads/projectiles.png" 6
   remainsStrip <- loadVStrip "remains.png" 7
   smallDigits <- loadVStrip "small-digits.png" 10
   sounds <- TM.makeA (loadSound . soundPath)
@@ -243,7 +243,7 @@ loadStatusDecorations = do
 -------------------------------------------------------------------------------
 -- Doodads:
 
-data ProjTag = AcidProj | FireProj | IceProj | StarProj | ArrowProj
+data ProjTag = AcidProj | FireProj | IceProj | StarProj | ArrowProj | SpearProj
   deriving (Bounded, Eq, Ix, Ord)
 
 projIndex :: ProjTag -> Int
@@ -252,6 +252,7 @@ projIndex FireProj = 1
 projIndex IceProj = 2
 projIndex StarProj = 3
 projIndex ArrowProj = 4
+projIndex SpearProj = 5
 
 rsrcProj :: Resources -> ProjTag -> Sprite
 rsrcProj rsrc tag = TM.get tag $ rsrcProjs rsrc

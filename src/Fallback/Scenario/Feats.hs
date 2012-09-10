@@ -21,7 +21,7 @@ module Fallback.Scenario.Feats
   (featEffect, featCastingCost, featDescription, featIconCoords)
 where
 
-import Control.Monad (forM_, unless, void)
+import Control.Monad (forM_, unless, void, when)
 
 import Fallback.Constants (framesPerRound, maxAdrenaline)
 import Fallback.Data.Color (Tint(Tint))
@@ -32,7 +32,9 @@ import Fallback.State.Action
 import Fallback.State.Area
 import Fallback.State.Creature
   (CreatureAnim(..), monstHealth, monstIsAlly, monstIsSummoned)
-import Fallback.State.Party (chrHealth, chrMaxHealth, partyGetCharacter)
+import Fallback.State.Item (wdAppearance)
+import Fallback.State.Party
+  (chrEquippedWeaponData, chrHealth, chrMaxHealth, partyGetCharacter)
 import Fallback.State.Resources
 import Fallback.State.Simple
 import Fallback.State.Status
@@ -138,10 +140,7 @@ featEffect LunarBeam =
     characterOffensiveActionTowards caster 24 endPos
     startPos <- areaGet (arsCharacterPosition caster)
     let startPt = positionCenter startPos :: DPoint
-    let endPt = startPt `pAdd`
-                (positionCenter endPos `pSub` startPt) `pMul`
-                 (fromIntegral (length targets) /
-                  fromIntegral (length (takeWhile (/= endPos) targets) + 1))
+    let endPt = beamEndPoint startPt endPos targets
     playSound SndFreeze
     addBeamDoodad (Tint 96 255 255 192) startPt endPt (length targets + 24)
     concurrent_ (zip targets [0..]) $ \(target, n) -> do
@@ -206,14 +205,52 @@ featEffect JumpStrike =
         { amCanBackstab = False, amCanFinalBlow = False, amCriticalHit = Never,
           amHitSound = False, amOffensive = False }
   where areaFn _ _ center = map (center `plusDir`) allDirections
-featEffect Shortshot =
-  StandardFeat (SingleTarget . (subtract 1)) $ \caster target -> do
-    characterWeaponAttack caster target baseAttackModifiers
-      { amDamageMultiplier = 2 }
+featEffect Rampage =
+  StandardFeat (const $ JumpTarget areaFn 4) $ \caster (endPos, targets) -> do
+    characterOffensiveActionTowards caster 8 endPos
+    also_ (charWalkTo caster endPos >>= wait) $ do
+    playSound SndHit4
+    concurrent_ targets $ \target -> do
+      characterWeaponAttack caster target baseAttackModifiers
+        { amCanBackstab = False, amCanFinalBlow = False, amCriticalHit = Never,
+          amDamageMultiplier = 1.1, amHitSound = False, amOffensive = False }
+  where areaFn ars charNum endPos = drop 1 $ init $
+          bresenhamPositions (arsCharacterPosition charNum ars) endPos
 featEffect Longshot =
   StandardFeat (SingleTarget . (+ 3)) $ \caster target -> do
     characterWeaponAttack caster target baseAttackModifiers
       { amDamageMultiplier = 1.5 }
+featEffect Pierce =
+  StandardFeat (const $ beamTarget) $ \caster (endPos, targets) -> do
+    characterOffensiveActionTowards caster 16 endPos
+    startPos <- areaGet (arsCharacterPosition caster)
+    let startPt = positionCenter startPos :: DPoint
+    let endPt = beamEndPoint startPt endPos targets
+    char <- areaGet (arsGetCharacter caster)
+    let wd = chrEquippedWeaponData char
+    let (projTag, launchSoundTag) =
+          case wdAppearance wd of
+            BowAttack -> (ArrowProj, SndArrow)
+            ThrownAttack -> (StarProj, SndThrow)
+            _ -> (SpearProj, SndThrow)
+    playSound launchSoundTag
+    _ <- addBlasterDoodad' (Tint 255 255 255 192) 3 70 startPt endPt 750
+    frames <- addBulletDoodad projTag startPt endPt 750
+    also_ (wait frames) $ do
+    concurrent_ (zip targets [1..]) $ \(target, n) -> do
+      occupied <- areaGet (arsOccupied target)
+      when occupied $ do
+      wait $ ceiling (fromIntegral frames * n /
+                      fromIntegral (length targets) :: Double)
+      baseDamage <- characterWeaponBaseDamage char wd
+      playSound SndHit1
+      addArrowHitDoodad 5 2 17 target
+      dealDamage [(HitPosition target, PhysicalDamage, 1.2 * baseDamage)]
+      wait 8
+featEffect Shortshot =
+  StandardFeat (SingleTarget . (subtract 1)) $ \caster target -> do
+    characterWeaponAttack caster target baseAttackModifiers
+      { amDamageMultiplier = 2 }
 featEffect Glow = MetaAbility FullAP OneThirdCost 1
 featEffect Amplify = MetaAbility FullAP NormalCost 1.5
 featEffect Radiate = MetaAbility FullAP ZeroCost 1
@@ -242,8 +279,7 @@ featEffect Crisis =
                fromIntegral (chrMaxHealth party char)
     let mult = 4 * frac * frac - 8 * frac + 5
     characterWeaponAttack caster target baseAttackModifiers
-      { amCriticalHit = if mult >= 1.5 then Always 1 else Never,
-        amDamageMultiplier = mult }
+      { amCriticalHit = Never, amDamageMultiplier = mult }
 featEffect _ = MetaAbility FullAP NormalCost 1.1 -- FIXME
 
 -------------------------------------------------------------------------------
@@ -300,6 +336,8 @@ featDescription JumpSlash = "Leap towards an enemy, bringing your blade down\
   \ on them for double damage."
 featDescription JumpStrike = "Leap amongst your enemies, slashing everything\
   \ near you when you land."
+featDescription Rampage =
+  "Make a mad dash past your enemies, running them through as you go by."
 featDescription Spincut =
   "Spin your blade deftly around you, slashing all adjacent enemies and\
   \ leaving allies untouched."
@@ -309,8 +347,9 @@ featDescription Whirlwind =
   "Spin your blade wildly around you, slashing everything next to you and\
   \ knocking them back."
 featDescription NeutronBomb = "Damage and curse all enemies near the target."
-featDescription Pierce = "Strike all targets in a line."
 featDescription Longshot = "Fire an arrow at +3 range and +50% damage."
+featDescription Pierce = "Let fly your weapon with such force that it pierces\
+  \ through all enemies in a straight line."
 featDescription Shortshot =
   "Fire an arrow, at reduced range, for double damage."
 featDescription TripleTap = "Fire three arrows at the same target."
@@ -347,7 +386,9 @@ featIconCoords Avatar = (9, 1)
 featIconCoords AllCreation = (9, 2)
 featIconCoords JumpSlash = (6, 5)
 featIconCoords JumpStrike = (6, 4)
+featIconCoords Rampage = (6, 7)
 featIconCoords Longshot = (7, 4)
+featIconCoords Pierce = (7, 6)
 featIconCoords Shortshot = (7, 5)
 featIconCoords TripleTap = (7, 3)
 featIconCoords Glow = (9, 3)
@@ -364,5 +405,12 @@ featIconCoords _ = (9, 9) -- FIXME
 
 autoTarget :: Int -> TargetKind ()
 autoTarget = const AutoTarget
+
+beamEndPoint :: DPoint -> Position -> [Position] -> DPoint
+beamEndPoint startPt endPos targets =
+  startPt `pAdd`
+  (positionCenter endPos `pSub` startPt) `pMul`
+  (fromIntegral (length targets) /
+   fromIntegral (length (takeWhile (/= endPos) targets) + 1))
 
 -------------------------------------------------------------------------------

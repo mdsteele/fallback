@@ -22,9 +22,10 @@ module Fallback.Scenario.Script.Doodad
    -- * Floaters
    addFloatingNumberOnTarget, addFloatingWordOnTarget,
    -- * Spell effects
-   addBallisticDoodad, addBeamDoodad, addBlasterDoodad, addBoomDoodadAtPoint,
-   addBoomDoodadAtPosition, addLightningDoodad, addLightWallDoodad,
-   addShockwaveDoodad, addRadialGradientDoodad, doExplosionDoodad,
+   addBallisticDoodad, addBeamDoodad, addBlasterDoodad, addBlasterDoodad',
+   addBoomDoodadAtPoint, addBoomDoodadAtPosition, addBulletDoodad,
+   addLightningDoodad, addLightWallDoodad, addShockwaveDoodad,
+   addRadialGradientDoodad, doExplosionDoodad,
    -- * Swooshes
    addSwooshDoodad, linearBezierCurve, quadraticBezierCurve, cubicBezierCurve,
    -- * Attack hits
@@ -152,10 +153,14 @@ addBeamDoodad tint startPt endPt limit = do
 
 addBlasterDoodad :: (FromAreaEffect f) => Tint -> Double -> Double -> Position
                  -> Position -> Double -> Script f Int
-addBlasterDoodad tint width len start end speed = do
+addBlasterDoodad tint width len start end speed =
+  addBlasterDoodad' tint width len (positionCenter start) (positionCenter end)
+                    speed
+
+addBlasterDoodad' :: (FromAreaEffect f) => Tint -> Double -> Double -> DPoint
+                  -> DPoint -> Double -> Script f Int
+addBlasterDoodad' tint width len spt ept speed = do
   let tint' = tint { tintAlpha = 0 }
-  let spt = positionCenter start
-      ept = positionCenter end
   let delta = ept `pSub` spt
   let perp = pPolar (width / 2) (pAtan2 delta + pi / 2)
   let distance = pDist spt ept
@@ -186,6 +191,20 @@ addBoomDoodadAtPosition :: (FromAreaEffect f) => StripTag -> Int -> Position
                         -> Script f ()
 addBoomDoodadAtPosition tag slowdown pos =
   addBoomDoodadAtPoint tag slowdown (positionCenter pos)
+
+addBulletDoodad :: (FromAreaEffect f) => ProjTag -> DPoint -> DPoint -> Double
+                -> Script f Int
+addBulletDoodad ptag startPt endPt speed = do
+  sprite <- flip rsrcProj ptag <$> areaGet arsResources
+  let delta = endPt `pSub` startPt
+  let angle = pAtan2 delta
+  let limit = floor (fromIntegral framesPerSecond *
+                     pDist startPt endPt / speed)
+  let paint t topleft = do
+        let center = startPt `pAdd` (delta `pMul` t)
+        blitRotate sprite (center `pSub` fmap fromIntegral topleft) angle
+  addContinuousDoodad MidDood limit paint
+  return limit
 
 addLightningDoodad :: (FromAreaEffect f) => Tint -> Position -> Position
                    -> Script f ()
