@@ -183,6 +183,10 @@ featEffect AllCreation =
         RabidBat, Roach, Rous, Spider, Unicorn, Wolf]
       let lifetime = framesPerRound * 21
       void $ trySummonMonsterNear pos (Left caster) monstTag lifetime False
+featEffect Cripple =
+  StandardFeat SingleTarget $ \caster target -> do
+    characterWeaponAttack caster target baseAttackModifiers
+      { amDamageMultiplier = 1.5, amExtraEffects = [InflictSlow 0.1] }
 featEffect JumpSlash =
   StandardFeat (const $ JumpTarget areaFn 3) $ \caster (endPos, targets) -> do
     characterOffensiveActionTowards caster 8 endPos
@@ -331,6 +335,8 @@ featDescription Avatar =
   \ cures you of all negative effects."
 featDescription AllCreation =
   "Summon a multitude of wild animals and beasts to attack your enemies."
+featDescription Cripple =
+  "Viciously slash one enemy, slowing their movement for a short time."
 featDescription Envenom = "Slash one enemy, with a deadly poison."
 featDescription JumpSlash = "Leap towards an enemy, bringing your blade down\
   \ on them for double damage."
@@ -384,6 +390,7 @@ featIconCoords LunarBeam = (8, 2)
 featIconCoords PulseOfLife = (9, 0)
 featIconCoords Avatar = (9, 1)
 featIconCoords AllCreation = (9, 2)
+featIconCoords Cripple = (6, 8)
 featIconCoords JumpSlash = (6, 5)
 featIconCoords JumpStrike = (6, 4)
 featIconCoords Rampage = (6, 7)

@@ -226,9 +226,9 @@ data FeatTag = Concentrate
              | TidalForce | Eclipse | LunarBeam
              | PulseOfLife | Avatar | AllCreation
              -- For melee weapons:
-             | Cleave | Earthquake | Envenom | FireSpin | Frenzy | GrandThud
-             | Hammerblow | JumpSlash | JumpStrike | Rampage | Spincut
-             | SweepSlash | Whirlwind
+             | Cleave | Cripple | Earthquake | Envenom | FireSpin | Frenzy
+             | GrandThud | Hammerblow | JumpSlash | JumpStrike | Rampage
+             | Spincut | SweepSlash | Whirlwind
              -- For bows and throwing stars:
              | ExplosiveArrow | Longshot | NeutronBomb | Pierce | Shortshot
              | SprayArrows | ThunderArrow | TripleTap
@@ -246,13 +246,18 @@ featName LunarBeam = "Lunar Beam"
 featName PulseOfLife = "Pulse of Life"
 featName AllCreation = "All Creation"
 featName FireSpin = "Fire Spin"
+featName GrandThud = "Grand Thud"
 featName JumpSlash = "Jump Slash"
 featName JumpStrike = "Jump Strike"
 featName SweepSlash = "Sweep Slash"
+featName ExplosiveArrow = "Explosive Arrow"
 featName NeutronBomb = "Neutron Bomb"
 featName SprayArrows = "Spray Arrows"
+featName ThunderArrow = "Thunder Arrow"
 featName TripleTap = "Triple Tap"
 featName TimeStop = "Time Stop"
+featName BattleRoar = "Battle Roar"
+featName HealingRain = "Healing Rain"
 featName tag = show tag
 
 -------------------------------------------------------------------------------
