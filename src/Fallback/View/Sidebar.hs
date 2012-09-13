@@ -336,7 +336,9 @@ newStatusEffectsView resources = do
       blitHarmOrBenefit 0 0 1 (seBlessing se)
       blitHarmOrBenefit 1 2 3 (seDefense se)
       blitHarmOrBenefit 2 4 5 (seHaste se)
-      when (sePoison se > 0) $ blit 3 $ if sePoison se >= health then 7 else 6
+      when (seRegenPoison se < 0) $ do
+        blit 3 $ if health + seRegenPoison se <= 0 then 7 else 6
+      when (seRegenPoison se > 0) $ blit 3 13
       maybeM (seMentalEffect se) $ \eff ->
         blit 4 $ case eff of { Dazed -> 8; Confused -> 9; Charmed -> 10 }
       case seInvisibility se of

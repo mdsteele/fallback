@@ -25,7 +25,7 @@ module Fallback.State.Status
    seBlessing, seAttackAgilityModifier, seAttackDamageMultiplier,
    seDefense, seArmorMultiplier,
    seHaste, seSpeedMultiplier,
-   sePoison,
+   seRegenPoison,
    seInvisibility,
    seMentalEffect,
    seIsEntangled,
@@ -34,7 +34,7 @@ module Fallback.State.Status
    seApplyBlessing, seReduceBlessing, seReduceCurse,
    seApplyDefense, seReduceDefense, seReduceWeakness,
    seApplyHaste, seReduceHaste, seReduceSlow,
-   seAlterPoison,
+   seAlterRegenPoison,
    seSetInvisibility,
    seApplyMentalEffect, sePurgeMentalEffects, seWakeFromDaze,
    seApplyEntanglement, sePurgeEntanglement,
@@ -130,7 +130,7 @@ data StatusEffects = StatusEffects
     seInvisibility :: Invisibility,
     seMagicShield :: Maybe Double, -- rounds remaining
     seMental :: Maybe (MentalEffect, Double {-rounds remaining-}),
-    sePoison :: Int } -- damage remaining
+    seRegenPoison :: Int } -- health delta remaining
   deriving (Read, Show)
 
 initStatusEffects :: StatusEffects
@@ -142,7 +142,7 @@ initStatusEffects = StatusEffects
     seInvisibility = NoInvisibility,
     seMagicShield = Nothing,
     seMental = Nothing,
-    sePoison = 0 }
+    seRegenPoison = 0 }
 
 decayStatusEffects :: Double -> StatusEffects -> StatusEffects
 decayStatusEffects rounds se =
@@ -209,8 +209,9 @@ seMagicShieldMultiplier = maybe 1 (const 0.5) . seMagicShield
 -------------------------------------------------------------------------------
 -- Setters:
 
-seAlterPoison :: (Int -> Int) -> StatusEffects -> StatusEffects
-seAlterPoison fn status = status { sePoison = max 0 $ fn (sePoison status) }
+seAlterRegenPoison :: (Int -> Int) -> StatusEffects -> StatusEffects
+seAlterRegenPoison fn status =
+  status { seRegenPoison = fn (seRegenPoison status) }
 
 seApplyBlessing :: HarmOrBenefit -> StatusEffects -> StatusEffects
 seApplyBlessing hb se =
@@ -284,7 +285,7 @@ sePurgeAllBadEffects se =
   se { seBlessing = purgeHarmful (seBlessing se),
        seDefense = purgeHarmful (seDefense se),
        seEntanglement = Nothing, seHaste = purgeHarmful (seHaste se),
-       seMental = Nothing, sePoison = 0 }
+       seMental = Nothing, seRegenPoison = max 0 (seRegenPoison se) }
   where purgeHarmful (Harmful _) = Unaffected
         purgeHarmful hob = hob
 
@@ -297,13 +298,13 @@ data StatusDelta = StatusDelta
     sdEntanglement :: !Double,
     sdHaste :: !Double,
     sdMagicShield :: !Double,
-    sdPoison :: !Int }
+    sdRegenPoison :: !Int }
   deriving Show
 
 zeroStatusDelta :: StatusDelta
 zeroStatusDelta = StatusDelta
   { sdBlessing = 0, sdDefense = 0, sdEntanglement = 0, sdHaste = 0,
-    sdMagicShield = 0, sdPoison = 0 }
+    sdMagicShield = 0, sdRegenPoison = 0 }
 
 addStatusDeltas :: StatusDelta -> StatusDelta -> StatusDelta
 addStatusDeltas sd1 sd2 = StatusDelta
@@ -312,7 +313,7 @@ addStatusDeltas sd1 sd2 = StatusDelta
     sdEntanglement = sdEntanglement sd1 + sdEntanglement sd2,
     sdHaste = sdHaste sd1 + sdHaste sd2,
     sdMagicShield = sdMagicShield sd1 + sdMagicShield sd2,
-    sdPoison = sdPoison sd1 + sdPoison sd2 }
+    sdRegenPoison = sdRegenPoison sd1 + sdRegenPoison sd2 }
 
 sumStatusDeltas :: [StatusDelta] -> StatusDelta
 sumStatusDeltas = foldl' addStatusDeltas zeroStatusDelta
@@ -322,7 +323,8 @@ divStatusDelta :: StatusDelta -> Int -> StatusDelta
 divStatusDelta sd di = assert (di > 0) $ StatusDelta
   { sdBlessing = sdBlessing sd / dd, sdDefense = sdDefense sd / dd,
     sdEntanglement = sdEntanglement sd / dd, sdHaste = sdHaste sd / dd,
-    sdMagicShield = sdMagicShield sd / dd, sdPoison = sdPoison sd `div` di }
+    sdMagicShield = sdMagicShield sd / dd,
+    sdRegenPoison = sdRegenPoison sd `quot` di }
   where dd = fromIntegral di
 
 -- | Make a status delta by subtracting the second set of status effects from
@@ -336,7 +338,7 @@ makeStatusDelta se1 se2 = StatusDelta
     sdHaste = hobToDouble (seHaste se1) - hobToDouble (seHaste se2),
     sdMagicShield = fromMaybe 0 (seMagicShield se1) -
                     fromMaybe 0 (seMagicShield se2),
-    sdPoison = sePoison se1 - sePoison se2 }
+    sdRegenPoison = seRegenPoison se1 - seRegenPoison se2 }
 
 applyStatusDelta :: StatusDelta -> StatusEffects -> StatusEffects
 applyStatusDelta sd =
@@ -344,7 +346,8 @@ applyStatusDelta sd =
   (seApplyDefense $ hobFromDouble $ sdDefense sd) .
   (seApplyEntanglement $ sdEntanglement sd) .
   (seApplyHaste $ hobFromDouble $ sdHaste sd) .
-  (seApplyMagicShield $ sdMagicShield sd) . (seAlterPoison (+ sdPoison sd))
+  (seApplyMagicShield $ sdMagicShield sd) .
+  (seAlterRegenPoison (+ sdRegenPoison sd))
 
 -------------------------------------------------------------------------------
 -- Utilities:

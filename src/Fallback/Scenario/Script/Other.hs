@@ -29,8 +29,8 @@ module Fallback.Scenario.Script.Other
    alterAdrenaline,
    -- ** Status effects
    getStatus, alterStatus, alterCharacterStatus, alterMonsterStatus,
-   grantInvisibility, inflictPoison, curePoison, inflictStun,
-   inflictMentalEffect, massInflictMentalEffect,
+   grantInvisibility, inflictPoison, curePoison, grantRegeneration,
+   inflictStun, inflictMentalEffect, massInflictMentalEffect,
    -- ** Other
    alterPartyCoins, alterPartyIngredients, grantExperience,
    removeFields, setFields, addRemains,
@@ -291,11 +291,12 @@ inflictPoison hitTarget basePoison = do
     Just (Left charNum) -> do
       char <- areaGet (arsGetCharacter charNum)
       let poison = round (basePoison * chrGetResistance ResistChemical char)
-      alterCharacterStatus charNum $ seAlterPoison (poison +)
+      alterCharacterStatus charNum $ seAlterRegenPoison (subtract poison)
     Just (Right monstEntry) -> do
       let poison = round $ (basePoison *) $ TM.get ResistChemical $
                    mtResistances $ monstType $ Grid.geValue monstEntry
-      alterMonsterStatus (Grid.geKey monstEntry) $ seAlterPoison (poison +)
+      alterMonsterStatus (Grid.geKey monstEntry) $
+        seAlterRegenPoison (subtract poison)
     Nothing -> return ()
 
 -- | Cure poison damage from the target, taking the Recuperation skill into
@@ -303,14 +304,30 @@ inflictPoison hitTarget basePoison = do
 curePoison :: (FromAreaEffect f) => HitTarget -> Double -> Script f ()
 curePoison hitTarget baseAmount = do
   mbOccupant <- getHitTargetOccupant hitTarget
+  let cure amount rp = if rp >= 0 then rp else min 0 (rp + amount)
   case mbOccupant of
     Just (Left charNum) -> do
       char <- areaGet (arsGetCharacter charNum)
       let amount = round (baseAmount * chrRecuperation char)
-      alterCharacterStatus charNum $ seAlterPoison (max 0 . subtract amount)
+      alterCharacterStatus charNum $ seAlterRegenPoison $ cure amount
     Just (Right monstEntry) -> do
       alterMonsterStatus (Grid.geKey monstEntry) $
-        seAlterPoison (max 0 . subtract (round baseAmount))
+        seAlterRegenPoison $ cure $ round baseAmount
+    Nothing -> return ()
+
+-- | Cause the target to regenerate the given amount of health over time,
+-- taking the Recuperation skill into account.
+grantRegeneration :: (FromAreaEffect f) => HitTarget -> Double -> Script f ()
+grantRegeneration hitTarget baseAmount = do
+  mbOccupant <- getHitTargetOccupant hitTarget
+  case mbOccupant of
+    Just (Left charNum) -> do
+      char <- areaGet (arsGetCharacter charNum)
+      let amount = round (baseAmount * chrRecuperation char)
+      alterCharacterStatus charNum $ seAlterRegenPoison (+ amount)
+    Just (Right monstEntry) -> do
+      alterMonsterStatus (Grid.geKey monstEntry) $
+        seAlterRegenPoison (+ round baseAmount)
     Nothing -> return ()
 
 -- | Inflicts stun (measured in action points) onto the target, taking

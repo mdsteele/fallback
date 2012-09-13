@@ -336,20 +336,27 @@ inflictAllPeriodicDamage = do
   charNums <- getAllConsciousCharacters
   party <- areaGet arsParty
   charPoisonDamages <- forMaybeM charNums $ \charNum -> do
-    let totalPoison = sePoison $ chrStatus $ partyGetCharacter party charNum
-    if totalPoison <= 0 then return Nothing else do
-      let damage = totalPoison `ceilDiv` 5
-      alterCharacterStatus charNum $ seAlterPoison $ subtract damage
+    let delta = seRegenPoison $ chrStatus $ partyGetCharacter party charNum
+    when (delta > 0) $ do
+      let amount = delta `ceilDiv` 5
+      alterCharacterStatus charNum $ seAlterRegenPoison (subtract amount)
+      healDamage [(HitCharacter charNum, fromIntegral amount)]
+    if delta >= 0 then return Nothing else do
+      let damage = negate delta `ceilDiv` 5
+      alterCharacterStatus charNum $ seAlterRegenPoison (+ damage)
       return $ Just (HitCharacter charNum, RawDamage, fromIntegral damage)
   monsters <- areaGet (Grid.entries . arsMonsters)
   monstPoisonDamages <- forMaybeM monsters $ \monstEntry -> do
-    let totalPoison = sePoison $ monstStatus $ Grid.geValue monstEntry
-    if totalPoison <= 0 then return Nothing else do
-      let damage = totalPoison `ceilDiv` 5
-      alterMonsterStatus (Grid.geKey monstEntry) $ seAlterPoison $
-        subtract damage
-      return $ Just (HitMonster (Grid.geKey monstEntry), RawDamage,
-                     fromIntegral damage)
+    let key = Grid.geKey monstEntry
+    let delta = seRegenPoison $ monstStatus $ Grid.geValue monstEntry
+    when (delta > 0) $ do
+      let amount = delta `ceilDiv` 5
+      alterMonsterStatus key $ seAlterRegenPoison (subtract amount)
+      healDamage [(HitMonster key, fromIntegral amount)]
+    if delta >= 0 then return Nothing else do
+      let damage = negate delta `ceilDiv` 5
+      alterMonsterStatus key $ seAlterRegenPoison (+ damage)
+      return $ Just (HitMonster key, RawDamage, fromIntegral damage)
   void $ dealDamageGeneral GentleDamage Nothing $
     fieldDamages ++ charPoisonDamages ++ monstPoisonDamages
 

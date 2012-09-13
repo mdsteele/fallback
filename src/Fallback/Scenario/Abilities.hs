@@ -498,7 +498,8 @@ getAbility characterClass abilityNumber rank =
       general (ManaCost 4) (AllyTarget 8) $ \_caster power eith -> do
         healAmount <- (ranked 20 35 55 * power *) <$> getRandomR 0.9 1.1
         playSound SndHeal
-        healDamage [(either HitPosition HitCharacter eith, healAmount)]
+        grantRegeneration (either HitPosition HitCharacter eith) healAmount
+        --healDamage [(either HitPosition HitCharacter eith, healAmount)]
     Blessing | rank < Rank3 ->
       general cost (AllyTarget 6) $ \caster power eith -> do
         -- TODO when rank=2, also affect allies adjacent to target
