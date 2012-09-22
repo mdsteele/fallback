@@ -55,6 +55,33 @@ compilePerilousRoad globals = compileArea PerilousRoad Nothing $ do
     addUnlockedDoors globals
     mapM_ (addRemains Bones) =<< lookupTerrainMark "Bones"
 
+  once 480298 (walkIn "JustInside1" `orP` walkIn "JustInside2") $ do
+    narrate "FIXME"
+
+  simpleEnemy_ 879920 "ZomA1" Zombie MindlessAI
+  simpleEnemy_ 297279 "ZomA2" Zombie MindlessAI
+  simpleEnemy_ 400982 "ZomA3" Zombie MindlessAI
+  simpleEnemy_ 178721 "GhoulA" Ghoul MindlessAI
+  simpleEnemy_ 338940 "WraithA1" Wraith MindlessAI
+  simpleEnemy_ 612041 "WraithA2" Wraith MindlessAI
+
+  simpleEnemy_ 740821 "ZomB1" Zombie MindlessAI
+  simpleEnemy_ 300100 "ZomB2" Zombie MindlessAI
+  simpleEnemy_ 428302 "ZomB3" Zombie MindlessAI
+  simpleEnemy_ 485082 "GhoulB1" Ghoul MindlessAI
+  simpleEnemy_ 585092 "GhoulB2" Ghoul MindlessAI
+  simpleEnemy_ 500192 "WraithB" Wraith MindlessAI
+
+  simpleEnemy_ 984113 "ZomC1" Zombie MindlessAI
+  simpleEnemy_ 448020 "ZomC2" Zombie MindlessAI
+  simpleEnemy_ 397299 "SkelC1" Skeleton MindlessAI
+  simpleEnemy_ 321353 "SkelC2" Skeleton MindlessAI
+  simpleEnemy_ 575792 "WraithC" Wraith MindlessAI
+
+  simpleEnemy_ 477201 "GhastD1" Ghast MindlessAI
+  simpleEnemy_ 313516 "GhastD2" Ghast MindlessAI
+  simpleEnemy_ 297987 "WraithD" Wraith MindlessAI
+
   uniqueDevice 572098 "RoadSign" signRadius $ \_ _ -> do
     narrate "There's a weather-beaten signpost along the road here.  It\
       \ says:\n\n\

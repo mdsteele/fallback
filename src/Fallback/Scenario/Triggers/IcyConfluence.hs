@@ -29,7 +29,7 @@ import Fallback.Scenario.Triggers.Globals
 import Fallback.Scenario.Triggers.Script
 import Fallback.State.Creature (MonsterTownAI(..))
 import Fallback.State.Resources (SoundTag(SndLever))
-import Fallback.State.Simple (FaceDir(..))
+import Fallback.State.Simple (FaceDir(..), Remains(Bones))
 import Fallback.State.Tags (AreaTag(..), MonsterTag(..))
 import Fallback.State.Tileset (TileTag(..))
 
@@ -131,6 +131,7 @@ compileIcyConfluence globals = do
 
     onStartDaily 829801 $ do
       addUnlockedDoors globals
+      mapM_ (addRemains Bones) =<< lookupTerrainMark "Bones"
 
     -- Stairs:
     trigger 401984 (walkOn "StairsA") $ do
