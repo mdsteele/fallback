@@ -365,7 +365,8 @@ data SoundTag = SndArrow
               | SndCombatEnd | SndCombatStart
               | SndDie1 | SndDie2
               | SndDoorOpen | SndDoorShut
-              | SndDrain
+              | SndDrain | SndDrink
+              | SndEat
               | SndFireDamage | SndFreeze
               | SndHaste | SndHeal
               | SndHit1 | SndHit2 | SndHit3 | SndHit4
@@ -398,6 +399,8 @@ soundPath SndDie2 = "die2-32.wav"
 soundPath SndDoorOpen = "door-open-58.wav"
 soundPath SndDoorShut = "door-shut-59.wav"
 soundPath SndDrain = "drain-cfxr.wav"
+soundPath SndDrink = "drink.wav"
+soundPath SndEat = "eat-6.wav"
 soundPath SndFireDamage = "fire-damage-73.wav"
 soundPath SndFreeze = "freeze-75.wav"
 soundPath SndHaste = "haste-cfxr.wav"

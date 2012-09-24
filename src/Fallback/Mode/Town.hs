@@ -49,7 +49,7 @@ import Fallback.Mode.Narrate (newNarrateMode)
 import Fallback.Scenario.Abilities (getAbility)
 import Fallback.Scenario.Areas (enterPartyIntoArea)
 import Fallback.Scenario.MonsterAI (monsterTownStep)
-import Fallback.Scenario.Potions (runPotionAction)
+import Fallback.Scenario.Potions (runPotionActions)
 import Fallback.Scenario.Script
   (also_, alsoWith, alterAdrenaline, areaGet, concurrentAny, grantExperience,
    grantItem, inflictAllPeriodicDamage, partyWalkTo, setMessage,
@@ -63,8 +63,7 @@ import Fallback.State.Area
 import Fallback.State.Combat
   (CombatCharState(..), CombatState(..), CombatPhase(WaitingPhase))
 import Fallback.State.Creature (CreatureAnim(..), CreaturePose(..))
-import Fallback.State.Item
-  (ItemValue(..), getPotionAction, itemCost, itemValue)
+import Fallback.State.Item (ItemValue(..), itemCost, itemValue)
 import Fallback.State.Party
 import Fallback.State.Region (RegionState(..))
 import Fallback.State.Resources
@@ -255,8 +254,7 @@ newTownMode resources modes initState = do
                   if isJust mbItemTag then ignore else do
                   case partyItemInSlot slot party of
                     Just (PotionItemTag potTag) -> do
-                      let phase = ScriptPhase $ mapEffect EffTownArea $
-                                  runPotionAction (getPotionAction potTag) $
+                      let phase = ScriptPhase $ runPotionActions potTag $
                                   tsActiveCharacter ts
                       changePhaseAndParty ts phase (partyRemoveItem slot party)
                     _ -> ignore

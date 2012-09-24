@@ -22,7 +22,7 @@ module Fallback.State.Item
    itemFullDescription,
    WeaponData(..), getWeaponData, unarmedWeaponData, DamageModifier(..),
    ArmorData(..), getArmorData, getAccessoryData,
-   PotionAction(..), getPotionAction,
+   PotionAction(..), getPotionActions, potionUsableBy,
    Bonuses(..), nullBonuses, addBonuses, sumBonuses)
 where
 
@@ -105,6 +105,7 @@ potionName FocusStone = "Focus Stone"
 potionName CuringPotion = "Curing Potion"
 potionName MiracleElixir = "Miracle Elixer"
 potionName PhoenixFeather = "Phoenix Feather"
+potionName MagicCake = "Magic Cake"
 potionName tag = show tag
 
 inertName :: InertItemTag -> String
@@ -219,6 +220,7 @@ potionIconCoords Strawberry = (3, 3)
 potionIconCoords Pear = (3, 4)
 potionIconCoords Lemon = (3, 5)
 potionIconCoords Mushroom = (3, 6)
+potionIconCoords MagicCake = (3, 7)
 
 inertIconCoords :: InertItemTag -> (Int, Int)
 inertIconCoords IronKey = (18, 0)
@@ -275,6 +277,7 @@ potionValue Strawberry = CanSell 10
 potionValue Pear = CanSell 15
 potionValue Lemon = CanSell 18
 potionValue Mushroom = CanSell 12
+potionValue MagicCake = CanSell 100
 potionValue _ = CanSell 10 -- FIXME
 
 inertValue :: InertItemTag -> ItemValue
@@ -308,7 +311,8 @@ itemSubDescription :: ItemTag -> String
 itemSubDescription (WeaponItemTag tag) = wdSubDesc (getWeaponData tag)
 itemSubDescription (ArmorItemTag tag) = adSubDesc (getArmorData tag)
 itemSubDescription (AccessoryItemTag tag) = adSubDesc (getAccessoryData tag)
-itemSubDescription (PotionItemTag tag) = potionSubDesc (getPotionAction tag)
+itemSubDescription (PotionItemTag tag) =
+  concatMap potionSubDesc (getPotionActions tag)
 itemSubDescription (InertItemTag _) = ""
 
 wdSubDesc :: WeaponData -> String
@@ -366,11 +370,21 @@ adSubDesc :: ArmorData -> String
 adSubDesc ad = bonusesSubDesc (adBonuses ad) ++ usableSubDesc (adUsableBy ad)
 
 potionSubDesc :: PotionAction -> String
-potionSubDesc (RestoreHealth h) = "Restores " ++ show h ++ " health\n"
-potionSubDesc (RestoreMana m) = "Restores " ++ show m ++ " mana\n"
-potionSubDesc (RestoreHealthAndMana h m) =
-  "Restores " ++ show h ++ " health and " ++ show m ++ " mana\n"
-potionSubDesc _ = "FIXME"
+potionSubDesc (BoostAdrenaline n) = "Boosts adrenaline by " ++ show n ++ "\n"
+potionSubDesc (CurePoison n) = "Cures up to " ++ show n ++ " poison damage\n"
+potionSubDesc FullyRestoreMojo = "Fully restores mana/focus\n"
+potionSubDesc FullyRestoreHealth = "Fully restores health\n"
+potionSubDesc PurgeAllBadEffects = "Cures all negative status effects\n"
+potionSubDesc (RegenHealth n) =
+  "Regenerates " ++ show n ++ " health over time\n"
+potionSubDesc (RestoreFocus n) = "Restores " ++ show n ++ " focus\n"
+potionSubDesc (RestoreHealth n) = "Restores " ++ show n ++ " health\n"
+potionSubDesc (RestoreMana n) = "Restores " ++ show n ++ " mana\n"
+potionSubDesc (ReviveCharacter n) =
+  "Revives an unconcious party member, with " ++ show n ++ " health\n"
+potionSubDesc (SynthesizeIngredient n) =
+  "Creates " ++ show n ++ " unit" ++ (if n == 1 then "" else "s") ++
+  " of any one ingredient\n"
 
 bonusesSubDesc :: Bonuses -> String
 bonusesSubDesc bonuses = if null bonusLines then "" else
@@ -823,39 +837,57 @@ getAccessoryData WizardsRing = ArmorData
 
 -- TODO: Make potions have a list of actions; separate RestoreHealthAndMana
 data PotionAction = BoostAdrenaline Int
+                  | CurePoison Int
+                  | FullyRestoreMojo
+                  | FullyRestoreHealth
+                  | PurgeAllBadEffects
+                  | RegenHealth Int
                   | RestoreFocus Int
-                  | RestoreHealth Int -- TODO add more
+                  | RestoreHealth Int
                   | RestoreMana Int
-                  | RestoreHealthAndMana Int Int
-                  | RegenHealthAndFullyRestoreMojo Int
                   | ReviveCharacter Int
+                  | SynthesizeIngredient Int
 
-getPotionAction :: PotionItemTag -> PotionAction
-getPotionAction HealingTincture = RestoreHealth 100
-getPotionAction HealingPotion = RestoreHealth 300
-getPotionAction HealingElixir = RestoreHealth 750
-getPotionAction ManaPhilter = RestoreMana 50
-getPotionAction ManaPotion = RestoreMana 120
-getPotionAction ManaElixir = RestoreMana 250
-getPotionAction FocusStone = RestoreFocus 10
-getPotionAction Epinephrine = BoostAdrenaline 50
-getPotionAction PhoenixFeather = ReviveCharacter 50
-getPotionAction Grapes = RestoreHealthAndMana 15 3
-getPotionAction Pineapple = RestoreHealthAndMana 20 5
-getPotionAction Bread = RestoreHealth 30
-getPotionAction Cheese = RestoreHealth 30
-getPotionAction Carrot = RestoreHealth 25
-getPotionAction Fish = RestoreHealth 30
-getPotionAction Meat = RestoreHealth 30
-getPotionAction Eggs = RestoreHealth 20
-getPotionAction Radish = RestoreHealth 25
-getPotionAction Apple = RestoreHealthAndMana 15 3
-getPotionAction Orange = RestoreHealthAndMana 15 5
-getPotionAction Strawberry = RestoreHealthAndMana 10 3
-getPotionAction Pear = RestoreHealthAndMana 15 3
-getPotionAction Lemon = RestoreHealthAndMana 15 5
-getPotionAction Mushroom = RestoreHealth 25
-getPotionAction _ = RestoreHealth 42 -- FIXME
+getPotionActions :: PotionItemTag -> [PotionAction]
+getPotionActions HealingTincture = [RestoreHealth 100]
+getPotionActions HealingPotion = [RestoreHealth 300]
+getPotionActions HealingElixir = [RestoreHealth 750]
+getPotionActions ManaPhilter = [RestoreMana 50]
+getPotionActions ManaPotion = [RestoreMana 120]
+getPotionActions ManaElixir = [RestoreMana 250]
+getPotionActions FocusStone = [RestoreFocus 10]
+getPotionActions Quintessence = [SynthesizeIngredient 20]
+getPotionActions Antidote = [CurePoison 500]
+getPotionActions CuringPotion = [RestoreHealth 300, CurePoison 300]
+getPotionActions MiracleElixir =
+  [FullyRestoreHealth, FullyRestoreMojo, PurgeAllBadEffects]
+getPotionActions Regenelixer = [FullyRestoreMojo, RegenHealth 1000]
+getPotionActions Epinephrine = [BoostAdrenaline 50]
+getPotionActions PhoenixFeather = [ReviveCharacter 50]
+getPotionActions Grapes = [RestoreHealth 15, RestoreMana 3]
+getPotionActions Pineapple = [RestoreHealth 20, RestoreMana 5]
+getPotionActions Bread = [RestoreHealth 30]
+getPotionActions Cheese = [RestoreHealth 30]
+getPotionActions Carrot = [RestoreHealth 25]
+getPotionActions Fish = [RestoreHealth 30]
+getPotionActions Meat = [RestoreHealth 30]
+getPotionActions Eggs = [RestoreHealth 20]
+getPotionActions Radish = [RestoreHealth 25]
+getPotionActions Apple = [RestoreHealth 15, RestoreMana 3]
+getPotionActions Orange = [RestoreHealth 15, RestoreMana 5]
+getPotionActions Strawberry = [RestoreHealth 10, RestoreMana 3]
+getPotionActions Pear = [RestoreHealth 15, RestoreMana 3]
+getPotionActions Lemon = [RestoreHealth 15, RestoreMana 5]
+getPotionActions Mushroom = [RestoreHealth 25]
+getPotionActions MagicCake =
+  [RestoreHealth 25, RegenHealth 75, SynthesizeIngredient 1]
+
+potionUsableBy :: PotionItemTag -> TM.TotalMap CharacterClass Bool
+potionUsableBy ManaPhilter = manaUsersOnly
+potionUsableBy ManaPotion = manaUsersOnly
+potionUsableBy ManaElixir = manaUsersOnly
+potionUsableBy FocusStone = only [WarriorClass, RogueClass]
+potionUsableBy _ = anyone
 
 -------------------------------------------------------------------------------
 

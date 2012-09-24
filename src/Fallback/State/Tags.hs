@@ -318,14 +318,14 @@ data PotionItemTag = HealingTincture | HealingPotion | HealingElixir
                    -- Food:
                    | Grapes | Pineapple | Bread | Cheese | Carrot | Fish | Meat
                    | Eggs | Radish | Apple | Orange | Strawberry | Pear | Lemon
-                   | Mushroom
+                   | Mushroom | MagicCake
   deriving (Bounded, Enum, Eq, Ord, Read, Show)
 
 data InertItemTag = IronKey | BrassKey
   deriving (Bounded, Enum, Eq, Ord, Read, Show)
 
 isFoodItem :: ItemTag -> Bool
-isFoodItem (PotionItemTag t) = Grapes <= t && t <= Mushroom
+isFoodItem (PotionItemTag t) = Grapes <= t && t <= MagicCake
 isFoodItem _ = False
 
 -------------------------------------------------------------------------------

@@ -45,14 +45,14 @@ import Fallback.Mode.Narrate (newNarrateMode)
 import Fallback.Scenario.Abilities (getAbility)
 import Fallback.Scenario.Feats (featCastingCost, featEffect)
 import Fallback.Scenario.MonsterAI (defaultMonsterCombatAI)
-import Fallback.Scenario.Potions (runPotionAction)
+import Fallback.Scenario.Potions (runPotionActions)
 import Fallback.Scenario.Script
 import qualified Fallback.Sound as Sound (playSound)
 import Fallback.State.Action
 import Fallback.State.Area
 import Fallback.State.Combat
 import Fallback.State.Creature
-import Fallback.State.Item (WeaponData(..), getPotionAction)
+import Fallback.State.Item (WeaponData(..))
 import Fallback.State.Party
 import Fallback.State.Resources (Resources, SoundTag(..), rsrcSound)
 import Fallback.State.Simple
@@ -216,10 +216,8 @@ newCombatMode resources modes initState = do
                         ignore else do
                       let cs' = cs { csCommon = (csCommon cs) { acsParty =
                                   partyRemoveItem slot party } }
-                      executeCommand cs' cc NoCost apNeeded $
-                        mapEffect EffCombatArea $
-                        runPotionAction (getPotionAction potionTag) $
-                        ccCharacterNumber cc
+                      executeCommand cs' cc NoCost apNeeded $ do
+                        runPotionActions potionTag $ ccCharacterNumber cc
                     _ -> ignore
                 DoneInventory -> do
                   if isJust mbItemTag then ignore else do

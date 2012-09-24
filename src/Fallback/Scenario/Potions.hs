@@ -17,26 +17,45 @@
 | with Fallback.  If not, see <http://www.gnu.org/licenses/>.                 |
 ============================================================================ -}
 
-module Fallback.Scenario.Potions (runPotionAction) where
+module Fallback.Scenario.Potions (runPotionActions) where
 
 import Fallback.Scenario.Script
-import Fallback.State.Area (AreaEffect)
-import Fallback.State.Item (PotionAction(..))
+import Fallback.State.Item (PotionAction(..), getPotionActions)
 import Fallback.State.Resources (SoundTag(..))
 import Fallback.State.Simple
+import Fallback.State.Tags
+  (ItemTag(PotionItemTag), PotionItemTag(..), isFoodItem)
 
 -------------------------------------------------------------------------------
 
-runPotionAction :: PotionAction -> CharacterNumber -> Script AreaEffect ()
-runPotionAction (RestoreHealth health) charNum = do
-  playSound SndHeal
-  healDamage [(HitCharacter charNum, fromIntegral health)]
-runPotionAction (RestoreMana mana) charNum = do
-  playSound SndHeal
-  alterMana (HitCharacter charNum) (+ mana)
-runPotionAction (RestoreHealthAndMana health mana) charNum = do
-  playSound SndHeal
-  healDamage [(HitCharacter charNum, fromIntegral health)]
-  alterMana (HitCharacter charNum) (+ mana)
+runPotionActions :: (FromAreaEffect f) => PotionItemTag -> CharacterNumber
+                 -> Script f ()
+runPotionActions potTag charNum = do
+  case potTag of
+    FocusStone -> playSound SndHeal
+    PhoenixFeather -> playSound SndRevive
+    _ | isFoodItem (PotionItemTag potTag) -> playSound SndEat
+      | otherwise -> playSound SndDrink
+  mapM_ (runPotionAction charNum) $ getPotionActions potTag
+
+runPotionAction :: (FromAreaEffect f) => CharacterNumber -> PotionAction
+                -> Script f ()
+runPotionAction charNum action = do
+  case action of
+    BoostAdrenaline amount -> do
+      alterAdrenaline charNum (+ amount)
+    CurePoison amount -> do
+      curePoison (HitCharacter charNum) (fromIntegral amount)
+    FullyRestoreMojo -> do
+      restoreMojoToFull charNum
+    RegenHealth amount -> do
+      grantRegeneration (HitCharacter charNum) (fromIntegral amount)
+    RestoreFocus amount -> do
+      alterFocus (HitCharacter charNum) (+ amount)
+    RestoreHealth amount -> do
+      healDamage [(HitCharacter charNum, fromIntegral amount)]
+    RestoreMana amount -> do
+      alterMana (HitCharacter charNum) (+ amount)
+    _ -> debug "FIXME unimplemented potion action"
 
 -------------------------------------------------------------------------------
