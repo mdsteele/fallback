@@ -60,15 +60,6 @@ import Fallback.Utility (flip3, forMaybeM, maybeM, sortKey, unfoldM)
 getAbility :: CharacterClass -> AbilityNumber -> AbilityRank -> Ability
 getAbility characterClass abilityNumber rank =
   case tag of
-    Bash ->
-      meta (FocusCost 1) MeleeOnly SingleTarget $
-      \caster power endPos -> do
-        let effects =
-              (if rank >= Rank3 then (InflictMental Dazed 0.08 :) else id) $
-              (if rank >= Rank2 then (KnockBack :) else id) $
-              [InflictStun (power * ranked 0.4 0.7 0.9)]
-        attackWithExtraEffects caster endPos effects
-    Valiance -> PassiveAbility
     SecondWind ->
       general' (ranked 4 4 3) (FocusCost 1) AutoTarget $ \caster power () -> do
         setCharacterAnim caster (AttackAnim 8)
@@ -78,12 +69,18 @@ getAbility characterClass abilityNumber rank =
         when (rank >= Rank2) $ do
           return () -- TODO reduce bad effects
         wait 16
-    Hardiness -> PassiveAbility
+    Valiance -> PassiveAbility
     Shieldbreaker ->
       meta (FocusCost 1) MeleeOnly SingleTarget $
       \caster power endPos -> do
         let weakness = power * ranked 0.4 0.7 0.9
         attackWithExtraEffects caster endPos [InflictWeakness weakness]
+    Hardiness -> PassiveAbility
+    Regenerate ->
+      general (FocusCost 1) (AllyTarget 8) $ \_caster power eith -> do
+        healAmount <- (ranked 40 70 120 * power *) <$> getRandomR 0.9 1.1
+        playSound SndHeal
+        grantRegeneration (either HitPosition HitCharacter eith) healAmount
     Parry -> PassiveAbility
     Spellshatter ->
       meta (FocusCost 1) MeleeOnly SingleTarget $
@@ -128,7 +125,7 @@ getAbility characterClass abilityNumber rank =
         let halflife = power * ranked 3 4 5 * fromIntegral framesPerRound
         -- TODO sound/doodad
         setFields (SmokeScreen halflife) targets
-    Immunity -> PassiveAbility
+    Stability -> PassiveAbility
     RopeDart ->
       combat (FocusCost 1) (SingleTarget 5) $
       \caster power endPos -> do
@@ -270,18 +267,19 @@ getAbility characterClass abilityNumber rank =
         forM_ targets $ \target -> do
           amount <- (8 * power *) <$> getRandomR 0.9 1.1
           setFields (Webbing amount) [target]
-    Recuperation -> PassiveAbility
-    PoisonShot ->
-      meta (2 `parts` Mandrake) RangedOnly SingleTarget $
-      \caster power endPos -> do
-        let effects = ranked
-              [InflictPoison (0.3 * power)]
-              [InflictPoison (0.4 * power),
-               ExtraDamage AcidDamage (0.3 * power)]
-              [InflictPoison (0.6 * power),
-               ExtraDamage AcidDamage (0.4 * power),
-               (SetField $ PoisonCloud $ power * 8)]
-        attackWithExtraEffects caster endPos effects
+    FirstAid ->
+      general (2 `parts` Mandrake) AutoTarget $ \caster power () -> do
+        setCharacterAnim caster (AttackAnim 12)
+        let baseHealAmount = ranked 20 30 40 * power
+        targets <- randomPermutation =<< getAllAllyTargets
+        -- TODO only affect adjacent targets
+        playSound SndHeal
+        forM_ targets $ \target -> do
+          randMult <- getRandomR 0.9 1.1
+          healDamage [(target, randMult * baseHealAmount)]
+          wait 2
+        wait 12
+    Immunity -> PassiveAbility
     Charm ->
       combat (2 `parts` Potash) (SingleTarget 4) $ \caster power endPos -> do
         characterOffensiveActionTowards caster 8 endPos
@@ -290,7 +288,6 @@ getAbility characterClass abilityNumber rank =
         inflictMentalEffect True (HitPosition endPos)
                             (ranked Confused Charmed Charmed) duration
         -- TODO at rank 3, deal damage if the effect fails
-    EagleEye -> PassiveAbility
     CurseShot ->
       meta (2 `parts` Brimstone) RangedOnly SingleTarget $
       \caster power endPos -> do
@@ -300,8 +297,9 @@ getAbility characterClass abilityNumber rank =
               [InflictCurse (0.35 * power), InflictSlow (0.25 * power),
                InflictWeakness (0.15 * power)]
         attackWithExtraEffects caster endPos effects
-    Summon -> PassiveAbility -- FIXME
+    EagleEye -> PassiveAbility
     FrostShot -> PassiveAbility -- FIXME
+    Summon -> PassiveAbility -- FIXME
     Fireball ->
       combat (mix AquaVitae Naphtha) (SingleTarget $ ranked 5 5 7) $
       \caster power endPos -> do
@@ -498,8 +496,7 @@ getAbility characterClass abilityNumber rank =
       general (ManaCost 4) (AllyTarget 8) $ \_caster power eith -> do
         healAmount <- (ranked 20 35 55 * power *) <$> getRandomR 0.9 1.1
         playSound SndHeal
-        grantRegeneration (either HitPosition HitCharacter eith) healAmount
-        --healDamage [(either HitPosition HitCharacter eith, healAmount)]
+        healDamage [(either HitPosition HitCharacter eith, healAmount)]
     Blessing | rank < Rank3 ->
       general cost (AllyTarget 6) $ \caster power eith -> do
         -- TODO when rank=2, also affect allies adjacent to target
@@ -559,13 +556,13 @@ getAbility characterClass abilityNumber rank =
             forM_ enemies $ \hitTarget -> do
               alterStatus hitTarget (applyStatusDelta delta)
     Hinder -> PassiveAbility -- FIXME
-    Clarity -> PassiveAbility
     Revive ->
       combat (ManaCost 1) (AllyTarget 9) $ \_caster power eith -> do
         health <- (ranked 50 80 95 * power *) <$> getRandomR 0.9 1.1
         playSound SndRevive
         let hitTarget = either HitPosition HitCharacter eith
         reviveTarget hitTarget health
+    Clarity -> PassiveAbility
     GroupHeal ->
       general (ManaCost 20) AutoTarget $ \caster power () -> do
         setCharacterAnim caster (AttackAnim 12)
@@ -832,34 +829,35 @@ abilityFullDescription abilTag abilRank =
     (characterClass, abilNum) = abilityClassAndNumber abilTag
 
 abilityDescription :: AbilityTag -> String
-abilityDescription Bash =
-  "Make a melee weapon attack, stunning the target.\n\
-  \At rank 2, also knocks the target backwards.\n\
-  \At rank 3, may also daze the target."
-abilityDescription Valiance =
-  "Permanently increases the rate at which you gain adrenaline by 10%.\n\
-  \At rank 2, the increase rises to 20%.\n\
-  \At rank 3, the increase rises to 30%."
 abilityDescription SecondWind =
   "Heal yourself of some damage.\n\
   \At rank 2, also partially cures you of negative effects.\n\
   \At rank 3, requires only three action points instead of four."
+abilityDescription Valiance =
+  "Permanently increases the rate at which you gain adrenaline by 10%.\n\
+  \At rank 2, the increase rises to 20%.\n\
+  \At rank 3, the increase rises to 30%."
+abilityDescription Shieldbreaker =
+  "Make a melee weapon attack, weakening the enemy's defenses so that future\
+  \ attacks will deal more damage.\n\
+  \At rank 2, also knocks the target back.\n\
+  \At rank 3, has a chance to also daze the target."
 abilityDescription Hardiness =
   "Permanently increases your armor by 3%.\n\
   \At rank 2, the increase rises to 6%.\n\
   \At rank 3, the increase rises to 10%."
-abilityDescription Shieldbreaker =
-  "Make a melee weapon attack, weakening the enemy's defenses so that future\
-  \ attacks will deal more damage.\n\
-  \At rank 2, the target stays weakened for longer.\n\
-  \At rank 3, this attack will be unmitigated by the target's armor."
+abilityDescription Regenerate =
+  "Cause a single ally to start regenerating health, healing them continuously\
+  \ over time.\n\
+  \At rank 2, regenerates more health, and for a longer time.\n\
+  \At rank 3, regenerates even more health, for an even longer time."
 abilityDescription Parry =
   "Permanently gives you an extra 3% chance to avoid any melee attack.\n\
   \At rank 2, your chance of parrying rises to 6%.\n\
   \At rank 3, your chance of parrying rises to 10%."
 abilityDescription Spellshatter =
-  "Make a melee weapon attack, reducing any and all beneficial status effects\
-  \ currently affecting the target.\n\
+  "Make a powerful melee weapon attack, reducing any and all beneficial status\
+  \ effects currently affecting the target.\n\
   \At rank 2, also curses the target.\n\
   \At rank 3, the status changes also affect enemies adjacent to the target."
 abilityDescription Riposte =
@@ -898,8 +896,8 @@ abilityDescription SmokeBomb =
   \ ranged attacks.\n\
   \At rank 2, creates a larger and longer-lasting cloud of smoke.\n\
   \At rank 3, creates a huge cloud of smoke."
-abilityDescription Immunity =
-  "Permanently increases your poison/acid resistance by 10%.\n\
+abilityDescription Stability =
+  "Permanently increases your stun resistance by 10%.\n\
   \At rank 2, the increase rises to 20%.\n\
   \At rank 3, the increase rises to 40%."
 abilityDescription RopeDart =
@@ -935,38 +933,39 @@ abilityDescription FireShot =
   \At rank 2, adds more damage.\n\
   \At rank 3, also sets the target on fire."
 abilityDescription Entangle =
-  "Entangle a single target, causing them to walk slower for a short time.\n\
-  \At rank 2, entangles a whole area.\n\
+  "Cover a small area with entangling webs, causing those within to walk\
+  \ slower.\n\
+  \At rank 2, also knocks the entangled creatures away from you.\n\
   \At rank 3, also deals a small amount of physical damage."
-abilityDescription Recuperation =
-  "Permanently increases the benefit you receive from restorative spells and\
-  \ potions by 10%.\n\
+abilityDescription FirstAid =
+  "Restores a small amount of health to yourself and to all allies adjacent to\
+  \ you.\n\
+  \At rank 2, heals more damage, and also reduces weakness.\n\
+  \At rank 3, heals even more damage, and also reduces slowness."
+abilityDescription Immunity =
+  "Permanently increases your poison/acid resistance by 10%.\n\
   \At rank 2, the increase rises to 20%.\n\
   \At rank 3, the increase rises to 40%."
-abilityDescription PoisonShot =
-  "Poison the target of your next ranged weapon attack.\n\
-  \At rank 2, also deals additional acid damage.\n\
-  \At rank 3, also releases a small cloud of poisonous gas."
 abilityDescription Charm =
   "Confuse a single enemy, so that it will sometimes attack its own allies.\n\
   \At rank 2, charms the target, so that it always attacks its allies.\n\
   \At rank 3, if the target resists being charmed, it takes damage."
-abilityDescription EagleEye =
-  "Permanently increases your chance to hit with a ranged weapon attack.\n\
-  \At rank 2, also increases your ranged attack damage by 15%.\n\
-  \At rank 3, also increases the maximum range of all your ranged attacks."
 abilityDescription CurseShot =
   "Curse the target of your next ranged weapon attack.\n\
   \At rank 2, also slows the target.\n\
   \At rank 3, also lowers the target's defense."
-abilityDescription Summon =
-  "Bring a single, powerful creature into existence to fight at your side.\n\
-  \At rank 2, summons a more powerful kind of creature.\n\
-  \At rank 3, summons a truly deadly creature."
+abilityDescription EagleEye =
+  "Permanently increases your chance to hit with a ranged weapon attack.\n\
+  \At rank 2, also increases your ranged attack damage by 15%.\n\
+  \At rank 3, also increases the maximum range of all your ranged attacks."
 abilityDescription FrostShot =
   "Your next ranged weapon attack deals extra cold damage to a small area.\n\
   \At rank 2, also covers the area in ice.\n\
   \At rank 3, also stuns everything in the area."
+abilityDescription Summon =
+  "Bring a single, powerful creature into existence to fight at your side.\n\
+  \At rank 2, summons a more powerful kind of creature.\n\
+  \At rank 3, summons a truly deadly creature."
 abilityDescription Fireball =
   "Hurl a ball of fire at a single target.\n\
   \At rank 2, the fireball does more damage.\n\
@@ -1013,7 +1012,7 @@ abilityDescription Rainbow =
   \ harmful status effect on every enemy.\n\
   \At rank 2, grants/inflicts {i}two{_} status effects on every ally/enemy.\n\
   \At rank 3, grants/inflicts {i}three{_} status effects on every ally/enemy."
-abilityDescription Healing = "Restores some health for one target.\n\
+abilityDescription Healing = "Restores some health for one ally.\n\
   \At rank 2, heals more damage.\n\
   \At rank 3, heals even more damage."
 abilityDescription Blessing =
@@ -1034,15 +1033,15 @@ abilityDescription Hinder =
   "Slow several targets, causing them to take turns less often.\n\
   \At rank 2, also ensnares the targets, causing them to walk slower.\n\
   \At rank 3, also has a chance to daze the targets."
-abilityDescription Clarity =
-  "Permanently increases your mental resistance by 20%.\n\
-  \At rank 2, the increase rises to 40%.\n\
-  \At rank 3, the increase rises to 70%."
 abilityDescription Revive =
   "Revive a party member from unconsciousness during combat, restoring a\
   \ small portion of their health.\n\
   \At rank 2, restores more of the target's health.\n\
   \At rank 3, also restores some of the target's mana/focus."
+abilityDescription Clarity =
+  "Permanently increases your mental resistance by 20%.\n\
+  \At rank 2, the increase rises to 40%.\n\
+  \At rank 3, the increase rises to 70%."
 abilityDescription GroupHeal = "Restore some health for all allies.\n\
   \At rank 2, heals more damage.\n\
   \At rank 3, heals even more damage."

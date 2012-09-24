@@ -113,17 +113,17 @@ areaRegion InnerLab = Emitsuibom
 -------------------------------------------------------------------------------
 
 data AbilityTag = AcidRain | AdrenalineRush | Alacrity | ArmorAura | Backstab
-                | Barrier | Bash | BeastCall | Blessing | Charm | Clarity
+                | Barrier | BeastCall | Blessing | Charm | Clarity
                 | Conflagration | Critical | Cure | CurseShot | Detonate
                 | Disjunction | Disruption | Dodge | Drain | EagleEye
-                | Entangle | FinalBlow | FireShot | Fireball | Freeze
-                | FrostShot | GroupHeal | Hardiness | Hasten | Healing
+                | Entangle | FinalBlow | FireShot | Fireball | FirstAid
+                | Freeze | FrostShot | GroupHeal | Hardiness | Hasten | Healing
                 | Hinder | IceBolts | Illusion | Immunity | Invisibility
                 | Lightning | LucentShield | Luminaire | Parry | PoisonGas
-                | PoisonShot | QuickAttack | Rainbow | Recuperation | Restore
-                | Revive | Riposte | RopeDart | SecondWind | Shieldbreaker
-                | Shock | SmokeBomb | Spellshatter | Subsume | Summon | Sunbeam
-                | Valiance | Vanish | Vitriol
+                | QuickAttack | Rainbow | Regenerate | Restore | Revive
+                | Riposte | RopeDart | SecondWind | Shieldbreaker | Shock
+                | SmokeBomb | Spellshatter | Stability | Subsume | Summon
+                | Sunbeam | Valiance | Vanish | Vitriol
   deriving (Bounded, Enum, Eq, Ix, Ord, Show)
 
 abilityName :: AbilityTag -> String
@@ -135,12 +135,12 @@ abilityName CurseShot = "Curse Shot"
 abilityName EagleEye = "Eagle Eye"
 abilityName FinalBlow = "Final Blow"
 abilityName FireShot = "Fire Shot"
+abilityName FirstAid = "First Aid"
 abilityName FrostShot = "Frost Shot"
 abilityName GroupHeal = "Group Heal"
 abilityName IceBolts = "Ice Bolts"
 abilityName LucentShield = "Lucent Shield"
 abilityName PoisonGas = "Poison Gas"
-abilityName PoisonShot = "Poison Shot"
 abilityName QuickAttack = "Quick Attack"
 abilityName RopeDart = "Rope Dart"
 abilityName SecondWind = "Second Wind"
@@ -150,11 +150,11 @@ abilityName tag = show tag
 abilityBijection :: Bij.Bijection (CharacterClass, AbilityNumber) AbilityTag
 abilityBijection = Bij.make $ \tag ->
   case tag of
-    (WarriorClass, Ability0) -> Bash
+    (WarriorClass, Ability0) -> SecondWind
     (WarriorClass, Ability1) -> Valiance
-    (WarriorClass, Ability2) -> SecondWind
+    (WarriorClass, Ability2) -> Shieldbreaker
     (WarriorClass, Ability3) -> Hardiness
-    (WarriorClass, Ability4) -> Shieldbreaker
+    (WarriorClass, Ability4) -> Regenerate
     (WarriorClass, Ability5) -> Parry
     (WarriorClass, Ability6) -> Spellshatter
     (WarriorClass, Ability7) -> Riposte
@@ -164,7 +164,7 @@ abilityBijection = Bij.make $ \tag ->
     (RogueClass, Ability1) -> Backstab
     (RogueClass, Ability2) -> Vanish
     (RogueClass, Ability3) -> SmokeBomb
-    (RogueClass, Ability4) -> Immunity
+    (RogueClass, Ability4) -> Stability
     (RogueClass, Ability5) -> RopeDart
     (RogueClass, Ability6) -> Dodge
     (RogueClass, Ability7) -> Subsume
@@ -173,13 +173,13 @@ abilityBijection = Bij.make $ \tag ->
     (HunterClass, Ability0) -> BeastCall
     (HunterClass, Ability1) -> FireShot
     (HunterClass, Ability2) -> Entangle
-    (HunterClass, Ability3) -> Recuperation
-    (HunterClass, Ability4) -> PoisonShot
+    (HunterClass, Ability3) -> FirstAid
+    (HunterClass, Ability4) -> Immunity
     (HunterClass, Ability5) -> Charm
-    (HunterClass, Ability6) -> EagleEye
-    (HunterClass, Ability7) -> CurseShot
-    (HunterClass, Ability8) -> Summon
-    (HunterClass, Ability9) -> FrostShot
+    (HunterClass, Ability6) -> CurseShot
+    (HunterClass, Ability7) -> EagleEye
+    (HunterClass, Ability8) -> FrostShot
+    (HunterClass, Ability9) -> Summon
     (AlchemistClass, Ability0) -> Fireball
     (AlchemistClass, Ability1) -> Cure
     (AlchemistClass, Ability2) -> Conflagration
@@ -195,8 +195,8 @@ abilityBijection = Bij.make $ \tag ->
     (ClericClass, Ability2) -> Disruption
     (ClericClass, Ability3) -> Restore
     (ClericClass, Ability4) -> Hinder
-    (ClericClass, Ability5) -> Clarity
-    (ClericClass, Ability6) -> Revive
+    (ClericClass, Ability5) -> Revive
+    (ClericClass, Ability6) -> Clarity
     (ClericClass, Ability7) -> GroupHeal
     (ClericClass, Ability8) -> LucentShield
     (ClericClass, Ability9) -> Sunbeam

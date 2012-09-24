@@ -409,7 +409,8 @@ chrResistances char =
         0.9966 ^^ strength * chrAbilityMultiplier Immunity 0.9 0.8 0.6 char
       baseResist ResistMental =
         0.9966 ^^ intellect * chrAbilityMultiplier Clarity 0.8 0.6 0.3 char
-      baseResist ResistStun = 0.9966 ^^ agility
+      baseResist ResistStun =
+        0.9966 ^^ agility * chrAbilityMultiplier Stability 0.9 0.8 0.6 char
   in (*) <$> TM.make baseResist <*> bonusResistances (chrBonuses char)
 
 -- | Get the specified resistance value for a character (including item
@@ -431,7 +432,7 @@ chrPowerModifier char =
   (product $ map bonusPowerModifier $ chrBonusesList char)
 
 chrRecuperation :: Character -> Double
-chrRecuperation = chrAbilityMultiplier Recuperation 1.1 1.2 1.4
+chrRecuperation = product . map bonusRecuperation . chrBonusesList
 
 -- | Get the current speed multiplier for a character, taking skills, item
 -- bonuses, and status effects into account.

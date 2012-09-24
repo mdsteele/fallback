@@ -866,6 +866,7 @@ data Bonuses = Bonuses
     bonusMeleeWeaponDamageMultiplier :: Double,
     bonusPowerModifier :: PowerModifier,
     bonusRangedWeaponDamageMultiplier :: Double,
+    bonusRecuperation :: Double,
     bonusResistances :: Resistances,
     bonusSpeedMultiplier :: Double,
     bonusStats :: Stats }
@@ -878,6 +879,7 @@ nullBonuses = Bonuses
     bonusMeleeWeaponDamageMultiplier = 1,
     bonusPowerModifier = 1,
     bonusRangedWeaponDamageMultiplier = 1,
+    bonusRecuperation = 1,
     bonusResistances = nullResistances,
     bonusSpeedMultiplier = 1,
     bonusStats = nullStats }
@@ -893,6 +895,7 @@ addBonuses b1 b2 = Bonuses
     bonusPowerModifier = bonusPowerModifier b1 * bonusPowerModifier b2,
     bonusRangedWeaponDamageMultiplier = bonusRangedWeaponDamageMultiplier b1 *
                                         bonusRangedWeaponDamageMultiplier b2,
+    bonusRecuperation = bonusRecuperation b1 * bonusRecuperation b2,
     bonusResistances = (*) <$> bonusResistances b1 <*> bonusResistances b2,
     bonusSpeedMultiplier = bonusSpeedMultiplier b1 * bonusSpeedMultiplier b2,
     bonusStats = (+) <$> bonusStats b1 <*> bonusStats b2 }
