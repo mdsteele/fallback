@@ -356,9 +356,9 @@ featDescription NeutronBomb = "Damage and curse all enemies near the target."
 featDescription Longshot = "Fire an arrow at +3 range and +50% damage."
 featDescription Pierce = "Let fly your weapon with such force that it pierces\
   \ through all enemies in a straight line."
+featDescription Multishot = "Fire arrows at up to three different targets."
 featDescription Shortshot =
   "Fire an arrow, at reduced range, for double damage."
-featDescription TripleTap = "Fire three arrows at the same target."
 featDescription Glow = "Use any one ability for one third of its normal cost."
 featDescription Amplify = "Use any one ability, at +50% power."
 featDescription Radiate = "Use any one ability for free."
@@ -377,7 +377,7 @@ featDescription Crisis =
 featDescription _ = "??? FIXME ???"
 
 featIconCoords :: FeatTag -> (Int, Int)
-featIconCoords Concentrate = (9, 9)
+featIconCoords Concentrate = (6, 9)
 featIconCoords Offering = (6, 0)
 featIconCoords SolarFlare = (6, 1)
 featIconCoords Energize = (6, 2)
@@ -390,23 +390,22 @@ featIconCoords LunarBeam = (8, 2)
 featIconCoords PulseOfLife = (9, 0)
 featIconCoords Avatar = (9, 1)
 featIconCoords AllCreation = (9, 2)
-featIconCoords Cripple = (6, 8)
-featIconCoords JumpSlash = (6, 5)
-featIconCoords JumpStrike = (6, 4)
-featIconCoords Rampage = (6, 7)
-featIconCoords Longshot = (7, 4)
-featIconCoords Pierce = (7, 6)
-featIconCoords Shortshot = (7, 5)
-featIconCoords TripleTap = (7, 3)
-featIconCoords Glow = (9, 3)
-featIconCoords Amplify = (9, 4)
-featIconCoords Radiate = (9, 5)
-featIconCoords Resonate = (9, 6)
-featIconCoords TimeStop = (9, 7)
-featIconCoords Catalyze = (9, 8)
-featIconCoords Assassinate = (8, 3)
-featIconCoords Crisis = (8, 4)
-featIconCoords _ = (9, 9) -- FIXME
+featIconCoords Cripple = (10, 0)
+featIconCoords JumpSlash = (10, 4)
+featIconCoords JumpStrike = (10, 5)
+featIconCoords Rampage = (10, 8)
+featIconCoords Longshot = (8, 4)
+featIconCoords Pierce = (7, 8)
+featIconCoords Shortshot = (8, 3)
+featIconCoords Glow = (6, 3)
+featIconCoords Amplify = (6, 4)
+featIconCoords Radiate = (6, 5)
+featIconCoords Resonate = (6, 6)
+featIconCoords TimeStop = (6, 7)
+featIconCoords Catalyze = (6, 8)
+featIconCoords Assassinate = (9, 4)
+featIconCoords Crisis = (9, 3)
+featIconCoords _ = (7, 9) -- FIXME
 
 -------------------------------------------------------------------------------
 

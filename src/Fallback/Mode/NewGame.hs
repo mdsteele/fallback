@@ -105,7 +105,7 @@ initCharacter spec = Character
         RogueClass -> Dagger
         HunterClass -> Shortbow
         AlchemistClass -> Quarterstaff
-        ClericClass -> Dagger
+        ClericClass -> Quarterstaff
         MagusClass -> Dagger
     initRank Ability0 = Just Rank1
     initRank _ = Nothing

@@ -230,8 +230,8 @@ data FeatTag = Concentrate
              | GrandThud | Hammerblow | JumpSlash | JumpStrike | Rampage
              | Spincut | SweepSlash | Whirlwind
              -- For bows and throwing stars:
-             | ExplosiveArrow | Longshot | NeutronBomb | Pierce | Shortshot
-             | SprayArrows | ThunderArrow | TripleTap
+             | ExplosiveArrow | Longshot | Multishot | NeutronBomb | Pierce
+             | Shortshot | SprayArrows | ThunderArrow
              -- For wands:
              | Glow | Amplify | Radiate | Resonate | TimeStop | Catalyze
              -- General:
@@ -254,7 +254,6 @@ featName ExplosiveArrow = "Explosive Arrow"
 featName NeutronBomb = "Neutron Bomb"
 featName SprayArrows = "Spray Arrows"
 featName ThunderArrow = "Thunder Arrow"
-featName TripleTap = "Triple Tap"
 featName TimeStop = "Time Stop"
 featName BattleRoar = "Battle Roar"
 featName HealingRain = "Healing Rain"
@@ -278,18 +277,22 @@ allItemTags =
   map InertItemTag [minBound .. maxBound]
 
 data WeaponItemTag = Sunrod | Starspear | Moonbow | Lifeblade
-                   -- Light swords:
-                   | Dagger | Shortsword | DaemonicDagger
-                   -- Heavy swords:
-                   | Longsword | Flameblade | Soultaker
+                   -- Daggers:
+                   | Dagger | KitchenKnife | NastyKnife | DaemonicDagger
+                   -- Swords:
+                   | Shortsword | Longsword | Greatsword | Gladius | Spatha
+                   | Falchion | Flambard | Soultaker | Icebrand
+                   | MagnumGreatsword
+                   -- Blunt weapons:
+                   | Flail | Mace | Warhammer | Morningstar | FallingStar
                    -- Polearms:
-                   | Quarterstaff | Voulge | Spear | Glaive | Ranseur
-                   | MixingPole
+                   | Quarterstaff | Voulge | Spear | IronSpear | Glaive
+                   | Ranseur | Naginata | MixingPole
                    -- Throwing stars:
                    | ThrowingStar | RazorStar | NeutronStar
                    -- Bows:
                    | Shortbow | Longbow | AssassinsBow | CompositeBow | Bowser
-                   | RainBow | TrineBow | ArtemisBow
+                   | RainBow | BronzeBow | ArtemisBow
                    -- Wands:
                    | SilverWand | JeweledRod | GoldenWand | DiamondRod
                    | ChronosScepter
@@ -308,8 +311,10 @@ data AccessoryItemTag = Alkamulet | ArmorRing | EverwarmPendant | FightersRing
   deriving (Bounded, Enum, Eq, Ord, Read, Show)
 
 data PotionItemTag = HealingTincture | HealingPotion | HealingElixir
-                   | ManaPhilter | ManaElixir | Quintessence
-                   | Antidote | CuringPotion | MiracleElixir
+                   | ManaPhilter | ManaPotion | ManaElixir
+                   | FocusStone | Quintessence
+                   | Antidote | CuringPotion | MiracleElixir | Regenelixer
+                   | Epinephrine | PhoenixFeather
                    -- Food:
                    | Grapes | Pineapple | Bread | Cheese | Carrot | Fish | Meat
                    | Eggs | Radish | Apple | Orange | Strawberry | Pear | Lemon

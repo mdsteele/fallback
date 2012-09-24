@@ -43,7 +43,12 @@ itemName (PotionItemTag tag) = potionName tag
 itemName (InertItemTag tag) = inertName tag
 
 weaponName :: WeaponItemTag -> String
+weaponName KitchenKnife = "Kitchen Knife"
+weaponName NastyKnife = "Nasty Knife"
 weaponName DaemonicDagger = "Daemonic Dagger"
+weaponName MagnumGreatsword = "Magnum Greatsword"
+weaponName FallingStar = "Falling Star"
+weaponName IronSpear = "Iron Spear"
 weaponName MixingPole = "Mixing Pole"
 weaponName ThrowingStar = "Throwing Star"
 weaponName RazorStar = "Razor Star"
@@ -51,7 +56,7 @@ weaponName NeutronStar = "Neutron Star"
 weaponName AssassinsBow = "Assassin's Bow"
 weaponName CompositeBow = "Composite Bow"
 weaponName RainBow = "Rain Bow"
-weaponName TrineBow = "Trine Bow"
+weaponName BronzeBow = "Bronze Bow"
 weaponName ArtemisBow = "Artemis Bow"
 weaponName SilverWand = "Silver Wand"
 weaponName JeweledRod = "Jeweled Rod"
@@ -94,9 +99,12 @@ potionName HealingTincture = "Healing Tincture"
 potionName HealingPotion = "Healing Potion"
 potionName HealingElixir = "Healing Elixer"
 potionName ManaPhilter = "Mana Philter"
+potionName ManaPotion = "Mana Potion"
 potionName ManaElixir = "Mana Elixer"
+potionName FocusStone = "Focus Stone"
 potionName CuringPotion = "Curing Potion"
 potionName MiracleElixir = "Miracle Elixer"
+potionName PhoenixFeather = "Phoenix Feather"
 potionName tag = show tag
 
 inertName :: InertItemTag -> String
@@ -120,89 +128,101 @@ weaponIconCoords Lifeblade = (1, 3)
 weaponIconCoords ThrowingStar = (1, 4)
 weaponIconCoords RazorStar = (1, 5)
 weaponIconCoords NeutronStar = (1, 6)
-weaponIconCoords Dagger = (13, 0)
-weaponIconCoords Shortsword = (13, 1)
-weaponIconCoords Longsword = (13, 2)
-weaponIconCoords DaemonicDagger = (13, 5)
-weaponIconCoords Quarterstaff = (14, 0)
-weaponIconCoords Voulge = (14, 1)
-weaponIconCoords Spear = (14, 2)
-weaponIconCoords Glaive = (14, 3)
-weaponIconCoords Ranseur = (14, 4)
-weaponIconCoords MixingPole = (14, 5)
-weaponIconCoords Shortbow = (3, 0)
-weaponIconCoords Longbow = (3, 1)
-weaponIconCoords AssassinsBow = (3, 2)
-weaponIconCoords CompositeBow = (3, 3)
-weaponIconCoords Bowser = (3, 3)
-weaponIconCoords RainBow = (3, 5)
-weaponIconCoords TrineBow = (3, 6)
-weaponIconCoords ArtemisBow = (3, 7)
-weaponIconCoords SilverWand = (4, 0)
-weaponIconCoords JeweledRod = (4, 1)
-weaponIconCoords GoldenWand = (4, 2)
-weaponIconCoords DiamondRod = (4, 3)
-weaponIconCoords ChronosScepter = (4, 4)
+weaponIconCoords Dagger = (14, 0)
+weaponIconCoords Shortsword = (15, 0)
+weaponIconCoords Longsword = (15, 1)
+weaponIconCoords DaemonicDagger = (14, 6)
+weaponIconCoords Quarterstaff = (13, 0)
+weaponIconCoords Voulge = (13, 1)
+weaponIconCoords Spear = (13, 2)
+weaponIconCoords IronSpear = (13, 3)
+weaponIconCoords Glaive = (13, 4)
+weaponIconCoords Ranseur = (13, 5)
+weaponIconCoords Naginata = (13, 6)
+weaponIconCoords MixingPole = (13, 7)
+weaponIconCoords Shortbow = (12, 0)
+weaponIconCoords Longbow = (12, 1)
+weaponIconCoords AssassinsBow = (12, 2)
+weaponIconCoords CompositeBow = (12, 3)
+weaponIconCoords Bowser = (12, 4)
+weaponIconCoords RainBow = (12, 5)
+weaponIconCoords BronzeBow = (12, 6)
+weaponIconCoords ArtemisBow = (12, 7)
+weaponIconCoords Flail = (16, 3)
+weaponIconCoords Mace = (16, 4)
+weaponIconCoords Warhammer = (16, 5)
+weaponIconCoords Morningstar = (16, 6)
+weaponIconCoords FallingStar = (16, 7)
+weaponIconCoords SilverWand = (17, 0)
+weaponIconCoords JeweledRod = (17, 1)
+weaponIconCoords GoldenWand = (17, 2)
+weaponIconCoords DiamondRod = (17, 3)
+weaponIconCoords ChronosScepter = (17, 4)
 weaponIconCoords _ = (0, 5) -- FIXME
 
 armorIconCoords :: ArmorItemTag -> (Int, Int)
-armorIconCoords AdamantPlate = (10, 6)
-armorIconCoords BrawlersTunic = (10, 0) -- FIXME temporary
-armorIconCoords CottonShirt = (10, 0)
-armorIconCoords DeadeyeJacket = (10, 1) -- FIXME temporary
-armorIconCoords LeatherArmor = (10, 2)
-armorIconCoords IronMail = (10, 3)
-armorIconCoords IronPlate = (10, 4)
-armorIconCoords SteelMail = (11, 3)
-armorIconCoords SteelPlate = (11, 4)
-armorIconCoords SwampLeather = (11, 2)
+armorIconCoords AdamantPlate = (9, 7)
+armorIconCoords BrawlersTunic = (10, 0)
+armorIconCoords CottonShirt = (9, 0)
+armorIconCoords DeadeyeJacket = (10, 2)
+armorIconCoords LeatherArmor = (9, 3)
+armorIconCoords IronMail = (9, 4)
+armorIconCoords IronPlate = (9, 5)
+armorIconCoords SteelMail = (10, 4)
+armorIconCoords SteelPlate = (10, 5)
+armorIconCoords SwampLeather = (10, 3)
 
 accessoryIconCoords :: AccessoryItemTag -> (Int, Int)
-accessoryIconCoords Alkamulet = (8, 3)
-accessoryIconCoords ArmorRing = (9, 0)
-accessoryIconCoords EverwarmPendant = (8, 0)
-accessoryIconCoords FightersRing = (9, 5)
-accessoryIconCoords GlovesOfTanth = (12, 7)
-accessoryIconCoords GroundedCharm = (8, 1)
-accessoryIconCoords IcyNecklace = (8, 2)
-accessoryIconCoords LeatherGloves = (12, 6)
-accessoryIconCoords JeweledPin = (8, 5)
-accessoryIconCoords MedalOfValor = (8, 4)
-accessoryIconCoords MercuricRing = (9, 3)
-accessoryIconCoords ShieldRing = (9, 4)
-accessoryIconCoords TrogloHelmet = (12, 1)
-accessoryIconCoords WizardHat = (12, 0)
-accessoryIconCoords WizardsRing = (9, 2)
+accessoryIconCoords Alkamulet = (6, 3)
+accessoryIconCoords ArmorRing = (7, 1)
+accessoryIconCoords EverwarmPendant = (6, 0)
+accessoryIconCoords FightersRing = (7, 2)
+accessoryIconCoords GlovesOfTanth = (8, 6)
+accessoryIconCoords GroundedCharm = (6, 1)
+accessoryIconCoords IcyNecklace = (6, 2)
+accessoryIconCoords LeatherGloves = (8, 4)
+accessoryIconCoords JeweledPin = (6, 4)
+accessoryIconCoords MedalOfValor = (6, 5)
+accessoryIconCoords MercuricRing = (7, 4)
+accessoryIconCoords ShieldRing = (7, 0)
+accessoryIconCoords TrogloHelmet = (8, 0)
+accessoryIconCoords WizardHat = (8, 3)
+accessoryIconCoords WizardsRing = (7, 3)
 
 potionIconCoords :: PotionItemTag -> (Int, Int)
-potionIconCoords HealingTincture = (2, 0)
-potionIconCoords HealingPotion = (2, 1)
-potionIconCoords HealingElixir = (2, 2)
-potionIconCoords ManaPhilter = (2, 3)
-potionIconCoords ManaElixir = (2, 4)
-potionIconCoords Antidote = (2, 5)
-potionIconCoords CuringPotion = (2, 6)
-potionIconCoords MiracleElixir = (2, 7)
-potionIconCoords Grapes = (6, 0)
-potionIconCoords Pineapple = (6, 1)
-potionIconCoords Bread = (6, 2)
-potionIconCoords Cheese = (6, 3)
-potionIconCoords Carrot = (6, 4)
-potionIconCoords Fish = (6, 5)
-potionIconCoords Meat = (6, 6)
-potionIconCoords Eggs = (6, 7)
-potionIconCoords Radish = (7, 0)
-potionIconCoords Apple = (7, 1)
-potionIconCoords Orange = (7, 2)
-potionIconCoords Strawberry = (7, 3)
-potionIconCoords Pear = (7, 4)
-potionIconCoords Lemon = (7, 5)
-potionIconCoords Mushroom = (7, 6)
-potionIconCoords _ = (0, 0) -- FIXME
+potionIconCoords HealingTincture = (4, 0)
+potionIconCoords HealingPotion = (4, 1)
+potionIconCoords HealingElixir = (4, 2)
+potionIconCoords ManaPhilter = (4, 3)
+potionIconCoords ManaPotion = (4, 4)
+potionIconCoords ManaElixir = (4, 5)
+potionIconCoords FocusStone = (4, 6)
+potionIconCoords Quintessence = (4, 7)
+potionIconCoords Antidote = (5, 0)
+potionIconCoords CuringPotion = (5, 1)
+potionIconCoords MiracleElixir = (5, 2)
+potionIconCoords Regenelixer = (5, 3)
+potionIconCoords Epinephrine = (5, 5)
+potionIconCoords PhoenixFeather = (5, 7)
+potionIconCoords Grapes = (2, 0)
+potionIconCoords Pineapple = (2, 1)
+potionIconCoords Bread = (2, 2)
+potionIconCoords Cheese = (2, 3)
+potionIconCoords Carrot = (2, 4)
+potionIconCoords Fish = (2, 5)
+potionIconCoords Meat = (2, 6)
+potionIconCoords Eggs = (2, 7)
+potionIconCoords Radish = (3, 0)
+potionIconCoords Apple = (3, 1)
+potionIconCoords Orange = (3, 2)
+potionIconCoords Strawberry = (3, 3)
+potionIconCoords Pear = (3, 4)
+potionIconCoords Lemon = (3, 5)
+potionIconCoords Mushroom = (3, 6)
 
 inertIconCoords :: InertItemTag -> (Int, Int)
-inertIconCoords IronKey = (5, 0)
-inertIconCoords BrassKey = (5, 1)
+inertIconCoords IronKey = (18, 0)
+inertIconCoords BrassKey = (18, 1)
 
 -------------------------------------------------------------------------------
 
@@ -350,6 +370,7 @@ potionSubDesc (RestoreHealth h) = "Restores " ++ show h ++ " health\n"
 potionSubDesc (RestoreMana m) = "Restores " ++ show m ++ " mana\n"
 potionSubDesc (RestoreHealthAndMana h m) =
   "Restores " ++ show h ++ " health and " ++ show m ++ " mana\n"
+potionSubDesc _ = "FIXME"
 
 bonusesSubDesc :: Bonuses -> String
 bonusesSubDesc bonuses = if null bonusLines then "" else
@@ -611,14 +632,14 @@ getWeaponData CompositeBow = baseWeaponData
   { wdAppearance = BowAttack,
     wdDamageBonus = 3,
     wdDamageRange = (1, 5),
-    wdFeats = [Shortshot, TripleTap],
+    wdFeats = [Shortshot, Multishot],
     wdRange = Ranged 4,
     wdUsableBy = only [WarriorClass, RogueClass, HunterClass] }
 getWeaponData Bowser = baseWeaponData
   { wdAppearance = BowAttack,
     wdDamageBonus = 2,
     wdDamageRange = (2, 5),
-    wdFeats = [Pierce, TripleTap],
+    wdFeats = [Pierce, Multishot],
     wdRange = Ranged 4,
     wdUsableBy = only [WarriorClass, RogueClass, HunterClass] }
 getWeaponData RainBow = baseWeaponData
@@ -628,7 +649,7 @@ getWeaponData RainBow = baseWeaponData
     wdFeats = [HealingRain],
     wdRange = Ranged 5,
     wdUsableBy = only [HunterClass] }
-getWeaponData TrineBow = baseWeaponData
+getWeaponData BronzeBow = baseWeaponData
   { wdAppearance = BowAttack,
     wdDamageBonus = 2,
     wdDamageRange = (1, 6),
@@ -800,16 +821,25 @@ getAccessoryData WizardsRing = ArmorData
 
 -------------------------------------------------------------------------------
 
-data PotionAction = RestoreHealth Int -- TODO add more
+-- TODO: Make potions have a list of actions; separate RestoreHealthAndMana
+data PotionAction = BoostAdrenaline Int
+                  | RestoreFocus Int
+                  | RestoreHealth Int -- TODO add more
                   | RestoreMana Int
                   | RestoreHealthAndMana Int Int
+                  | RegenHealthAndFullyRestoreMojo Int
+                  | ReviveCharacter Int
 
 getPotionAction :: PotionItemTag -> PotionAction
 getPotionAction HealingTincture = RestoreHealth 100
 getPotionAction HealingPotion = RestoreHealth 300
 getPotionAction HealingElixir = RestoreHealth 750
 getPotionAction ManaPhilter = RestoreMana 50
+getPotionAction ManaPotion = RestoreMana 120
 getPotionAction ManaElixir = RestoreMana 250
+getPotionAction FocusStone = RestoreFocus 10
+getPotionAction Epinephrine = BoostAdrenaline 50
+getPotionAction PhoenixFeather = ReviveCharacter 50
 getPotionAction Grapes = RestoreHealthAndMana 15 3
 getPotionAction Pineapple = RestoreHealthAndMana 20 5
 getPotionAction Bread = RestoreHealth 30

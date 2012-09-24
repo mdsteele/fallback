@@ -90,7 +90,7 @@ data Resources = Resources
 
 newResources :: IO Resources
 newResources = do
-  abilityIcons <- loadSheet "abilities.png" (10, 10)
+  abilityIcons <- loadSheetWithTileSize (34, 34) "abilities.png"
   charSheet <- loadSheet "characters.png" (24, 4)
   cursors <- loadVStrip "gui/cursors.png" 20
   healthManaEtc <- loadHealthManaEtc
